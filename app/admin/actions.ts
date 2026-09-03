@@ -32,8 +32,17 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    // Supabase 원문은 영어라 그대로 보여주지 않는다.
-    // 어느 쪽이 틀렸는지 알려주지 않는 것이 계정 추측을 막는 데도 낫다.
+    // "이메일/비번 틀림"과 "이메일 인증 안 됨"은 구분해서 보여준다.
+    // 관리자 계정이 하나뿐인 사이트라 계정 추측 방지보다, 원인을 알 수
+    // 없어 사장님이 막히는 쪽이 더 큰 문제다.
+    if (error.code === "email_not_confirmed") {
+      return {
+        error:
+          "이 계정은 아직 이메일 인증이 안 됐어요. Supabase 대시보드 " +
+          "Authentication → Users 에서 해당 계정을 열고 이메일을 " +
+          "확인(confirm) 상태로 바꿔주세요.",
+      };
+    }
     return { error: "이메일 또는 비밀번호가 맞지 않습니다." };
   }
 
