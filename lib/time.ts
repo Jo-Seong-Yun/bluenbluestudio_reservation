@@ -89,3 +89,39 @@ export function diffDays(a: DateString, b: DateString): number {
 export function kstToday(now: Date = new Date()): DateString {
   return kstDateString(now);
 }
+
+/**
+ * 그 시점에 KST가 UTC보다 몇 밀리초 앞서는지.
+ *
+ * 한국은 1988년 이후 서머타임이 없어 항상 +9시간이지만, 숫자를 직접 박지 않고
+ * Intl이 알려주는 값에서 끌어낸다. 규칙이 바뀌어도 코드가 따라간다.
+ */
+function kstOffsetMs(instant: Date): number {
+  const p = kstParts(instant);
+  const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
+  // kstParts는 분 단위까지만 주므로 비교 대상도 분 단위로 자른다.
+  const flooredToMinute = Math.floor(instant.getTime() / 60_000) * 60_000;
+  return asIfUtc - flooredToMinute;
+}
+
+/**
+ * KST 벽시계 시각을 실제 시점(UTC)으로 바꾼다.
+ * `kstDateString`/`kstTimeString`의 역방향이다.
+ *
+ *   kstToInstant("2026-09-10", "18:00") → 2026-09-10T09:00:00Z
+ *
+ * DB의 `time` 타입은 "18:00:00" 형태로 오고, Postgres는 "24:00:00"도 허용한다.
+ * 자정 넘김은 Date.UTC의 자동 이월로 처리되므로 따로 다루지 않는다.
+ */
+export function kstToInstant(date: DateString, time: string): Date {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const asIfUtc = Date.UTC(year, month - 1, day, hour, minute);
+  return new Date(asIfUtc - kstOffsetMs(new Date(asIfUtc)));
+}
+
+/** 달력 날짜의 요일. 0=일요일 … 6=토요일 (`weekly_hours.weekday`와 같은 기준) */
+export function weekdayOf(date: DateString): number {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}

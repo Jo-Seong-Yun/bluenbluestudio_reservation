@@ -43,6 +43,10 @@ Supabase를 아직 연결하지 않았다면 [`docs/SUPABASE_SETUP.md`](docs/SUP
 app/                     화면 (App Router)
 lib/
   time.ts                ★ 시간대 규칙. 모든 날짜/시간 계산의 기준
+  availability/
+    slots.ts               ★ 예약 가능 시간 계산 (순수 함수)
+    range.ts               Postgres tstzrange 파싱·겹침 판정
+    load.ts                DB에서 읽어 slots.ts에 넘기는 서버 함수
   supabase/
     client.ts             브라우저용 클라이언트 (anon 키, RLS 적용)
     server.ts              서버 컴포넌트용 클라이언트 (로그인 세션 유지)
@@ -72,6 +76,11 @@ proxy.ts                 (예정, Phase 4) 로그인 세션 갱신 — Next 16�
 `requested`/`confirmed` 예약 두 개를 동시에 넣으면 두 번째가 거절된다.
 "조회 후 저장" 방식의 경쟁 조건을 애초에 차단한다.
 
+**예약 가능 시간은 서버에서만 계산한다.**
+운영시간·휴무·차단 테이블은 관리자 전용 RLS라 손님 키로는 못 읽는다.
+차단 사유("시험", "개인 일정")가 손님에게 새지 않도록, 서버가 대신 읽고
+`lib/availability/load.ts`가 **계산 결과만** 내려준다.
+
 **시간은 전부 `lib/time.ts`를 거친다.**
 저장은 UTC, 계산과 표시는 한국 시간(KST)이다.
 Vercel 서버는 UTC로 도니까 `new Date()`의 날짜를 그대로 믿으면 밤 9시 이후 하루가 어긋난다.
@@ -85,7 +94,7 @@ Vercel 서버는 UTC로 도니까 `new Date()`의 날짜를 그대로 믿으면 
 
 - [x] Phase 1 — 프로젝트 기반
 - [x] Phase 2 — 데이터 모델 (Supabase 프로젝트 연결은 아직. `docs/SUPABASE_SETUP.md` 참고)
-- [ ] Phase 3 — 슬롯 계산 엔진
+- [x] Phase 3 — 슬롯 계산 엔진 (순수 함수·테스트 완료. 라이브 DB 연동은 미검증)
 - [ ] Phase 4 — 관리자: 로그인 + 상품 관리
 - [ ] Phase 5 — 관리자: 스케줄 관리
 - [ ] Phase 6 — 손님 예약 플로우 (MVP)

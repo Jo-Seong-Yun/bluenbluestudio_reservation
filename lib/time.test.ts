@@ -6,6 +6,8 @@ import {
   kstParts,
   kstTimeString,
   kstToday,
+  kstToInstant,
+  weekdayOf,
 } from "./time";
 
 describe("KST 변환", () => {
@@ -78,5 +80,58 @@ describe("당일 예약 차단 규칙의 토대", () => {
     const now = new Date("2026-09-03T16:00:00Z"); // KST로는 이미 9월 4일 새벽 1시
     expect(now.toISOString().slice(0, 10)).toBe("2026-09-03"); // UTC 기준
     expect(kstToday(now)).toBe("2026-09-04"); // 우리가 쓰는 기준
+  });
+});
+
+describe("KST 벽시계 → 실제 시점", () => {
+  it("KST 18:00은 UTC 09:00이다", () => {
+    expect(kstToInstant("2026-09-10", "18:00").toISOString()).toBe(
+      "2026-09-10T09:00:00.000Z",
+    );
+  });
+
+  it("초 단위까지 있는 DB time 값도 받는다", () => {
+    expect(kstToInstant("2026-09-10", "18:00:00").toISOString()).toBe(
+      "2026-09-10T09:00:00.000Z",
+    );
+  });
+
+  it("KST 자정은 전날 UTC 15:00이다", () => {
+    expect(kstToInstant("2026-09-10", "00:00").toISOString()).toBe(
+      "2026-09-09T15:00:00.000Z",
+    );
+  });
+
+  it("Postgres가 허용하는 24:00은 다음 날 자정으로 이월된다", () => {
+    expect(kstToInstant("2026-09-10", "24:00").toISOString()).toBe(
+      kstToInstant("2026-09-11", "00:00").toISOString(),
+    );
+  });
+
+  it("kstDateString/kstTimeString의 역방향이다", () => {
+    for (const [date, time] of [
+      ["2026-01-01", "00:00"],
+      ["2026-06-30", "23:00"],
+      ["2026-12-31", "12:30"],
+      ["2028-02-29", "09:00"],
+    ] as const) {
+      const instant = kstToInstant(date, time);
+      expect(kstDateString(instant)).toBe(date);
+      expect(kstTimeString(instant)).toBe(time);
+    }
+  });
+});
+
+describe("요일 계산", () => {
+  it("0=일요일 … 6=토요일", () => {
+    expect(weekdayOf("2026-09-06")).toBe(0); // 일
+    expect(weekdayOf("2026-09-07")).toBe(1); // 월
+    expect(weekdayOf("2026-09-12")).toBe(6); // 토
+  });
+
+  it("UTC로 돌아도 KST 날짜의 요일이 흔들리지 않는다", () => {
+    // 문자열 날짜 기준이므로 실행 환경 시간대와 무관하다
+    expect(weekdayOf("2026-12-31")).toBe(4); // 목
+    expect(weekdayOf("2027-01-01")).toBe(5); // 금
   });
 });

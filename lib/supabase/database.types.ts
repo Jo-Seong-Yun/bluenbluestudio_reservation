@@ -38,6 +38,7 @@ export interface Database {
           price: number;
         };
         Update: Partial<Database["public"]["Tables"]["products"]["Row"]>;
+        Relationships: [];
       };
       weekly_hours: {
         Row: {
@@ -52,6 +53,7 @@ export interface Database {
           close_time: string;
         };
         Update: Partial<Database["public"]["Tables"]["weekly_hours"]["Row"]>;
+        Relationships: [];
       };
       date_overrides: {
         Row: {
@@ -68,6 +70,7 @@ export interface Database {
           date: string;
         };
         Update: Partial<Database["public"]["Tables"]["date_overrides"]["Row"]>;
+        Relationships: [];
       };
       blocks: {
         Row: {
@@ -80,6 +83,7 @@ export interface Database {
           period: string;
         };
         Update: Partial<Database["public"]["Tables"]["blocks"]["Row"]>;
+        Relationships: [];
       };
       reservations: {
         Row: {
@@ -108,6 +112,14 @@ export interface Database {
           customer_phone: string;
         };
         Update: Partial<Database["public"]["Tables"]["reservations"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "reservations_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       settings: {
         Row: {
@@ -123,8 +135,10 @@ export interface Database {
         };
         Insert: Partial<Database["public"]["Tables"]["settings"]["Row"]>;
         Update: Partial<Database["public"]["Tables"]["settings"]["Row"]>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
     Functions: {
       lookup_reservation: {
         Args: { p_code: string; p_phone: string };
