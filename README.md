@@ -56,7 +56,8 @@ supabase/
   migrations/             스키마 SQL. 파일명 순서대로 적용된다
   seed.sql                로컬 개발용 예시 데이터
 docs/                    기획 문서
-proxy.ts                 (예정, Phase 4) 로그인 세션 갱신 — Next 16의 middleware
+proxy.ts                 로그인 세션 갱신 (Next 16에서 middleware의 새 이름).
+                         /admin 경로에만 걸려 있다
 ```
 
 ## 규칙
@@ -95,6 +96,6 @@ Vercel 서버는 UTC로 도니까 `new Date()`의 날짜를 그대로 믿으면 
 - [x] Phase 1 — 프로젝트 기반
 - [x] Phase 2 — 데이터 모델 (Supabase 프로젝트 연결은 아직. `docs/SUPABASE_SETUP.md` 참고)
 - [x] Phase 3 — 슬롯 계산 엔진 (순수 함수·테스트 완료. 라이브 DB 연동은 미검증)
-- [ ] Phase 4 — 관리자: 로그인 + 상품 관리
+- [x] Phase 4 — 관리자: 로그인 + 상품 관리 (라이브 로그인은 미검증)
 - [ ] Phase 5 — 관리자: 스케줄 관리
 - [ ] Phase 6 — 손님 예약 플로우 (MVP)
