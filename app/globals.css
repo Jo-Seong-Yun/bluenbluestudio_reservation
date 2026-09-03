@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------
+   푸르른 스튜디오 디자인 토큰
+   색은 여기서만 정의하고, 화면에서는 의미 이름(brand, muted 등)만 쓴다.
+   --------------------------------------------------------------- */
+
+:root {
+  --background: #f6f9fc;
+  --surface: #ffffff;
+  --surface-subtle: #eef3f9;
+  --foreground: #0b1b2b;
+  --muted: #5a6b7d;
+  --border: #dbe4ee;
+
+  --brand: #1f47d6; /* 깊은 파랑 — 주요 동작 */
+  --brand-hover: #1a3ab0;
+  --brand-foreground: #ffffff;
+  --accent: #4d9fd6; /* 밝은 파랑 — 강조 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a141f;
+    --surface: #111e2c;
+    --surface-subtle: #16273a;
+    --foreground: #e8eef5;
+    --muted: #93a5b8;
+    --border: #23384e;
+
+    --brand: #5a86ff;
+    --brand-hover: #7b9eff;
+    --brand-foreground: #08111c;
+    --accent: #6fb6e8;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-accent: var(--accent);
+
+  --font-sans: var(--font-noto-sans-kr), system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* 한글은 단어 중간에서 끊기지 않게 */
+:lang(ko) {
+  word-break: keep-all;
+}
