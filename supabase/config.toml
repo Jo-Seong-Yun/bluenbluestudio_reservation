@@ -1,0 +1,9 @@
+# Supabase CLI 설정.
+# `supabase link --project-ref <ref>` 로 실제 프로젝트에 연결한 뒤
+# `supabase db push` 로 supabase/migrations 를 적용한다.
+# 자세한 절차는 docs/SUPABASE_SETUP.md 참고.
+
+project_id = "bluenblue-studio-reservation"
+
+[db]
+major_version = 17

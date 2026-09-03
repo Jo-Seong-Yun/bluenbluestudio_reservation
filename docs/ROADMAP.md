@@ -265,17 +265,24 @@ getAvailableSlots({ date, product }) →
 
 **완료 기준**: 한 줄짜리 페이지가 실제 URL로 열린다.
 
-### Phase 2 — 데이터 모델 (약 1주)
-- [ ] 위 스키마 전부를 마이그레이션 SQL로 작성
-- [ ] `btree_gist` + EXCLUDE 제약 적용
-- [ ] Storage 버킷 생성 (상품 이미지)
-- [ ] RLS 정책
-  - 손님: 공개된 상품 조회, 예약 생성만. 예약 조회는 예약번호+연락처 일치 시
-  - 관리자: 전체 조회·수정
-- [ ] `settings` 기본 한 줄 삽입
-- [ ] 타입 생성 (`supabase gen types typescript`)
+### Phase 2 — 데이터 모델 ✅ 코드 완료 (실제 프로젝트 연결은 대기)
+- [x] 위 스키마 전부를 마이그레이션 SQL로 작성 (`supabase/migrations/`)
+- [x] `btree_gist` + EXCLUDE 제약 적용
+- [x] Storage 버킷 생성 SQL (상품 이미지, `product-images`)
+- [x] RLS 정책
+  - 손님: 공개된 상품 조회, 예약 생성만. 예약 조회는 `lookup_reservation()` 함수로만
+    (테이블 직접 조회는 막아둠 — 그래야 코드+연락처 없이 전체 예약이 새지 않는다)
+  - 관리자: 로그인 여부로 판별. **Supabase Auth 이메일 회원가입을 꺼야 안전함**
+    (`docs/SUPABASE_SETUP.md` 3번)
+- [x] `settings` 기본 한 줄 삽입
+- [x] 타입 작성 (`lib/supabase/database.types.ts`, 손으로 작성 — 연결 후 `npm run db:types`로 재생성)
+- [x] 로컬 Postgres에 6개 마이그레이션 전부 적용해 통과 확인
+- [x] 이중예약 방지 제약 실제 테스트 — 겹침 거절 / 정확 일치 거절 / 연속 시간 통과 / 취소건은 무시됨을 확인
+- [ ] **실제 Supabase 프로젝트에 적용** — 사장님이 프로젝트를 만들고 `docs/SUPABASE_SETUP.md`대로 진행해야 함
 
 **완료 기준**: SQL 콘솔에서 겹치는 예약을 두 번 넣으면 두 번째가 거절된다.
+→ 로컬 Postgres에서 검증 완료. 실제 Supabase 프로젝트에서도 동일하게 동작한다
+(마이그레이션 파일이 그대로 적용되는 SQL이므로).
 
 ### Phase 3 — 슬롯 계산 엔진 (약 1~2주) ★ 최대 난관
 - [ ] `lib/availability` 순수 함수 구현
