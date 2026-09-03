@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/supabase/auth";
+import { missingServerEnv } from "@/lib/supabase/env";
+import { ConfigNotice } from "@/components/config-notice";
 import { signOut } from "../actions";
 import { Button } from "@/components/ui";
 import { SITE } from "@/lib/site";
@@ -16,6 +18,11 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // requireAdmin()보다 먼저 본다. 설정이 없으면 로그인 화면으로 보내봐야
+  // 거기서도 같은 이유로 막히기 때문이다.
+  const missing = missingServerEnv();
+  if (missing.length > 0) return <ConfigNotice missing={missing} />;
+
   await requireAdmin();
 
   return (

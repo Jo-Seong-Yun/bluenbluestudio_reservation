@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/env";
+import {
+  missingAuthEnv,
+  supabasePublishableKey,
+  supabaseUrl,
+} from "@/lib/supabase/env";
 
 /**
  * 관리자 로그인 세션을 갱신한다.
@@ -17,6 +21,10 @@ import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/env";
  * proxy의 낙관적 검사만으로 인가를 대신하지 말라는 게 Next.js 권고다.
  */
 export async function proxy(request: NextRequest) {
+  // 설정이 없으면 여기서 던지지 않고 그냥 통과시킨다. 던지면 페이지에
+  // 닿기도 전에 500이 나서, 화면이 "무엇이 빠졌는지" 알려줄 기회를 잃는다.
+  if (missingAuthEnv().length > 0) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(supabaseUrl(), supabasePublishableKey(), {
