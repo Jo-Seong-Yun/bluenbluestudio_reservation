@@ -125,3 +125,35 @@ export function weekdayOf(date: DateString): number {
   const [year, month, day] = date.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
+
+/** "2026-09" 같은 월 문자열에 달을 더한다. 연도 경계를 넘어가도 안전하다. */
+export function addMonths(month: string, delta: number): string {
+  const [year, m] = month.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, m - 1 + delta, 1));
+  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}`;
+}
+
+/** UTC 시점이 KST로 몇 년 몇 월인지. "2026-09" */
+export function kstMonthString(instant: Date): string {
+  return kstDateString(instant).slice(0, 7);
+}
+
+/**
+ * 달력 한 판(6주, 42칸)에 들어갈 날짜들.
+ * 일요일 시작이며, 그 달 1일 이전/말일 이후 칸도 채워서 돌려준다
+ * (달력에서 흐리게 보여줄 이전/다음 달 날짜들).
+ */
+export function monthGridDates(month: string): DateString[] {
+  const [year, m] = month.split("-").map(Number);
+  const firstOfMonth = new Date(Date.UTC(year, m - 1, 1));
+  const startWeekday = firstOfMonth.getUTCDay(); // 0=일요일
+
+  const dates: DateString[] = [];
+  for (let i = 0; i < 42; i++) {
+    const day = new Date(Date.UTC(year, m - 1, 1 - startWeekday + i));
+    dates.push(
+      `${day.getUTCFullYear()}-${pad(day.getUTCMonth() + 1)}-${pad(day.getUTCDate())}`,
+    );
+  }
+  return dates;
+}

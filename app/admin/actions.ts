@@ -75,7 +75,9 @@ export async function saveProduct(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요." };
+    return {
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.",
+    };
   }
 
   const input = parsed.data;
@@ -162,7 +164,10 @@ export async function moveProduct(formData: FormData) {
 
   await Promise.all(
     reordered.map((product, order) =>
-      supabase.from("products").update({ sort_order: order }).eq("id", product.id),
+      supabase
+        .from("products")
+        .update({ sort_order: order })
+        .eq("id", product.id),
     ),
   );
 

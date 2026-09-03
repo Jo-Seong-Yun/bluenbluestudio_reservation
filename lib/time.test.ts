@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  addMonths,
   diffDays,
   kstDateString,
+  kstMonthString,
   kstParts,
   kstTimeString,
   kstToday,
   kstToInstant,
+  monthGridDates,
   weekdayOf,
 } from "./time";
 
@@ -133,5 +136,66 @@ describe("요일 계산", () => {
     // 문자열 날짜 기준이므로 실행 환경 시간대와 무관하다
     expect(weekdayOf("2026-12-31")).toBe(4); // 목
     expect(weekdayOf("2027-01-01")).toBe(5); // 금
+  });
+});
+
+describe("월 이동", () => {
+  it("다음 달로 넘어간다", () => {
+    expect(addMonths("2026-09", 1)).toBe("2026-10");
+  });
+
+  it("연말을 넘어간다", () => {
+    expect(addMonths("2026-12", 1)).toBe("2027-01");
+  });
+
+  it("연초를 거슬러 넘어간다", () => {
+    expect(addMonths("2026-01", -1)).toBe("2025-12");
+  });
+
+  it("여러 달을 한 번에 넘어간다", () => {
+    expect(addMonths("2026-09", 5)).toBe("2027-02");
+  });
+});
+
+describe("KST 월 문자열", () => {
+  it("KST 자정을 넘기면 다음 달로 셀 수 있다 (월말 근처)", () => {
+    // UTC 8/31 15:00 = KST 9/1 00:00
+    expect(kstMonthString(new Date("2026-08-31T15:00:00Z"))).toBe("2026-09");
+  });
+});
+
+describe("달력 그리드", () => {
+  it("42칸을 만든다", () => {
+    expect(monthGridDates("2026-09")).toHaveLength(42);
+  });
+
+  it("일요일부터 시작한다", () => {
+    const grid = monthGridDates("2026-09");
+    expect(weekdayOf(grid[0])).toBe(0);
+  });
+
+  it("그 달 1일을 포함한다", () => {
+    const grid = monthGridDates("2026-09");
+    expect(grid).toContain("2026-09-01");
+  });
+
+  it("이전 달 끝자락도 채운다 (2026-09-01은 화요일)", () => {
+    const grid = monthGridDates("2026-09");
+    expect(grid[0]).toBe("2026-08-30"); // 일요일
+    expect(grid[1]).toBe("2026-08-31"); // 월요일
+    expect(grid[2]).toBe("2026-09-01"); // 화요일
+  });
+
+  it("날짜가 연속으로 이어진다 (빠지거나 겹치지 않음)", () => {
+    const grid = monthGridDates("2026-09");
+    for (let i = 1; i < grid.length; i++) {
+      expect(diffDays(grid[i - 1], grid[i])).toBe(1);
+    }
+  });
+
+  it("연말 달도 정상 동작한다", () => {
+    const grid = monthGridDates("2026-12");
+    expect(grid).toContain("2026-12-31");
+    expect(grid[grid.length - 1] >= "2027-01-01").toBe(true);
   });
 });

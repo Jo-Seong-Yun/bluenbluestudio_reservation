@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { SITE } from "@/lib/site";
 
 export default function Home() {
@@ -16,18 +17,17 @@ export default function Home() {
       </p>
 
       <div className="mt-10">
-        <span
-          aria-disabled="true"
-          className="border-border bg-surface text-muted inline-flex cursor-not-allowed items-center rounded-full border px-6 py-3 text-base font-medium"
+        <Link
+          href="/booking"
+          className="bg-brand text-brand-foreground hover:bg-brand-hover inline-flex items-center rounded-full px-6 py-3 text-base font-medium transition-colors"
         >
-          예약 준비 중입니다
-        </span>
+          예약하기
+        </Link>
       </div>
 
       <div className="border-border mt-16 border-t pt-8">
         <p className="text-muted text-sm">
-          예약 문의는 인스타그램 DM으로 받고 있습니다. 온라인 예약은 곧
-          열립니다.
+          예약이 어려우시면 인스타그램 DM으로도 문의해주세요.
         </p>
       </div>
     </main>

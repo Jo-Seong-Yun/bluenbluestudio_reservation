@@ -144,6 +144,10 @@ export interface Database {
         Args: { p_code: string; p_phone: string };
         Returns: Database["public"]["Tables"]["reservations"]["Row"][];
       };
+      cancel_reservation: {
+        Args: { p_code: string; p_phone: string };
+        Returns: Database["public"]["Tables"]["reservations"]["Row"][];
+      };
     };
   };
 }
