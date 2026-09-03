@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireAdmin } from "@/lib/supabase/auth";
 import { ProductForm } from "../product-form";
 
 export const metadata: Metadata = { title: "상품 추가" };
 
 export default async function NewProductPage() {
-  await requireAdmin();
+  // 로그인 확인은 app/admin/(dashboard)/layout.tsx 가 이미 한다.
+  // 여기서 또 하면 Supabase 인증 서버를 왕복 호출을 한 번 더 하게 되어
+  // 화면마다 그만큼 느려진다.
 
   return (
     <div>

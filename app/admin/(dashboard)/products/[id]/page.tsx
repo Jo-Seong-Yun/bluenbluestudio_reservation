@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/supabase/auth";
 import { ProductForm } from "../product-form";
 
 export const metadata: Metadata = { title: "상품 수정" };
@@ -10,7 +9,7 @@ export const metadata: Metadata = { title: "상품 수정" };
 export default async function EditProductPage({
   params,
 }: PageProps<"/admin/products/[id]">) {
-  await requireAdmin();
+  // 로그인 확인은 app/admin/(dashboard)/layout.tsx 가 이미 한다.
 
   const { id } = await params;
   const supabase = await createClient();

@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/supabase/auth";
 import { Button, ErrorText } from "@/components/ui";
 import { moveProduct, togglePublished } from "../../actions";
 
 export const metadata: Metadata = { title: "상품 관리" };
 
 export default async function ProductsPage() {
-  await requireAdmin();
+  // 로그인 확인은 app/admin/(dashboard)/layout.tsx 가 이미 한다.
+  // 여기서 또 하면 Supabase 인증 서버를 왕복 호출을 한 번 더 하게 되어
+  // 화면마다 그만큼 느려진다.
 
   const supabase = await createClient();
   const { data: products, error } = await supabase
