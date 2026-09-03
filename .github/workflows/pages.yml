@@ -36,11 +36,6 @@ jobs:
       - name: 테스트
         run: npm test
 
-      - name: Pages 설정 (없으면 활성화)
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
       - name: 정적 빌드
         run: npm run build
         env:
