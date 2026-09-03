@@ -12,21 +12,49 @@
 
 ## 2. 키 값 가져오기
 
-프로젝트 좌측 메뉴 **Project Settings → API**에서 세 값을 확인한다.
+Supabase 대시보드가 개편되면서 **`Project Settings → API` 메뉴는 없어졌다.**
+아래 세 가지 방법 중 하나로 찾는다.
 
-| 화면에 보이는 이름 | `.env.local`의 변수명 |
-|---|---|
-| Project URL | `NEXT_PUBLIC_SUPABASE_URL` |
-| anon public | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
-| service_role (⚠️ secret) | `SUPABASE_SERVICE_ROLE_KEY` |
+### 가장 쉬운 방법 — Connect 버튼
+
+프로젝트 상단의 **Connect** 버튼을 누르고 프레임워크에서 **Next.js**를 고르면,
+`.env`에 그대로 붙여넣을 수 있는 형태로 URL과 공개 키가 함께 나온다.
+
+### 메뉴로 찾기
+
+- **Settings → API Keys** — 키 두 개
+- **Settings → API Settings** — 프로젝트 URL
+
+### 주소로 바로 가기
+
+```
+https://supabase.com/dashboard/project/<프로젝트ID>/settings/api
+```
+
+### 채워야 할 값
+
+Supabase는 2026년 말까지 기존 `anon` / `service_role` 키를 없애고
+새 키 체계로 넘어가는 중이다. 새로 만든 프로젝트라면 새 키가 나온다.
+둘 중 어느 쪽이 보이든 아래 표대로 넣으면 된다 — **값은 그대로 호환되고
+코드는 고칠 필요가 없다.**
+
+| 화면에 보이는 것                       | 옛 이름      | `.env.local` 변수명                    |
+| -------------------------------------- | ------------ | -------------------------------------- |
+| Project URL                            | 동일         | `NEXT_PUBLIC_SUPABASE_URL`             |
+| Publishable key (`sb_publishable_...`) | anon public  | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
+| Secret key (`sb_secret_...`)           | service_role | `SUPABASE_SECRET_KEY`                  |
+
+키 화면에 **Publishable and secret API keys** 탭과 **Legacy API keys** 탭이
+따로 있을 수 있다. 새 프로젝트라면 앞쪽 탭을 쓰면 된다.
 
 ```bash
 cp .env.example .env.local
 # .env.local 을 열어 위 세 값을 채운다
 ```
 
-`service_role` 키는 절대 남에게 보여주거나 커밋하면 안 된다.
+**Secret key는 절대 남에게 보여주거나 커밋하면 안 된다.**
 이 키를 가진 사람은 RLS를 무시하고 모든 데이터에 접근할 수 있다.
+Publishable key는 브라우저에 노출돼도 괜찮다 — 그쪽은 RLS가 막아준다.
 
 ## 3. 이메일 회원가입 끄기 — 반드시 할 것
 

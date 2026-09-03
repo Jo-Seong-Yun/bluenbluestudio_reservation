@@ -59,9 +59,11 @@ proxy.ts                 (예정, Phase 4) 로그인 세션 갱신 — Next 16�
 
 **비밀 키 세 층.**
 
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — 브라우저에 노출돼도 되는 키. RLS가 실제 방어선
-- `SUPABASE_SERVICE_ROLE_KEY` — RLS를 완전히 우회한다. `lib/supabase/admin.ts`에서만,
-  서버 코드에서만 쓴다. `"server-only"` 임포트가 실수로 클라이언트에 섞이는 걸 막아준다
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (`sb_publishable_...`, 옛 이름 anon)
+  — 브라우저에 노출돼도 되는 키. RLS가 실제 방어선
+- `SUPABASE_SECRET_KEY` (`sb_secret_...`, 옛 이름 service_role)
+  — RLS를 완전히 우회한다. `lib/supabase/admin.ts`에서만, 서버 코드에서만 쓴다.
+  `"server-only"` 임포트가 실수로 클라이언트에 섞이는 걸 막아준다
 - 관리자 권한 = "로그인한 사용자". 그래서 Supabase Auth의 이메일 회원가입을
   반드시 꺼둬야 한다 (`docs/SUPABASE_SETUP.md` 3번)
 
@@ -77,7 +79,7 @@ Vercel 서버는 UTC로 도니까 `new Date()`의 날짜를 그대로 믿으면 
 
 **비밀 키는 커밋하지 않는다.**
 `.env*`는 `.gitignore`에 있다.
-`SUPABASE_SERVICE_ROLE_KEY`는 서버에서만 쓰고 `NEXT_PUBLIC_` 접두사를 붙이지 않는다.
+`SUPABASE_SECRET_KEY`는 서버에서만 쓰고 `NEXT_PUBLIC_` 접두사를 붙이지 않는다.
 
 ## 진행 상황
 

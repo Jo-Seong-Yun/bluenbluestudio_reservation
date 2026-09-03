@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./database.types";
-import { supabaseServiceRoleKey, supabaseUrl } from "./env";
+import { supabaseSecretKey, supabaseUrl } from "./env";
 
 /**
  * service role 키로 만드는 관리용 클라이언트. RLS를 완전히 우회한다.
@@ -16,11 +16,7 @@ import { supabaseServiceRoleKey, supabaseUrl } from "./env";
  * import하면 빌드 시점에 에러가 난다. 절대 브라우저로 보내면 안 되는 키다.
  */
 export function createAdminClient() {
-  return createSupabaseClient<Database>(
-    supabaseUrl(),
-    supabaseServiceRoleKey(),
-    {
-      auth: { autoRefreshToken: false, persistSession: false },
-    },
-  );
+  return createSupabaseClient<Database>(supabaseUrl(), supabaseSecretKey(), {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
