@@ -12,7 +12,7 @@ export default function LookupPage() {
       </Link>
       <h1 className="mt-2 text-2xl font-bold">예약 조회</h1>
       <p className="text-muted mt-2 text-sm">
-        예약할 때 안내받은 예약번호와 연락처를 입력해주세요.
+        예약하실 때 입력하신 연락처를 넣으시면 예약 내역을 볼 수 있어요.
       </p>
 
       <div className="mt-8">

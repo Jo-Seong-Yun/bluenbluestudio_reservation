@@ -47,7 +47,7 @@ export function BookingForm({
         </p>
         <p className="mt-3 text-2xl font-bold tracking-wide">{state.code}</p>
         <p className="text-muted mt-1 text-sm">
-          이 예약번호를 저장해두세요. 나중에 조회·취소할 때 필요해요.
+          예약 내역은 입력하신 연락처로 언제든 다시 조회할 수 있어요.
         </p>
 
         <dl className="mt-4 space-y-1 text-sm">

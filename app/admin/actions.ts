@@ -173,3 +173,41 @@ export async function moveProduct(formData: FormData) {
 
   revalidatePath("/admin/products");
 }
+
+const RESERVATION_STATUSES = [
+  "requested",
+  "confirmed",
+  "completed",
+  "cancelled",
+  "no_show",
+] as const;
+
+export async function updateReservationStatus(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const rawStatus = String(formData.get("status") ?? "");
+  const status = RESERVATION_STATUSES.find((value) => value === rawStatus);
+  if (!id || !status) return;
+
+  const supabase = await createClient();
+  await supabase.from("reservations").update({ status }).eq("id", id);
+
+  revalidatePath("/admin/reservations");
+}
+
+export async function saveAdminMemo(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const adminMemo = String(formData.get("adminMemo") ?? "").trim();
+
+  const supabase = await createClient();
+  await supabase
+    .from("reservations")
+    .update({ admin_memo: adminMemo || null })
+    .eq("id", id);
+
+  revalidatePath("/admin/reservations");
+}

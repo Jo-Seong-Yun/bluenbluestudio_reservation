@@ -148,6 +148,17 @@ export interface Database {
         Args: { p_code: string; p_phone: string };
         Returns: Database["public"]["Tables"]["reservations"]["Row"][];
       };
+      lookup_reservations_by_phone: {
+        Args: { p_phone: string };
+        Returns: {
+          code: string;
+          status: ReservationStatus;
+          shoot_start: string;
+          shoot_end: string;
+          customer_name: string;
+          product_name: string;
+        }[];
+      };
     };
   };
 }

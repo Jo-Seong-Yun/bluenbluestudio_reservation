@@ -4,7 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { loadAvailableSlots } from "@/lib/availability/load";
 import { generateReservationCode } from "@/lib/booking/code";
 import { kstToInstant } from "@/lib/time";
-import { reservationSchema, lookupSchema } from "@/lib/validation/reservation";
+import {
+  reservationSchema,
+  lookupSchema,
+  phoneLookupSchema,
+} from "@/lib/validation/reservation";
 import { toTstzRange } from "@/lib/availability/range";
 
 export type ReservationActionState =
@@ -233,5 +237,62 @@ export async function cancelReservation(
       customerName: reservation.customer_name,
     },
     canCancel: false,
+  };
+}
+
+export type PhoneReservation = {
+  code: string;
+  status: string;
+  shootStart: string;
+  shootEnd: string;
+  customerName: string;
+  productName: string;
+};
+
+export type PhoneLookupState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "found"; phone: string; reservations: PhoneReservation[] };
+
+/** 전화번호 하나로 그 번호에 걸린 예약을 전부 찾는다. */
+export async function lookupReservationsByPhone(
+  _prev: PhoneLookupState,
+  formData: FormData,
+): Promise<PhoneLookupState> {
+  const parsed = phoneLookupSchema.safeParse({ phone: formData.get("phone") });
+  if (!parsed.success) {
+    return {
+      status: "error",
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("lookup_reservations_by_phone", {
+    p_phone: parsed.data.phone,
+  });
+
+  if (error) {
+    return { status: "error", error: `조회에 실패했습니다: ${error.message}` };
+  }
+
+  if (!data || data.length === 0) {
+    return {
+      status: "error",
+      error: "이 연락처로 등록된 예약을 찾지 못했어요.",
+    };
+  }
+
+  return {
+    status: "found",
+    phone: parsed.data.phone,
+    reservations: data.map((row) => ({
+      code: row.code,
+      status: row.status,
+      shootStart: row.shoot_start,
+      shootEnd: row.shoot_end,
+      customerName: row.customer_name,
+      productName: row.product_name,
+    })),
   };
 }

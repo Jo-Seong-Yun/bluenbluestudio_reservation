@@ -106,4 +106,5 @@ Vercel 서버는 UTC로 도니까 `new Date()`의 날짜를 그대로 믿으면 
 - [x] Phase 3 — 슬롯 계산 엔진 (순수 함수·테스트 완료. 라이브 DB 연동은 미검증)
 - [x] Phase 4 — 관리자: 로그인 + 상품 관리
 - [ ] Phase 5 — 관리자: 스케줄 관리 (지금은 Supabase Table Editor로 직접 입력)
-- [x] Phase 6 — 손님 예약 플로우 (MVP) — 라이브 DB 연동은 미검증
+- [x] Phase 6 — 손님 예약 플로우 (MVP)
+- [x] Phase 7 일부 — 관리자: 예약 관리 화면 (달력 + 상세 패널)

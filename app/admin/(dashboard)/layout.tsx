@@ -32,12 +32,18 @@ export default async function AdminLayout({
           <Link href="/admin/products" className="font-bold">
             {SITE.name}
           </Link>
-          <nav className="flex-1">
+          <nav className="flex flex-1 gap-4">
             <Link
               href="/admin/products"
               className="text-muted hover:text-foreground text-sm"
             >
               상품 관리
+            </Link>
+            <Link
+              href="/admin/reservations"
+              className="text-muted hover:text-foreground text-sm"
+            >
+              예약 관리
             </Link>
           </nav>
           <form action={signOut}>

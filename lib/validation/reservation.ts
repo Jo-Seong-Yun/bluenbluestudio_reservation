@@ -24,14 +24,22 @@ export const reservationSchema = z.object({
 
 export type ReservationInput = z.infer<typeof reservationSchema>;
 
+const phoneField = z
+  .string()
+  .trim()
+  .regex(/^01[0-9]{8,9}$/, "연락처는 숫자만, 010으로 시작해 입력해주세요.");
+
+/** 전화번호만으로 예약 목록을 찾을 때. */
+export const phoneLookupSchema = z.object({
+  phone: phoneField,
+});
+
 /**
- * 예약 조회 폼 검증. 예약번호는 화면에 항상 대문자로 보여주지만,
- * 손님이 소문자로 치거나 붙여넣기 하면서 앞뒤 공백이 붙을 수 있어 정리한다.
+ * 예약번호 + 연락처로 정확히 한 건을 집을 때(취소 직전 등).
+ * 예약번호는 화면에 항상 대문자로 보여주지만, 손님이 소문자로 치거나
+ * 붙여넣기 하면서 앞뒤 공백이 붙을 수 있어 정리한다.
  */
 export const lookupSchema = z.object({
   code: z.string().trim().toUpperCase().min(1, "예약번호를 입력해주세요."),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^01[0-9]{8,9}$/, "연락처는 숫자만, 010으로 시작해 입력해주세요."),
+  phone: phoneField,
 });
