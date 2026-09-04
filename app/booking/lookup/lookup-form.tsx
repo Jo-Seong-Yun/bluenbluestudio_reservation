@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import {
   lookupReservationsByPhone,
   cancelReservation,
@@ -100,9 +101,13 @@ export function LookupForm() {
   );
 
   if (list) {
+    // 결과는 3단으로 넓게 펼쳐야 하니 폭 제한 없이, 페이지 컨테이너
+    // (max-w-4xl)를 그대로 쓴다.
     return (
       <div>
-        <div className="grid gap-6 sm:grid-cols-3">
+        <Header />
+
+        <div className="mt-8 grid gap-6 sm:grid-cols-3">
           {GROUPS.map((group) => {
             const items = list.filter((r) =>
               (group.statuses as readonly string[]).includes(r.status),
@@ -154,28 +159,46 @@ export function LookupForm() {
   }
 
   return (
-    // 조회 전에는 입력칸 하나뿐이라 좁게, 결과가 나오면(위 분기) 페이지
-    // 폭을 그대로 다 쓴다. 그래서 이 너비 제한은 여기 안에만 둔다.
-    <form action={lookupAction} className="max-w-sm space-y-4">
-      <Field label="연락처" hint="예약하실 때 입력하신 번호예요.">
-        <input
-          name="phone"
-          type="tel"
-          inputMode="numeric"
-          placeholder="01012345678"
-          required
-          className={inputClass}
-        />
-      </Field>
+    // 조회 전에는 입력칸 하나뿐이라, 좁은 카드를 페이지 가운데 놓는다.
+    // 결과가 나오면(위 분기) 이 폭 제한 없이 페이지 전체를 쓴다.
+    <div className="mx-auto max-w-sm">
+      <Header />
 
-      <ErrorText>
-        {lookupState.status === "error" ? lookupState.error : null}
-      </ErrorText>
+      <form action={lookupAction} className="mt-8 space-y-4">
+        <Field label="연락처" hint="예약하실 때 입력하신 번호예요.">
+          <input
+            name="phone"
+            type="tel"
+            inputMode="numeric"
+            placeholder="01012345678"
+            required
+            className={inputClass}
+          />
+        </Field>
 
-      <Button type="submit" disabled={lookupPending} className="w-full">
-        {lookupPending ? "조회 중…" : "조회하기"}
-      </Button>
-    </form>
+        <ErrorText>
+          {lookupState.status === "error" ? lookupState.error : null}
+        </ErrorText>
+
+        <Button type="submit" disabled={lookupPending} className="w-full">
+          {lookupPending ? "조회 중…" : "조회하기"}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function Header() {
+  return (
+    <>
+      <Link href="/booking" className="text-muted text-sm hover:underline">
+        ← 상품 목록
+      </Link>
+      <h1 className="mt-2 text-2xl font-bold">예약 조회</h1>
+      <p className="text-muted mt-2 text-sm">
+        예약하실 때 입력하신 연락처를 넣으시면 예약 내역을 볼 수 있어요.
+      </p>
+    </>
   );
 }
 
