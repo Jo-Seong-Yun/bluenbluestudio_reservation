@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { productSchema, toSlug } from "@/lib/validation/product";
 import { addDays, diffDays, kstToInstant, type DateString } from "@/lib/time";
-import { toTstzRange } from "@/lib/availability/range";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -288,10 +287,10 @@ export async function saveWeeklyHours(formData: FormData) {
 /**
  * 주간 캘린더의 칸 하나(1시간) 클릭 토글.
  *
- * 정확히 그 1시간과 같은 구간의 차단이 있으면 지우고(해제), 없으면
- * 새로 만든다(차단). "구간 차단 추가" 폼으로 만든, 정확히 이 시간과
- * 일치하지 않는 넓은 차단은 여기서 건드리지 않는다 — 그런 차단은
- * 아래 목록에서 따로 지운다.
+ * "정확히 겹치는 차단이 있으면 지우고, 없으면 만든다"는 판단과 실행을
+ * DB 함수(toggle_block_hour, migrations/20260904000400) 안에서 한 번에
+ * 처리한다. 예전엔 select로 확인한 뒤 delete/insert를 또 불렀는데,
+ * 클릭 한 번마다 Vercel↔Supabase 왕복이 두 번 생겨 그만큼 굼떴다.
  */
 export async function toggleBlockHour(formData: FormData) {
   await requireAdmin();
@@ -302,20 +301,12 @@ export async function toggleBlockHour(formData: FormData) {
 
   const start = kstToInstant(date, hour);
   const end = new Date(start.getTime() + 60 * 60_000);
-  const period = toTstzRange({ start, end });
 
   const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from("blocks")
-    .select("id")
-    .eq("period", period)
-    .maybeSingle();
-
-  if (existing) {
-    await supabase.from("blocks").delete().eq("id", existing.id);
-  } else {
-    await supabase.from("blocks").insert({ period });
-  }
+  await supabase.rpc("toggle_block_hour", {
+    p_start: start.toISOString(),
+    p_end: end.toISOString(),
+  });
 
   revalidatePath("/admin/schedule");
 }

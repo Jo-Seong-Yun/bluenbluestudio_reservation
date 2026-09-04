@@ -183,15 +183,21 @@ export default async function SchedulePage({
 
   // 미리보기: 손님 화면과 완전히 같은 함수(loadAvailableSlots)를 그대로 불러
   // 계산한다 — 여기서 따로 판정 로직을 만들면 둘이 어긋날 수 있다.
+  //
+  // "확인"을 눌러 previewProduct가 실제로 쿼리스트링에 들어왔을 때만
+  // 계산한다. 그냥 기본값으로 항상 계산해버리면, 주간 캘린더에서 칸 하나
+  // 클릭할 때마다(=이 페이지 전체가 다시 렌더링될 때마다) 이 계산까지
+  // 매번 다시 돌아 반응이 느려진다 — 아무도 미리보기를 보고 있지 않을 때도.
   const previewDateParam = first(sp.previewDate);
   const previewDate =
     previewDateParam && DATE_RE.test(previewDateParam)
       ? previewDateParam
       : days[0];
-  const previewProduct = first(sp.previewProduct) || productRows?.[0]?.id || "";
-  const previewSlots = previewProduct
+  const previewProductParam = first(sp.previewProduct);
+  const previewProduct = previewProductParam || productRows?.[0]?.id || "";
+  const previewSlots = previewProductParam
     ? await loadAvailableSlots({ date: previewDate, productId: previewProduct })
-    : [];
+    : null;
 
   const upcomingOverrides = overrideRows ?? [];
 
@@ -405,25 +411,31 @@ export default async function SchedulePage({
               </Button>
             </form>
 
-            <div className="mt-4">
-              <p className="text-sm font-medium">{previewDate}</p>
-              {previewSlots.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {previewSlots.map((slot) => (
-                    <span
-                      key={slot.time}
-                      className="border-border bg-surface-subtle rounded-lg border px-2 py-1 text-xs"
-                    >
-                      {slot.time}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted mt-2 text-sm">
-                  이 날은 예약 가능한 시간이 없어요.
-                </p>
-              )}
-            </div>
+            {previewSlots !== null ? (
+              <div className="mt-4">
+                <p className="text-sm font-medium">{previewDate}</p>
+                {previewSlots.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {previewSlots.map((slot) => (
+                      <span
+                        key={slot.time}
+                        className="border-border bg-surface-subtle rounded-lg border px-2 py-1 text-xs"
+                      >
+                        {slot.time}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted mt-2 text-sm">
+                    이 날은 예약 가능한 시간이 없어요.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted mt-4 text-sm">
+                상품과 날짜를 고르고 확인을 눌러보세요.
+              </p>
+            )}
           </>
         ) : (
           <p className="text-muted mt-3 text-sm">

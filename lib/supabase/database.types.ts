@@ -159,6 +159,10 @@ export interface Database {
           product_name: string;
         }[];
       };
+      toggle_block_hour: {
+        Args: { p_start: string; p_end: string };
+        Returns: boolean;
+      };
     };
   };
 }

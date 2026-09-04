@@ -1,3 +1,6 @@
+"use client";
+
+import { useOptimistic, useTransition } from "react";
 import { toggleBlockHour } from "@/app/admin/actions";
 import type { DateString } from "@/lib/time";
 
@@ -17,6 +20,8 @@ export type DayColumn = {
   cells: WeekCell[];
 };
 
+type ToggleTarget = { date: DateString; hour: string };
+
 const CELL_STYLE: Record<CellState, string> = {
   open: "bg-surface border-border border hover:bg-zinc-100 dark:hover:bg-zinc-800",
   blocked: "bg-zinc-600 text-white hover:bg-zinc-500",
@@ -29,6 +34,11 @@ const CELL_STYLE: Record<CellState, string> = {
  *
  * 열려 있는 칸과 차단된 칸만 클릭할 수 있다 — 클릭하면 그 자리에서 바로
  * 차단/해제가 토글된다. 예약이 있는 칸은 여기서 손대지 않는다.
+ *
+ * 클릭하면 서버 응답을 기다리지 않고 그 칸 색부터 먼저 바꾼다
+ * (useOptimistic). 실제 서버 액션은 뒤에서 처리되고, 실패하면 다음
+ * 렌더링에서 원래 데이터로 되돌아간다. 이게 없으면 Vercel↔Supabase
+ * 왕복이 끝날 때까지(약간의 지연) 클릭이 씹힌 것처럼 느껴진다.
  */
 export function WeekGrid({
   hours,
@@ -37,6 +47,37 @@ export function WeekGrid({
   hours: number[];
   columns: DayColumn[];
 }) {
+  const [, startTransition] = useTransition();
+  const [optimisticColumns, applyToggle] = useOptimistic(
+    columns,
+    (state, target: ToggleTarget) =>
+      state.map((col) =>
+        col.date !== target.date
+          ? col
+          : {
+              ...col,
+              cells: col.cells.map((cell) =>
+                cell.hour !== target.hour
+                  ? cell
+                  : {
+                      ...cell,
+                      state: cell.state === "blocked" ? "open" : "blocked",
+                    },
+              ),
+            },
+      ),
+  );
+
+  function handleToggle(target: ToggleTarget) {
+    startTransition(async () => {
+      applyToggle(target);
+      const formData = new FormData();
+      formData.set("date", target.date);
+      formData.set("hour", target.hour);
+      await toggleBlockHour(formData);
+    });
+  }
+
   return (
     <div>
       <div className="overflow-x-auto">
@@ -44,7 +85,7 @@ export function WeekGrid({
           <thead>
             <tr>
               <th className="w-10" />
-              {columns.map((col) => {
+              {optimisticColumns.map((col) => {
                 const day = Number(col.date.slice(8, 10));
                 const color =
                   col.weekday === 0
@@ -66,9 +107,13 @@ export function WeekGrid({
                 <td className="text-muted pr-1 text-right align-middle">
                   {String(hour).padStart(2, "0")}시
                 </td>
-                {columns.map((col) => (
+                {optimisticColumns.map((col) => (
                   <td key={col.date}>
-                    <Cell date={col.date} cell={col.cells[hourIndex]} />
+                    <Cell
+                      date={col.date}
+                      cell={col.cells[hourIndex]}
+                      onToggle={handleToggle}
+                    />
                   </td>
                 ))}
               </tr>
@@ -81,7 +126,15 @@ export function WeekGrid({
   );
 }
 
-function Cell({ date, cell }: { date: DateString; cell: WeekCell }) {
+function Cell({
+  date,
+  cell,
+  onToggle,
+}: {
+  date: DateString;
+  cell: WeekCell;
+  onToggle: (target: ToggleTarget) => void;
+}) {
   if (cell.state === "reserved") {
     return (
       <div
@@ -97,19 +150,18 @@ function Cell({ date, cell }: { date: DateString; cell: WeekCell }) {
     return <div className={`h-8 w-full rounded ${CELL_STYLE.closed}`} />;
   }
 
-  // open, blocked: 클릭 한 번으로 바로 토글된다.
+  // open, blocked: 클릭 한 번으로 바로 토글된다. active:scale로 눌리는
+  // 느낌을 즉시 주고(네트워크와 무관하게 항상 바로 반응), 색 자체도
+  // 서버 응답을 기다리지 않고 optimistic하게 먼저 바뀐다.
   return (
-    <form action={toggleBlockHour}>
-      <input type="hidden" name="date" value={date} />
-      <input type="hidden" name="hour" value={cell.hour} />
-      <button
-        type="submit"
-        title={cell.label}
-        className={`h-8 w-full rounded transition-colors ${CELL_STYLE[cell.state]}`}
-      >
-        {cell.state === "blocked" ? "해제" : ""}
-      </button>
-    </form>
+    <button
+      type="button"
+      onClick={() => onToggle({ date, hour: cell.hour })}
+      title={cell.label}
+      className={`h-8 w-full rounded transition-[background-color,transform] duration-100 active:scale-90 ${CELL_STYLE[cell.state]}`}
+    >
+      {cell.state === "blocked" ? "해제" : ""}
+    </button>
   );
 }
 
