@@ -58,7 +58,7 @@ export function LookupForm() {
     }
   }
 
-  const [, cancelAction, cancelPending] = useActionState(
+  const [cancelState, cancelAction, cancelPending] = useActionState(
     async (_prev: LookupState, formData: FormData) => {
       const result = await cancelReservation(_prev, formData);
       if (
@@ -134,6 +134,24 @@ export function LookupForm() {
                         >
                           {cancelPending ? "취소하는 중…" : "이 예약 취소하기"}
                         </Button>
+
+                        {/* 이 예약에 대한 취소 시도 결과만 여기 보여준다.
+                            성공(=상태가 cancelled로 바뀜)이면 위쪽 분기가
+                            "이미 취소된 예약이에요"로 자동으로 바뀌므로
+                            여기서는 실패한 경우만 신경 쓰면 된다. */}
+                        <div className="mt-2">
+                          {cancelState.status === "error" ? (
+                            <ErrorText>{cancelState.error}</ErrorText>
+                          ) : null}
+                          {cancelState.status === "found" &&
+                          cancelState.reservation.code === reservation.code &&
+                          cancelState.reservation.status !== "cancelled" ? (
+                            <ErrorText>
+                              취소 기한이 지났거나 이미 처리된 예약이라 취소할
+                              수 없어요. 스튜디오로 문의해주세요.
+                            </ErrorText>
+                          ) : null}
+                        </div>
                       </form>
                     ) : reservation.status === "cancelled" ? (
                       <p className="text-muted mt-2 text-sm">
