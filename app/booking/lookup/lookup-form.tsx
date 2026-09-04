@@ -23,17 +23,18 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 /**
- * 화면은 크게 세 칸으로 나눈다. requested(접수 대기)는 아직 살아있는
- * 예약이라 "확정된 예약" 칸에 함께 두고, no_show는 촬영이 성사되지
- * 않았다는 점에서 "취소된 예약" 칸에 함께 둔다.
+ * 화면은 크게 세 칸으로 나눈다. requested(접수 대기)는 사장님이 아직
+ * 확정하지 않은 신청 단계라 "완료된 예약" 칸에 먼저 들어가고, 사장님이
+ * 확정 처리하면 그때 "확정된 예약" 칸으로 넘어간다. no_show는 촬영이
+ * 성사되지 않았다는 점에서 "취소된 예약" 칸에 함께 둔다.
  */
 const GROUPS = [
-  { key: "completed", title: "완료된 예약", statuses: ["completed"] },
   {
-    key: "confirmed",
-    title: "확정된 예약",
-    statuses: ["confirmed", "requested"],
+    key: "completed",
+    title: "완료된 예약",
+    statuses: ["completed", "requested"],
   },
+  { key: "confirmed", title: "확정된 예약", statuses: ["confirmed"] },
   {
     key: "cancelled",
     title: "취소된 예약",
@@ -109,9 +110,13 @@ export function LookupForm() {
 
         <div className="mt-8 grid gap-6 sm:grid-cols-3">
           {GROUPS.map((group) => {
-            const items = list.filter((r) =>
-              (group.statuses as readonly string[]).includes(r.status),
-            );
+            // 칸 안에서는 이른 시간이 위로 오게 정렬한다. shootStart는
+            // ISO 문자열이라 그냥 문자열 비교로도 시간 순서와 같다.
+            const items = list
+              .filter((r) =>
+                (group.statuses as readonly string[]).includes(r.status),
+              )
+              .sort((a, b) => a.shootStart.localeCompare(b.shootStart));
             return (
               <div key={group.key}>
                 <h2 className="text-muted mb-2 text-xs font-bold tracking-wide uppercase">
