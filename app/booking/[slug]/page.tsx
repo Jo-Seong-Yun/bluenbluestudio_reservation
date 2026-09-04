@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadAvailableDates } from "@/lib/availability/load";
+import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { Markdown } from "@/components/markdown";
 import { Calendar } from "@/components/calendar";
 import { publicImageUrl } from "@/lib/images";
@@ -39,16 +40,22 @@ export default async function ProductDetailPage({
       .maybeSingle(),
     supabase
       .from("settings")
-      .select("min_lead_days, max_advance_days")
+      .select("slot_interval_min, min_lead_days, max_advance_days")
       .eq("id", 1)
       .single(),
   ]);
 
   if (!product) notFound();
 
+  const availabilitySettings: AvailabilitySettings = {
+    slotIntervalMin: settings?.slot_interval_min ?? 60,
+    minLeadDays: settings?.min_lead_days ?? 1,
+    maxAdvanceDays: settings?.max_advance_days ?? 60,
+  };
+
   const today = kstToday();
-  const earliestBookable = addDays(today, settings?.min_lead_days ?? 1);
-  const latestBookable = addDays(today, settings?.max_advance_days ?? 60);
+  const earliestBookable = addDays(today, availabilitySettings.minLeadDays);
+  const latestBookable = addDays(today, availabilitySettings.maxAdvanceDays);
   const minMonth = today.slice(0, 7);
   const maxMonth = latestBookable.slice(0, 7);
 
@@ -63,6 +70,7 @@ export default async function ProductDetailPage({
     productId: product.id,
     from: grid[0],
     to: grid[grid.length - 1],
+    settings: availabilitySettings,
   });
 
   return (

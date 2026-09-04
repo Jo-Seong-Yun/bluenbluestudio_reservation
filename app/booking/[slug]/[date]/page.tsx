@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadAvailableSlots } from "@/lib/availability/load";
+import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { kstToday, diffDays } from "@/lib/time";
 import { BookingForm } from "./booking-form";
 
@@ -25,7 +26,9 @@ export default async function DateSlotsPage({
       .maybeSingle(),
     supabase
       .from("settings")
-      .select("bank_account, notice")
+      .select(
+        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice",
+      )
       .eq("id", 1)
       .single(),
   ]);
@@ -36,7 +39,19 @@ export default async function DateSlotsPage({
   // 링크가 잘못 저장돼 있거나 시간이 지나 재방문한 경우 조용히 되돌린다.
   if (diffDays(kstToday(), date) < 0) notFound();
 
-  const slots = await loadAvailableSlots({ date, productId: product.id });
+  const availabilitySettings: AvailabilitySettings | undefined = settings
+    ? {
+        slotIntervalMin: settings.slot_interval_min,
+        minLeadDays: settings.min_lead_days,
+        maxAdvanceDays: settings.max_advance_days,
+      }
+    : undefined;
+
+  const slots = await loadAvailableSlots({
+    date,
+    productId: product.id,
+    settings: availabilitySettings,
+  });
 
   const [year, month, day] = date.split("-");
 
