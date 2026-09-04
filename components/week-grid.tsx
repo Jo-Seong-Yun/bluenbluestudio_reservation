@@ -18,10 +18,14 @@ export type DayColumn = {
   cells: WeekCell[];
 };
 
+// 차단 상태는 두 종류(정확히 1시간짜리, 구간 차단으로 생긴 것)를 굳이
+// 다른 색으로 구분하지 않는다 — 사장님 입장에선 "막혀 있다"는 사실이
+// 중요하지, 어떤 방식으로 막았는지가 중요하지 않다. 그래서 같은 회색을 쓰고,
+// 칸 안의 글자(해제/차단)로만 "클릭해도 되는지"를 구분한다.
 const CELL_STYLE: Record<CellState, string> = {
-  open: "bg-surface border-border border hover:bg-red-100 dark:hover:bg-red-950",
-  blocked: "bg-red-500 text-white hover:bg-red-600",
-  "blocked-bulk": "bg-red-500/30 text-red-800 dark:text-red-300",
+  open: "bg-surface border-border border hover:bg-zinc-100 dark:hover:bg-zinc-800",
+  blocked: "bg-zinc-600 text-white hover:bg-zinc-500",
+  "blocked-bulk": "bg-zinc-600 text-white",
   reserved: "bg-emerald-500/25 text-emerald-800 dark:text-emerald-300",
   closed: "bg-surface-subtle/50",
 };
@@ -35,11 +39,9 @@ const CELL_STYLE: Record<CellState, string> = {
  * 여기서 직접 손대지 않는다 (아래 목록에서 다룬다).
  */
 export function WeekGrid({
-  week,
   hours,
   columns,
 }: {
-  week: string;
   hours: number[];
   columns: DayColumn[];
 }) {
@@ -74,11 +76,7 @@ export function WeekGrid({
                 </td>
                 {columns.map((col) => (
                   <td key={col.date}>
-                    <Cell
-                      week={week}
-                      date={col.date}
-                      cell={col.cells[hourIndex]}
-                    />
+                    <Cell date={col.date} cell={col.cells[hourIndex]} />
                   </td>
                 ))}
               </tr>
@@ -91,43 +89,46 @@ export function WeekGrid({
   );
 }
 
-function Cell({
-  week,
-  date,
-  cell,
-}: {
-  week: string;
-  date: DateString;
-  cell: WeekCell;
-}) {
-  const interactive = cell.state === "open" || cell.state === "blocked";
-
-  if (!interactive) {
+function Cell({ date, cell }: { date: DateString; cell: WeekCell }) {
+  if (cell.state === "reserved") {
     return (
       <div
         title={cell.label}
-        className={`flex h-8 w-full items-center justify-center truncate rounded ${CELL_STYLE[cell.state]}`}
+        className={`flex h-8 w-full items-center justify-center truncate rounded ${CELL_STYLE.reserved}`}
       >
-        {cell.state === "reserved"
-          ? "예약"
-          : cell.state === "blocked-bulk"
-            ? "차단"
-            : ""}
+        예약
       </div>
     );
   }
 
+  if (cell.state === "blocked-bulk") {
+    return (
+      <div
+        title={`${cell.label ? cell.label + " · " : ""}구간 차단 — 아래 목록에서 해제`}
+        className={`flex h-8 w-full items-center justify-center truncate rounded ${CELL_STYLE["blocked-bulk"]}`}
+      >
+        차단
+      </div>
+    );
+  }
+
+  if (cell.state === "closed") {
+    return <div className={`h-8 w-full rounded ${CELL_STYLE.closed}`} />;
+  }
+
+  // open, blocked: 클릭 한 번으로 바로 토글된다.
   return (
     <form action={toggleBlockHour}>
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="hour" value={cell.hour} />
-      <input type="hidden" name="week" value={week} />
       <button
         type="submit"
-        title={cell.label}
+        title={
+          cell.state === "blocked" ? "클릭하면 해제돼요" : "클릭하면 차단돼요"
+        }
         className={`h-8 w-full rounded transition-colors ${CELL_STYLE[cell.state]}`}
       >
-        {cell.state === "blocked" ? "차단" : ""}
+        {cell.state === "blocked" ? "해제" : ""}
       </button>
     </form>
   );
@@ -140,10 +141,9 @@ function Legend() {
         className="bg-surface border-border border"
         label="빈 시간 — 클릭하면 차단"
       />
-      <LegendItem className="bg-red-500" label="차단됨 — 클릭하면 해제" />
       <LegendItem
-        className="bg-red-500/30"
-        label="구간 차단 — 아래 목록에서 해제"
+        className="bg-zinc-600"
+        label="차단됨 — 한 칸 차단은 클릭하면 해제, 구간 차단은 아래 목록에서 해제"
       />
       <LegendItem className="bg-emerald-500/25" label="예약 있음" />
       <LegendItem className="bg-surface-subtle/50" label="운영시간 아님" />

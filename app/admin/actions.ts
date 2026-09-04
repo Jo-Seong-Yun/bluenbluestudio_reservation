@@ -251,11 +251,13 @@ export async function deleteReservation(formData: FormData) {
  * weekly_hours / date_overrides / blocks 세 테이블을 다룬다.
  * 계산 로직(무엇이 열려 있는가)은 항상 lib/availability에만 두고,
  * 여기 액션들은 그 테이블의 행을 쓰는 일만 한다.
+ *
+ * redirect()를 쓰지 않는다 — 다른 가벼운 토글 액션들(togglePublished,
+ * moveProduct 등)과 같은 이유다. 지금 보고 있는 페이지에 그대로 남아
+ * revalidatePath로만 갱신해야, 매 클릭마다 페이지 전체를 다시 내비게이션하며
+ * 5개 쿼리를 처음부터 다시 부르는 지연이 없다. 특히 주간 캘린더는 한 칸
+ * 클릭마다 이 액션이 불리므로 여기서의 딜레이가 그대로 체감된다.
  */
-
-function scheduleRedirect(week: string): never {
-  redirect(`/admin/schedule?week=${week}`);
-}
 
 /**
  * 요일별 기본 운영시간 저장. 한 요일에는 항상 구간을 하나만 둔다
@@ -270,7 +272,6 @@ export async function saveWeeklyHours(formData: FormData) {
   const closed = formData.get("closed") === "on";
   const openTime = String(formData.get("openTime") ?? "");
   const closeTime = String(formData.get("closeTime") ?? "");
-  const week = String(formData.get("week") ?? "");
   if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) return;
 
   const supabase = await createClient();
@@ -282,7 +283,6 @@ export async function saveWeeklyHours(formData: FormData) {
   }
 
   revalidatePath("/admin/schedule");
-  scheduleRedirect(week);
 }
 
 /**
@@ -298,7 +298,6 @@ export async function toggleBlockHour(formData: FormData) {
 
   const date = String(formData.get("date") ?? "");
   const hour = String(formData.get("hour") ?? "");
-  const week = String(formData.get("week") ?? "");
   if (!date || !hour) return;
 
   const start = kstToInstant(date, hour);
@@ -319,7 +318,6 @@ export async function toggleBlockHour(formData: FormData) {
   }
 
   revalidatePath("/admin/schedule");
-  scheduleRedirect(week);
 }
 
 /**
@@ -333,7 +331,6 @@ export async function addBlockRange(formData: FormData) {
   const startTime = String(formData.get("startTime") ?? "");
   const endTime = String(formData.get("endTime") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
-  const week = String(formData.get("week") ?? "");
   if (!date || !startTime || !endTime) return;
 
   const start = kstToInstant(date, startTime);
@@ -346,21 +343,18 @@ export async function addBlockRange(formData: FormData) {
     .insert({ period: toTstzRange({ start, end }), reason: reason || null });
 
   revalidatePath("/admin/schedule");
-  scheduleRedirect(week);
 }
 
 export async function removeBlock(formData: FormData) {
   await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
-  const week = String(formData.get("week") ?? "");
   if (!id) return;
 
   const supabase = await createClient();
   await supabase.from("blocks").delete().eq("id", id);
 
   revalidatePath("/admin/schedule");
-  scheduleRedirect(week);
 }
 
 /**
@@ -378,7 +372,6 @@ export async function saveDateOverrideRange(formData: FormData) {
   const openTime = String(formData.get("openTime") ?? "");
   const closeTime = String(formData.get("closeTime") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
-  const week = String(formData.get("week") ?? "");
 
   if (!startDate || endDate < startDate) return;
   if (!closed && (!openTime || !closeTime)) return;
@@ -399,19 +392,16 @@ export async function saveDateOverrideRange(formData: FormData) {
   await supabase.from("date_overrides").upsert(rows, { onConflict: "date" });
 
   revalidatePath("/admin/schedule");
-  scheduleRedirect(week);
 }
 
 export async function removeDateOverride(formData: FormData) {
   await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
-  const week = String(formData.get("week") ?? "");
   if (!id) return;
 
   const supabase = await createClient();
   await supabase.from("date_overrides").delete().eq("id", id);
 
   revalidatePath("/admin/schedule");
-  scheduleRedirect(week);
 }

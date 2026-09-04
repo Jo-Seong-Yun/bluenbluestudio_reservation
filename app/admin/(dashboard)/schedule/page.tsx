@@ -234,7 +234,6 @@ export default async function SchedulePage({
                 className="flex flex-wrap items-center gap-2"
               >
                 <input type="hidden" name="weekday" value={weekday} />
-                <input type="hidden" name="week" value={week} />
                 <span className={`w-6 shrink-0 text-sm font-medium ${color}`}>
                   {label}
                 </span>
@@ -286,7 +285,7 @@ export default async function SchedulePage({
           </div>
         </div>
 
-        <WeekGrid week={week} hours={hours} columns={columns} />
+        <WeekGrid hours={hours} columns={columns} />
       </section>
 
       <section className="border-border bg-surface mb-6 rounded-xl border p-4">
@@ -300,7 +299,6 @@ export default async function SchedulePage({
           action={addBlockRange}
           className="mt-3 flex flex-wrap items-end gap-2"
         >
-          <input type="hidden" name="week" value={week} />
           <Field label="날짜">
             <input
               type="date"
@@ -354,7 +352,6 @@ export default async function SchedulePage({
                 </span>
                 <form action={removeBlock}>
                   <input type="hidden" name="id" value={block.id} />
-                  <input type="hidden" name="week" value={week} />
                   <Button
                     type="submit"
                     variant="ghost"
@@ -384,7 +381,6 @@ export default async function SchedulePage({
           action={saveDateOverrideRange}
           className="mt-3 flex flex-wrap items-end gap-2"
         >
-          <input type="hidden" name="week" value={week} />
           <Field label="시작일">
             <input
               type="date"
@@ -449,7 +445,6 @@ export default async function SchedulePage({
                 </span>
                 <form action={removeDateOverride}>
                   <input type="hidden" name="id" value={o.id} />
-                  <input type="hidden" name="week" value={week} />
                   <Button
                     type="submit"
                     variant="ghost"
