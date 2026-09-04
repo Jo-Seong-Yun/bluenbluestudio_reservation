@@ -65,15 +65,25 @@ export function Calendar({
           const inMonth = date.startsWith(month);
           const available = inMonth && availableDates.has(date);
           const day = Number(date.slice(8, 10));
-          const isSunday = weekdayOf(date) === 0;
+          const weekday = weekdayOf(date);
+
+          // 요일 글자색은 예약 가능 여부와 무관하게 항상 같은 규칙을 쓴다.
+          // 일요일 빨강, 토요일 파랑(브랜드 색 재사용), 평일은 기본 글자색.
+          // 예약 가능 여부는 배경색으로만 구분한다(요청사항).
+          const weekdayColor =
+            weekday === 0
+              ? "text-red-600 dark:text-red-400"
+              : weekday === 6
+                ? "text-brand"
+                : "text-foreground";
 
           if (!available) {
             return (
               <div
                 key={date}
-                className={`text-muted/40 rounded-lg py-2.5 text-sm ${
-                  inMonth ? "" : "opacity-0"
-                }`}
+                className={`aspect-square rounded-md text-sm ${
+                  inMonth ? `${weekdayColor} opacity-40` : "opacity-0"
+                } flex items-center justify-center`}
                 aria-hidden={!inMonth}
               >
                 {day}
@@ -85,9 +95,7 @@ export function Calendar({
             <Link
               key={date}
               href={`${basePath}/${date}`}
-              className={`bg-brand/15 hover:bg-brand hover:text-brand-foreground rounded-lg py-2.5 text-sm font-medium transition-colors ${
-                isSunday ? "text-red-600 dark:text-red-400" : "text-brand"
-              } hover:!text-brand-foreground`}
+              className={`bg-brand/15 hover:bg-brand hover:text-brand-foreground aspect-square rounded-md text-sm font-medium transition-colors ${weekdayColor} flex items-center justify-center`}
             >
               {day}
             </Link>

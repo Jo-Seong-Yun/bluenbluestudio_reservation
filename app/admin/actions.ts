@@ -211,3 +211,34 @@ export async function saveAdminMemo(formData: FormData) {
 
   revalidatePath("/admin/reservations");
 }
+
+/**
+ * 예약 완전 삭제.
+ *
+ * "취소"와 다르다 — 행 자체를 지운다. 되돌릴 수 없고, 손님도 예약
+ * 조회에서 더는 찾을 수 없게 된다. 그래서 이 액션 자체에는 확인 절차를
+ * 두지 않는다 — "정말 삭제하시겠습니까?" → "삭제"를 직접 입력해야
+ * 눌리는 2중 확인은 실수 방지가 목적이라 화면(delete-reservation-
+ * button.tsx)에서 다루고, 여기서는 그 확인을 통과해 넘어온 요청을
+ * 그대로 처리한다.
+ */
+export async function deleteReservation(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const month = String(formData.get("month") ?? "");
+  const date = String(formData.get("date") ?? "");
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("reservations").delete().eq("id", id);
+  if (error) return;
+
+  revalidatePath("/admin/reservations");
+
+  const params = new URLSearchParams();
+  if (month) params.set("month", month);
+  if (date) params.set("date", date);
+  redirect(`/admin/reservations?${params.toString()}`);
+}

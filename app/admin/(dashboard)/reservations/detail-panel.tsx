@@ -2,6 +2,7 @@ import Link from "next/link";
 import { updateReservationStatus, saveAdminMemo } from "@/app/admin/actions";
 import { Button } from "@/components/ui";
 import { kstTimeString } from "@/lib/time";
+import { DeleteReservationButton } from "./delete-reservation-button";
 
 type ReservationRow = {
   id: string;
@@ -172,6 +173,19 @@ function ReservationDetail({
           메모 저장
         </Button>
       </form>
+
+      {/* 상태 버튼들과 시각적으로 분리해둔다 — 되돌릴 수 없는 동작이라
+          실수로 다른 버튼과 헷갈려 누르는 일이 없어야 한다. */}
+      <div className="mt-6 border-t border-dashed border-red-300 pt-4 dark:border-red-900">
+        <p className="text-muted mb-2 text-xs">
+          아래는 되돌릴 수 없는 작업이에요.
+        </p>
+        <DeleteReservationButton
+          id={reservation.id}
+          month={month}
+          date={date}
+        />
+      </div>
     </div>
   );
 }
