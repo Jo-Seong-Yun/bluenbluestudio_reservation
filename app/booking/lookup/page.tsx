@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "예약 조회" };
 
 export default function LookupPage() {
   return (
-    <main className="mx-auto w-full max-w-sm px-6 py-16">
+    <main className="mx-auto w-full max-w-4xl px-6 py-16">
       <Link href="/booking" className="text-muted text-sm hover:underline">
         ← 상품 목록
       </Link>

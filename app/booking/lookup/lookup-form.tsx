@@ -154,7 +154,9 @@ export function LookupForm() {
   }
 
   return (
-    <form action={lookupAction} className="space-y-4">
+    // 조회 전에는 입력칸 하나뿐이라 좁게, 결과가 나오면(위 분기) 페이지
+    // 폭을 그대로 다 쓴다. 그래서 이 너비 제한은 여기 안에만 둔다.
+    <form action={lookupAction} className="max-w-sm space-y-4">
       <Field label="연락처" hint="예약하실 때 입력하신 번호예요.">
         <input
           name="phone"
