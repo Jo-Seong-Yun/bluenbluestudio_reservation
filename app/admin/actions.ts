@@ -321,43 +321,6 @@ export async function toggleBlockHour(formData: FormData) {
 }
 
 /**
- * 하루 안의 시간 구간을 한 번에 차단. 여러 칸을 하나하나 누르지 않고
- * "오늘 14시~17시" 처럼 한 번에 막을 때 쓴다. 사유도 여기서만 남긴다.
- */
-export async function addBlockRange(formData: FormData) {
-  await requireAdmin();
-
-  const date = String(formData.get("date") ?? "");
-  const startTime = String(formData.get("startTime") ?? "");
-  const endTime = String(formData.get("endTime") ?? "");
-  const reason = String(formData.get("reason") ?? "").trim();
-  if (!date || !startTime || !endTime) return;
-
-  const start = kstToInstant(date, startTime);
-  const end = kstToInstant(date, endTime);
-  if (end <= start) return;
-
-  const supabase = await createClient();
-  await supabase
-    .from("blocks")
-    .insert({ period: toTstzRange({ start, end }), reason: reason || null });
-
-  revalidatePath("/admin/schedule");
-}
-
-export async function removeBlock(formData: FormData) {
-  await requireAdmin();
-
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-
-  const supabase = await createClient();
-  await supabase.from("blocks").delete().eq("id", id);
-
-  revalidatePath("/admin/schedule");
-}
-
-/**
  * 날짜 단위 휴무/특별 운영시간을 여러 날에 한 번에 등록.
  * 시험기간처럼 "12/1 ~ 12/10 통째로 휴무" 같은 걸 한 번에 처리하려고
  * 범위로 받아 날짜 수만큼 행을 만든다. date_overrides.date가

@@ -12,8 +12,6 @@ import {
 import { addDays, kstToday, kstToInstant, weekdayOf } from "@/lib/time";
 import {
   saveWeeklyHours,
-  addBlockRange,
-  removeBlock,
   saveDateOverrideRange,
   removeDateOverride,
 } from "@/app/admin/actions";
@@ -156,25 +154,18 @@ export default async function SchedulePage({
         };
       }
 
-      const exactBlock = blocks.find(
+      // 이제 차단은 주간 캘린더 클릭(정확히 1시간 단위)으로만 만들어지므로
+      // 정확히 겹치는 차단이 있는지만 보면 된다.
+      const block = blocks.find(
         (b) =>
           b.start.getTime() === cellStart.getTime() &&
           b.end.getTime() === cellEnd.getTime(),
       );
-      if (exactBlock) {
+      if (block) {
         return {
           hour: hourStr,
           state: "blocked" as CellState,
-          label: exactBlock.reason ?? undefined,
-        };
-      }
-
-      const bulkBlock = blocks.find((b) => overlaps(b, cell));
-      if (bulkBlock) {
-        return {
-          hour: hourStr,
-          state: "blocked-bulk" as CellState,
-          label: bulkBlock.reason ?? undefined,
+          label: block.reason ?? undefined,
         };
       }
 
@@ -202,9 +193,6 @@ export default async function SchedulePage({
     ? await loadAvailableSlots({ date: previewDate, productId: previewProduct })
     : [];
 
-  const weekBlocks = [...blocks].sort(
-    (a, b) => a.start.getTime() - b.start.getTime(),
-  );
   const upcomingOverrides = overrideRows ?? [];
 
   return (
@@ -286,88 +274,6 @@ export default async function SchedulePage({
         </div>
 
         <WeekGrid hours={hours} columns={columns} />
-      </section>
-
-      <section className="border-border bg-surface mb-6 rounded-xl border p-4">
-        <h2 className="font-bold">시간 구간 한 번에 차단</h2>
-        <p className="text-muted mt-1 text-sm">
-          하루 안의 여러 시간을 한 번에 막을 때 써요. 갑자기 생긴 개인 일정 같은
-          걸 등록하면 돼요.
-        </p>
-
-        <form
-          action={addBlockRange}
-          className="mt-3 flex flex-wrap items-end gap-2"
-        >
-          <Field label="날짜">
-            <input
-              type="date"
-              name="date"
-              defaultValue={days[0]}
-              required
-              className={`${inputClass} w-40`}
-            />
-          </Field>
-          <Field label="시작">
-            <input
-              type="time"
-              name="startTime"
-              required
-              className={`${inputClass} w-28`}
-            />
-          </Field>
-          <Field label="종료">
-            <input
-              type="time"
-              name="endTime"
-              required
-              className={`${inputClass} w-28`}
-            />
-          </Field>
-          <Field label="사유 (선택)">
-            <input
-              type="text"
-              name="reason"
-              placeholder="개인 일정"
-              className={`${inputClass} w-40`}
-            />
-          </Field>
-          <Button type="submit">차단하기</Button>
-        </form>
-
-        {weekBlocks.length > 0 ? (
-          <ul className="border-border mt-4 divide-y border-t text-sm">
-            {weekBlocks.map((block) => (
-              <li
-                key={block.id}
-                className="flex items-center justify-between gap-2 py-2"
-              >
-                <span>
-                  {formatRange(block.start, block.end)}
-                  {block.reason ? (
-                    <span className="text-muted ml-2 text-xs">
-                      {block.reason}
-                    </span>
-                  ) : null}
-                </span>
-                <form action={removeBlock}>
-                  <input type="hidden" name="id" value={block.id} />
-                  <Button
-                    type="submit"
-                    variant="ghost"
-                    className="py-1 text-xs"
-                  >
-                    해제
-                  </Button>
-                </form>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted mt-3 text-sm">
-            이번 주에 등록된 차단이 없어요.
-          </p>
-        )}
       </section>
 
       <section className="border-border bg-surface mb-6 rounded-xl border p-4">
@@ -528,20 +434,4 @@ export default async function SchedulePage({
       </section>
     </div>
   );
-}
-
-function formatRange(start: Date, end: Date): string {
-  const date = start.toLocaleDateString("ko-KR", {
-    timeZone: "Asia/Seoul",
-    month: "long",
-    day: "numeric",
-  });
-  const time = (d: Date) =>
-    d.toLocaleTimeString("ko-KR", {
-      timeZone: "Asia/Seoul",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  return `${date} ${time(start)} ~ ${time(end)}`;
 }
