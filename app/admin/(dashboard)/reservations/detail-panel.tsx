@@ -121,24 +121,36 @@ function ReservationDetail({
       ) : null}
 
       <div className="border-border mt-4 border-t pt-4">
-        <p className="mb-2 text-sm font-medium">상태 변경</p>
+        <p className="mb-2 text-sm font-medium">
+          상태 변경{" "}
+          <span className="text-muted font-normal">
+            (파란 버튼이 지금 상태예요)
+          </span>
+        </p>
         <div className="flex flex-wrap gap-2">
-          <StatusButton id={reservation.id} status="confirmed" label="확정" />
+          <StatusButton
+            id={reservation.id}
+            status="confirmed"
+            label="확정"
+            current={reservation.status}
+          />
           <StatusButton
             id={reservation.id}
             status="completed"
             label="완료 처리"
+            current={reservation.status}
           />
           <StatusButton
             id={reservation.id}
             status="no_show"
             label="노쇼 처리"
+            current={reservation.status}
           />
           <StatusButton
             id={reservation.id}
             status="cancelled"
             label="취소"
-            variant="danger"
+            current={reservation.status}
           />
         </div>
       </div>
@@ -183,18 +195,26 @@ function StatusButton({
   id,
   status,
   label,
-  variant = "ghost",
+  current,
 }: {
   id: string;
   status: string;
   label: string;
-  variant?: "ghost" | "danger";
+  /** 이 예약의 지금 상태. status와 같으면 파란색으로 켜져 있는 것처럼 보여준다. */
+  current: string;
 }) {
+  const isCurrent = status === current;
+
   return (
     <form action={updateReservationStatus}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="status" value={status} />
-      <Button type="submit" variant={variant} className="text-xs">
+      <Button
+        type="submit"
+        variant={isCurrent ? "primary" : "ghost"}
+        aria-pressed={isCurrent}
+        className="text-xs"
+      >
         {label}
       </Button>
     </form>
