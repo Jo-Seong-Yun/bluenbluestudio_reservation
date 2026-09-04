@@ -154,6 +154,13 @@ function daysBetween(from: DateString, to: DateString): number {
   return Math.round((toUtc(to) - toUtc(from)) / 86_400_000);
 }
 
+/** resolveOpeningHours가 필요로 하는 값만 골라낸 부분 집합. */
+export type OpeningHoursQuery = {
+  date: DateString;
+  dateOverride?: DateOverride | null;
+  weeklyHours: WeeklyHour[];
+};
+
 /**
  * 그날의 운영시간. 3층 구조에서 위 두 층을 해석한다.
  *
@@ -163,8 +170,12 @@ function daysBetween(from: DateString, to: DateString): number {
  *
  * 3층인 blocks는 여기서 다루지 않는다. 운영시간을 바꾸는 게 아니라
  * 개별 슬롯을 쳐내는 것이라 computeAvailableSlots에서 처리한다.
+ *
+ * 관리자 스케줄 화면(주간 캘린더)도 "그날 열려있는가"를 판정할 때
+ * 이 함수를 그대로 가져다 쓴다 — 손님에게 보이는 것과 같은 판정 로직을
+ * 두 곳에 따로 두지 않기 위해 export한다.
  */
-function resolveOpeningHours(input: AvailabilityInput): OpeningHours[] {
+export function resolveOpeningHours(input: OpeningHoursQuery): OpeningHours[] {
   const { dateOverride, weeklyHours, date } = input;
 
   if (dateOverride) {

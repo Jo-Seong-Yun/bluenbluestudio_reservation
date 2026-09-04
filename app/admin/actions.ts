@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { productSchema, toSlug } from "@/lib/validation/product";
+import { addDays, diffDays, kstToInstant, type DateString } from "@/lib/time";
+import { toTstzRange } from "@/lib/availability/range";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -241,4 +243,175 @@ export async function deleteReservation(formData: FormData) {
   if (month) params.set("month", month);
   if (date) params.set("date", date);
   redirect(`/admin/reservations?${params.toString()}`);
+}
+
+/**
+ * 스케줄 관리 (Phase 5).
+ *
+ * weekly_hours / date_overrides / blocks 세 테이블을 다룬다.
+ * 계산 로직(무엇이 열려 있는가)은 항상 lib/availability에만 두고,
+ * 여기 액션들은 그 테이블의 행을 쓰는 일만 한다.
+ */
+
+function scheduleRedirect(week: string): never {
+  redirect(`/admin/schedule?week=${week}`);
+}
+
+/**
+ * 요일별 기본 운영시간 저장. 한 요일에는 항상 구간을 하나만 둔다
+ * (점심시간을 나눠 쉬는 등은 이 화면의 대상이 아니다 — 필요하면
+ * 그 시간만 개별 차단하면 된다). 그래서 저장할 때마다 그 요일의
+ * 기존 행을 지우고 새로 넣는다.
+ */
+export async function saveWeeklyHours(formData: FormData) {
+  await requireAdmin();
+
+  const weekday = Number(formData.get("weekday"));
+  const closed = formData.get("closed") === "on";
+  const openTime = String(formData.get("openTime") ?? "");
+  const closeTime = String(formData.get("closeTime") ?? "");
+  const week = String(formData.get("week") ?? "");
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) return;
+
+  const supabase = await createClient();
+  await supabase.from("weekly_hours").delete().eq("weekday", weekday);
+  if (!closed && openTime && closeTime) {
+    await supabase
+      .from("weekly_hours")
+      .insert({ weekday, open_time: openTime, close_time: closeTime });
+  }
+
+  revalidatePath("/admin/schedule");
+  scheduleRedirect(week);
+}
+
+/**
+ * 주간 캘린더의 칸 하나(1시간) 클릭 토글.
+ *
+ * 정확히 그 1시간과 같은 구간의 차단이 있으면 지우고(해제), 없으면
+ * 새로 만든다(차단). "구간 차단 추가" 폼으로 만든, 정확히 이 시간과
+ * 일치하지 않는 넓은 차단은 여기서 건드리지 않는다 — 그런 차단은
+ * 아래 목록에서 따로 지운다.
+ */
+export async function toggleBlockHour(formData: FormData) {
+  await requireAdmin();
+
+  const date = String(formData.get("date") ?? "");
+  const hour = String(formData.get("hour") ?? "");
+  const week = String(formData.get("week") ?? "");
+  if (!date || !hour) return;
+
+  const start = kstToInstant(date, hour);
+  const end = new Date(start.getTime() + 60 * 60_000);
+  const period = toTstzRange({ start, end });
+
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("blocks")
+    .select("id")
+    .eq("period", period)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase.from("blocks").delete().eq("id", existing.id);
+  } else {
+    await supabase.from("blocks").insert({ period });
+  }
+
+  revalidatePath("/admin/schedule");
+  scheduleRedirect(week);
+}
+
+/**
+ * 하루 안의 시간 구간을 한 번에 차단. 여러 칸을 하나하나 누르지 않고
+ * "오늘 14시~17시" 처럼 한 번에 막을 때 쓴다. 사유도 여기서만 남긴다.
+ */
+export async function addBlockRange(formData: FormData) {
+  await requireAdmin();
+
+  const date = String(formData.get("date") ?? "");
+  const startTime = String(formData.get("startTime") ?? "");
+  const endTime = String(formData.get("endTime") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  const week = String(formData.get("week") ?? "");
+  if (!date || !startTime || !endTime) return;
+
+  const start = kstToInstant(date, startTime);
+  const end = kstToInstant(date, endTime);
+  if (end <= start) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("blocks")
+    .insert({ period: toTstzRange({ start, end }), reason: reason || null });
+
+  revalidatePath("/admin/schedule");
+  scheduleRedirect(week);
+}
+
+export async function removeBlock(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const week = String(formData.get("week") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  await supabase.from("blocks").delete().eq("id", id);
+
+  revalidatePath("/admin/schedule");
+  scheduleRedirect(week);
+}
+
+/**
+ * 날짜 단위 휴무/특별 운영시간을 여러 날에 한 번에 등록.
+ * 시험기간처럼 "12/1 ~ 12/10 통째로 휴무" 같은 걸 한 번에 처리하려고
+ * 범위로 받아 날짜 수만큼 행을 만든다. date_overrides.date가
+ * unique라 upsert로 넣으면 이미 등록된 날짜는 덮어쓴다.
+ */
+export async function saveDateOverrideRange(formData: FormData) {
+  await requireAdmin();
+
+  const startDate = String(formData.get("startDate") ?? "");
+  const endDate = String(formData.get("endDate") ?? "") || startDate;
+  const closed = formData.get("closed") === "on";
+  const openTime = String(formData.get("openTime") ?? "");
+  const closeTime = String(formData.get("closeTime") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  const week = String(formData.get("week") ?? "");
+
+  if (!startDate || endDate < startDate) return;
+  if (!closed && (!openTime || !closeTime)) return;
+
+  const dayCount = diffDays(startDate as DateString, endDate as DateString);
+  // 시험기간 등록 실수로 몇 달치가 밀리는 걸 막는 안전장치.
+  if (dayCount > 90) return;
+
+  const rows = Array.from({ length: dayCount + 1 }, (_, i) => ({
+    date: addDays(startDate as DateString, i),
+    is_closed: closed,
+    open_time: closed ? null : openTime,
+    close_time: closed ? null : closeTime,
+    reason: reason || null,
+  }));
+
+  const supabase = await createClient();
+  await supabase.from("date_overrides").upsert(rows, { onConflict: "date" });
+
+  revalidatePath("/admin/schedule");
+  scheduleRedirect(week);
+}
+
+export async function removeDateOverride(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const week = String(formData.get("week") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  await supabase.from("date_overrides").delete().eq("id", id);
+
+  revalidatePath("/admin/schedule");
+  scheduleRedirect(week);
 }
