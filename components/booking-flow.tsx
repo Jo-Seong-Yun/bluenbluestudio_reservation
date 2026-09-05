@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import {
   createReservation,
@@ -58,6 +64,7 @@ export function BookingFlow({
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsPending, startSlotsTransition] = useTransition();
+  const timeSectionRef = useRef<HTMLDivElement>(null);
 
   const boundAction = createReservation.bind(
     null,
@@ -79,6 +86,22 @@ export function BookingFlow({
       setSlots(result);
     });
   }
+
+  // 시간 슬롯이 실제로 도착해 칸이 최종 높이까지 다 펼쳐진 뒤에
+  // 화면을 그쪽으로 내린다. 슬롯을 아직 불러오는 중일 때(칸 안이
+  // "불러오는 중…" 한 줄뿐이라 낮다) 스크롤해버리면, 그 순간의 낮은
+  // 높이를 기준으로 목표 위치가 계산되어 막상 슬롯이 채워지고 나면
+  // 화면이 시간 칸 중간에서 멈춰 버튼들이 아래로 잘려 보인다.
+  useEffect(() => {
+    if (!selectedDate || slotsPending) return;
+    const frame = requestAnimationFrame(() => {
+      timeSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedDate, slotsPending]);
 
   if (state.status === "success") {
     return (
@@ -126,16 +149,12 @@ export function BookingFlow({
   const showForm = Boolean(selectedDate && selectedTime);
 
   return (
-    <div
-      className={`mt-8 flex flex-col gap-6 transition-all duration-500 ${
-        showForm ? "lg:flex-row lg:items-start" : ""
-      }`}
-    >
-      <div
-        className={`transition-all duration-500 ${
-          showForm ? "lg:w-[22rem] lg:shrink-0" : "w-full"
-        }`}
-      >
+    // 달력 폭은 선택 상태와 무관하게 항상 같다(lg 이상에서 24rem 고정) —
+    // "처음엔 크게 시작했다가 시간을 고르면 좁아지는" 움직임 자체를
+    // 없애서 화면이 덜 요동치게 한다. 데스크톱에서는 처음부터 좌우
+    // 2단 구조이고, 오른쪽 칸의 내용(안내 문구 ↔ 신청서)만 바뀐다.
+    <div className="mt-8 flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="w-full lg:w-[22rem] lg:shrink-0">
         <div className="border-border bg-surface rounded-xl border p-4">
           <h2 className="mb-4 font-bold">날짜 선택</h2>
           <CalendarGrid
@@ -151,7 +170,8 @@ export function BookingFlow({
 
         {/* 날짜를 고르면 이 칸이 아래로 부드럽게 펼쳐진다. */}
         <div
-          className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+          ref={timeSectionRef}
+          className={`grid transition-[grid-template-rows] duration-200 ease-out ${
             selectedDate ? "mt-6 grid-rows-[1fr]" : "grid-rows-[0fr]"
           }`}
         >
@@ -187,14 +207,10 @@ export function BookingFlow({
         </div>
       </div>
 
-      {/* 시간까지 고르면 오른쪽에서 신청서가 나타난다.
-          hidden(display:none)을 쓰면 트랜지션이 아예 안 걸리므로,
-          너비를 0으로 접는 방식으로 부드럽게 나타나고 사라지게 한다. */}
-      <div
-        className={`min-w-0 overflow-hidden transition-all duration-500 ${
-          showForm ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"
-        }`}
-      >
+      {/* 데스크톱에서는 항상 이 칸이 있고, 안내 문구 ↔ 신청서만 바뀐다.
+          모바일에서는 시간까지 고르기 전엔 아예 자리를 차지하지 않는다 —
+          빈 칸이 화면 아래로 밀려나 스크롤만 길어지는 걸 막기 위해서다. */}
+      <div className={`min-w-0 flex-1 ${showForm ? "" : "hidden lg:block"}`}>
         {showForm ? (
           <div className="border-border bg-surface rounded-xl border p-4">
             <h2 className="mb-4 font-bold">신청 내용 작성</h2>
@@ -268,7 +284,13 @@ export function BookingFlow({
               </Button>
             </form>
           </div>
-        ) : null}
+        ) : (
+          <div className="border-border text-muted flex h-full min-h-[22rem] items-center justify-center rounded-xl border border-dashed p-6 text-center text-sm">
+            날짜와 시간을 고르면
+            <br />
+            여기에 신청서가 나타나요.
+          </div>
+        )}
       </div>
     </div>
   );
