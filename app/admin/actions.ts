@@ -123,6 +123,57 @@ export async function saveProduct(
   redirect("/admin/products");
 }
 
+/**
+ * 상품 상세 설명만 따로 저장. 상품 기본정보 폼(saveProduct)과 화면 자체가
+ * 분리돼 있어(app/admin/(dashboard)/products/[id]/description) 별도
+ * 액션을 둔다 — 여기서 저장 후에도 그 화면에 그대로 남아 있어야 하니
+ * saveProduct처럼 목록으로 redirect하지 않고 성공 여부만 돌려준다.
+ */
+export type ProductDescriptionState = {
+  error?: string;
+  success?: boolean;
+} | null;
+
+export async function saveProductDescription(
+  _prev: ProductDescriptionState,
+  formData: FormData,
+): Promise<ProductDescriptionState> {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "상품을 찾을 수 없어요." };
+
+  const description = String(formData.get("description") ?? "");
+  if (description.length > 20_000) {
+    return { error: "설명이 너무 길어요." };
+  }
+
+  const supabase = await createClient();
+  const { data: product } = await supabase
+    .from("products")
+    .select("slug")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!product) return { error: "상품을 찾을 수 없어요." };
+
+  const { error } = await supabase
+    .from("products")
+    .update({ description: description || null })
+    .eq("id", id);
+
+  if (error) {
+    return { error: `저장하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${id}`);
+  revalidatePath(`/admin/products/${id}/description`);
+  revalidatePath("/booking/[slug]", "page");
+
+  return { success: true };
+}
+
 export async function togglePublished(formData: FormData) {
   await requireAdmin();
 

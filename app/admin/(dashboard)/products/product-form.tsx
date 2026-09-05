@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { saveProduct, type ActionState } from "../../actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
-import { Markdown } from "@/components/markdown";
 import { ImageUploader } from "./image-uploader";
 
 export type ProductFormValues = {
@@ -27,8 +27,6 @@ export function ProductForm({ initial }: { initial: ProductFormValues }) {
     null,
   );
 
-  // 설명은 쓰면서 바로 확인해야 하므로 화면 상태로 들고 있는다.
-  const [description, setDescription] = useState(initial.description);
   const [coverImage, setCoverImage] = useState(initial.coverImage);
   const [gallery, setGallery] = useState(initial.gallery);
 
@@ -122,34 +120,28 @@ export function ProductForm({ initial }: { initial: ProductFormValues }) {
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-1 text-sm font-medium">상세 설명</h2>
-        <p className="text-muted mb-3 text-xs">
-          마크다운으로 쓸 수 있어요. <code>## 제목</code>, <code>- 목록</code>,{" "}
-          <code>**굵게**</code>
+      {/* 상세 설명은 여기서 다루지 않는다. 이 텍스트는 자기 자신을
+          건드리지 않으니 그대로 hidden input으로 실어 보내 저장 시
+          지워지지 않게 한다 — 편집은 별도 화면(에디터)의 몫이다. */}
+      <input type="hidden" name="description" value={initial.description} />
+
+      <section className="border-border bg-surface-subtle rounded-lg border p-4">
+        <h2 className="text-sm font-medium">상세 설명</h2>
+        <p className="text-muted mt-1 text-xs">
+          손님에게 보여줄 자세한 소개는 별도 화면에서 씁니다.
         </p>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <textarea
-            name="description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            rows={16}
-            placeholder={
-              "## 이런 분께 추천해요\n\n- 이력서용 사진이 필요한 분\n\n## 포함 사항\n\n- 촬영 60분\n- 보정본 5장"
-            }
-            className={`${inputClass} resize-y font-mono text-sm`}
-          />
-
-          <div className="border-border bg-surface min-h-40 rounded-lg border px-4 py-3">
-            <p className="text-muted mb-2 text-xs">손님에게 보이는 모습</p>
-            {description.trim() ? (
-              <Markdown>{description}</Markdown>
-            ) : (
-              <p className="text-muted text-sm">왼쪽에 입력하면 여기 보여요.</p>
-            )}
-          </div>
-        </div>
+        {initial.id ? (
+          <Link
+            href={`/admin/products/${initial.id}/description`}
+            className="text-brand mt-2 inline-block text-sm hover:underline"
+          >
+            상세 설명 편집하기 →
+          </Link>
+        ) : (
+          <p className="text-muted mt-2 text-sm">
+            상품을 먼저 저장하면 상세 설명을 쓸 수 있어요.
+          </p>
+        )}
       </section>
 
       <section className="space-y-4">
