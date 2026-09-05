@@ -99,6 +99,7 @@ export interface Database {
           people_count: number | null;
           memo: string | null;
           admin_memo: string | null;
+          reminded_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -131,11 +132,44 @@ export interface Database {
           bank_account: string | null;
           studio_intro: string | null;
           notice: string | null;
+          admin_notify_phone: string | null;
+          admin_notify_email: string | null;
           updated_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["settings"]["Row"]>;
         Update: Partial<Database["public"]["Tables"]["settings"]["Row"]>;
         Relationships: [];
+      };
+      notification_logs: {
+        Row: {
+          id: string;
+          channel: "sms" | "email";
+          purpose: string;
+          recipient: string;
+          reservation_id: string | null;
+          success: boolean;
+          error: string | null;
+          created_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["notification_logs"]["Row"]
+        > & {
+          channel: "sms" | "email";
+          purpose: string;
+          recipient: string;
+          success: boolean;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["notification_logs"]["Row"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_reservation_id_fkey";
+            columns: ["reservation_id"];
+            referencedRelation: "reservations";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;

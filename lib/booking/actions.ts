@@ -10,6 +10,12 @@ import {
   phoneLookupSchema,
 } from "@/lib/validation/reservation";
 import { toTstzRange } from "@/lib/availability/range";
+import {
+  notifyAdminNewRequest,
+  notifyCustomerCancelled,
+  notifyCustomerRequested,
+} from "@/lib/notifications/notify";
+import { getProductName } from "@/lib/notifications/product-name";
 
 /**
  * 달력에서 날짜를 고른 순간 그 날의 시간 슬롯을 가져온다.
@@ -100,19 +106,48 @@ export async function createReservation(
   for (let attempt = 0; attempt < 3; attempt++) {
     const code = generateReservationCode();
 
-    const { error } = await supabase.from("reservations").insert({
-      code,
-      product_id: productId,
-      period,
-      shoot_start: shootStart.toISOString(),
-      shoot_end: shootEnd.toISOString(),
-      customer_name: input.customerName,
-      customer_phone: input.customerPhone,
-      people_count: input.peopleCount,
-      memo: input.memo || null,
-    });
+    const { data, error } = await supabase
+      .from("reservations")
+      .insert({
+        code,
+        product_id: productId,
+        period,
+        shoot_start: shootStart.toISOString(),
+        shoot_end: shootEnd.toISOString(),
+        customer_name: input.customerName,
+        customer_phone: input.customerPhone,
+        people_count: input.peopleCount,
+        memo: input.memo || null,
+      })
+      .select("id")
+      .single();
 
     if (!error) {
+      const reservationId = data?.id ?? "";
+      const notice = {
+        reservationId,
+        customerPhone: input.customerPhone,
+        productName,
+        shootStart,
+        code,
+      };
+
+      const { data: settingsRow } = await supabase
+        .from("settings")
+        .select("admin_notify_phone, admin_notify_email")
+        .eq("id", 1)
+        .single();
+
+      await Promise.all([
+        notifyCustomerRequested(notice),
+        notifyAdminNewRequest({
+          ...notice,
+          adminPhone: settingsRow?.admin_notify_phone ?? null,
+          adminEmail: settingsRow?.admin_notify_email ?? null,
+          customerName: input.customerName,
+        }),
+      ]);
+
       return {
         status: "success",
         code,
@@ -234,17 +269,15 @@ export async function cancelReservation(
     };
   }
 
-  if (reservation.status !== "cancelled") {
-    return {
-      status: "found",
-      reservation: {
-        code: reservation.code,
-        status: reservation.status,
-        shootStart: reservation.shoot_start,
-        customerName: reservation.customer_name,
-      },
-      canCancel: false,
-    };
+  if (reservation.status === "cancelled") {
+    const productName = await getProductName(reservation.product_id);
+    await notifyCustomerCancelled({
+      reservationId: reservation.id,
+      customerPhone: reservation.customer_phone,
+      productName,
+      shootStart: new Date(reservation.shoot_start),
+      code: reservation.code,
+    });
   }
 
   return {

@@ -44,7 +44,7 @@
 | 설명 편집  | **마크다운 에디터** (`@uiw/react-md-editor` 등) | 상품 설명을 자유롭게 쓰기 위함                                |
 | 폼 검증    | react-hook-form + zod                           | 클라이언트·서버 양쪽에서 같은 스키마 재사용                   |
 | 날짜 처리  | date-fns + date-fns-tz                          | 한국 시간(Asia/Seoul) 고정                                    |
-| 알림       | 솔라피(SMS) 또는 Resend(이메일)                 | Phase 8에서 확정                                              |
+| 알림       | 솔라피(SMS) + Resend(이메일)                    | Phase 8에서 둘 다 구현. 손님은 SMS, 사장님은 설정한 채널      |
 | 배포       | Vercel                                          | main 푸시 = 배포                                              |
 | 테스트     | Vitest                                          | 시간 계산 로직 전용                                           |
 
@@ -415,15 +415,31 @@ Supabase Table Editor에서 직접 입력해도 예약 엔진이 그대로 동�
 **완료 기준**: Supabase 대시보드를 열지 않고 하루 운영이 가능하다.
 → 상태·기간 필터를 빼면 충족한다.
 
-### Phase 8 — 알림 (약 1주)
+### Phase 8 — 알림 ✅ 코드 완료 (실제 키 연결은 미검증)
 
-- [ ] 손님: 예약 접수 / 확정 / 취소
-- [ ] 사장님: 새 예약 신청 (즉시)
-- [ ] 촬영 전날 리마인드 (Vercel Cron)
-- [ ] 발송 실패 로깅
+- [x] 손님: 예약 접수 / 확정 / 취소 — SMS(솔라피)로 안내
+- [x] 사장님: 새 예약 신청 (즉시) — `settings.admin_notify_phone`/
+      `admin_notify_email`에 채워진 채널로만 SMS·이메일(Resend) 발송.
+      관리자 화면(`/admin/settings`)에서 직접 입력·수정
+- [x] 촬영 전날 리마인드 (Vercel Cron) — `app/api/cron/reminders`,
+      매일 실행. `reservations.reminded_at`으로 중복 발송을 막는다
+- [x] 발송 실패 로깅 — `notification_logs` 테이블에 채널·수신자·성공
+      여부·에러를 남긴다. 발송 실패가 예약 흐름 자체를 막지 않는다
+      (SMS/이메일 발송은 항상 try/catch로 감싸 실패해도 예약은 그대로 진행)
+- [ ] **실제 솔라피/Resend 키로 발송 확인** — 이 환경에는 자격증명이 없어
+      `lib/notifications/sms.ts`/`email.ts`의 HTTP 호출 자체는 실제로
+      실행해보지 못했다. 템플릿 문구(`lib/notifications/templates.ts`)는
+      단위 테스트로 검증했고, 마이그레이션은 로컬 Postgres에 적용해
+      스키마가 맞는지 확인했다
+
+**새로 만든 것**: `lib/notifications/` (env/sms/email/templates/log/notify),
+`app/api/cron/reminders/route.ts`, `notification_logs` 테이블,
+`settings.admin_notify_phone`/`admin_notify_email`, `reservations.reminded_at`.
 
 **참고**: 카카오 알림톡은 사업자등록 + 템플릿 심사가 필요하다.
 심사를 기다리지 말고 **SMS나 이메일로 먼저 출시**하고 알림톡은 나중에 붙인다.
+(SMS는 솔라피, 이메일은 Resend로 확정했다 — 실제 서비스 시작 전 두 계정 모두
+가입 후 `.env.local`에 키를 넣어야 한다. `.env.example` 참고.)
 
 ### Phase 9 — 출시 준비 (약 1주)
 

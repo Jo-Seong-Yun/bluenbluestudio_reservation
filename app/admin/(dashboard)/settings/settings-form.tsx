@@ -12,6 +12,8 @@ export type SettingsFormValues = {
   bankAccount: string;
   studioIntro: string;
   notice: string;
+  adminNotifyPhone: string;
+  adminNotifyEmail: string;
 };
 
 export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
@@ -118,6 +120,35 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
             className={inputClass}
           />
         </Field>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-bold">알림 받을 연락처</h2>
+        <p className="text-muted -mt-2 text-xs">
+          새 예약 신청이 들어오면 즉시 알려드려요. 둘 다 비워두면 사장님 알림은
+          보내지 않고, 손님에게만 접수·확정·취소·리마인드가 나가요.
+        </p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="전화번호 (SMS)" hint="숫자만, 010으로 시작.">
+            <input
+              name="adminNotifyPhone"
+              defaultValue={initial.adminNotifyPhone}
+              placeholder="01012345678"
+              className={inputClass}
+            />
+          </Field>
+
+          <Field label="이메일">
+            <input
+              name="adminNotifyEmail"
+              type="email"
+              defaultValue={initial.adminNotifyEmail}
+              placeholder="owner@example.com"
+              className={inputClass}
+            />
+          </Field>
+        </div>
       </section>
 
       <ErrorText>{state?.error ?? null}</ErrorText>

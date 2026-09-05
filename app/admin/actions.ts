@@ -10,6 +10,10 @@ import { addDays, diffDays, kstToInstant, type DateString } from "@/lib/time";
 import { loadAvailableSlots } from "@/lib/availability/load";
 import { toTstzRange } from "@/lib/availability/range";
 import { generateReservationCode } from "@/lib/booking/code";
+import {
+  notifyCustomerCancelled,
+  notifyCustomerConfirmed,
+} from "@/lib/notifications/notify";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -246,9 +250,41 @@ export async function updateReservationStatus(formData: FormData) {
   if (!id || !status) return;
 
   const supabase = await createClient();
+
+  // 손님에게 알릴 상태(확정/취소)로 바뀔 때만, 갱신 전에 필요한 정보를
+  // 미리 읽어둔다 — update 자체는 status 컬럼만 건드리니 갱신 뒤에는
+  // 이 정보가 사라지지 않지만, 어차피 한 번 더 조회할 이유가 없다.
+  const notifiable = status === "confirmed" || status === "cancelled";
+  const { data: reservation } = notifiable
+    ? await supabase
+        .from("reservations")
+        .select("code, customer_phone, shoot_start, product_id")
+        .eq("id", id)
+        .single()
+    : { data: null };
+
   await supabase.from("reservations").update({ status }).eq("id", id);
 
   revalidatePath("/admin/reservations");
+
+  if (reservation) {
+    const { data: product } = await supabase
+      .from("products")
+      .select("name")
+      .eq("id", reservation.product_id)
+      .single();
+
+    const notice = {
+      reservationId: id,
+      customerPhone: reservation.customer_phone,
+      productName: product?.name ?? "촬영",
+      shootStart: new Date(reservation.shoot_start),
+      code: reservation.code,
+    };
+
+    if (status === "confirmed") await notifyCustomerConfirmed(notice);
+    else await notifyCustomerCancelled(notice);
+  }
 }
 
 export async function saveAdminMemo(formData: FormData) {
@@ -456,7 +492,7 @@ export async function createManualReservation(
 
   const { data: product } = await supabase
     .from("products")
-    .select("duration_min, buffer_after_min")
+    .select("name, duration_min, buffer_after_min")
     .eq("id", input.productId)
     .single();
 
@@ -490,21 +526,36 @@ export async function createManualReservation(
   for (let attempt = 0; attempt < 3; attempt++) {
     const code = generateReservationCode();
 
-    const { error } = await supabase.from("reservations").insert({
-      code,
-      product_id: input.productId,
-      period,
-      shoot_start: shootStart.toISOString(),
-      shoot_end: shootEnd.toISOString(),
-      status: "confirmed",
-      customer_name: input.customerName,
-      customer_phone: input.customerPhone,
-      people_count: input.peopleCount,
-      memo: input.memo || null,
-    });
+    const { data, error } = await supabase
+      .from("reservations")
+      .insert({
+        code,
+        product_id: input.productId,
+        period,
+        shoot_start: shootStart.toISOString(),
+        shoot_end: shootEnd.toISOString(),
+        status: "confirmed",
+        customer_name: input.customerName,
+        customer_phone: input.customerPhone,
+        people_count: input.peopleCount,
+        memo: input.memo || null,
+      })
+      .select("id")
+      .single();
 
     if (!error) {
       revalidatePath("/admin/reservations");
+
+      // 이미 통화로 확인하고 사장님이 직접 넣는 예약이라, "새 신청" 알림은
+      // 필요 없다 — 확정 안내만 손님에게 보낸다.
+      await notifyCustomerConfirmed({
+        reservationId: data?.id ?? "",
+        customerPhone: input.customerPhone,
+        productName: product.name,
+        shootStart,
+        code,
+      });
+
       return { status: "success", code };
     }
 
@@ -546,6 +597,12 @@ export async function saveSettings(
   const bankAccount = String(formData.get("bankAccount") ?? "").trim();
   const studioIntro = String(formData.get("studioIntro") ?? "").trim();
   const notice = String(formData.get("notice") ?? "").trim();
+  const adminNotifyPhone = String(
+    formData.get("adminNotifyPhone") ?? "",
+  ).trim();
+  const adminNotifyEmail = String(
+    formData.get("adminNotifyEmail") ?? "",
+  ).trim();
 
   if (
     !Number.isInteger(slotIntervalMin) ||
@@ -560,6 +617,14 @@ export async function saveSettings(
     return { error: "숫자 값을 다시 확인해주세요." };
   }
 
+  if (adminNotifyPhone && !/^01[0-9]{8,9}$/.test(adminNotifyPhone)) {
+    return { error: "알림 받을 번호는 숫자만, 010으로 시작해 입력해주세요." };
+  }
+
+  if (adminNotifyEmail && !adminNotifyEmail.includes("@")) {
+    return { error: "알림 받을 이메일 형식을 확인해주세요." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("settings")
@@ -571,6 +636,8 @@ export async function saveSettings(
       bank_account: bankAccount || null,
       studio_intro: studioIntro || null,
       notice: notice || null,
+      admin_notify_phone: adminNotifyPhone || null,
+      admin_notify_email: adminNotifyEmail || null,
     })
     .eq("id", 1);
 
