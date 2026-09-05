@@ -51,6 +51,12 @@ export default async function AdminLayout({
             >
               스케줄 관리
             </Link>
+            <Link
+              href="/admin/settings"
+              className="text-muted hover:text-foreground text-sm"
+            >
+              설정
+            </Link>
           </nav>
           <form action={signOut}>
             <Button variant="danger" type="submit">

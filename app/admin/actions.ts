@@ -5,7 +5,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { productSchema, toSlug } from "@/lib/validation/product";
+import { manualReservationSchema } from "@/lib/validation/reservation";
 import { addDays, diffDays, kstToInstant, type DateString } from "@/lib/time";
+import { loadAvailableSlots } from "@/lib/availability/load";
+import { toTstzRange } from "@/lib/availability/range";
+import { generateReservationCode } from "@/lib/booking/code";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -358,4 +362,180 @@ export async function removeDateOverride(formData: FormData) {
   await supabase.from("date_overrides").delete().eq("id", id);
 
   revalidatePath("/admin/schedule");
+}
+
+/**
+ * 수기 예약 등록 (Phase 7).
+ *
+ * 전화나 DM으로 받은 예약을 관리자가 직접 넣는다. 손님용 신청과 같은
+ * 계산(loadAvailableSlots)으로 다시 확인한다 — 관리자가 통화 중 착각해
+ * 이미 찬 시간이나 운영시간 밖을 입력해도 이중예약으로 이어지지 않는다.
+ * 이미 통화로 확인된 예약이라 개인정보 동의 체크박스는 없고, 상태도
+ * 확인 대기(requested)가 아니라 바로 확정(confirmed)으로 넣는다.
+ */
+export type ManualReservationState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success"; code: string };
+
+export async function createManualReservation(
+  _prev: ManualReservationState,
+  formData: FormData,
+): Promise<ManualReservationState> {
+  await requireAdmin();
+
+  const parsed = manualReservationSchema.safeParse({
+    productId: formData.get("productId"),
+    date: formData.get("date"),
+    time: formData.get("time"),
+    customerName: formData.get("customerName"),
+    customerPhone: formData.get("customerPhone"),
+    peopleCount: formData.get("peopleCount"),
+    memo: formData.get("memo"),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.",
+    };
+  }
+
+  const input = parsed.data;
+  const supabase = await createClient();
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("duration_min, buffer_after_min")
+    .eq("id", input.productId)
+    .single();
+
+  if (!product) {
+    return { status: "error", error: "상품을 찾을 수 없어요." };
+  }
+
+  const slots = await loadAvailableSlots({
+    date: input.date,
+    productId: input.productId,
+  });
+  const stillAvailable = slots.some((slot) => slot.time === input.time);
+  if (!stillAvailable) {
+    return {
+      status: "error",
+      error:
+        "이 시간은 예약할 수 없어요. 이미 다른 예약이 있거나 운영시간이 아니에요.",
+    };
+  }
+
+  const shootStart = kstToInstant(input.date, input.time);
+  const shootEnd = new Date(
+    shootStart.getTime() + product.duration_min * 60_000,
+  );
+  const occupiesEnd = new Date(
+    shootEnd.getTime() + product.buffer_after_min * 60_000,
+  );
+  const period = toTstzRange({ start: shootStart, end: occupiesEnd });
+
+  // 코드가 우연히 겹치면(극히 드묾) 새로 뽑아 다시 시도한다.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const code = generateReservationCode();
+
+    const { error } = await supabase.from("reservations").insert({
+      code,
+      product_id: input.productId,
+      period,
+      shoot_start: shootStart.toISOString(),
+      shoot_end: shootEnd.toISOString(),
+      status: "confirmed",
+      customer_name: input.customerName,
+      customer_phone: input.customerPhone,
+      people_count: input.peopleCount,
+      memo: input.memo || null,
+    });
+
+    if (!error) {
+      revalidatePath("/admin/reservations");
+      return { status: "success", code };
+    }
+
+    if (error.code === "23505") continue; // 예약번호 충돌. 다시 시도.
+
+    if (error.code === "23P01") {
+      // EXCLUDE 제약. 위 재확인 이후 그사이에 진짜로 시간이 찬 경우.
+      return {
+        status: "error",
+        error: "방금 그 시간이 다른 예약으로 찼어요. 다시 골라주세요.",
+      };
+    }
+
+    return { status: "error", error: `등록하지 못했습니다: ${error.message}` };
+  }
+
+  return {
+    status: "error",
+    error: "일시적인 오류로 등록하지 못했습니다. 다시 시도해주세요.",
+  };
+}
+
+/**
+ * 예약 설정 (Phase 7) — 리드타임/예약가능기간/취소기한/계좌/공지.
+ * 지금까지는 이 값들을 바꾸려면 Supabase Table Editor를 열어야 했다.
+ */
+export type SettingsActionState = { error?: string; success?: boolean } | null;
+
+export async function saveSettings(
+  _prev: SettingsActionState,
+  formData: FormData,
+): Promise<SettingsActionState> {
+  await requireAdmin();
+
+  const slotIntervalMin = Number(formData.get("slotIntervalMin"));
+  const minLeadDays = Number(formData.get("minLeadDays"));
+  const maxAdvanceDays = Number(formData.get("maxAdvanceDays"));
+  const cancelDeadlineHours = Number(formData.get("cancelDeadlineHours"));
+  const bankAccount = String(formData.get("bankAccount") ?? "").trim();
+  const studioIntro = String(formData.get("studioIntro") ?? "").trim();
+  const notice = String(formData.get("notice") ?? "").trim();
+
+  if (
+    !Number.isInteger(slotIntervalMin) ||
+    slotIntervalMin <= 0 ||
+    !Number.isInteger(minLeadDays) ||
+    minLeadDays < 0 ||
+    !Number.isInteger(maxAdvanceDays) ||
+    maxAdvanceDays <= 0 ||
+    !Number.isInteger(cancelDeadlineHours) ||
+    cancelDeadlineHours < 0
+  ) {
+    return { error: "숫자 값을 다시 확인해주세요." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("settings")
+    .update({
+      slot_interval_min: slotIntervalMin,
+      min_lead_days: minLeadDays,
+      max_advance_days: maxAdvanceDays,
+      cancel_deadline_hours: cancelDeadlineHours,
+      bank_account: bankAccount || null,
+      studio_intro: studioIntro || null,
+      notice: notice || null,
+    })
+    .eq("id", 1);
+
+  if (error) {
+    return { error: `저장하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/"); // 랜딩 페이지가 studio_intro를 보여준다.
+  // 동적 세그먼트가 있는 경로는 파일 구조 패턴 + type을 함께 줘야 한다
+  // (revalidatePath는 layout.tsx가 실제로 있는 세그먼트에서만 "layout"
+  // 타입이 먹는다 — /booking 아래엔 layout.tsx가 없어 개별로 지정한다).
+  revalidatePath("/booking"); // 리터럴 경로
+  revalidatePath("/booking/[slug]", "page");
+  revalidatePath("/booking/[slug]/[date]", "page");
+
+  return { success: true };
 }

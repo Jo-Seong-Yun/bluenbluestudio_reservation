@@ -11,6 +11,7 @@ import {
   type CalendarReservation,
 } from "@/components/admin-calendar";
 import { DetailPanel } from "./detail-panel";
+import { ManualReservationButton } from "./manual-reservation-button";
 import type { DateString } from "@/lib/time";
 
 export const metadata: Metadata = { title: "예약 관리" };
@@ -45,6 +46,13 @@ export default async function ReservationsPage({
       ? await supabase.from("products").select("id, name").in("id", productIds)
       : { data: [] as { id: string; name: string }[] };
   const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
+
+  // 수기 예약 등록 폼의 상품 선택지. 공개 여부와 무관하게 전부 보여준다 —
+  // 비공개 상품도 전화로는 예약을 받을 수 있어야 한다.
+  const { data: allProducts } = await supabase
+    .from("products")
+    .select("id, name")
+    .order("sort_order");
 
   // 달력 칸에 넣을 형태로 날짜별로 묶는다.
   const byDate = new Map<DateString, CalendarReservation[]>();
@@ -81,7 +89,10 @@ export default async function ReservationsPage({
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">예약 관리</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">예약 관리</h1>
+        <ManualReservationButton products={allProducts ?? []} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="border-border bg-surface rounded-xl border p-4">

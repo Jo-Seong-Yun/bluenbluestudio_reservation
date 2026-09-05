@@ -24,6 +24,19 @@ export const reservationSchema = z.object({
 
 export type ReservationInput = z.infer<typeof reservationSchema>;
 
+/**
+ * 관리자가 전화·DM으로 받은 예약을 직접 등록할 때. 손님용 폼과 거의
+ * 같은 규칙이지만 개인정보 동의 체크박스가 없다 — 관리자가 이미 통화로
+ * 확인하고 넣는 것이라 화면에 그 동의 문구를 보여줄 대상이 없다.
+ */
+export const manualReservationSchema = reservationSchema
+  .omit({ agreePrivacy: true })
+  .extend({
+    productId: z.string().uuid("상품을 선택해주세요."),
+  });
+
+export type ManualReservationInput = z.infer<typeof manualReservationSchema>;
+
 const phoneField = z
   .string()
   .trim()
