@@ -535,6 +535,7 @@ export async function saveSettings(
   // 타입이 먹는다 — /booking 아래엔 layout.tsx가 없어 개별로 지정한다).
   revalidatePath("/booking"); // 리터럴 경로
   revalidatePath("/booking/[slug]", "page");
+  revalidatePath("/booking/[slug]/[date]/[time]", "page");
 
   return { success: true };
 }

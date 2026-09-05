@@ -1,19 +1,8 @@
 "use client";
 
-import {
-  useActionState,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import {
-  createReservation,
-  loadSlotsForDate,
-  type ReservationActionState,
-} from "@/lib/booking/actions";
-import { Button, ErrorText, Field, inputClass } from "@/components/ui";
+import { loadSlotsForDate } from "@/lib/booking/actions";
 import {
   addMonths,
   monthGridDates,
@@ -22,65 +11,39 @@ import {
 } from "@/lib/time";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
-const initialReservationState: ReservationActionState = { status: "idle" };
 
 /**
- * 예약 화면 전체(달력 → 시간 → 신청서)를 한 화면에서 이어서 보여준다.
+ * 달력 → 시간 선택. 날짜를 고르면 그 아래로 시간 칸이 펼쳐진다.
  *
- * 예전엔 날짜 칸이 "그 날짜 페이지"로 가는 링크였다(자바스크립트 없이도
- * 동작하는 게 이 프로젝트의 원칙이었다). 하지만 "달력에서 날짜를 고르면
- * 그 아래로 시간 칸이 생기고, 시간을 고르면 전체가 부드럽게 왼쪽으로
- * 옮겨가며 오른쪽에 신청서가 나타난다"는 흐름은 페이지 이동으로는 만들
- * 수 없다 — 그래서 이 화면만큼은 클라이언트 상태로 전환했다.
+ * 시간까지 고르면(칸을 클릭하면) 곧바로 신청서 페이지
+ * (`${basePath}/${date}/${time}`)로 이동한다 — 신청서 작성은 이 화면이
+ * 아니라 별도 페이지의 몫이다. 그래서 이 컴포넌트는 달력과 시간
+ * 그리드만 다루고, 화면 가운데 하나의 카드로 넉넉하게 자리 잡는다.
  */
 export function BookingFlow({
   productId,
-  productName,
-  durationMin,
-  bufferAfterMin,
   month,
   availableDates,
   basePath,
   minMonth,
   maxMonth,
-  bankAccount,
-  notice,
 }: {
   productId: string;
-  productName: string;
-  durationMin: number;
-  bufferAfterMin: number;
   month: string;
   availableDates: DateString[];
   basePath: string;
   minMonth: string;
   maxMonth: string;
-  bankAccount: string | null;
-  notice: string | null;
 }) {
   const availableSet = new Set(availableDates);
 
   const [selectedDate, setSelectedDate] = useState<DateString | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsPending, startSlotsTransition] = useTransition();
   const timeSectionRef = useRef<HTMLDivElement>(null);
 
-  const boundAction = createReservation.bind(
-    null,
-    productId,
-    productName,
-    durationMin,
-    bufferAfterMin,
-  );
-  const [state, action, pending] = useActionState(
-    boundAction,
-    initialReservationState,
-  );
-
   function handleSelectDate(date: DateString) {
     setSelectedDate(date);
-    setSelectedTime(null);
     startSlotsTransition(async () => {
       const result = await loadSlotsForDate(productId, date);
       setSlots(result);
@@ -103,194 +66,52 @@ export function BookingFlow({
     return () => cancelAnimationFrame(frame);
   }, [selectedDate, slotsPending]);
 
-  if (state.status === "success") {
-    return (
-      <div className="border-border bg-surface mt-8 rounded-xl border p-6">
-        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-          예약 신청이 접수됐어요
-        </p>
-        <p className="mt-3 text-2xl font-bold tracking-wide">{state.code}</p>
-        <p className="text-muted mt-1 text-sm">
-          예약 내역은 입력하신 연락처로 언제든 다시 조회할 수 있어요.
-        </p>
-
-        <dl className="mt-4 space-y-1 text-sm">
-          <div className="flex gap-2">
-            <dt className="text-muted w-16 shrink-0">상품</dt>
-            <dd>{productName}</dd>
-          </div>
-          <div className="flex gap-2">
-            <dt className="text-muted w-16 shrink-0">일시</dt>
-            <dd>
-              {state.dateLabel} {state.timeLabel}
-            </dd>
-          </div>
-        </dl>
-
-        {bankAccount ? (
-          <div className="border-border bg-surface-subtle mt-4 rounded-lg border p-3 text-sm">
-            <p className="font-medium">입금 계좌</p>
-            <p className="text-muted mt-0.5">{bankAccount}</p>
-          </div>
-        ) : null}
-
-        {notice ? <p className="text-muted mt-4 text-sm">{notice}</p> : null}
-
-        <Link
-          href="/booking/lookup"
-          className="text-brand mt-6 inline-block text-sm hover:underline"
-        >
-          예약 조회하러 가기 →
-        </Link>
-      </div>
-    );
-  }
-
-  const showForm = Boolean(selectedDate && selectedTime);
-
   return (
-    // 달력 폭은 선택 상태와 무관하게 항상 같다(lg 이상에서 24rem 고정) —
-    // "처음엔 크게 시작했다가 시간을 고르면 좁아지는" 움직임 자체를
-    // 없애서 화면이 덜 요동치게 한다. 데스크톱에서는 처음부터 좌우
-    // 2단 구조이고, 오른쪽 칸의 내용(안내 문구 ↔ 신청서)만 바뀐다.
-    <div className="mt-8 flex flex-col gap-6 lg:flex-row lg:items-start">
-      <div className="w-full lg:w-[22rem] lg:shrink-0">
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <h2 className="mb-4 font-bold">날짜 선택</h2>
-          <CalendarGrid
-            month={month}
-            availableDates={availableSet}
-            selectedDate={selectedDate}
-            onSelectDate={handleSelectDate}
-            basePath={basePath}
-            minMonth={minMonth}
-            maxMonth={maxMonth}
-          />
-        </div>
-
-        {/* 날짜를 고르면 이 칸이 아래로 부드럽게 펼쳐진다. */}
-        <div
-          ref={timeSectionRef}
-          className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-            selectedDate ? "mt-6 grid-rows-[1fr]" : "grid-rows-[0fr]"
-          }`}
-        >
-          <div className="overflow-hidden">
-            <div className="border-border bg-surface rounded-xl border p-4">
-              <h2 className="mb-4 font-bold">시간 선택</h2>
-              {slotsPending ? (
-                <p className="text-muted text-sm">불러오는 중…</p>
-              ) : slots.length === 0 ? (
-                <p className="text-muted text-sm">
-                  이 날짜는 예약할 수 있는 시간이 없어요.
-                </p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {slots.map((time) => (
-                    <button
-                      key={time}
-                      type="button"
-                      onClick={() => setSelectedTime(time)}
-                      className={`rounded-lg border py-2 text-center text-sm transition-colors ${
-                        selectedTime === time
-                          ? "border-brand bg-brand text-brand-foreground"
-                          : "border-border bg-surface hover:border-brand"
-                      }`}
-                    >
-                      {time}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+    <div className="mx-auto mt-8 w-full max-w-xl">
+      <div className="border-border bg-surface rounded-xl border p-5">
+        <h2 className="mb-4 font-bold">날짜 선택</h2>
+        <CalendarGrid
+          month={month}
+          availableDates={availableSet}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          basePath={basePath}
+          minMonth={minMonth}
+          maxMonth={maxMonth}
+        />
       </div>
 
-      {/* 데스크톱에서는 항상 이 칸이 있고, 안내 문구 ↔ 신청서만 바뀐다.
-          모바일에서는 시간까지 고르기 전엔 아예 자리를 차지하지 않는다 —
-          빈 칸이 화면 아래로 밀려나 스크롤만 길어지는 걸 막기 위해서다. */}
-      <div className={`min-w-0 flex-1 ${showForm ? "" : "hidden lg:block"}`}>
-        {showForm ? (
-          <div className="border-border bg-surface rounded-xl border p-4">
-            <h2 className="mb-4 font-bold">신청 내용 작성</h2>
-            <p className="text-muted -mt-2 mb-4 text-sm">
-              {selectedDate} {selectedTime}
-            </p>
-
-            <form action={action} className="space-y-4">
-              <input type="hidden" name="date" value={selectedDate ?? ""} />
-              <input type="hidden" name="time" value={selectedTime ?? ""} />
-
-              <Field label="이름">
-                <input
-                  name="customerName"
-                  required
-                  maxLength={50}
-                  className={inputClass}
-                />
-              </Field>
-
-              <Field label="연락처" hint="예약 조회할 때 필요해요. 숫자만 입력">
-                <input
-                  name="customerPhone"
-                  type="tel"
-                  inputMode="numeric"
-                  placeholder="01012345678"
-                  required
-                  className={inputClass}
-                />
-              </Field>
-
-              <Field label="인원 (선택)">
-                <input
-                  name="peopleCount"
-                  type="number"
-                  min={1}
-                  className={inputClass}
-                />
-              </Field>
-
-              <Field label="요청사항 (선택)">
-                <textarea
-                  name="memo"
-                  rows={3}
-                  maxLength={500}
-                  className={inputClass}
-                />
-              </Field>
-
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="agreePrivacy"
-                  required
-                  className="mt-0.5 h-4 w-4"
-                />
-                <span>
-                  예약 확인을 위해 이름과 연락처를 수집합니다. 촬영일로부터
-                  1년간 보관 후 삭제하며, 예약 외 다른 목적으로 쓰지 않습니다.
-                  <br />
-                  <span className="font-medium">동의합니다.</span>
-                </span>
-              </label>
-
-              <ErrorText>
-                {state.status === "error" ? state.error : null}
-              </ErrorText>
-
-              <Button type="submit" disabled={pending} className="w-full">
-                {pending ? "접수 중…" : "예약 신청"}
-              </Button>
-            </form>
+      {/* 날짜를 고르면 이 칸이 아래로 부드럽게 펼쳐진다. */}
+      <div
+        ref={timeSectionRef}
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+          selectedDate ? "mt-6 grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-border bg-surface rounded-xl border p-5">
+            <h2 className="mb-4 font-bold">시간 선택</h2>
+            {slotsPending ? (
+              <p className="text-muted text-sm">불러오는 중…</p>
+            ) : slots.length === 0 ? (
+              <p className="text-muted text-sm">
+                이 날짜는 예약할 수 있는 시간이 없어요.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {slots.map((time) => (
+                  <Link
+                    key={time}
+                    href={`${basePath}/${selectedDate}/${time}`}
+                    className="border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground rounded-lg border py-2 text-center text-sm transition-colors"
+                  >
+                    {time}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="border-border text-muted flex h-full min-h-[22rem] items-center justify-center rounded-xl border border-dashed p-6 text-center text-sm">
-            날짜와 시간을 고르면
-            <br />
-            여기에 신청서가 나타나요.
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -345,7 +166,7 @@ function CalendarGrid({
         </NavLink>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-1.5 text-center">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="text-muted py-1 text-xs font-medium">
             {label}
@@ -385,7 +206,7 @@ function CalendarGrid({
               key={date}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`aspect-square rounded-md text-sm font-medium transition-colors ${weekdayColor} flex items-center justify-center ${
+              className={`aspect-square rounded-md text-base font-medium transition-colors ${weekdayColor} flex items-center justify-center ${
                 isSelected
                   ? "bg-brand text-brand-foreground"
                   : "bg-brand/15 hover:bg-brand hover:text-brand-foreground"

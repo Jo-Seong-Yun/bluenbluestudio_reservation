@@ -40,9 +40,7 @@ export default async function ProductDetailPage({
       .maybeSingle(),
     supabase
       .from("settings")
-      .select(
-        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice",
-      )
+      .select("slot_interval_min, min_lead_days, max_advance_days")
       .eq("id", 1)
       .single(),
   ]);
@@ -108,16 +106,11 @@ export default async function ProductDetailPage({
 
       <BookingFlow
         productId={product.id}
-        productName={product.name}
-        durationMin={product.duration_min}
-        bufferAfterMin={product.buffer_after_min}
         month={month}
         availableDates={[...availableDates]}
         basePath={`/booking/${slug}`}
         minMonth={minMonth}
         maxMonth={maxMonth}
-        bankAccount={settings?.bank_account ?? null}
-        notice={settings?.notice ?? null}
       />
     </main>
   );
