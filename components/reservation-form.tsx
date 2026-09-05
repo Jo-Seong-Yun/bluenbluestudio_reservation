@@ -50,11 +50,12 @@ export function ReservationForm({
     return (
       <div className="border-border bg-surface mt-8 rounded-xl border p-6">
         <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-          예약 신청이 접수됐어요
+          예약 신청이 접수되었습니다
         </p>
         <p className="mt-3 text-2xl font-bold tracking-wide">{state.code}</p>
         <p className="text-muted mt-1 text-sm">
-          예약 내역은 입력하신 연락처로 언제든 다시 조회할 수 있어요.
+          예약 내역은 입력하신 연락처로 조회할 수 있으며, 아래 계좌로 예약금을
+          입금하시면 예약이 최종 확정됩니다.
         </p>
 
         <dl className="mt-4 space-y-1 text-sm">
