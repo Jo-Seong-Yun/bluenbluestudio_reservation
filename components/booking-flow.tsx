@@ -102,7 +102,7 @@ export function BookingFlow({
                 {slots.map((time) => (
                   <Link
                     key={time}
-                    href={`${basePath}/${selectedDate}/${time}`}
+                    href={`${basePath}/${selectedDate}/${time.replace(":", "-")}`}
                     className="border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground rounded-lg border py-2 text-center text-sm transition-colors"
                   >
                     {time}

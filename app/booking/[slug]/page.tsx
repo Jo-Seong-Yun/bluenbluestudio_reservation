@@ -74,44 +74,52 @@ export default async function ProductDetailPage({
   });
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-12">
+    <main className="mx-auto w-full max-w-6xl px-6 py-12">
       <Link href="/booking" className="text-muted text-sm hover:underline">
         ← 상품 목록
       </Link>
 
-      {product.cover_image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={publicImageUrl(product.cover_image)}
-          alt=""
-          className="mt-4 aspect-video w-full rounded-xl object-cover"
-        />
-      ) : null}
+      {/* 왼쪽엔 상품 설명, 오른쪽엔 달력·시간 선택. 좁은 화면에서는
+          위아래로 쌓인다(설명을 먼저 읽고 예약 흐름으로 이어지도록). */}
+      <div className="mt-6 flex flex-col gap-10 lg:flex-row lg:items-start">
+        <div className="lg:w-[28rem] lg:shrink-0">
+          {product.cover_image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={publicImageUrl(product.cover_image)}
+              alt=""
+              className="aspect-video w-full rounded-xl object-cover"
+            />
+          ) : null}
 
-      <h1 className="mt-4 text-2xl font-bold">{product.name}</h1>
-      <p className="text-muted mt-1">
-        {product.duration_min}분 · {product.price.toLocaleString()}원
-        {product.max_people ? ` · 최대 ${product.max_people}명` : ""}
-      </p>
+          <h1 className="mt-4 text-2xl font-bold">{product.name}</h1>
+          <p className="text-muted mt-1">
+            {product.duration_min}분 · {product.price.toLocaleString()}원
+            {product.max_people ? ` · 최대 ${product.max_people}명` : ""}
+          </p>
 
-      {product.description ? (
-        <div className="mt-6">
-          <Markdown>{product.description}</Markdown>
+          {product.description ? (
+            <div className="mt-6">
+              <Markdown>{product.description}</Markdown>
+            </div>
+          ) : null}
         </div>
-      ) : null}
 
-      <p className="text-muted mt-8 text-xs">
-        {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있어요.
-      </p>
+        <div className="min-w-0 flex-1">
+          <p className="text-muted text-xs">
+            {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있어요.
+          </p>
 
-      <BookingFlow
-        productId={product.id}
-        month={month}
-        availableDates={[...availableDates]}
-        basePath={`/booking/${slug}`}
-        minMonth={minMonth}
-        maxMonth={maxMonth}
-      />
+          <BookingFlow
+            productId={product.id}
+            month={month}
+            availableDates={[...availableDates]}
+            basePath={`/booking/${slug}`}
+            minMonth={minMonth}
+            maxMonth={maxMonth}
+          />
+        </div>
+      </div>
     </main>
   );
 }

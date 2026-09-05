@@ -10,14 +10,18 @@ import { ReservationForm } from "@/components/reservation-form";
 export const metadata: Metadata = { title: "신청 내용 작성" };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_RE = /^\d{2}:\d{2}$/;
+// URL 세그먼트에는 콜론 대신 하이픈을 쓴다("14-00") — 콜론이 든 경로가
+// Vercel 라우팅에서 404로 떨어지는 문제가 있어, 시간 표기에 원래 쓰던
+// "HH:MM"을 URL에는 그대로 노출하지 않는다.
+const TIME_SEGMENT_RE = /^\d{2}-\d{2}$/;
 
 export default async function ReservationPage({
   params,
 }: PageProps<"/booking/[slug]/[date]/[time]">) {
-  const { slug, date, time } = await params;
+  const { slug, date, time: timeSegment } = await params;
 
-  if (!DATE_RE.test(date) || !TIME_RE.test(time)) notFound();
+  if (!DATE_RE.test(date) || !TIME_SEGMENT_RE.test(timeSegment)) notFound();
+  const time = timeSegment.replace("-", ":");
 
   const supabase = await createClient();
   const [{ data: product }, { data: settings }] = await Promise.all([
