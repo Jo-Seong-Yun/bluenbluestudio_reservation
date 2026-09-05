@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadAvailableDates } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { Markdown } from "@/components/markdown";
-import { Calendar } from "@/components/calendar";
+import { BookingFlow } from "@/components/booking-flow";
 import { publicImageUrl } from "@/lib/images";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
 
@@ -40,7 +40,9 @@ export default async function ProductDetailPage({
       .maybeSingle(),
     supabase
       .from("settings")
-      .select("slot_interval_min, min_lead_days, max_advance_days")
+      .select(
+        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice",
+      )
       .eq("id", 1)
       .single(),
   ]);
@@ -74,7 +76,7 @@ export default async function ProductDetailPage({
   });
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-12">
+    <main className="mx-auto w-full max-w-4xl px-6 py-12">
       <Link href="/booking" className="text-muted text-sm hover:underline">
         ← 상품 목록
       </Link>
@@ -100,19 +102,23 @@ export default async function ProductDetailPage({
         </div>
       ) : null}
 
-      <div className="border-border bg-surface mt-8 rounded-xl border p-4">
-        <h2 className="mb-4 font-bold">날짜 선택</h2>
-        <Calendar
-          month={month}
-          availableDates={availableDates}
-          basePath={`/booking/${slug}`}
-          minMonth={minMonth}
-          maxMonth={maxMonth}
-        />
-        <p className="text-muted mt-4 text-xs">
-          {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있어요.
-        </p>
-      </div>
+      <p className="text-muted mt-8 text-xs">
+        {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있어요.
+      </p>
+
+      <BookingFlow
+        productId={product.id}
+        productName={product.name}
+        durationMin={product.duration_min}
+        bufferAfterMin={product.buffer_after_min}
+        month={month}
+        availableDates={[...availableDates]}
+        basePath={`/booking/${slug}`}
+        minMonth={minMonth}
+        maxMonth={maxMonth}
+        bankAccount={settings?.bank_account ?? null}
+        notice={settings?.notice ?? null}
+      />
     </main>
   );
 }

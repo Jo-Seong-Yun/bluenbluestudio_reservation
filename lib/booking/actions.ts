@@ -11,6 +11,25 @@ import {
 } from "@/lib/validation/reservation";
 import { toTstzRange } from "@/lib/availability/range";
 
+/**
+ * 달력에서 날짜를 고른 순간 그 날의 시간 슬롯을 가져온다.
+ *
+ * 예전엔 날짜 칸이 곧 "그 날짜 페이지"로 가는 링크였어서 서버 컴포넌트가
+ * 슬롯을 미리 계산해 내려줬다. 이제 한 화면 안에서 날짜→시간→폼이 이어지는
+ * 흐름이라, 클라이언트가 날짜를 고를 때마다 이 함수를 직접 불러 그 순간의
+ * 슬롯을 다시 계산한다 — 예약 신청 시점에도 loadAvailableSlots로 한 번 더
+ * 확인하니(createReservation), 여기서 보여주는 목록은 어차피 스냅샷이라
+ * 매번 새로 계산해도 손해볼 게 없다.
+ */
+export async function loadSlotsForDate(
+  productId: string,
+  date: string,
+): Promise<string[]> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
+  const slots = await loadAvailableSlots({ date, productId });
+  return slots.map((slot) => slot.time);
+}
+
 export type ReservationActionState =
   | { status: "idle" }
   | { status: "error"; error: string }
