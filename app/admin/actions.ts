@@ -258,7 +258,7 @@ export async function updateReservationStatus(formData: FormData) {
   const { data: reservation } = notifiable
     ? await supabase
         .from("reservations")
-        .select("code, customer_phone, shoot_start, product_id")
+        .select("code, customer_phone, customer_email, shoot_start, product_id")
         .eq("id", id)
         .single()
     : { data: null };
@@ -277,6 +277,7 @@ export async function updateReservationStatus(formData: FormData) {
     const notice = {
       reservationId: id,
       customerPhone: reservation.customer_phone,
+      customerEmail: reservation.customer_email,
       productName: product?.name ?? "촬영",
       shootStart: new Date(reservation.shoot_start),
       code: reservation.code,

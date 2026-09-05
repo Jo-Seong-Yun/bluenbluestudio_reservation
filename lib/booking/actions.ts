@@ -116,6 +116,7 @@ export async function createReservation(
         shoot_end: shootEnd.toISOString(),
         customer_name: input.customerName,
         customer_phone: input.customerPhone,
+        customer_email: input.customerEmail,
         people_count: input.peopleCount,
         memo: input.memo || null,
       })
@@ -127,6 +128,7 @@ export async function createReservation(
       const notice = {
         reservationId,
         customerPhone: input.customerPhone,
+        customerEmail: input.customerEmail,
         productName,
         shootStart,
         code,
@@ -274,6 +276,7 @@ export async function cancelReservation(
     await notifyCustomerCancelled({
       reservationId: reservation.id,
       customerPhone: reservation.customer_phone,
+      customerEmail: reservation.customer_email,
       productName,
       shootStart: new Date(reservation.shoot_start),
       code: reservation.code,

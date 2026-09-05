@@ -79,9 +79,15 @@ export function ReservationForm({
 
         {notice ? <p className="text-muted mt-4 text-sm">{notice}</p> : null}
 
+        <Link href="/booking" className="mt-6 block">
+          <Button type="button" className="w-full">
+            확인
+          </Button>
+        </Link>
+
         <Link
           href="/booking/lookup"
-          className="text-brand mt-6 inline-block text-sm hover:underline"
+          className="text-brand mt-3 inline-block text-sm hover:underline"
         >
           예약 조회하러 가기 →
         </Link>
@@ -124,6 +130,18 @@ export function ReservationForm({
           />
         </Field>
 
+        <Field
+          label="이메일 (선택)"
+          hint="입력하시면 문자와 함께 이메일로도 안내해드려요."
+        >
+          <input
+            name="customerEmail"
+            type="email"
+            placeholder="you@example.com"
+            className={inputClass}
+          />
+        </Field>
+
         <Field label="인원 (선택)">
           <input
             name="peopleCount"
@@ -150,8 +168,9 @@ export function ReservationForm({
             className="mt-0.5 h-4 w-4"
           />
           <span>
-            예약 확인을 위해 이름과 연락처를 수집합니다. 촬영일로부터 1년간 보관
-            후 삭제하며, 예약 외 다른 목적으로 쓰지 않습니다.
+            예약 확인을 위해 이름과 연락처(입력하신 경우 이메일)를 수집합니다.
+            촬영일로부터 1년간 보관 후 삭제하며, 예약 외 다른 목적으로 쓰지
+            않습니다.
             <br />
             <span className="font-medium">동의합니다.</span>
           </span>

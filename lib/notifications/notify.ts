@@ -5,9 +5,13 @@ import { logNotification } from "./log";
 import {
   adminNewRequestSubject,
   adminNewRequestText,
+  customerCancelledSubject,
   customerCancelledText,
+  customerConfirmedSubject,
   customerConfirmedText,
+  customerRequestedSubject,
   customerRequestedText,
+  customerReminderSubject,
   customerReminderText,
 } from "./templates";
 
@@ -80,20 +84,56 @@ async function tryEmail(params: {
 type ReservationNotice = {
   reservationId: string;
   customerPhone: string;
+  /** 선택 입력. 있으면 SMS와 함께 이메일로도 보낸다. */
+  customerEmail?: string | null;
   productName: string;
   shootStart: Date;
   code: string;
 };
 
+/**
+ * 손님 알림 공통 처리. SMS는 항상 보내고(연락처는 필수 입력이라 늘 있다),
+ * 이메일은 손님이 입력했을 때만 같은 내용으로 추가로 보낸다.
+ */
+async function notifyCustomer(params: {
+  purpose: string;
+  info: ReservationNotice;
+  smsText: string;
+  emailSubject: string;
+}): Promise<void> {
+  const tasks: Promise<void>[] = [
+    trySms({
+      purpose: params.purpose,
+      to: params.info.customerPhone,
+      text: params.smsText,
+      reservationId: params.info.reservationId,
+    }),
+  ];
+
+  if (params.info.customerEmail) {
+    tasks.push(
+      tryEmail({
+        purpose: params.purpose,
+        to: params.info.customerEmail,
+        subject: params.emailSubject,
+        text: params.smsText,
+        reservationId: params.info.reservationId,
+      }),
+    );
+  }
+
+  await Promise.all(tasks);
+}
+
 /** 손님: 예약 접수. */
 export async function notifyCustomerRequested(
   info: ReservationNotice,
 ): Promise<void> {
-  await trySms({
+  await notifyCustomer({
     purpose: "customer_requested",
-    to: info.customerPhone,
-    text: customerRequestedText(info),
-    reservationId: info.reservationId,
+    info,
+    smsText: customerRequestedText(info),
+    emailSubject: customerRequestedSubject(),
   });
 }
 
@@ -101,11 +141,11 @@ export async function notifyCustomerRequested(
 export async function notifyCustomerConfirmed(
   info: ReservationNotice,
 ): Promise<void> {
-  await trySms({
+  await notifyCustomer({
     purpose: "customer_confirmed",
-    to: info.customerPhone,
-    text: customerConfirmedText(info),
-    reservationId: info.reservationId,
+    info,
+    smsText: customerConfirmedText(info),
+    emailSubject: customerConfirmedSubject(),
   });
 }
 
@@ -113,11 +153,11 @@ export async function notifyCustomerConfirmed(
 export async function notifyCustomerCancelled(
   info: ReservationNotice,
 ): Promise<void> {
-  await trySms({
+  await notifyCustomer({
     purpose: "customer_cancelled",
-    to: info.customerPhone,
-    text: customerCancelledText(info),
-    reservationId: info.reservationId,
+    info,
+    smsText: customerCancelledText(info),
+    emailSubject: customerCancelledSubject(),
   });
 }
 
@@ -125,11 +165,11 @@ export async function notifyCustomerCancelled(
 export async function notifyCustomerReminder(
   info: ReservationNotice,
 ): Promise<void> {
-  await trySms({
+  await notifyCustomer({
     purpose: "customer_reminder",
-    to: info.customerPhone,
-    text: customerReminderText(info),
-    reservationId: info.reservationId,
+    info,
+    smsText: customerReminderText(info),
+    emailSubject: customerReminderSubject(),
   });
 }
 

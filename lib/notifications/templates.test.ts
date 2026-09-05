@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   adminNewRequestSubject,
   adminNewRequestText,
+  customerCancelledSubject,
   customerCancelledText,
+  customerConfirmedSubject,
   customerConfirmedText,
+  customerReminderSubject,
   customerReminderText,
+  customerRequestedSubject,
   customerRequestedText,
 } from "./templates";
 
@@ -59,6 +63,13 @@ describe("알림 문구", () => {
 
   it("사장님 알림 제목에 스튜디오 이름이 들어간다", () => {
     expect(adminNewRequestSubject()).toContain("새 예약 신청");
+  });
+
+  it("손님용 이메일 제목들도 각 상태를 담는다", () => {
+    expect(customerRequestedSubject()).toContain("접수");
+    expect(customerConfirmedSubject()).toContain("확정");
+    expect(customerCancelledSubject()).toContain("취소");
+    expect(customerReminderSubject()).toContain("내일");
   });
 
   it("자정 근처 KST 날짜도 정확히 표시한다", () => {

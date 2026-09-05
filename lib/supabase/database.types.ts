@@ -96,6 +96,7 @@ export interface Database {
           status: ReservationStatus;
           customer_name: string;
           customer_phone: string;
+          customer_email: string | null;
           people_count: number | null;
           memo: string | null;
           admin_memo: string | null;

@@ -13,6 +13,15 @@ export const reservationSchema = z.object({
     .string()
     .trim()
     .regex(/^01[0-9]{8,9}$/, "연락처는 숫자만, 010으로 시작해 입력해주세요."),
+  // 선택 입력. 입력하면 SMS와 함께 이메일로도 안내를 보낸다.
+  customerEmail: z
+    .union([
+      z.literal(""),
+      z.string().trim().email("이메일 형식을 확인해주세요."),
+    ])
+    .optional()
+    .default("")
+    .transform((value) => (value ? value : null)),
   peopleCount: z
     .union([z.literal(""), z.coerce.number().int().min(1).max(100)])
     .transform((value) => (value === "" ? null : value)),

@@ -17,12 +17,20 @@ type ReservationInfo = {
   code: string;
 };
 
+export function customerRequestedSubject(): string {
+  return `[${SITE.name}] 예약 신청이 접수됐어요`;
+}
+
 export function customerRequestedText(info: ReservationInfo): string {
   return (
     `[${SITE.name}] ${info.productName} 예약 신청이 접수됐어요. ` +
     `${formatShootTime(info.shootStart)}, 예약번호 ${info.code}. ` +
     `확정되면 다시 안내드릴게요.`
   );
+}
+
+export function customerConfirmedSubject(): string {
+  return `[${SITE.name}] 예약이 확정됐어요`;
 }
 
 export function customerConfirmedText(info: ReservationInfo): string {
@@ -33,11 +41,19 @@ export function customerConfirmedText(info: ReservationInfo): string {
   );
 }
 
+export function customerCancelledSubject(): string {
+  return `[${SITE.name}] 예약이 취소됐어요`;
+}
+
 export function customerCancelledText(info: ReservationInfo): string {
   return (
     `[${SITE.name}] 예약이 취소됐어요. ` +
     `${formatShootTime(info.shootStart)}, 예약번호 ${info.code}.`
   );
+}
+
+export function customerReminderSubject(): string {
+  return `[${SITE.name}] 내일 촬영 예약 안내`;
 }
 
 export function customerReminderText(info: ReservationInfo): string {
