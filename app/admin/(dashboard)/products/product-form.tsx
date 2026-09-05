@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import Link from "next/link";
 import { saveProduct, type ActionState } from "../../actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { ImageUploader } from "./image-uploader";
@@ -21,7 +20,14 @@ export type ProductFormValues = {
   isPublished: boolean;
 };
 
-export function ProductForm({ initial }: { initial: ProductFormValues }) {
+export function ProductForm({
+  initial,
+  onEditDescription,
+}: {
+  initial: ProductFormValues;
+  /** 있으면 "상세 설명 편집" 버튼이 보인다 (아직 저장 전인 새 상품엔 없다). */
+  onEditDescription?: () => void;
+}) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     saveProduct,
     null,
@@ -130,13 +136,14 @@ export function ProductForm({ initial }: { initial: ProductFormValues }) {
         <p className="text-muted mt-1 text-xs">
           손님에게 보여줄 자세한 소개는 별도 화면에서 씁니다.
         </p>
-        {initial.id ? (
-          <Link
-            href={`/admin/products/${initial.id}/description`}
+        {onEditDescription ? (
+          <button
+            type="button"
+            onClick={onEditDescription}
             className="text-brand mt-2 inline-block text-sm hover:underline"
           >
             상세 설명 편집하기 →
-          </Link>
+          </button>
         ) : (
           <p className="text-muted mt-2 text-sm">
             상품을 먼저 저장하면 상세 설명을 쓸 수 있어요.

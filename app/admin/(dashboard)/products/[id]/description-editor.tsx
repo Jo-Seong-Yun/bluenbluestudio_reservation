@@ -18,9 +18,11 @@ import { Markdown } from "@/components/markdown";
 export function DescriptionEditor({
   productId,
   initial,
+  onClose,
 }: {
   productId: string;
   initial: string;
+  onClose: () => void;
 }) {
   const [state, action, pending] = useActionState<
     ProductDescriptionState,
@@ -85,60 +87,71 @@ export function DescriptionEditor({
   }
 
   return (
-    <form action={action} className="space-y-4">
-      <input type="hidden" name="id" value={productId} />
+    <div className="border-border bg-surface rounded-xl border p-5">
+      <button
+        type="button"
+        onClick={onClose}
+        className="text-muted text-sm hover:underline"
+      >
+        ← 상품 정보로 돌아가기
+      </button>
+      <h2 className="mt-2 mb-4 text-lg font-bold">상세 설명 편집</h2>
 
-      <div>
-        <div className="border-border bg-surface-subtle flex flex-wrap gap-1 rounded-t-lg border border-b-0 p-2">
-          <ToolbarButton onClick={() => prefixLine("## ")} title="제목">
-            제목
-          </ToolbarButton>
-          <ToolbarButton onClick={() => wrapSelection("**")} title="굵게">
-            <b>굵게</b>
-          </ToolbarButton>
-          <ToolbarButton onClick={() => wrapSelection("*")} title="기울임">
-            <i>기울임</i>
-          </ToolbarButton>
-          <ToolbarButton onClick={() => prefixLine("- ")} title="목록">
-            목록
-          </ToolbarButton>
-          <ToolbarButton onClick={insertLink} title="링크">
-            링크
-          </ToolbarButton>
+      <form action={action} className="space-y-4">
+        <input type="hidden" name="id" value={productId} />
+
+        <div>
+          <div className="border-border bg-surface-subtle flex flex-wrap gap-1 rounded-t-lg border border-b-0 p-2">
+            <ToolbarButton onClick={() => prefixLine("## ")} title="제목">
+              제목
+            </ToolbarButton>
+            <ToolbarButton onClick={() => wrapSelection("**")} title="굵게">
+              <b>굵게</b>
+            </ToolbarButton>
+            <ToolbarButton onClick={() => wrapSelection("*")} title="기울임">
+              <i>기울임</i>
+            </ToolbarButton>
+            <ToolbarButton onClick={() => prefixLine("- ")} title="목록">
+              목록
+            </ToolbarButton>
+            <ToolbarButton onClick={insertLink} title="링크">
+              링크
+            </ToolbarButton>
+          </div>
+          <textarea
+            ref={textareaRef}
+            name="description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            rows={16}
+            placeholder={
+              "## 이런 분께 추천해요\n\n- 이력서용 사진이 필요한 분\n\n## 포함 사항\n\n- 촬영 60분\n- 보정본 5장"
+            }
+            className={`${inputClass} resize-y rounded-t-none font-mono text-sm`}
+          />
         </div>
-        <textarea
-          ref={textareaRef}
-          name="description"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          rows={18}
-          placeholder={
-            "## 이런 분께 추천해요\n\n- 이력서용 사진이 필요한 분\n\n## 포함 사항\n\n- 촬영 60분\n- 보정본 5장"
-          }
-          className={`${inputClass} resize-y rounded-t-none font-mono text-sm`}
-        />
-      </div>
 
-      <div className="border-border bg-surface min-h-40 rounded-lg border px-4 py-3">
-        <p className="text-muted mb-2 text-xs">손님에게 보이는 모습</p>
-        {description.trim() ? (
-          <Markdown>{description}</Markdown>
-        ) : (
-          <p className="text-muted text-sm">위에서 입력하면 여기 보여요.</p>
-        )}
-      </div>
+        <div className="border-border bg-surface min-h-40 rounded-lg border px-4 py-3">
+          <p className="text-muted mb-2 text-xs">손님에게 보이는 모습</p>
+          {description.trim() ? (
+            <Markdown>{description}</Markdown>
+          ) : (
+            <p className="text-muted text-sm">위에서 입력하면 여기 보여요.</p>
+          )}
+        </div>
 
-      <ErrorText>{state?.error}</ErrorText>
-      {state?.success ? (
-        <p className="text-sm text-emerald-700 dark:text-emerald-400">
-          저장했어요.
-        </p>
-      ) : null}
+        <ErrorText>{state?.error}</ErrorText>
+        {state?.success ? (
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">
+            저장했어요.
+          </p>
+        ) : null}
 
-      <Button type="submit" disabled={pending}>
-        {pending ? "저장 중…" : "저장"}
-      </Button>
-    </form>
+        <Button type="submit" disabled={pending}>
+          {pending ? "저장 중…" : "저장"}
+        </Button>
+      </form>
+    </div>
   );
 }
 

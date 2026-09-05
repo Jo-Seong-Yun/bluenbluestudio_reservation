@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ProductForm } from "../product-form";
+import { ProductEditorPanel } from "./product-editor-panel";
 
 export const metadata: Metadata = { title: "상품 수정" };
 
@@ -31,7 +31,7 @@ export default async function EditProductPage({
       </Link>
       <h1 className="mt-2 mb-6 text-2xl font-bold">{product.name}</h1>
 
-      <ProductForm
+      <ProductEditorPanel
         initial={{
           id: product.id,
           name: product.name,
@@ -46,6 +46,7 @@ export default async function EditProductPage({
           gallery: product.gallery ?? [],
           isPublished: product.is_published,
         }}
+        description={product.description ?? ""}
       />
     </div>
   );

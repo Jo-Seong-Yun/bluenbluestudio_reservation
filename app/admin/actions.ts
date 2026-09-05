@@ -124,10 +124,10 @@ export async function saveProduct(
 }
 
 /**
- * 상품 상세 설명만 따로 저장. 상품 기본정보 폼(saveProduct)과 화면 자체가
- * 분리돼 있어(app/admin/(dashboard)/products/[id]/description) 별도
- * 액션을 둔다 — 여기서 저장 후에도 그 화면에 그대로 남아 있어야 하니
- * saveProduct처럼 목록으로 redirect하지 않고 성공 여부만 돌려준다.
+ * 상품 상세 설명만 따로 저장. 상품 기본정보 폼(saveProduct)과는 별도
+ * 액션이다 — 상세 설명 에디터는 같은 페이지 안에서 슬라이드로 열리는
+ * 패널일 뿐 다른 폼이라, 저장 후에도 그 패널에 그대로 남아 있어야
+ * 하니 saveProduct처럼 목록으로 redirect하지 않고 성공 여부만 돌려준다.
  */
 export type ProductDescriptionState = {
   error?: string;
@@ -168,7 +168,6 @@ export async function saveProductDescription(
 
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${id}`);
-  revalidatePath(`/admin/products/${id}/description`);
   revalidatePath("/booking/[slug]", "page");
 
   return { success: true };
