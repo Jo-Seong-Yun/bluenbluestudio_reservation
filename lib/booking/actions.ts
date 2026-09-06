@@ -71,6 +71,7 @@ export async function createReservation(
     time: formData.get("time"),
     customerName: formData.get("customerName"),
     customerPhone: formData.get("customerPhone"),
+    customerEmail: formData.get("customerEmail"),
     peopleCount: formData.get("peopleCount"),
     memo: formData.get("memo"),
     agreePrivacy: formData.get("agreePrivacy"),
