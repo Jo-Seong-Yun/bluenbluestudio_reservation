@@ -61,6 +61,8 @@ export async function createReservation(
   productName: string,
   durationMin: number,
   bufferAfterMin: number,
+  bankAccount: string | null,
+  notice: string | null,
   _prev: ReservationActionState,
   formData: FormData,
 ): Promise<ReservationActionState> {
@@ -125,7 +127,7 @@ export async function createReservation(
 
     if (!error) {
       const reservationId = data?.id ?? "";
-      const notice = {
+      const reservationNotice = {
         reservationId,
         customerPhone: input.customerPhone,
         customerEmail: input.customerEmail,
@@ -141,9 +143,9 @@ export async function createReservation(
         .single();
 
       await Promise.all([
-        notifyCustomerRequested(notice),
+        notifyCustomerRequested({ ...reservationNotice, bankAccount, notice }),
         notifyAdminNewRequest({
-          ...notice,
+          ...reservationNotice,
           adminPhone: settingsRow?.admin_notify_phone ?? null,
           adminEmail: settingsRow?.admin_notify_email ?? null,
           customerName: input.customerName,

@@ -43,6 +43,8 @@ export function ReservationForm({
     productName,
     durationMin,
     bufferAfterMin,
+    bankAccount,
+    notice,
   );
   const [state, action, pending] = useActionState(boundAction, initialState);
 

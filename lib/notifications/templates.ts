@@ -29,6 +29,39 @@ export function customerRequestedText(info: ReservationInfo): string {
   );
 }
 
+type ReservationRequestedEmailInfo = ReservationInfo & {
+  bankAccount?: string | null;
+  notice?: string | null;
+};
+
+/**
+ * 손님용 "예약 접수" 이메일 본문. SMS는 글자 수 제한 때문에 짧게 줄이지만,
+ * 이메일은 예약완료 화면과 같은 수준으로 입금 계좌·안내사항까지 담는다.
+ */
+export function customerRequestedEmailText(
+  info: ReservationRequestedEmailInfo,
+): string {
+  const lines = [
+    `${info.productName} 예약 신청이 접수되었습니다.`,
+    "",
+    `일시: ${formatShootTime(info.shootStart)}`,
+    `예약번호: ${info.code}`,
+    "",
+    "예약 내역은 입력하신 연락처로 조회할 수 있으며, 아래 계좌로 예약금을 " +
+      "입금하시면 예약이 최종 확정됩니다.",
+  ];
+
+  if (info.bankAccount) {
+    lines.push("", `입금 계좌: ${info.bankAccount}`);
+  }
+
+  if (info.notice) {
+    lines.push("", info.notice);
+  }
+
+  return lines.join("\n");
+}
+
 export function customerConfirmedSubject(): string {
   return `[${SITE.name}] 예약이 확정됐어요`;
 }

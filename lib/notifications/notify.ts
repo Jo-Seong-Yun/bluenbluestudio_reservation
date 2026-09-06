@@ -9,6 +9,7 @@ import {
   customerCancelledText,
   customerConfirmedSubject,
   customerConfirmedText,
+  customerRequestedEmailText,
   customerRequestedSubject,
   customerRequestedText,
   customerReminderSubject,
@@ -93,13 +94,16 @@ type ReservationNotice = {
 
 /**
  * 손님 알림 공통 처리. SMS는 항상 보내고(연락처는 필수 입력이라 늘 있다),
- * 이메일은 손님이 입력했을 때만 같은 내용으로 추가로 보낸다.
+ * 이메일은 손님이 입력했을 때만 추가로 보낸다. 이메일 본문은 글자 수
+ * 제한이 없으니 emailText로 따로 줄 수 있고, 안 주면 SMS 문구를 그대로
+ * 쓴다.
  */
 async function notifyCustomer(params: {
   purpose: string;
   info: ReservationNotice;
   smsText: string;
   emailSubject: string;
+  emailText?: string;
 }): Promise<void> {
   const tasks: Promise<void>[] = [
     trySms({
@@ -116,7 +120,7 @@ async function notifyCustomer(params: {
         purpose: params.purpose,
         to: params.info.customerEmail,
         subject: params.emailSubject,
-        text: params.smsText,
+        text: params.emailText ?? params.smsText,
         reservationId: params.info.reservationId,
       }),
     );
@@ -127,13 +131,17 @@ async function notifyCustomer(params: {
 
 /** 손님: 예약 접수. */
 export async function notifyCustomerRequested(
-  info: ReservationNotice,
+  info: ReservationNotice & {
+    bankAccount?: string | null;
+    notice?: string | null;
+  },
 ): Promise<void> {
   await notifyCustomer({
     purpose: "customer_requested",
     info,
     smsText: customerRequestedText(info),
     emailSubject: customerRequestedSubject(),
+    emailText: customerRequestedEmailText(info),
   });
 }
 

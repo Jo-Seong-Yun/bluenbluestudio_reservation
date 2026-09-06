@@ -8,6 +8,7 @@ import {
   customerConfirmedText,
   customerReminderSubject,
   customerReminderText,
+  customerRequestedEmailText,
   customerRequestedSubject,
   customerRequestedText,
 } from "./templates";
@@ -63,6 +64,25 @@ describe("알림 문구", () => {
 
   it("사장님 알림 제목에 스튜디오 이름이 들어간다", () => {
     expect(adminNewRequestSubject()).toContain("새 예약 신청");
+  });
+
+  it("접수 이메일 본문에는 계좌와 안내사항까지 담는다", () => {
+    const text = customerRequestedEmailText({
+      ...RESERVATION_INFO,
+      bankAccount: "카카오뱅크 3333-01-1234567 홍길동",
+      notice: "촬영 10분 전까지 도착해주세요.",
+    });
+    expect(text).toContain("프로필 촬영");
+    expect(text).toContain("9월 10일(목) 14:00");
+    expect(text).toContain("AB12CD34");
+    expect(text).toContain("카카오뱅크 3333-01-1234567 홍길동");
+    expect(text).toContain("촬영 10분 전까지 도착해주세요.");
+  });
+
+  it("접수 이메일 본문은 계좌·안내사항이 없어도 문제없다", () => {
+    const text = customerRequestedEmailText(RESERVATION_INFO);
+    expect(text).toContain("프로필 촬영");
+    expect(text).not.toContain("입금 계좌");
   });
 
   it("손님용 이메일 제목들도 각 상태를 담는다", () => {
