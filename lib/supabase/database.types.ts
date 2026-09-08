@@ -11,6 +11,11 @@
 export type ReservationStatus =
   "requested" | "confirmed" | "completed" | "cancelled" | "no_show";
 
+export type Gender = "male" | "female";
+
+export type CustomFieldType =
+  "short_text" | "long_text" | "single_choice" | "multi_choice" | "checkbox";
+
 export interface Database {
   public: {
     Tables: {
@@ -101,6 +106,9 @@ export interface Database {
           memo: string | null;
           admin_memo: string | null;
           cost: number | null;
+          charged_amount: number | null;
+          gender: Gender | null;
+          birth_date: string | null; // "YYYY-MM-DD"
           reminded_at: string | null;
           created_at: string;
           updated_at: string;
@@ -161,6 +169,58 @@ export interface Database {
           Database["public"]["Tables"]["monthly_expenses"]["Row"]
         >;
         Relationships: [];
+      };
+      custom_fields: {
+        Row: {
+          id: string;
+          label: string;
+          type: CustomFieldType;
+          options: string[] | null; // single_choice/multi_choice 보기 목록
+          required: boolean;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["custom_fields"]["Row"]
+        > & {
+          label: string;
+          type: CustomFieldType;
+        };
+        Update: Partial<Database["public"]["Tables"]["custom_fields"]["Row"]>;
+        Relationships: [];
+      };
+      reservation_answers: {
+        Row: {
+          id: string;
+          reservation_id: string;
+          field_id: string;
+          value: string;
+          created_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["reservation_answers"]["Row"]
+        > & {
+          reservation_id: string;
+          field_id: string;
+          value: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["reservation_answers"]["Row"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "reservation_answers_reservation_id_fkey";
+            columns: ["reservation_id"];
+            referencedRelation: "reservations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reservation_answers_field_id_fkey";
+            columns: ["field_id"];
+            referencedRelation: "custom_fields";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       notification_logs: {
         Row: {

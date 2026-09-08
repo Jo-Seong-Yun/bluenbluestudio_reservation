@@ -12,15 +12,23 @@ export const inputClass =
 export function Field({
   label,
   hint,
+  required,
   children,
 }: {
   label: string;
   hint?: string;
+  /** 필수 입력이면 라벨 옆에 빨간 별표를 붙인다. */
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">{label}</span>
+      <span className="mb-1.5 block text-sm font-medium">
+        {label}
+        {required ? (
+          <span className="ml-0.5 text-red-600 dark:text-red-400">*</span>
+        ) : null}
+      </span>
       {children}
       {hint ? (
         <span className="text-muted mt-1 block text-xs">{hint}</span>

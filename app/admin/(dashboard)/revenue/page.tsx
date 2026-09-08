@@ -13,10 +13,10 @@ export const metadata: Metadata = { title: "매출관리" };
  *
  * "신청만 됨"(requested)은 입금 전이라 빼고, "취소"(cancelled)도 뺀다.
  * "노쇼"(no_show)는 넣는다 — 예약금을 돌려주지 않으니 매출로 잡는 게 맞다.
- * 상품 가격이 나중에 바뀌어도 지난달 매출이 흔들리지 않게 하려면
- * 예약 시점 가격을 reservations에 따로 저장해야 하는데, 지금은 그렇게
- * 하지 않고 상품의 현재 가격으로 계산한다 — 가격을 자주 바꾸는 곳이
- * 아니라 당장은 이 정도로 충분하다.
+ *
+ * 매출액은 상품 정가가 아니라 예약별로 관리자가 직접 입력하는 실제
+ * 지불액(charged_amount) 기준이다 — 할인 이벤트 등으로 건마다 실제
+ * 받는 금액이 다를 수 있어서다. 아직 입력하지 않은 예약은 0으로 본다.
  */
 const REVENUE_STATUSES: ReservationStatus[] = [
   "confirmed",
@@ -48,11 +48,11 @@ export default async function RevenuePage({
     await Promise.all([
       supabase
         .from("reservations")
-        .select("id, status, product_id, cost")
+        .select("id, status, product_id, charged_amount, cost")
         .gte("shoot_start", `${month}-01T00:00:00+09:00`)
         .lt("shoot_start", `${nextMonth}-01T00:00:00+09:00`)
         .in("status", REVENUE_STATUSES),
-      supabase.from("products").select("id, name, price").order("sort_order"),
+      supabase.from("products").select("id, name").order("sort_order"),
       supabase
         .from("monthly_expenses")
         .select("id, label, amount")
@@ -64,13 +64,7 @@ export default async function RevenuePage({
 
   const byProduct = new Map<
     string,
-    {
-      name: string;
-      price: number;
-      count: number;
-      revenue: number;
-      cost: number;
-    }
+    { name: string; count: number; revenue: number; cost: number }
   >();
   const byStatus: Partial<Record<ReservationStatus, number>> = {};
 
@@ -78,16 +72,14 @@ export default async function RevenuePage({
     byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
 
     const product = productById.get(r.product_id);
-    const price = product?.price ?? 0;
     const entry = byProduct.get(r.product_id) ?? {
       name: product?.name ?? "(삭제된 상품)",
-      price,
       count: 0,
       revenue: 0,
       cost: 0,
     };
     entry.count += 1;
-    entry.revenue += price;
+    entry.revenue += r.charged_amount ?? 0;
     entry.cost += r.cost ?? 0;
     byProduct.set(r.product_id, entry);
   }
@@ -99,6 +91,9 @@ export default async function RevenuePage({
   const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
   const totalCost = rows.reduce((sum, row) => sum + row.cost, 0);
   const totalCount = reservations?.length ?? 0;
+  const unpricedCount = (reservations ?? []).filter(
+    (r) => r.charged_amount === null,
+  ).length;
 
   const fixedExpenses = expenses ?? [];
   const totalFixedExpenses = fixedExpenses.reduce(
@@ -112,9 +107,16 @@ export default async function RevenuePage({
     <div>
       <h1 className="text-2xl font-bold">매출관리</h1>
       <p className="text-muted mt-1 text-sm">
-        확정·완료·노쇼 처리된 예약을 상품 가격 기준으로 집계해요. 취소된 예약과
-        입금 전 신청은 빠져 있어요.
+        확정·완료·노쇼 처리된 예약을 예약별 실제 지불액 기준으로 집계해요.
+        취소된 예약과 입금 전 신청은 빠져 있어요.
       </p>
+
+      {unpricedCount > 0 ? (
+        <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          이 중 {unpricedCount}건은 아직 지불액이 입력되지 않아 0원으로
+          계산됐어요. 예약 상세에서 실제 지불액을 입력해주세요.
+        </p>
+      ) : null}
 
       <div className="mt-6 mb-4 flex items-center justify-between">
         <Link
@@ -183,7 +185,6 @@ export default async function RevenuePage({
           <thead>
             <tr className="border-border text-muted border-b text-left">
               <th className="px-4 py-3 font-medium">상품</th>
-              <th className="px-4 py-3 font-medium">단가</th>
               <th className="px-4 py-3 font-medium">건수</th>
               <th className="px-4 py-3 font-medium">매출액</th>
               <th className="px-4 py-3 font-medium">원가</th>
@@ -193,7 +194,7 @@ export default async function RevenuePage({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-muted px-4 py-8 text-center">
+                <td colSpan={5} className="text-muted px-4 py-8 text-center">
                   이 달엔 집계할 예약이 없어요.
                 </td>
               </tr>
@@ -204,7 +205,6 @@ export default async function RevenuePage({
                   className="border-border border-b last:border-0"
                 >
                   <td className="px-4 py-3">{row.name}</td>
-                  <td className="px-4 py-3">{row.price.toLocaleString()}원</td>
                   <td className="px-4 py-3">{row.count}건</td>
                   <td className="px-4 py-3">
                     {row.revenue.toLocaleString()}원
@@ -220,9 +220,7 @@ export default async function RevenuePage({
           {rows.length > 0 ? (
             <tfoot>
               <tr className="border-border border-t font-bold">
-                <td className="px-4 py-3" colSpan={2}>
-                  합계
-                </td>
+                <td className="px-4 py-3">합계</td>
                 <td className="px-4 py-3">{totalCount}건</td>
                 <td className="px-4 py-3">{totalRevenue.toLocaleString()}원</td>
                 <td className="px-4 py-3">{totalCost.toLocaleString()}원</td>

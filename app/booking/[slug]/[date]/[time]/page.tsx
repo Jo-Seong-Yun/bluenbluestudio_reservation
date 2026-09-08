@@ -6,6 +6,7 @@ import { loadAvailableSlots } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { kstToday, diffDays } from "@/lib/time";
 import { ReservationForm } from "@/components/reservation-form";
+import { loadActiveCustomFields } from "@/lib/booking/custom-fields";
 
 export const metadata: Metadata = { title: "신청 내용 작성" };
 
@@ -24,21 +25,23 @@ export default async function ReservationPage({
   const time = timeSegment.replace("-", ":");
 
   const supabase = await createClient();
-  const [{ data: product }, { data: settings }] = await Promise.all([
-    supabase
-      .from("products")
-      .select("id, name, slug, duration_min, buffer_after_min")
-      .eq("slug", slug)
-      .eq("is_published", true)
-      .maybeSingle(),
-    supabase
-      .from("settings")
-      .select(
-        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice",
-      )
-      .eq("id", 1)
-      .single(),
-  ]);
+  const [{ data: product }, { data: settings }, customFields] =
+    await Promise.all([
+      supabase
+        .from("products")
+        .select("id, name, slug, duration_min, buffer_after_min")
+        .eq("slug", slug)
+        .eq("is_published", true)
+        .maybeSingle(),
+      supabase
+        .from("settings")
+        .select(
+          "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice",
+        )
+        .eq("id", 1)
+        .single(),
+      loadActiveCustomFields(),
+    ]);
 
   if (!product) notFound();
 
@@ -103,6 +106,7 @@ export default async function ReservationPage({
         backHref={backHref}
         bankAccount={settings?.bank_account ?? null}
         notice={settings?.notice ?? null}
+        customFields={customFields}
       />
     </main>
   );

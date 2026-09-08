@@ -3,10 +3,14 @@ import {
   updateReservationStatus,
   saveAdminMemo,
   saveReservationCost,
+  saveReservationChargedAmount,
 } from "@/app/admin/actions";
 import { Button, inputClass } from "@/components/ui";
 import { kstTimeString } from "@/lib/time";
+import { calculateAge } from "@/lib/age";
 import { DeleteReservationButton } from "./delete-reservation-button";
+
+const GENDER_LABEL: Record<string, string> = { male: "남성", female: "여성" };
 
 type ReservationRow = {
   id: string;
@@ -20,7 +24,11 @@ type ReservationRow = {
   memo: string | null;
   admin_memo: string | null;
   cost: number | null;
+  charged_amount: number | null;
+  gender: string | null;
+  birth_date: string | null;
   productName: string;
+  customAnswers?: { label: string; value: string }[];
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -111,6 +119,16 @@ function ReservationDetail({
       <dl className="mt-4 space-y-1.5 text-sm">
         <Row label="예약자">{reservation.customer_name}</Row>
         <Row label="연락처">{reservation.customer_phone}</Row>
+        {reservation.gender ? (
+          <Row label="성별">
+            {GENDER_LABEL[reservation.gender] ?? reservation.gender}
+          </Row>
+        ) : null}
+        {reservation.birth_date ? (
+          <Row label="생년월일">
+            <AgeInfo birthDate={reservation.birth_date} />
+          </Row>
+        ) : null}
         {reservation.people_count ? (
           <Row label="인원">{reservation.people_count}명</Row>
         ) : null}
@@ -123,6 +141,18 @@ function ReservationDetail({
         <div className="border-border bg-surface-subtle mt-3 rounded-lg border p-3">
           <p className="text-muted text-xs">손님 요청사항</p>
           <p className="mt-1 text-sm whitespace-pre-wrap">{reservation.memo}</p>
+        </div>
+      ) : null}
+
+      {reservation.customAnswers && reservation.customAnswers.length > 0 ? (
+        <div className="border-border bg-surface-subtle mt-3 space-y-2 rounded-lg border p-3">
+          <p className="text-muted text-xs">추가 문항 답변</p>
+          {reservation.customAnswers.map((answer, index) => (
+            <div key={index} className="text-sm">
+              <p className="text-muted text-xs">{answer.label}</p>
+              <p className="whitespace-pre-wrap">{answer.value}</p>
+            </div>
+          ))}
         </div>
       ) : null}
 
@@ -180,6 +210,38 @@ function ReservationDetail({
       </form>
 
       <form
+        action={saveReservationChargedAmount}
+        className="border-border mt-4 border-t pt-4"
+      >
+        <input type="hidden" name="id" value={reservation.id} />
+        <label
+          className="mb-1.5 block text-sm font-medium"
+          htmlFor="chargedAmount"
+        >
+          실제 지불액{" "}
+          <span className="text-muted font-normal">
+            (할인 등으로 정가와 다를 수 있어요. 매출관리 매출 계산에 쓰여요)
+          </span>
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="chargedAmount"
+            name="chargedAmount"
+            type="number"
+            min={0}
+            step={1}
+            inputMode="numeric"
+            placeholder="0"
+            defaultValue={reservation.charged_amount ?? ""}
+            className={inputClass}
+          />
+          <Button type="submit" variant="ghost" className="shrink-0">
+            저장
+          </Button>
+        </div>
+      </form>
+
+      <form
         action={saveReservationCost}
         className="border-border mt-4 border-t pt-4"
       >
@@ -221,6 +283,22 @@ function ReservationDetail({
         />
       </div>
     </div>
+  );
+}
+
+function AgeInfo({ birthDate }: { birthDate: string }) {
+  const { manAge, koreanAge, isMinor } = calculateAge(birthDate);
+  return (
+    <>
+      {birthDate} · 만 {manAge}세 (한국 나이 {koreanAge}세) ·{" "}
+      <span
+        className={
+          isMinor ? "font-medium text-amber-600 dark:text-amber-400" : ""
+        }
+      >
+        {isMinor ? "미성년자" : "성인"}
+      </span>
+    </>
   );
 }
 

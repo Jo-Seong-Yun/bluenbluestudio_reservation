@@ -32,7 +32,7 @@ export default async function ReservationsPage({
   const { data: reservations } = await supabase
     .from("reservations")
     .select(
-      "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, cost, product_id",
+      "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, cost, charged_amount, gender, birth_date, product_id",
     )
     .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
     .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
@@ -80,10 +80,48 @@ export default async function ReservationsPage({
   const selected = selectedId
     ? (reservations ?? []).find((r) => r.id === selectedId)
     : undefined;
+
+  // 선택된 예약의 커스텀 문항 답변. 목록 전체가 아니라 선택된 한 건에만
+  // 필요하니 여기서 따로 가져온다.
+  const { data: answerRows } = selected
+    ? await supabase
+        .from("reservation_answers")
+        .select("field_id, value")
+        .eq("reservation_id", selected.id)
+    : { data: [] as { field_id: string; value: string }[] };
+
+  const answerFieldIds = [
+    ...new Set((answerRows ?? []).map((a) => a.field_id)),
+  ];
+  const { data: answerFields } =
+    answerFieldIds.length > 0
+      ? await supabase
+          .from("custom_fields")
+          .select("id, label, type")
+          .in("id", answerFieldIds)
+      : { data: [] as { id: string; label: string; type: string }[] };
+  const answerFieldById = new Map((answerFields ?? []).map((f) => [f.id, f]));
+
+  const customAnswers = (answerRows ?? []).map((answer) => {
+    const field = answerFieldById.get(answer.field_id);
+    let value = answer.value;
+    if (field?.type === "multi_choice") {
+      try {
+        value = (JSON.parse(answer.value) as string[]).join(", ");
+      } catch {
+        // 저장된 값이 JSON이 아니면(있을 수 없지만) 그냥 원본을 보여준다.
+      }
+    } else if (field?.type === "checkbox") {
+      value = answer.value === "true" ? "예" : "아니오";
+    }
+    return { label: field?.label ?? "(삭제된 문항)", value };
+  });
+
   const selectedWithProduct = selected
     ? {
         ...selected,
         productName: productNameById.get(selected.product_id) ?? "",
+        customAnswers,
       }
     : undefined;
 

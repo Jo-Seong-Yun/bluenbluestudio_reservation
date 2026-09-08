@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import {
   createReservation,
   type ReservationActionState,
 } from "@/lib/booking/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
+import { calculateAge, parseBirthDate8 } from "@/lib/age";
+import type { CustomField } from "@/lib/booking/custom-fields";
 
 const initialState: ReservationActionState = { status: "idle" };
 
@@ -25,6 +27,7 @@ export function ReservationForm({
   backHref,
   bankAccount,
   notice,
+  customFields,
 }: {
   productId: string;
   productName: string;
@@ -36,6 +39,7 @@ export function ReservationForm({
   backHref: string;
   bankAccount: string | null;
   notice: string | null;
+  customFields: CustomField[];
 }) {
   const boundAction = createReservation.bind(
     null,
@@ -47,6 +51,10 @@ export function ReservationForm({
     notice,
   );
   const [state, action, pending] = useActionState(boundAction, initialState);
+  const [birthDateInput, setBirthDateInput] = useState("");
+
+  const parsedBirthDate = parseBirthDate8(birthDateInput);
+  const ageInfo = parsedBirthDate ? calculateAge(parsedBirthDate) : null;
 
   if (state.status === "success") {
     return (
@@ -113,7 +121,7 @@ export function ReservationForm({
         <input type="hidden" name="date" value={date} />
         <input type="hidden" name="time" value={time} />
 
-        <Field label="이름">
+        <Field label="이름" required>
           <input
             name="customerName"
             required
@@ -122,7 +130,11 @@ export function ReservationForm({
           />
         </Field>
 
-        <Field label="연락처" hint="예약 조회할 때 필요해요. 숫자만 입력">
+        <Field
+          label="연락처"
+          required
+          hint="예약 조회할 때 필요해요. '-' 없이/있이 상관없어요."
+        >
           <input
             name="customerPhone"
             type="tel"
@@ -145,6 +157,53 @@ export function ReservationForm({
           />
         </Field>
 
+        <Field label="성별" required>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-1.5 text-sm">
+              <input type="radio" name="gender" value="male" required />
+              남성
+            </label>
+            <label className="flex items-center gap-1.5 text-sm">
+              <input type="radio" name="gender" value="female" required />
+              여성
+            </label>
+          </div>
+        </Field>
+
+        <Field
+          label="생년월일"
+          required
+          hint="8자리 숫자로 입력해주세요. 예: 19990101"
+        >
+          <input
+            name="birthDate"
+            type="text"
+            inputMode="numeric"
+            placeholder="19990101"
+            maxLength={8}
+            required
+            value={birthDateInput}
+            onChange={(e) =>
+              setBirthDateInput(e.target.value.replace(/[^0-9]/g, ""))
+            }
+            className={inputClass}
+          />
+          {ageInfo ? (
+            <p className="text-muted mt-1 text-xs">
+              만 {ageInfo.manAge}세 (한국 나이 {ageInfo.koreanAge}세) ·{" "}
+              <span
+                className={
+                  ageInfo.isMinor
+                    ? "font-medium text-amber-600 dark:text-amber-400"
+                    : ""
+                }
+              >
+                {ageInfo.isMinor ? "미성년자" : "성인"}
+              </span>
+            </p>
+          ) : null}
+        </Field>
+
         <Field label="인원 (선택)">
           <input
             name="peopleCount"
@@ -163,6 +222,10 @@ export function ReservationForm({
           />
         </Field>
 
+        {customFields.map((field) => (
+          <CustomFieldInput key={field.id} field={field} />
+        ))}
+
         <label className="flex items-start gap-2 text-sm">
           <input
             type="checkbox"
@@ -171,6 +234,7 @@ export function ReservationForm({
             className="mt-0.5 h-4 w-4"
           />
           <span>
+            <span className="text-red-600 dark:text-red-400">* </span>
             예약 확인을 위해 이름과 연락처(입력하신 경우 이메일)를 수집합니다.
             촬영일로부터 1년간 보관 후 삭제하며, 예약 외 다른 목적으로 쓰지
             않습니다.
@@ -186,5 +250,91 @@ export function ReservationForm({
         </Button>
       </form>
     </div>
+  );
+}
+
+function CustomFieldInput({ field }: { field: CustomField }) {
+  const name = `custom_${field.id}`;
+  const options = field.options ?? [];
+
+  if (field.type === "long_text") {
+    return (
+      <Field label={field.label} required={field.required}>
+        <textarea
+          name={name}
+          rows={3}
+          maxLength={1000}
+          required={field.required}
+          className={inputClass}
+        />
+      </Field>
+    );
+  }
+
+  if (field.type === "single_choice") {
+    return (
+      <Field label={field.label} required={field.required}>
+        <div className="space-y-1.5">
+          {options.map((option) => (
+            <label key={option} className="flex items-center gap-1.5 text-sm">
+              <input
+                type="radio"
+                name={name}
+                value={option}
+                required={field.required}
+              />
+              {option}
+            </label>
+          ))}
+        </div>
+      </Field>
+    );
+  }
+
+  if (field.type === "multi_choice") {
+    return (
+      <Field label={field.label} required={field.required}>
+        <div className="space-y-1.5">
+          {options.map((option) => (
+            <label key={option} className="flex items-center gap-1.5 text-sm">
+              <input type="checkbox" name={name} value={option} />
+              {option}
+            </label>
+          ))}
+        </div>
+      </Field>
+    );
+  }
+
+  if (field.type === "checkbox") {
+    return (
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          name={name}
+          required={field.required}
+          className="mt-0.5 h-4 w-4"
+        />
+        <span>
+          {field.label}
+          {field.required ? (
+            <span className="ml-0.5 text-red-600 dark:text-red-400">*</span>
+          ) : null}
+        </span>
+      </label>
+    );
+  }
+
+  // short_text
+  return (
+    <Field label={field.label} required={field.required}>
+      <input
+        name={name}
+        type="text"
+        maxLength={200}
+        required={field.required}
+        className={inputClass}
+      />
+    </Field>
   );
 }

@@ -17,6 +17,10 @@ import {
   notifyCustomerRequested,
 } from "@/lib/notifications/notify";
 import { getProductName } from "@/lib/notifications/product-name";
+import {
+  extractCustomFieldAnswers,
+  loadActiveCustomFields,
+} from "@/lib/booking/custom-fields";
 
 /**
  * 달력에서 날짜를 고른 순간 그 날의 시간 슬롯을 가져온다.
@@ -73,6 +77,8 @@ export async function createReservation(
     customerName: formData.get("customerName"),
     customerPhone: formData.get("customerPhone"),
     customerEmail: formData.get("customerEmail"),
+    gender: formData.get("gender"),
+    birthDate: formData.get("birthDate"),
     peopleCount: formData.get("peopleCount"),
     memo: formData.get("memo"),
     agreePrivacy: formData.get("agreePrivacy"),
@@ -86,6 +92,12 @@ export async function createReservation(
   }
 
   const input = parsed.data;
+
+  const customFields = await loadActiveCustomFields();
+  const customAnswers = extractCustomFieldAnswers(customFields, formData);
+  if (!customAnswers.ok) {
+    return { status: "error", error: customAnswers.error };
+  }
 
   // 다시 계산해서, 지금도 정말 예약 가능한 시간인지 확인한다.
   const slots = await loadAvailableSlots({ date: input.date, productId });
@@ -121,6 +133,8 @@ export async function createReservation(
         customer_name: input.customerName,
         customer_phone: input.customerPhone,
         customer_email: input.customerEmail,
+        gender: input.gender,
+        birth_date: input.birthDate,
         people_count: input.peopleCount,
         memo: input.memo || null,
       })
@@ -129,6 +143,17 @@ export async function createReservation(
 
     if (!error) {
       const reservationId = data?.id ?? "";
+
+      if (customAnswers.answers.length > 0) {
+        await supabase.from("reservation_answers").insert(
+          customAnswers.answers.map((answer) => ({
+            reservation_id: reservationId,
+            field_id: answer.fieldId,
+            value: answer.value,
+          })),
+        );
+      }
+
       const reservationNotice = {
         reservationId,
         customerPhone: input.customerPhone,

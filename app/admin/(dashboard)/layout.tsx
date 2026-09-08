@@ -64,6 +64,12 @@ export default async function AdminLayout({
               스케줄관리
             </Link>
             <Link
+              href="/admin/form-builder"
+              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
+            >
+              양식관리
+            </Link>
+            <Link
               href="/admin/settings"
               className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
             >

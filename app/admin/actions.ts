@@ -719,3 +719,136 @@ export async function saveSettings(
 
   return { success: true };
 }
+
+/**
+ * 예약별 실제 지불액. 원가(cost)와 같은 화면·같은 방식으로 입력받는다.
+ * 할인 이벤트 등으로 예약마다 실제 받는 금액이 다를 수 있어 상품
+ * 정가와 별도로 둔다. 빈 값이면 null(=매출 계산에서 0으로 취급)로
+ * 되돌린다.
+ */
+export async function saveReservationChargedAmount(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const raw = String(formData.get("chargedAmount") ?? "").trim();
+  const chargedAmount = raw === "" ? null : Number(raw);
+  if (
+    chargedAmount !== null &&
+    (!Number.isFinite(chargedAmount) || chargedAmount < 0)
+  ) {
+    return;
+  }
+
+  const supabase = await createClient();
+  await supabase
+    .from("reservations")
+    .update({ charged_amount: chargedAmount })
+    .eq("id", id);
+
+  revalidatePath("/admin/reservations");
+  revalidatePath("/admin/revenue");
+}
+
+/**
+ * 커스텀 신청 문항 (Phase 10) — 예약 폼에 자유롭게 문항을 추가한다.
+ * 상품/스케줄과 같은 이유로 순서는 sort_order, 위/아래 버튼으로 바꾼다.
+ */
+const CUSTOM_FIELD_TYPES = [
+  "short_text",
+  "long_text",
+  "single_choice",
+  "multi_choice",
+  "checkbox",
+] as const;
+
+function parseOptions(raw: string): string[] {
+  return raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+export async function addCustomField(formData: FormData) {
+  await requireAdmin();
+
+  const label = String(formData.get("label") ?? "").trim();
+  const type = String(formData.get("type") ?? "");
+  const required = formData.get("required") === "on";
+  const options = parseOptions(String(formData.get("options") ?? ""));
+
+  if (!label) return;
+  if (
+    !CUSTOM_FIELD_TYPES.includes(type as (typeof CUSTOM_FIELD_TYPES)[number])
+  ) {
+    return;
+  }
+  const needsOptions = type === "single_choice" || type === "multi_choice";
+  if (needsOptions && options.length === 0) return;
+
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("custom_fields")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (existing?.sort_order ?? -1) + 1;
+
+  await supabase.from("custom_fields").insert({
+    label,
+    type: type as (typeof CUSTOM_FIELD_TYPES)[number],
+    options: needsOptions ? options : null,
+    required,
+    sort_order: nextOrder,
+  });
+
+  revalidatePath("/admin/form-builder");
+}
+
+export async function deleteCustomField(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  await supabase.from("custom_fields").delete().eq("id", id);
+
+  revalidatePath("/admin/form-builder");
+}
+
+export async function moveCustomField(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const direction = formData.get("direction") === "up" ? -1 : 1;
+  if (!id) return;
+
+  const supabase = await createClient();
+  const { data: fields } = await supabase
+    .from("custom_fields")
+    .select("id, sort_order")
+    .order("sort_order");
+
+  if (!fields) return;
+
+  const index = fields.findIndex((field) => field.id === id);
+  const target = index + direction;
+  if (index === -1 || target < 0 || target >= fields.length) return;
+
+  const reordered = [...fields];
+  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+
+  await Promise.all(
+    reordered.map((field, order) =>
+      supabase
+        .from("custom_fields")
+        .update({ sort_order: order })
+        .eq("id", field.id),
+    ),
+  );
+
+  revalidatePath("/admin/form-builder");
+}
