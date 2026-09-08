@@ -33,20 +33,18 @@ export function ProductEditorPanel({
       </div>
 
       <div
-        className={`overflow-hidden transition-[max-width,opacity] duration-300 ease-out ${
+        className={`min-w-0 overflow-hidden transition-[max-width,opacity] duration-300 ease-out ${
           editing && canEdit
             ? "max-w-[2000px] flex-1 opacity-100"
             : "max-w-0 flex-none opacity-0"
         }`}
       >
         {canEdit ? (
-          <div className="min-w-[520px]">
-            <DescriptionEditor
-              productId={initial.id!}
-              initial={description}
-              onClose={() => setEditing(false)}
-            />
-          </div>
+          <DescriptionEditor
+            productId={initial.id!}
+            initial={description}
+            onClose={() => setEditing(false)}
+          />
         ) : null}
       </div>
     </div>
