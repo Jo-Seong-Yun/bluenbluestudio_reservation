@@ -29,19 +29,24 @@ export function solapiSenderPhone(): string {
   return required("SOLAPI_SENDER_PHONE");
 }
 
-export function resendApiKey(): string {
-  return required("RESEND_API_KEY");
+/** 발신에 쓸 Gmail 주소. */
+export function gmailUser(): string {
+  return required("GMAIL_USER");
 }
 
-/** 발신 이메일. Resend에 도메인 인증이 끝난 주소여야 한다. */
-export function resendFromEmail(): string {
-  return required("RESEND_FROM_EMAIL");
+/**
+ * Gmail 앱 비밀번호. 로그인 비밀번호가 아니라 Google 계정의
+ * 2단계 인증을 켠 뒤 "앱 비밀번호"에서 따로 발급받는 16자리 값이다.
+ * 도메인 인증 없이 무료로 메일을 보내려고 Resend 대신 Gmail SMTP를 쓴다.
+ */
+export function gmailAppPassword(): string {
+  return required("GMAIL_APP_PASSWORD");
 }
 
 export const NOTIFICATION_ENV_VARS = [
   "SOLAPI_API_KEY",
   "SOLAPI_API_SECRET",
   "SOLAPI_SENDER_PHONE",
-  "RESEND_API_KEY",
-  "RESEND_FROM_EMAIL",
+  "GMAIL_USER",
+  "GMAIL_APP_PASSWORD",
 ] as const;
