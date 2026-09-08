@@ -38,28 +38,28 @@ export default async function AdminLayout({
               className="text-muted hover:text-foreground text-sm"
               tracking-[2px]
             >
-              상품 관리
+              상품관리
             </Link>
             <Link
               href="/admin/reservations"
               className="text-muted hover:text-foreground text-sm"
               tracking-[2px]
             >
-              예약 관리
+              예약관리
             </Link>
             <Link
               href="/admin/revenue"
               className="text-muted hover:text-foreground text-sm"
               tracking-[2px]
             >
-              매출 관리
+              매출관리
             </Link>
             <Link
               href="/admin/schedule"
               className="text-muted hover:text-foreground text-sm"
               tracking-[2px]
             >
-              스케줄 관리
+              스케줄관리
             </Link>
             <Link
               href="/admin/settings"
