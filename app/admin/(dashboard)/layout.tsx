@@ -34,7 +34,7 @@ export default async function AdminLayout({
             className="flex flex-col items-center leading-tight font-bold tracking-[0.3px]"
           >
             {SITE.name}
-            <span className="text-muted text-xs font-normal tracking-[6.3px]">
+            <span className="text-muted text-xs font-normal tracking-[5.76px]">
               관리자 페이지
             </span>
           </Link>
