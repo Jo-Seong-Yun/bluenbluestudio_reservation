@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { productSchema, toSlug } from "@/lib/validation/product";
@@ -283,8 +284,14 @@ export async function updateReservationStatus(formData: FormData) {
       code: reservation.code,
     };
 
-    if (status === "confirmed") await notifyCustomerConfirmed(notice);
-    else await notifyCustomerCancelled(notice);
+    // 알림 발송(SMS·이메일)은 응답을 붙잡지 않는다 — 관리자가 상태를
+    // 바꾸는 버튼을 눌렀을 때 발송이 끝날 때까지 화면이 멈춰 있으면
+    // 안 되니, after()로 응답 뒤에 보낸다.
+    after(() =>
+      status === "confirmed"
+        ? notifyCustomerConfirmed(notice)
+        : notifyCustomerCancelled(notice),
+    );
   }
 }
 
@@ -548,14 +555,17 @@ export async function createManualReservation(
       revalidatePath("/admin/reservations");
 
       // 이미 통화로 확인하고 사장님이 직접 넣는 예약이라, "새 신청" 알림은
-      // 필요 없다 — 확정 안내만 손님에게 보낸다.
-      await notifyCustomerConfirmed({
-        reservationId: data?.id ?? "",
-        customerPhone: input.customerPhone,
-        productName: product.name,
-        shootStart,
-        code,
-      });
+      // 필요 없다 — 확정 안내만 손님에게 보낸다. 응답은 기다리게 하지
+      // 않고 after()로 보낸 뒤 바로 성공을 돌려준다.
+      after(() =>
+        notifyCustomerConfirmed({
+          reservationId: data?.id ?? "",
+          customerPhone: input.customerPhone,
+          productName: product.name,
+          shootStart,
+          code,
+        }),
+      );
 
       return { status: "success", code };
     }

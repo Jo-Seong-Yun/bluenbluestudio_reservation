@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { loadAvailableSlots } from "@/lib/availability/load";
 import { generateReservationCode } from "@/lib/booking/code";
@@ -143,15 +144,25 @@ export async function createReservation(
         .eq("id", 1)
         .single();
 
-      await Promise.all([
-        notifyCustomerRequested({ ...reservationNotice, bankAccount, notice }),
-        notifyAdminNewRequest({
-          ...reservationNotice,
-          adminPhone: settingsRow?.admin_notify_phone ?? null,
-          adminEmail: settingsRow?.admin_notify_email ?? null,
-          customerName: input.customerName,
-        }),
-      ]);
+      // SMS·이메일 발송은 몇 초씩 걸릴 수 있다(특히 Gmail SMTP). 손님이
+      // "예약 신청" 버튼을 누른 뒤 그 발송이 끝날 때까지 기다리게 하면
+      // 안 되니, 응답은 먼저 보내고 발송은 after()로 응답 뒤에 진행한다
+      // (Vercel이 응답 후에도 이 작업이 끝날 때까지 실행을 유지해준다).
+      after(() =>
+        Promise.all([
+          notifyCustomerRequested({
+            ...reservationNotice,
+            bankAccount,
+            notice,
+          }),
+          notifyAdminNewRequest({
+            ...reservationNotice,
+            adminPhone: settingsRow?.admin_notify_phone ?? null,
+            adminEmail: settingsRow?.admin_notify_email ?? null,
+            customerName: input.customerName,
+          }),
+        ]),
+      );
 
       return {
         status: "success",
@@ -276,14 +287,16 @@ export async function cancelReservation(
 
   if (reservation.status === "cancelled") {
     const productName = await getProductName(reservation.product_id);
-    await notifyCustomerCancelled({
-      reservationId: reservation.id,
-      customerPhone: reservation.customer_phone,
-      customerEmail: reservation.customer_email,
-      productName,
-      shootStart: new Date(reservation.shoot_start),
-      code: reservation.code,
-    });
+    after(() =>
+      notifyCustomerCancelled({
+        reservationId: reservation.id,
+        customerPhone: reservation.customer_phone,
+        customerEmail: reservation.customer_email,
+        productName,
+        shootStart: new Date(reservation.shoot_start),
+        code: reservation.code,
+      }),
+    );
   }
 
   return {
