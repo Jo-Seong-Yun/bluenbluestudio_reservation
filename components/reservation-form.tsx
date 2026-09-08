@@ -259,7 +259,11 @@ function CustomFieldInput({ field }: { field: CustomField }) {
 
   if (field.type === "long_text") {
     return (
-      <Field label={field.label} required={field.required}>
+      <Field
+        label={field.label}
+        required={field.required}
+        hint={field.description ?? undefined}
+      >
         <textarea
           name={name}
           rows={3}
@@ -273,7 +277,11 @@ function CustomFieldInput({ field }: { field: CustomField }) {
 
   if (field.type === "single_choice") {
     return (
-      <Field label={field.label} required={field.required}>
+      <Field
+        label={field.label}
+        required={field.required}
+        hint={field.description ?? undefined}
+      >
         <div className="space-y-1.5">
           {options.map((option) => (
             <label key={option} className="flex items-center gap-1.5 text-sm">
@@ -293,7 +301,11 @@ function CustomFieldInput({ field }: { field: CustomField }) {
 
   if (field.type === "multi_choice") {
     return (
-      <Field label={field.label} required={field.required}>
+      <Field
+        label={field.label}
+        required={field.required}
+        hint={field.description ?? undefined}
+      >
         <div className="space-y-1.5">
           {options.map((option) => (
             <label key={option} className="flex items-center gap-1.5 text-sm">
@@ -320,6 +332,11 @@ function CustomFieldInput({ field }: { field: CustomField }) {
           {field.required ? (
             <span className="ml-0.5 text-red-600 dark:text-red-400">*</span>
           ) : null}
+          {field.description ? (
+            <span className="text-muted mt-1 block text-xs">
+              {field.description}
+            </span>
+          ) : null}
         </span>
       </label>
     );
@@ -327,7 +344,11 @@ function CustomFieldInput({ field }: { field: CustomField }) {
 
   // short_text
   return (
-    <Field label={field.label} required={field.required}>
+    <Field
+      label={field.label}
+      required={field.required}
+      hint={field.description ?? undefined}
+    >
       <input
         name={name}
         type="text"

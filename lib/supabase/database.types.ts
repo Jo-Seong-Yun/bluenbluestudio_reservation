@@ -176,7 +176,9 @@ export interface Database {
           label: string;
           type: CustomFieldType;
           options: string[] | null; // single_choice/multi_choice 보기 목록
+          description: string | null;
           required: boolean;
+          active: boolean;
           sort_order: number;
           created_at: string;
         };

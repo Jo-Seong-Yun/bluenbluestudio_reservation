@@ -770,22 +770,43 @@ function parseOptions(raw: string): string[] {
     .filter((line) => line.length > 0);
 }
 
-export async function addCustomField(formData: FormData) {
-  await requireAdmin();
-
+/**
+ * 추가/수정 폼에서 공통으로 쓰는 값 읽기 + 검증. 실패하면 null —
+ * 폼이 조작되지 않는 한 벌어질 일이 없어 별도 에러 메시지는 안 둔다
+ * (다른 관리자 액션들도 같은 수준으로 조용히 무시한다).
+ */
+function parseCustomFieldForm(formData: FormData) {
   const label = String(formData.get("label") ?? "").trim();
   const type = String(formData.get("type") ?? "");
+  const description = String(formData.get("description") ?? "").trim();
   const required = formData.get("required") === "on";
+  const active = formData.get("active") === "on";
   const options = parseOptions(String(formData.get("options") ?? ""));
 
-  if (!label) return;
+  if (!label) return null;
   if (
     !CUSTOM_FIELD_TYPES.includes(type as (typeof CUSTOM_FIELD_TYPES)[number])
   ) {
-    return;
+    return null;
   }
   const needsOptions = type === "single_choice" || type === "multi_choice";
-  if (needsOptions && options.length === 0) return;
+  if (needsOptions && options.length === 0) return null;
+
+  return {
+    label,
+    type: type as (typeof CUSTOM_FIELD_TYPES)[number],
+    options: needsOptions ? options : null,
+    description: description || null,
+    required,
+    active,
+  };
+}
+
+export async function addCustomField(formData: FormData) {
+  await requireAdmin();
+
+  const row = parseCustomFieldForm(formData);
+  if (!row) return;
 
   const supabase = await createClient();
   const { data: existing } = await supabase
@@ -796,15 +817,27 @@ export async function addCustomField(formData: FormData) {
     .maybeSingle();
   const nextOrder = (existing?.sort_order ?? -1) + 1;
 
-  await supabase.from("custom_fields").insert({
-    label,
-    type: type as (typeof CUSTOM_FIELD_TYPES)[number],
-    options: needsOptions ? options : null,
-    required,
-    sort_order: nextOrder,
-  });
+  await supabase
+    .from("custom_fields")
+    .insert({ ...row, sort_order: nextOrder });
 
   revalidatePath("/admin/form-builder");
+}
+
+export async function updateCustomField(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const row = parseCustomFieldForm(formData);
+  if (!row) return;
+
+  const supabase = await createClient();
+  await supabase.from("custom_fields").update(row).eq("id", id);
+
+  revalidatePath("/admin/form-builder");
+  revalidatePath("/booking/[slug]/[date]/[time]", "page");
 }
 
 export async function deleteCustomField(formData: FormData) {
