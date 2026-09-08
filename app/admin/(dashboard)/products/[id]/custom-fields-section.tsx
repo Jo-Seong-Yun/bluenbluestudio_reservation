@@ -1,12 +1,8 @@
-import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
 import { inputClass } from "@/components/ui";
 import { moveCustomField } from "@/app/admin/actions";
 import { DeleteFieldButton } from "./delete-field-button";
 import { FieldModal } from "./field-modal";
 import type { CustomField } from "@/lib/booking/custom-fields";
-
-export const metadata: Metadata = { title: "양식관리" };
 
 const TYPE_LABELS: Record<string, string> = {
   short_text: "단답형",
@@ -16,39 +12,40 @@ const TYPE_LABELS: Record<string, string> = {
   checkbox: "단일 체크박스 (동의/확인용)",
 };
 
-export default async function FormBuilderPage() {
-  const supabase = await createClient();
-  const { data: fields } = await supabase
-    .from("custom_fields")
-    .select(
-      "id, label, type, options, description, required, active, sort_order, created_at",
-    )
-    .order("sort_order");
-
-  const rows = fields ?? [];
-
+/**
+ * 이 상품의 예약 폼에만 붙는 추가 문항 관리. 예전엔 전체 상품 공통인
+ * 별도 화면(/admin/form-builder)이었는데, 상품마다 다른 문항이
+ * 필요해져서 상품 수정 화면 안으로 옮겼다.
+ */
+export function CustomFieldsSection({
+  productId,
+  fields,
+}: {
+  productId: string;
+  fields: CustomField[];
+}) {
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
+    <div className="mt-10">
+      <div className="mb-4 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">양식관리</h1>
+          <h2 className="text-lg font-bold">신청서 추가 문항</h2>
           <p className="text-muted mt-1 text-sm">
-            예약 신청서에 이름·연락처 같은 기본 항목 다음으로 붙는 추가 문항을
-            직접 만들어요. 여기서 만든 순서 그대로 손님 화면에 나타나요.
+            이 상품 예약 폼에 이름·연락처 같은 기본 항목 다음으로 붙는 질문을
+            직접 만들어요. 다른 상품엔 영향 없어요.
           </p>
         </div>
-        <FieldModal />
+        <FieldModal productId={productId} />
       </div>
 
       <div className="border-border bg-surface rounded-xl border">
-        {rows.length === 0 ? (
+        {fields.length === 0 ? (
           <p className="text-muted p-6 text-center text-sm">
             아직 추가한 문항이 없어요. 기본 항목(이름·연락처·성별·생년월일
             등)만으로 신청서가 나가요.
           </p>
         ) : (
           <ul>
-            {rows.map((field, index) => (
+            {fields.map((field, index) => (
               <li
                 key={field.id}
                 className={`border-border flex flex-wrap items-start gap-3 border-b p-4 last:border-0 ${
@@ -58,14 +55,16 @@ export default async function FormBuilderPage() {
                 <div className="flex flex-col gap-0.5">
                   <MoveButton
                     id={field.id}
+                    productId={productId}
                     direction="up"
                     disabled={index === 0}
                     label="위로"
                   />
                   <MoveButton
                     id={field.id}
+                    productId={productId}
                     direction="down"
-                    disabled={index === rows.length - 1}
+                    disabled={index === fields.length - 1}
                     label="아래로"
                   />
                 </div>
@@ -100,8 +99,12 @@ export default async function FormBuilderPage() {
                 </div>
 
                 <div className="flex shrink-0 items-start gap-2">
-                  <FieldModal field={field} />
-                  <DeleteFieldButton id={field.id} label={field.label} />
+                  <FieldModal productId={productId} field={field} />
+                  <DeleteFieldButton
+                    id={field.id}
+                    productId={productId}
+                    label={field.label}
+                  />
                 </div>
               </li>
             ))}
@@ -166,11 +169,13 @@ function FieldPreview({ field }: { field: CustomField }) {
 
 function MoveButton({
   id,
+  productId,
   direction,
   disabled,
   label,
 }: {
   id: string;
+  productId: string;
   direction: "up" | "down";
   disabled: boolean;
   label: string;
@@ -178,6 +183,7 @@ function MoveButton({
   return (
     <form action={moveCustomField}>
       <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="direction" value={direction} />
       <button
         type="submit"

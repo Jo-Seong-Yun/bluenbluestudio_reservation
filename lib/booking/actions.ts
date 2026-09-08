@@ -93,7 +93,7 @@ export async function createReservation(
 
   const input = parsed.data;
 
-  const customFields = await loadActiveCustomFields();
+  const customFields = await loadActiveCustomFields(productId);
   const customAnswers = extractCustomFieldAnswers(customFields, formData);
   if (!customAnswers.ok) {
     return { status: "error", error: customAnswers.error };

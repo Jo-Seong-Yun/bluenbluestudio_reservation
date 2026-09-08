@@ -18,20 +18,45 @@ const NEEDS_OPTIONS = new Set(["single_choice", "multi_choice"]);
 /**
  * 문항 추가/수정 모달. "되는시간" 같은 예약 서비스의 문항 편집기를
  * 참고했다 — 추가와 수정을 같은 모달로 처리하고, 답변 종류를 고를 때만
- * 보기 입력칸이 나타난다.
+ * 보기 입력칸이 나타난다. 보기는 구글폼처럼 한 줄씩 늘어놓고 개별로
+ * 추가/삭제한다.
  */
-export function FieldModal({ field }: { field?: CustomField }) {
+export function FieldModal({
+  productId,
+  field,
+}: {
+  productId: string;
+  field?: CustomField;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [type, setType] = useState<string>(field?.type ?? "short_text");
+  const [options, setOptions] = useState<string[]>(
+    field?.options && field.options.length > 0 ? field.options : [""],
+  );
   const isEdit = Boolean(field);
 
   function open() {
     setType(field?.type ?? "short_text");
+    setOptions(
+      field?.options && field.options.length > 0 ? field.options : [""],
+    );
     dialogRef.current?.showModal();
   }
 
   function close() {
     dialogRef.current?.close();
+  }
+
+  function updateOption(index: number, value: string) {
+    setOptions((prev) => prev.map((opt, i) => (i === index ? value : opt)));
+  }
+
+  function addOption() {
+    setOptions((prev) => [...prev, ""]);
+  }
+
+  function removeOption(index: number) {
+    setOptions((prev) => prev.filter((_, i) => i !== index));
   }
 
   return (
@@ -70,8 +95,9 @@ export function FieldModal({ field }: { field?: CustomField }) {
         <form
           action={isEdit ? updateCustomField : addCustomField}
           onSubmit={close}
-          className="space-y-4 p-5"
+          className="max-h-[75vh] space-y-4 overflow-y-auto p-5"
         >
+          <input type="hidden" name="productId" value={productId} />
           {isEdit && field ? (
             <input type="hidden" name="id" value={field.id} />
           ) : null}
@@ -140,21 +166,39 @@ export function FieldModal({ field }: { field?: CustomField }) {
 
           {NEEDS_OPTIONS.has(type) ? (
             <div>
-              <label
-                className="mb-1.5 block text-sm font-medium"
-                htmlFor="options"
+              <span className="mb-1.5 block text-sm font-medium">보기</span>
+              <div className="space-y-2">
+                {options.map((option, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-muted shrink-0">
+                      {type === "single_choice" ? "○" : "☐"}
+                    </span>
+                    <input
+                      name="option"
+                      value={option}
+                      onChange={(e) => updateOption(index, e.target.value)}
+                      placeholder={`옵션 ${index + 1}`}
+                      className={inputClass}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeOption(index)}
+                      aria-label="옵션 삭제"
+                      disabled={options.length <= 1}
+                      className="text-muted hover:text-foreground shrink-0 disabled:opacity-25"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addOption}
+                className="text-brand mt-2 text-sm hover:underline"
               >
-                보기{" "}
-                <span className="text-muted font-normal">(한 줄에 하나씩)</span>
-              </label>
-              <textarea
-                id="options"
-                name="options"
-                rows={3}
-                placeholder={"실내\n야외\n실내+야외"}
-                defaultValue={(field?.options ?? []).join("\n")}
-                className={inputClass}
-              />
+                + 옵션 추가
+              </button>
             </div>
           ) : null}
 

@@ -59,3 +59,14 @@ body {
 :lang(ko) {
   word-break: keep-all;
 }
+
+/* <dialog>는 브라우저 기본값이 margin:auto라 화면 중앙에 뜨지만,
+   Tailwind preflight가 margin을 0으로 리셋해버려서 좌상단에 붙어버린다.
+   showModal()로 여는 모든 다이얼로그가 항상 화면 정중앙에 오도록 고정한다. */
+dialog[open] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+}

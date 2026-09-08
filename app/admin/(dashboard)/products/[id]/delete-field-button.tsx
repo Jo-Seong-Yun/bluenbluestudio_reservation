@@ -6,9 +6,11 @@ import { Button } from "@/components/ui";
 /** 문항 삭제. 지금까지 손님이 이 문항에 남긴 답변도 같이 사라진다. */
 export function DeleteFieldButton({
   id,
+  productId,
   label,
 }: {
   id: string;
+  productId: string;
   label: string;
 }) {
   return (
@@ -25,6 +27,7 @@ export function DeleteFieldButton({
       }}
     >
       <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="productId" value={productId} />
       <Button variant="ghost" type="submit" className="text-xs">
         삭제
       </Button>

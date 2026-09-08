@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProductEditorPanel } from "./product-editor-panel";
+import { CustomFieldsSection } from "./custom-fields-section";
 
 export const metadata: Metadata = { title: "상품 수정" };
 
@@ -13,11 +14,16 @@ export default async function EditProductPage({
 
   const { id } = await params;
   const supabase = await createClient();
-  const { data: product } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: product }, { data: customFields }] = await Promise.all([
+    supabase.from("products").select("*").eq("id", id).maybeSingle(),
+    supabase
+      .from("custom_fields")
+      .select(
+        "id, product_id, label, type, options, description, required, active, sort_order, created_at",
+      )
+      .eq("product_id", id)
+      .order("sort_order"),
+  ]);
 
   if (!product) notFound();
 
@@ -48,6 +54,8 @@ export default async function EditProductPage({
         }}
         description={product.description ?? ""}
       />
+
+      <CustomFieldsSection productId={product.id} fields={customFields ?? []} />
     </div>
   );
 }

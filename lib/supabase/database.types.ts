@@ -173,6 +173,7 @@ export interface Database {
       custom_fields: {
         Row: {
           id: string;
+          product_id: string | null;
           label: string;
           type: CustomFieldType;
           options: string[] | null; // single_choice/multi_choice 보기 목록
@@ -189,7 +190,14 @@ export interface Database {
           type: CustomFieldType;
         };
         Update: Partial<Database["public"]["Tables"]["custom_fields"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "custom_fields_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       reservation_answers: {
         Row: {

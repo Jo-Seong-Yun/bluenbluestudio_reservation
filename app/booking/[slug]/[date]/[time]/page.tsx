@@ -25,25 +25,25 @@ export default async function ReservationPage({
   const time = timeSegment.replace("-", ":");
 
   const supabase = await createClient();
-  const [{ data: product }, { data: settings }, customFields] =
-    await Promise.all([
-      supabase
-        .from("products")
-        .select("id, name, slug, duration_min, buffer_after_min")
-        .eq("slug", slug)
-        .eq("is_published", true)
-        .maybeSingle(),
-      supabase
-        .from("settings")
-        .select(
-          "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice",
-        )
-        .eq("id", 1)
-        .single(),
-      loadActiveCustomFields(),
-    ]);
+  const [{ data: product }, { data: settings }] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, slug, duration_min, buffer_after_min")
+      .eq("slug", slug)
+      .eq("is_published", true)
+      .maybeSingle(),
+    supabase
+      .from("settings")
+      .select(
+        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice",
+      )
+      .eq("id", 1)
+      .single(),
+  ]);
 
   if (!product) notFound();
+
+  const customFields = await loadActiveCustomFields(product.id);
 
   // 과거이거나 너무 먼 날짜로 주소를 직접 조작해 들어온 경우.
   if (diffDays(kstToday(), date) < 0) notFound();

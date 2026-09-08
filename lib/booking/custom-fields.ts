@@ -4,14 +4,17 @@ import type { Database } from "@/lib/supabase/database.types";
 
 export type CustomField = Database["public"]["Tables"]["custom_fields"]["Row"];
 
-/** 예약 폼에 붙일, 켜져 있는 커스텀 문항을 순서대로 가져온다. */
-export async function loadActiveCustomFields(): Promise<CustomField[]> {
+/** 이 상품의 예약 폼에 붙일, 켜져 있는 커스텀 문항을 순서대로 가져온다. */
+export async function loadActiveCustomFields(
+  productId: string,
+): Promise<CustomField[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("custom_fields")
     .select(
-      "id, label, type, options, description, required, active, sort_order, created_at",
+      "id, product_id, label, type, options, description, required, active, sort_order, created_at",
     )
+    .eq("product_id", productId)
     .eq("active", true)
     .order("sort_order");
   return data ?? [];
