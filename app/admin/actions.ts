@@ -312,6 +312,58 @@ export async function saveAdminMemo(formData: FormData) {
 }
 
 /**
+ * 예약 한 건의 촬영 원가(대관료, 소품, 외주 등). 매출 관리 화면의
+ * 순이익 계산에 쓴다. 빈 값으로 저장하면 null(=원가 없음)로 되돌아간다
+ * — "0원"과 "아직 입력 안 함"을 구분해야 나중에 빠뜨린 건을 알아볼 수 있다.
+ */
+export async function saveReservationCost(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const raw = String(formData.get("cost") ?? "").trim();
+  const cost = raw === "" ? null : Number(raw);
+  if (cost !== null && (!Number.isFinite(cost) || cost < 0)) return;
+
+  const supabase = await createClient();
+  await supabase.from("reservations").update({ cost }).eq("id", id);
+
+  revalidatePath("/admin/reservations");
+  revalidatePath("/admin/revenue");
+}
+
+/** 촬영과 무관한 월별 고정비(임대료, 장비, 마케팅 등) 한 항목 추가. */
+export async function addMonthlyExpense(formData: FormData) {
+  await requireAdmin();
+
+  const month = String(formData.get("month") ?? "");
+  const label = String(formData.get("label") ?? "").trim();
+  const amount = Number(formData.get("amount"));
+
+  if (!/^\d{4}-\d{2}$/.test(month)) return;
+  if (!label) return;
+  if (!Number.isFinite(amount) || amount < 0) return;
+
+  const supabase = await createClient();
+  await supabase.from("monthly_expenses").insert({ month, label, amount });
+
+  revalidatePath("/admin/revenue");
+}
+
+export async function deleteMonthlyExpense(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  await supabase.from("monthly_expenses").delete().eq("id", id);
+
+  revalidatePath("/admin/revenue");
+}
+
+/**
  * 예약 완전 삭제.
  *
  * "취소"와 다르다 — 행 자체를 지운다. 되돌릴 수 없고, 손님도 예약

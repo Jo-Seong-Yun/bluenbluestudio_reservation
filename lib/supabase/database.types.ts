@@ -100,6 +100,7 @@ export interface Database {
           people_count: number | null;
           memo: string | null;
           admin_memo: string | null;
+          cost: number | null;
           reminded_at: string | null;
           created_at: string;
           updated_at: string;
@@ -139,6 +140,26 @@ export interface Database {
         };
         Insert: Partial<Database["public"]["Tables"]["settings"]["Row"]>;
         Update: Partial<Database["public"]["Tables"]["settings"]["Row"]>;
+        Relationships: [];
+      };
+      monthly_expenses: {
+        Row: {
+          id: string;
+          month: string; // "YYYY-MM"
+          label: string;
+          amount: number;
+          created_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["monthly_expenses"]["Row"]
+        > & {
+          month: string;
+          label: string;
+          amount: number;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["monthly_expenses"]["Row"]
+        >;
         Relationships: [];
       };
       notification_logs: {

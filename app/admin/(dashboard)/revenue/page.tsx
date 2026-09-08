@@ -3,6 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { addMonths, kstMonthString } from "@/lib/time";
 import type { ReservationStatus } from "@/lib/supabase/database.types";
+import { Button, inputClass } from "@/components/ui";
+import { addMonthlyExpense, deleteMonthlyExpense } from "@/app/admin/actions";
 
 export const metadata: Metadata = { title: "매출 관리" };
 
@@ -42,21 +44,33 @@ export default async function RevenuePage({
 
   const supabase = await createClient();
 
-  const [{ data: reservations }, { data: products }] = await Promise.all([
-    supabase
-      .from("reservations")
-      .select("id, status, product_id")
-      .gte("shoot_start", `${month}-01T00:00:00+09:00`)
-      .lt("shoot_start", `${nextMonth}-01T00:00:00+09:00`)
-      .in("status", REVENUE_STATUSES),
-    supabase.from("products").select("id, name, price").order("sort_order"),
-  ]);
+  const [{ data: reservations }, { data: products }, { data: expenses }] =
+    await Promise.all([
+      supabase
+        .from("reservations")
+        .select("id, status, product_id, cost")
+        .gte("shoot_start", `${month}-01T00:00:00+09:00`)
+        .lt("shoot_start", `${nextMonth}-01T00:00:00+09:00`)
+        .in("status", REVENUE_STATUSES),
+      supabase.from("products").select("id, name, price").order("sort_order"),
+      supabase
+        .from("monthly_expenses")
+        .select("id, label, amount")
+        .eq("month", month)
+        .order("created_at"),
+    ]);
 
   const productById = new Map((products ?? []).map((p) => [p.id, p]));
 
   const byProduct = new Map<
     string,
-    { name: string; price: number; count: number; revenue: number }
+    {
+      name: string;
+      price: number;
+      count: number;
+      revenue: number;
+      cost: number;
+    }
   >();
   const byStatus: Partial<Record<ReservationStatus, number>> = {};
 
@@ -70,9 +84,11 @@ export default async function RevenuePage({
       price,
       count: 0,
       revenue: 0,
+      cost: 0,
     };
     entry.count += 1;
     entry.revenue += price;
+    entry.cost += r.cost ?? 0;
     byProduct.set(r.product_id, entry);
   }
 
@@ -81,7 +97,16 @@ export default async function RevenuePage({
     .sort((a, b) => b.revenue - a.revenue);
 
   const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
+  const totalCost = rows.reduce((sum, row) => sum + row.cost, 0);
   const totalCount = reservations?.length ?? 0;
+
+  const fixedExpenses = expenses ?? [];
+  const totalFixedExpenses = fixedExpenses.reduce(
+    (sum, e) => sum + e.amount,
+    0,
+  );
+
+  const netProfit = totalRevenue - totalCost - totalFixedExpenses;
 
   return (
     <div>
@@ -111,21 +136,45 @@ export default async function RevenuePage({
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-sm">이번 달 매출</p>
+          <p className="text-muted text-sm">매출</p>
           <p className="mt-1 text-2xl font-bold">
             {totalRevenue.toLocaleString()}원
           </p>
-        </div>
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-sm">집계된 예약</p>
-          <p className="mt-1 text-2xl font-bold">{totalCount}건</p>
           <p className="text-muted mt-1 text-xs">
             {REVENUE_STATUSES.map(
               (status) => `${STATUS_LABELS[status]} ${byStatus[status] ?? 0}건`,
-            ).join(" · ")}
+            ).join(" · ")}{" "}
+            · 총 {totalCount}건
           </p>
+        </div>
+        <div className="border-border bg-surface rounded-xl border p-4">
+          <p className="text-muted text-sm">촬영 원가</p>
+          <p className="mt-1 text-2xl font-bold">
+            {totalCost.toLocaleString()}원
+          </p>
+          <p className="text-muted mt-1 text-xs">예약별로 입력한 원가 합계</p>
+        </div>
+        <div className="border-border bg-surface rounded-xl border p-4">
+          <p className="text-muted text-sm">고정비</p>
+          <p className="mt-1 text-2xl font-bold">
+            {totalFixedExpenses.toLocaleString()}원
+          </p>
+          <p className="text-muted mt-1 text-xs">
+            임대료·장비·마케팅 등 {fixedExpenses.length}건
+          </p>
+        </div>
+        <div className="border-border bg-surface rounded-xl border p-4">
+          <p className="text-muted text-sm">순이익</p>
+          <p
+            className={`mt-1 text-2xl font-bold ${
+              netProfit < 0 ? "text-red-600 dark:text-red-400" : ""
+            }`}
+          >
+            {netProfit.toLocaleString()}원
+          </p>
+          <p className="text-muted mt-1 text-xs">매출 − 원가 − 고정비</p>
         </div>
       </div>
 
@@ -137,12 +186,14 @@ export default async function RevenuePage({
               <th className="px-4 py-3 font-medium">단가</th>
               <th className="px-4 py-3 font-medium">건수</th>
               <th className="px-4 py-3 font-medium">매출액</th>
+              <th className="px-4 py-3 font-medium">원가</th>
+              <th className="px-4 py-3 font-medium">순이익</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-muted px-4 py-8 text-center">
+                <td colSpan={6} className="text-muted px-4 py-8 text-center">
                   이 달엔 집계할 예약이 없어요.
                 </td>
               </tr>
@@ -155,8 +206,12 @@ export default async function RevenuePage({
                   <td className="px-4 py-3">{row.name}</td>
                   <td className="px-4 py-3">{row.price.toLocaleString()}원</td>
                   <td className="px-4 py-3">{row.count}건</td>
-                  <td className="px-4 py-3 font-medium">
+                  <td className="px-4 py-3">
                     {row.revenue.toLocaleString()}원
+                  </td>
+                  <td className="px-4 py-3">{row.cost.toLocaleString()}원</td>
+                  <td className="px-4 py-3 font-medium">
+                    {(row.revenue - row.cost).toLocaleString()}원
                   </td>
                 </tr>
               ))
@@ -170,10 +225,85 @@ export default async function RevenuePage({
                 </td>
                 <td className="px-4 py-3">{totalCount}건</td>
                 <td className="px-4 py-3">{totalRevenue.toLocaleString()}원</td>
+                <td className="px-4 py-3">{totalCost.toLocaleString()}원</td>
+                <td className="px-4 py-3">
+                  {(totalRevenue - totalCost).toLocaleString()}원
+                </td>
               </tr>
             </tfoot>
           ) : null}
         </table>
+      </div>
+
+      <div className="border-border bg-surface mt-6 rounded-xl border p-4">
+        <p className="font-medium">이 달의 고정비</p>
+        <p className="text-muted mt-0.5 text-sm">
+          촬영 건수와 무관하게 매달 나가는 지출이에요 (임대료, 장비 구매, 마케팅
+          등).
+        </p>
+
+        {fixedExpenses.length > 0 ? (
+          <ul className="mt-3 space-y-1">
+            {fixedExpenses.map((expense) => (
+              <li
+                key={expense.id}
+                className="border-border flex items-center justify-between gap-2 border-b py-2 text-sm last:border-0"
+              >
+                <span>{expense.label}</span>
+                <span className="flex items-center gap-3">
+                  <span className="font-medium">
+                    {expense.amount.toLocaleString()}원
+                  </span>
+                  <form action={deleteMonthlyExpense}>
+                    <input type="hidden" name="id" value={expense.id} />
+                    <button
+                      type="submit"
+                      className="text-muted hover:text-foreground text-xs underline"
+                    >
+                      삭제
+                    </button>
+                  </form>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted mt-3 text-sm">
+            아직 등록한 고정비가 없어요.
+          </p>
+        )}
+
+        <form
+          action={addMonthlyExpense}
+          className="mt-4 flex flex-wrap items-end gap-2"
+        >
+          <input type="hidden" name="month" value={month} />
+          <label className="flex-1 basis-40">
+            <span className="text-muted mb-1 block text-xs">항목</span>
+            <input
+              name="label"
+              required
+              maxLength={50}
+              placeholder="예: 스튜디오 임대료"
+              className={inputClass}
+            />
+          </label>
+          <label className="w-32">
+            <span className="text-muted mb-1 block text-xs">금액</span>
+            <input
+              name="amount"
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              required
+              className={inputClass}
+            />
+          </label>
+          <Button type="submit" variant="ghost">
+            추가
+          </Button>
+        </form>
       </div>
     </div>
   );
