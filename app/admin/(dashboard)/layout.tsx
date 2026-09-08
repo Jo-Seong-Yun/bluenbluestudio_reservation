@@ -46,6 +46,12 @@ export default async function AdminLayout({
               예약 관리
             </Link>
             <Link
+              href="/admin/revenue"
+              className="text-muted hover:text-foreground text-sm"
+            >
+              매출 관리
+            </Link>
+            <Link
               href="/admin/schedule"
               className="text-muted hover:text-foreground text-sm"
             >
