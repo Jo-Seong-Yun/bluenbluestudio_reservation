@@ -18,9 +18,11 @@ import { Markdown } from "@/components/markdown";
 export function DescriptionEditor({
   productId,
   initial,
+  onClose,
 }: {
   productId: string;
   initial: string;
+  onClose: () => void;
 }) {
   const [state, action, pending] = useActionState<
     ProductDescriptionState,
@@ -86,7 +88,17 @@ export function DescriptionEditor({
 
   return (
     <div className="border-border bg-surface rounded-xl border p-5">
-      <h2 className="mb-4 text-lg font-bold">상세 설명</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-bold">상세 설명</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="닫기"
+          className="text-muted hover:text-foreground text-lg leading-none"
+        >
+          ×
+        </button>
+      </div>
 
       <form action={action} className="space-y-4">
         <input type="hidden" name="id" value={productId} />

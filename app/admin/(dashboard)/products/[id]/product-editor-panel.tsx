@@ -1,13 +1,16 @@
+"use client";
+
+import { useState } from "react";
 import { ProductForm, type ProductFormValues } from "../product-form";
 import { DescriptionEditor } from "./description-editor";
 
 /**
- * 상품 정보 폼 + 상세 설명 에디터를 한 화면에 나란히 둔다.
+ * 상품 정보 폼 + 상세 설명 에디터.
  *
- * 예전엔 "상세 설명 편집하기"를 누르면 폼이 화면 밖으로 밀려나고
- * 에디터가 그 자리를 대신 차지하는 슬라이드 방식이었는데, 왼쪽에서
- * 기본 정보를 고치면서 오른쪽에서 바로 결과를 확인하고 싶을 때
- * 화면을 오갈 필요 없이 둘 다 항상 보이는 쪽이 낫다.
+ * 평소엔 폼 하나만 화면 가운데에 좁게 떠 있다. "상세 설명 편집하기"를
+ * 누르면 그때 에디터가 폼 오른쪽에 나타나면서 화면이 2단으로 넓어진다
+ * — 예전처럼 폼이 화면 밖으로 밀려나 사라지는 게 아니라, 폼은 그
+ * 자리에 그대로 있고 에디터가 옆에 더해지는 방식이다.
  */
 export function ProductEditorPanel({
   initial,
@@ -16,19 +19,27 @@ export function ProductEditorPanel({
   initial: ProductFormValues;
   description: string;
 }) {
-  return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
-      <ProductForm initial={initial} />
+  const [editing, setEditing] = useState(false);
 
-      {initial.id ? (
-        <DescriptionEditor productId={initial.id} initial={description} />
-      ) : (
-        <div className="border-border bg-surface-subtle rounded-xl border p-5">
-          <p className="text-muted text-sm">
-            상품을 먼저 저장하면 상세 설명을 쓸 수 있어요.
-          </p>
-        </div>
-      )}
+  if (editing && initial.id) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
+        <ProductForm initial={initial} />
+        <DescriptionEditor
+          productId={initial.id}
+          initial={description}
+          onClose={() => setEditing(false)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-2xl">
+      <ProductForm
+        initial={initial}
+        onEditDescription={initial.id ? () => setEditing(true) : undefined}
+      />
     </div>
   );
 }

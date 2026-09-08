@@ -28,7 +28,7 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-border bg-surface border-b">
-        <div className="flex w-full items-center gap-6 px-6 py-3">
+        <div className="flex w-full items-center gap-6 px-18 py-3">
           <Link
             href="/admin/products"
             className="flex flex-col items-center leading-tight font-bold tracking-[0.3px]"
@@ -78,7 +78,7 @@ export default async function AdminLayout({
         </div>
       </header>
 
-      <main className="w-full flex-1 px-6 py-8">{children}</main>
+      <main className="w-full flex-1 px-18 py-8">{children}</main>
     </div>
   );
 }

@@ -20,7 +20,14 @@ export type ProductFormValues = {
   isPublished: boolean;
 };
 
-export function ProductForm({ initial }: { initial: ProductFormValues }) {
+export function ProductForm({
+  initial,
+  onEditDescription,
+}: {
+  initial: ProductFormValues;
+  /** 있으면 "상세 설명 편집" 버튼이 보인다 (아직 저장 전인 새 상품엔 없다). */
+  onEditDescription?: () => void;
+}) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     saveProduct,
     null,
@@ -123,6 +130,26 @@ export function ProductForm({ initial }: { initial: ProductFormValues }) {
           건드리지 않으니 그대로 hidden input으로 실어 보내 저장 시
           지워지지 않게 한다 — 편집은 별도 화면(에디터)의 몫이다. */}
       <input type="hidden" name="description" value={initial.description} />
+
+      <section className="border-border bg-surface-subtle rounded-lg border p-4">
+        <h2 className="text-sm font-medium">상세 설명</h2>
+        <p className="text-muted mt-1 text-xs">
+          손님에게 보여줄 자세한 소개는 따로 씁니다.
+        </p>
+        {onEditDescription ? (
+          <button
+            type="button"
+            onClick={onEditDescription}
+            className="text-brand mt-2 inline-block text-sm hover:underline"
+          >
+            상세 설명 편집하기 →
+          </button>
+        ) : (
+          <p className="text-muted mt-2 text-sm">
+            상품을 먼저 저장하면 상세 설명을 쓸 수 있어요.
+          </p>
+        )}
+      </section>
 
       <section className="space-y-4">
         <ImageUploader
