@@ -29,7 +29,7 @@ export default async function AdminLayout({
     <div className="flex min-h-dvh flex-col">
       <header className="border-border bg-surface border-b">
         <div className="mx-auto flex w-full max-w-5xl items-center gap-6 px-6 py-3">
-          <Link href="/admin/products" className="font-bold">
+          <Link href="/admin/products" className="font-bold" tracking-[3px]>
             {SITE.name}
           </Link>
           <nav className="flex flex-1 gap-4">
