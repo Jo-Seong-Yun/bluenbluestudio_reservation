@@ -31,10 +31,10 @@ export default async function AdminLayout({
         <div className="mx-auto flex w-full max-w-5xl items-center gap-6 px-6 py-3">
           <Link
             href="/admin/products"
-            className="flex flex-col leading-tight font-bold tracking-[0.3px]"
+            className="flex flex-col items-center leading-tight font-bold tracking-[0.3px]"
           >
             {SITE.name}
-            <span className="text-muted text-xs font-normal">
+            <span className="text-muted text-xs font-normal tracking-[6.3px]">
               관리자 페이지
             </span>
           </Link>
