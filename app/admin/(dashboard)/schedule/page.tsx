@@ -22,7 +22,7 @@ import {
   type DayColumn,
 } from "@/components/week-grid";
 
-export const metadata: Metadata = { title: "스케줄 관리" };
+export const metadata: Metadata = { title: "스케줄관리" };
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -203,7 +203,7 @@ export default async function SchedulePage({
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">스케줄 관리</h1>
+      <h1 className="mb-6 text-2xl font-bold">스케줄관리</h1>
 
       <section className="border-border bg-surface mb-6 rounded-xl border p-4">
         <h2 className="font-bold">요일별 기본 운영시간</h2>
@@ -439,7 +439,7 @@ export default async function SchedulePage({
           </>
         ) : (
           <p className="text-muted mt-3 text-sm">
-            공개된 상품이 없어서 미리볼 수 없어요. 상품 관리에서 상품을 먼저
+            공개된 상품이 없어서 미리볼 수 없어요. 상품관리에서 상품을 먼저
             공개해주세요.
           </p>
         )}

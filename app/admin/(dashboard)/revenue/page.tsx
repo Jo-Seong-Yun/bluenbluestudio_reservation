@@ -6,7 +6,7 @@ import type { ReservationStatus } from "@/lib/supabase/database.types";
 import { Button, inputClass } from "@/components/ui";
 import { addMonthlyExpense, deleteMonthlyExpense } from "@/app/admin/actions";
 
-export const metadata: Metadata = { title: "매출 관리" };
+export const metadata: Metadata = { title: "매출관리" };
 
 /**
  * 매출로 치는 예약 상태.
@@ -110,7 +110,7 @@ export default async function RevenuePage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">매출 관리</h1>
+      <h1 className="text-2xl font-bold">매출관리</h1>
       <p className="text-muted mt-1 text-sm">
         확정·완료·노쇼 처리된 예약을 상품 가격 기준으로 집계해요. 취소된 예약과
         입금 전 신청은 빠져 있어요.

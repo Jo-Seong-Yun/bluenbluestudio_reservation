@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button, ErrorText } from "@/components/ui";
 import { moveProduct, togglePublished } from "../../actions";
 
-export const metadata: Metadata = { title: "상품 관리" };
+export const metadata: Metadata = { title: "상품관리" };
 
 export default async function ProductsPage() {
   // 로그인 확인은 app/admin/(dashboard)/layout.tsx 가 이미 한다.

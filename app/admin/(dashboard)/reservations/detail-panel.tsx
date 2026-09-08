@@ -187,7 +187,7 @@ function ReservationDetail({
         <label className="mb-1.5 block text-sm font-medium" htmlFor="cost">
           촬영 원가{" "}
           <span className="text-muted font-normal">
-            (대관료·소품·외주 등, 매출 관리 순이익 계산에 쓰여요)
+            (대관료·소품·외주 등, 매출관리 순이익 계산에 쓰여요)
           </span>
         </label>
         <div className="flex gap-2">
