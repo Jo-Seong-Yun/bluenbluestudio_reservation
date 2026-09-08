@@ -29,37 +29,43 @@ export default async function AdminLayout({
     <div className="flex min-h-dvh flex-col">
       <header className="border-border bg-surface border-b">
         <div className="mx-auto flex w-full max-w-5xl items-center gap-6 px-6 py-3">
-          <Link href="/admin/products" className="font-bold tracking-[0.1px]">
+          <Link
+            href="/admin/products"
+            className="flex flex-col leading-tight font-bold tracking-[0.3px]"
+          >
             {SITE.name}
+            <span className="text-muted text-xs font-normal">
+              관리자 페이지
+            </span>
           </Link>
           <nav className="flex flex-1 gap-4">
             <Link
               href="/admin/products"
-              className="text-muted hover:text-foreground text-sm tracking-[0.1px]"
+              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
             >
               상품관리
             </Link>
             <Link
               href="/admin/reservations"
-              className="text-muted hover:text-foreground text-sm tracking-[0.1px]"
+              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
             >
               예약관리
             </Link>
             <Link
               href="/admin/revenue"
-              className="text-muted hover:text-foreground text-sm tracking-[0.1px]"
+              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
             >
               매출관리
             </Link>
             <Link
               href="/admin/schedule"
-              className="text-muted hover:text-foreground text-sm tracking-[0.1px]"
+              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
             >
               스케줄관리
             </Link>
             <Link
               href="/admin/settings"
-              className="text-muted hover:text-foreground text-sm tracking-[0.1px]"
+              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
             >
               설정
             </Link>
