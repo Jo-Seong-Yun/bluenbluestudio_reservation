@@ -22,10 +22,9 @@ export default async function ProductsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">상품 관리</h1>
+          <h1 className="text-2xl font-bold">상품관리</h1>
           <p className="text-muted mt-1 text-sm">
-            손님이 예약할 수 있는 촬영 상품이에요. 순서는 손님 화면에 보이는
-            차례입니다.
+            고객이 예약할 수 있는 촬영 상품 (순서는 예약화면의 순서와 동일함)
           </p>
         </div>
         <Link href="/admin/products/new">
@@ -39,7 +38,7 @@ export default async function ProductsPage() {
 
       {products && products.length === 0 ? (
         <div className="border-border text-muted rounded-xl border border-dashed px-6 py-16 text-center">
-          <p>아직 상품이 없어요.</p>
+          <p>아직 상품이 없습니다.</p>
           <p className="mt-1 text-sm">
             &quot;상품 추가&quot;를 눌러 첫 촬영 상품을 만들어보세요.
           </p>
