@@ -27,7 +27,7 @@ export default async function EditProductPage({
         href="/admin/products"
         className="text-muted text-sm hover:underline"
       >
-        ← 상품 관리
+        ← 상품관리
       </Link>
       <h1 className="mt-2 mb-6 text-2xl font-bold">{product.name}</h1>
 
