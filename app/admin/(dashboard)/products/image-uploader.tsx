@@ -2,16 +2,11 @@
 
 import { useState } from "react";
 import { ErrorText } from "@/components/ui";
-import { ImageCropDialog } from "@/components/image-crop-dialog";
 import { publicImageUrl } from "@/lib/images";
 import { uploadProductImage } from "@/lib/storage-upload";
 
 /**
  * 상품 이미지 업로드.
- *
- * 파일을 고르면 바로 올리지 않고 한 장씩 자르기/크기 조절 모달을 거친다.
- * 여러 장을 한 번에 골랐으면 큐에 담아 순서대로 편집한다 — "원본 그대로"를
- * 누르면 그 장만 편집 없이 올라간다.
  *
  * 브라우저에서 Supabase Storage로 바로 올린다. 파일이 서버를 거치지 않아
  * 빠르고, 업로드 권한은 Storage RLS(로그인한 사용자만 쓰기)가 지킨다.
@@ -32,40 +27,25 @@ export function ImageUploader({
   onChange: (paths: string[]) => void;
   max?: number;
 }) {
-  const [queue, setQueue] = useState<File[]>([]);
-  const [current, setCurrent] = useState<File | null>(null);
-  const [batchTotal, setBatchTotal] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const atLimit = max !== undefined && value.length >= max;
-  const busy = uploading || current !== null;
 
-  function startQueue(files: FileList | null) {
+  async function upload(files: FileList | null) {
     if (!files || files.length === 0) return;
     setError(null);
-
-    const room =
-      max !== undefined ? Math.max(0, max - value.length) : files.length;
-    const picked = Array.from(files).slice(0, room);
-    if (picked.length === 0) return;
-
-    setBatchTotal(picked.length);
-    setCurrent(picked[0]);
-    setQueue(picked.slice(1));
-  }
-
-  function advanceQueue() {
-    setCurrent(queue[0] ?? null);
-    setQueue((prev) => prev.slice(1));
-  }
-
-  async function handleReady(blob: Blob) {
-    if (!current) return;
     setUploading(true);
+
     try {
-      const path = await uploadProductImage(blob, current.name);
-      onChange([...value, path]);
+      const uploaded: string[] = [];
+
+      for (const file of Array.from(files)) {
+        if (max !== undefined && value.length + uploaded.length >= max) break;
+        uploaded.push(await uploadProductImage(file, file.name));
+      }
+
+      onChange([...value, ...uploaded]);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -74,11 +54,8 @@ export function ImageUploader({
       );
     } finally {
       setUploading(false);
-      advanceQueue();
     }
   }
-
-  const editIndex = batchTotal - queue.length; // 1-based, 현재 편집 중인 장수
 
   return (
     <div>
@@ -114,16 +91,16 @@ export function ImageUploader({
         // 클릭이 파일 선택창으로 이어지지 않는다.
         <label
           className={`border-border bg-surface hover:bg-surface-subtle inline-flex cursor-pointer items-center rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-            busy ? "pointer-events-none opacity-50" : ""
+            uploading ? "pointer-events-none opacity-50" : ""
           }`}
         >
           <input
             type="file"
             accept="image/*"
             multiple={max !== 1}
-            disabled={busy}
+            disabled={uploading}
             onChange={(event) => {
-              startQueue(event.target.files);
+              void upload(event.target.files);
               event.target.value = "";
             }}
             className="hidden"
@@ -135,17 +112,6 @@ export function ImageUploader({
       <div className="mt-2">
         <ErrorText>{error}</ErrorText>
       </div>
-
-      <ImageCropDialog
-        file={current}
-        title={
-          batchTotal > 1
-            ? `사진 편집 (${editIndex}/${batchTotal})`
-            : "사진 편집"
-        }
-        onConfirm={handleReady}
-        onCancel={advanceQueue}
-      />
     </div>
   );
 }

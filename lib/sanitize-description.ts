@@ -34,7 +34,7 @@ export function sanitizeDescriptionHtml(html: string): string {
     ],
     allowedAttributes: {
       a: ["href", "target", "rel"],
-      img: ["src", "alt"],
+      img: ["src", "alt", "width"],
       span: ["style"],
     },
     allowedStyles: {

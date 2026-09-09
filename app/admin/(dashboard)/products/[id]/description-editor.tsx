@@ -7,7 +7,6 @@ import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
-import Image from "@tiptap/extension-image";
 import {
   Bold,
   Eraser,
@@ -22,7 +21,7 @@ import {
   type ProductDescriptionState,
 } from "@/app/admin/actions";
 import { Button, ErrorText } from "@/components/ui";
-import { ImageCropDialog } from "@/components/image-crop-dialog";
+import { ResizableImage } from "@/components/tiptap/resizable-image";
 import { publicImageUrl } from "@/lib/images";
 import { uploadProductImage } from "@/lib/storage-upload";
 
@@ -31,7 +30,7 @@ const editorContentClass =
   "px-4 py-3 text-base outline-none focus:border-brand " +
   "[&_a]:text-brand [&_a]:underline [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-bold " +
   "[&_h3]:mt-3 [&_h3]:font-bold [&_li]:ml-5 [&_li]:list-disc " +
-  "[&_strong]:font-bold [&_p]:my-2 [&_img]:my-3 [&_img]:max-w-full [&_img]:rounded-lg";
+  "[&_strong]:font-bold [&_p]:my-2";
 
 /**
  * 상세 설명 전용 에디터. 지금 보이는 그대로가 손님에게 보이는 모습인
@@ -54,9 +53,7 @@ export function DescriptionEditor({
     FormData
   >(saveProductDescription, null);
   const [description, setDescription] = useState(initial);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [pendingImage, setPendingImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -68,7 +65,7 @@ export function DescriptionEditor({
       }),
       TextStyle,
       Color,
-      Image,
+      ResizableImage,
     ],
     content: initial,
     immediatelyRender: false,
@@ -119,33 +116,72 @@ export function DescriptionEditor({
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }
 
+  // 팝업 없이, 고른 즉시 에디터 안에 넣는다. 자르기/크기 조절/위치 이동은
+  // 삽입된 이미지를 직접 선택해서 그 자리에서 한다(ResizableImageView).
+  // 업로드는 화면을 막지 않게 백그라운드로 돌리고, 그동안은 로컬
+  // blob URL로 미리보기를 보여주다가 끝나면 진짜 주소로 바꿔치기한다.
   function pickImage(files: FileList | null) {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || !editor) return;
+    const file = files[0];
     setUploadError(null);
-    setPendingImage(files[0]);
+
+    const blobUrl = URL.createObjectURL(file);
+    editor.chain().focus().setImage({ src: blobUrl, alt: "" }).run();
+
+    uploadProductImage(file, file.name)
+      .then((path) => {
+        replaceImageSrc(blobUrl, publicImageUrl(path));
+      })
+      .catch((cause) => {
+        // 실패한 미리보기를 그대로 두면 깨진 이미지가 남으니 지운다.
+        removeImageBySrc(blobUrl);
+        setUploadError(
+          cause instanceof Error
+            ? `이미지를 올리지 못했습니다: ${cause.message}`
+            : "이미지를 올리지 못했습니다.",
+        );
+      })
+      .finally(() => URL.revokeObjectURL(blobUrl));
   }
 
-  async function insertCroppedImage(blob: Blob) {
-    if (!editor || !pendingImage) return;
-    setUploadingImage(true);
+  function findImageNodePos(src: string): number {
+    if (!editor) return -1;
+    let targetPos = -1;
+    editor.state.doc.descendants((node, pos) => {
+      if (targetPos !== -1) return false;
+      if (node.type.name === "image" && node.attrs.src === src) {
+        targetPos = pos;
+      }
+      return true;
+    });
+    return targetPos;
+  }
 
-    try {
-      const path = await uploadProductImage(blob, pendingImage.name);
-      editor
-        .chain()
-        .focus()
-        .setImage({ src: publicImageUrl(path), alt: "" })
-        .run();
-    } catch (cause) {
-      setUploadError(
-        cause instanceof Error
-          ? `이미지를 올리지 못했습니다: ${cause.message}`
-          : "이미지를 올리지 못했습니다.",
-      );
-    } finally {
-      setUploadingImage(false);
-      setPendingImage(null);
-    }
+  /** 그 blob URL을 쓰는 이미지 노드를 찾아 진짜 주소로 바꾼다. */
+  function replaceImageSrc(fromSrc: string, toSrc: string) {
+    if (!editor) return;
+    const pos = findImageNodePos(fromSrc);
+    if (pos === -1) return;
+
+    const node = editor.state.doc.nodeAt(pos);
+    if (!node) return;
+    editor.view.dispatch(
+      editor.state.tr.setNodeMarkup(pos, undefined, {
+        ...node.attrs,
+        src: toSrc,
+      }),
+    );
+  }
+
+  /** 업로드에 실패한 이미지 노드를 찾아 문서에서 지운다. */
+  function removeImageBySrc(src: string) {
+    if (!editor) return;
+    const pos = findImageNodePos(src);
+    if (pos === -1) return;
+
+    const node = editor.state.doc.nodeAt(pos);
+    if (!node) return;
+    editor.view.dispatch(editor.state.tr.delete(pos, pos + node.nodeSize));
   }
 
   return (
@@ -236,7 +272,6 @@ export function DescriptionEditor({
 
             <ToolbarButton
               title="사진 삽입"
-              disabled={uploadingImage || pendingImage !== null}
               onClick={() => fileInputRef.current?.click()}
             >
               <ImageIcon size={16} />
@@ -254,12 +289,6 @@ export function DescriptionEditor({
           </div>
           <EditorContent editor={editor} />
           <ErrorText>{uploadError}</ErrorText>
-
-          <ImageCropDialog
-            file={pendingImage}
-            onConfirm={insertCroppedImage}
-            onCancel={() => setPendingImage(null)}
-          />
         </div>
 
         <ErrorText>{state?.error}</ErrorText>
