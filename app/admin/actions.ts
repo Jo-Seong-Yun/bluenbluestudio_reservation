@@ -15,6 +15,7 @@ import {
   notifyCustomerCancelled,
   notifyCustomerConfirmed,
 } from "@/lib/notifications/notify";
+import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -148,10 +149,11 @@ export async function saveProductDescription(
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "상품을 찾을 수 없어요." };
 
-  const description = String(formData.get("description") ?? "");
-  if (description.length > 20_000) {
+  const rawDescription = String(formData.get("description") ?? "");
+  if (rawDescription.length > 20_000) {
     return { error: "설명이 너무 길어요." };
   }
+  const description = sanitizeDescriptionHtml(rawDescription);
 
   const supabase = await createClient();
   const { data: product } = await supabase

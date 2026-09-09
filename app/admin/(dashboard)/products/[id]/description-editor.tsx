@@ -1,38 +1,43 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { Markdown, type MarkdownStorage } from "tiptap-markdown";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import Image from "@tiptap/extension-image";
+import {
+  Bold,
+  Eraser,
+  Heading2,
+  ImageIcon,
+  Italic,
+  Link2,
+  List,
+} from "lucide-react";
 import {
   saveProductDescription,
   type ProductDescriptionState,
 } from "@/app/admin/actions";
 import { Button, ErrorText } from "@/components/ui";
-
-// tiptap-markdown은 editor.storage.markdown을 런타임에 채워주지만
-// @tiptap/core의 Storage 타입은 그 확장을 모르니 직접 알려준다.
-declare module "@tiptap/core" {
-  interface Storage {
-    markdown: MarkdownStorage;
-  }
-}
+import { createClient } from "@/lib/supabase/client";
+import { publicImageUrl, PRODUCT_IMAGE_BUCKET } from "@/lib/images";
 
 const editorContentClass =
   "min-h-[380px] rounded-b-lg border border-t-0 border-border bg-surface " +
   "px-4 py-3 text-base outline-none focus:border-brand " +
   "[&_a]:text-brand [&_a]:underline [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-bold " +
   "[&_h3]:mt-3 [&_h3]:font-bold [&_li]:ml-5 [&_li]:list-disc " +
-  "[&_strong]:font-bold [&_p]:my-2";
+  "[&_strong]:font-bold [&_p]:my-2 [&_img]:my-3 [&_img]:max-w-full [&_img]:rounded-lg";
 
 /**
- * 상세 설명 전용 에디터. 손님 화면이 마크다운(react-markdown)으로
- * 렌더링하니 저장 형식은 그대로 마크다운 문자열을 쓴다 — 다만 사장님이
- * 문법을 외우거나 미리보기로 확인할 필요 없이, 지금 보이는 그대로가
- * 손님에게 보이는 모습인 위지윅(WYSIWYG) 편집을 한다. tiptap-markdown이
- * 편집 중인 문서와 마크다운 문자열을 서로 변환해준다.
+ * 상세 설명 전용 에디터. 지금 보이는 그대로가 손님에게 보이는 모습인
+ * 위지윅(WYSIWYG) 편집을 한다. 저장 형식은 마크다운이 아니라 HTML이다
+ * — 글자색이나 이미지처럼 마크다운으로는 표현할 수 없는 서식을 쓰려면
+ * HTML이 필요하다. 손님 화면(components/rich-text.tsx)에서 저장 전과
+ * 똑같이 한 번 더 정화(sanitize)해서 보여준다.
  */
 export function DescriptionEditor({
   productId,
@@ -48,6 +53,9 @@ export function DescriptionEditor({
     FormData
   >(saveProductDescription, null);
   const [description, setDescription] = useState(initial);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -56,12 +64,14 @@ export function DescriptionEditor({
       Placeholder.configure({
         placeholder: "이런 분께 추천해요, 포함 사항 등을 자유롭게 써보세요.",
       }),
-      Markdown.configure({ html: false, transformPastedText: true }),
+      TextStyle,
+      Color,
+      Image,
     ],
     content: initial,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
-      setDescription(editor.storage.markdown.getMarkdown());
+      setDescription(editor.getHTML());
     },
     editorProps: {
       attributes: { class: editorContentClass },
@@ -76,6 +86,7 @@ export function DescriptionEditor({
       heading: ctx.editor?.isActive("heading", { level: 2 }) ?? false,
       bulletList: ctx.editor?.isActive("bulletList") ?? false,
       link: ctx.editor?.isActive("link") ?? false,
+      color: ctx.editor?.getAttributes("textStyle").color ?? "",
     }),
   });
 
@@ -106,6 +117,38 @@ export function DescriptionEditor({
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }
 
+  async function uploadImage(files: FileList | null) {
+    if (!files || files.length === 0 || !editor) return;
+    const file = files[0];
+    setUploadError(null);
+    setUploadingImage(true);
+
+    try {
+      const supabase = createClient();
+      const extension = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const path = `${crypto.randomUUID()}.${extension}`;
+
+      const { error } = await supabase.storage
+        .from(PRODUCT_IMAGE_BUCKET)
+        .upload(path, file, { cacheControl: "31536000", upsert: false });
+      if (error) throw error;
+
+      editor
+        .chain()
+        .focus()
+        .setImage({ src: publicImageUrl(path), alt: "" })
+        .run();
+    } catch (cause) {
+      setUploadError(
+        cause instanceof Error
+          ? `이미지를 올리지 못했습니다: ${cause.message}`
+          : "이미지를 올리지 못했습니다.",
+      );
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
   return (
     <div className="border-border bg-surface rounded-xl border p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -125,7 +168,7 @@ export function DescriptionEditor({
         <input type="hidden" name="description" value={description} />
 
         <div>
-          <div className="border-border bg-surface-subtle flex flex-wrap gap-1 rounded-t-lg border border-b-0 p-2">
+          <div className="flex flex-wrap items-center gap-1 rounded-t-lg bg-neutral-900 p-2">
             <ToolbarButton
               active={editorState?.heading}
               title="제목"
@@ -133,38 +176,85 @@ export function DescriptionEditor({
                 editor?.chain().focus().toggleHeading({ level: 2 }).run()
               }
             >
-              제목
+              <Heading2 size={16} />
             </ToolbarButton>
             <ToolbarButton
               active={editorState?.bold}
               title="굵게"
               onClick={() => editor?.chain().focus().toggleBold().run()}
             >
-              <b>굵게</b>
+              <Bold size={16} />
             </ToolbarButton>
             <ToolbarButton
               active={editorState?.italic}
               title="기울임"
               onClick={() => editor?.chain().focus().toggleItalic().run()}
             >
-              <i>기울임</i>
+              <Italic size={16} />
             </ToolbarButton>
             <ToolbarButton
               active={editorState?.bulletList}
               title="목록"
               onClick={() => editor?.chain().focus().toggleBulletList().run()}
             >
-              목록
+              <List size={16} />
             </ToolbarButton>
             <ToolbarButton
               active={editorState?.link}
               title="링크"
               onClick={toggleLink}
             >
-              링크
+              <Link2 size={16} />
             </ToolbarButton>
+
+            <div className="mx-1 h-5 w-px bg-white/15" />
+
+            <label
+              title="글자색"
+              className="relative flex h-7 w-7 cursor-pointer items-center justify-center rounded hover:bg-white/10"
+            >
+              <span
+                className="h-4 w-4 rounded-full border border-white/40"
+                style={{ backgroundColor: editorState?.color || "#ffffff" }}
+              />
+              <input
+                type="color"
+                value={editorState?.color || "#ffffff"}
+                onChange={(event) =>
+                  editor?.chain().focus().setColor(event.target.value).run()
+                }
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            </label>
+            <ToolbarButton
+              title="글자색 지우기"
+              onClick={() => editor?.chain().focus().unsetColor().run()}
+            >
+              <Eraser size={16} />
+            </ToolbarButton>
+
+            <div className="mx-1 h-5 w-px bg-white/15" />
+
+            <ToolbarButton
+              title="사진 삽입"
+              disabled={uploadingImage}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <ImageIcon size={16} />
+            </ToolbarButton>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                void uploadImage(event.target.files);
+                event.target.value = "";
+              }}
+            />
           </div>
           <EditorContent editor={editor} />
+          <ErrorText>{uploadError}</ErrorText>
         </div>
 
         <ErrorText>{state?.error}</ErrorText>
@@ -186,11 +276,13 @@ function ToolbarButton({
   onClick,
   title,
   active,
+  disabled,
   children,
 }: {
   onClick: () => void;
   title: string;
   active?: boolean;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -198,10 +290,9 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       title={title}
-      className={`rounded border px-2.5 py-1 text-xs ${
-        active
-          ? "border-brand bg-brand/10 text-brand"
-          : "border-border bg-surface hover:bg-surface-subtle"
+      disabled={disabled}
+      className={`flex h-7 w-7 items-center justify-center rounded text-white disabled:opacity-40 ${
+        active ? "bg-white/20" : "hover:bg-white/10"
       }`}
     >
       {children}

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadAvailableDates } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
-import { Markdown } from "@/components/markdown";
+import { RichText } from "@/components/rich-text";
 import { BookingFlow } from "@/components/booking-flow";
 import { publicImageUrl } from "@/lib/images";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
@@ -100,7 +100,7 @@ export default async function ProductDetailPage({
 
           {product.description ? (
             <div className="mt-6">
-              <Markdown>{product.description}</Markdown>
+              <RichText>{product.description}</RichText>
             </div>
           ) : null}
         </div>
