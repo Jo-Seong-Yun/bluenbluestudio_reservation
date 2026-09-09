@@ -46,7 +46,11 @@ export function ResizableImageView({
     const img = imgRef.current;
     if (!img) return;
     const startX = event.clientX;
-    const startWidth = img.getBoundingClientRect().width;
+    // 저장된 폭(width 속성)이 있으면 그걸 기준으로 삼는다. 렌더링된
+    // 크기(getBoundingClientRect)는 에디터 폭에 막혀 실제 값보다 작게
+    // 보일 수 있어서, 그걸 기준으로 계산하면 늘리는 도중에 값이 도로
+    // 줄어드는 것처럼 보이는 문제가 있었다.
+    const startWidth = width ?? img.getBoundingClientRect().width;
 
     function onMove(moveEvent: MouseEvent) {
       const next = Math.max(
