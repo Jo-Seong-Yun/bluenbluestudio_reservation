@@ -223,42 +223,17 @@ export async function setProductTagColor(formData: FormData) {
 }
 
 /**
- * 목록에서의 순서 바꾸기.
- *
- * 드래그 대신 위/아래 버튼을 쓴다. 모바일에서도 확실히 동작하고
- * 라이브러리도 필요 없다. 상품 개수가 수십 개를 넘길 일이 없는 규모다.
+ * 목록에서 카드를 끌어다 놓아 순서를 바꾼다. 클라이언트가 새로 놓인
+ * 순서대로 id 목록을 통째로 넘기면, 그 순서대로 0부터 다시 번호를 매긴다.
  */
-export async function moveProduct(formData: FormData) {
+export async function reorderProducts(ids: string[]) {
   await requireAdmin();
-
-  const id = String(formData.get("id") ?? "");
-  const direction = formData.get("direction") === "up" ? -1 : 1;
-  if (!id) return;
+  if (ids.length === 0) return;
 
   const supabase = await createClient();
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, sort_order")
-    .order("sort_order")
-    .order("created_at");
-
-  if (!products) return;
-
-  const index = products.findIndex((product) => product.id === id);
-  const target = index + direction;
-  if (index === -1 || target < 0 || target >= products.length) return;
-
-  // sort_order 값이 겹치거나 비어 있을 수 있으므로, 순서를 바꾼 뒤
-  // 전체를 0부터 다시 매긴다. 값 두 개만 맞바꾸면 어긋난 상태가 남는다.
-  const reordered = [...products];
-  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-
   await Promise.all(
-    reordered.map((product, order) =>
-      supabase
-        .from("products")
-        .update({ sort_order: order })
-        .eq("id", product.id),
+    ids.map((id, order) =>
+      supabase.from("products").update({ sort_order: order }).eq("id", id),
     ),
   );
 
@@ -433,7 +408,7 @@ export async function deleteReservation(formData: FormData) {
  * 여기 액션들은 그 테이블의 행을 쓰는 일만 한다.
  *
  * redirect()를 쓰지 않는다 — 다른 가벼운 토글 액션들(togglePublished,
- * moveProduct 등)과 같은 이유다. 지금 보고 있는 페이지에 그대로 남아
+ * reorderProducts 등)과 같은 이유다. 지금 보고 있는 페이지에 그대로 남아
  * revalidatePath로만 갱신해야, 매 클릭마다 페이지 전체를 다시 내비게이션하며
  * 5개 쿼리를 처음부터 다시 부르는 지연이 없다. 특히 주간 캘린더는 한 칸
  * 클릭마다 이 액션이 불리므로 여기서의 딜레이가 그대로 체감된다.

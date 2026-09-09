@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button, ErrorText } from "@/components/ui";
-import { moveProduct, togglePublished } from "../../actions";
-import { ProductTagPicker } from "./product-tag-picker";
+import { ProductGrid } from "./product-grid";
 
 export const metadata: Metadata = { title: "상품관리" };
 
@@ -48,124 +47,7 @@ export default async function ProductsPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {(products ?? []).map((product, index) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            canMoveUp={index > 0}
-            canMoveDown={index < (products?.length ?? 0) - 1}
-          />
-        ))}
-      </div>
+      <ProductGrid products={products ?? []} />
     </div>
-  );
-}
-
-function ProductCard({
-  product,
-  canMoveUp,
-  canMoveDown,
-}: {
-  product: {
-    id: string;
-    name: string;
-    slug: string;
-    price: number;
-    duration_min: number;
-    is_published: boolean;
-    tag_color: string | null;
-  };
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-}) {
-  return (
-    <div className="border-border bg-surface flex aspect-square flex-col rounded-xl border p-4">
-      <div className="flex items-start justify-between gap-2">
-        {product.is_published ? (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-            공개 중
-          </span>
-        ) : (
-          <span className="bg-surface-subtle text-muted rounded-full px-2 py-0.5 text-xs font-medium">
-            비공개
-          </span>
-        )}
-
-        <div className="flex flex-col gap-0.5">
-          <MoveButton
-            id={product.id}
-            direction="up"
-            disabled={!canMoveUp}
-            label="위로"
-          />
-          <MoveButton
-            id={product.id}
-            direction="down"
-            disabled={!canMoveDown}
-            label="아래로"
-          />
-        </div>
-      </div>
-
-      <div className="mt-auto">
-        <div className="flex items-center gap-1.5">
-          <ProductTagPicker
-            productId={product.id}
-            tagColor={product.tag_color}
-          />
-          <span className="truncate font-semibold">{product.name}</span>
-        </div>
-        <p className="text-muted mt-0.5 truncate text-sm">
-          {product.duration_min}분 · {product.price.toLocaleString()}원
-        </p>
-
-        <div className="mt-3 flex gap-1.5">
-          <Link href={`/admin/products/${product.id}`} className="flex-1">
-            <Button variant="ghost" className="w-full">
-              수정
-            </Button>
-          </Link>
-          <form action={togglePublished} className="flex-1">
-            <input type="hidden" name="id" value={product.id} />
-            <input
-              type="hidden"
-              name="isPublished"
-              value={String(!product.is_published)}
-            />
-            <Button variant="ghost" type="submit" className="w-full">
-              {product.is_published ? "비공개로" : "공개하기"}
-            </Button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MoveButton({
-  id,
-  direction,
-  disabled,
-  label,
-}: {
-  id: string;
-  direction: "up" | "down";
-  disabled: boolean;
-  label: string;
-}) {
-  return (
-    <form action={moveProduct}>
-      <input type="hidden" name="id" value={id} />
-      <input type="hidden" name="direction" value={direction} />
-      <button
-        type="submit"
-        disabled={disabled}
-        aria-label={label}
-        className="text-muted hover:bg-surface-subtle hover:text-foreground flex h-5 w-6 items-center justify-center rounded text-xs disabled:opacity-25 disabled:hover:bg-transparent"
-      >
-        {direction === "up" ? "▲" : "▼"}
-      </button>
-    </form>
   );
 }
