@@ -267,6 +267,81 @@ export async function setProductTagColor(formData: FormData) {
   revalidatePath("/admin/products");
 }
 
+/**
+ * 상품 복제. 상품 정보와 신청서 문항(custom_fields)을 전부 그대로
+ * 복사해 새 상품을 하나 더 만든다 — 비슷한 상품을 매번 처음부터 다시
+ * 만들 필요 없이, 복제한 뒤 몇 군데만 고쳐 쓰라는 용도다. 제목만
+ * "-복사본"을 붙여 원본과 구분한다. 되돌릴 필요가 생기면 그냥 지우면
+ * 되는 비파괴적 동작이라 삭제와 달리 확인 절차를 두지 않는다.
+ */
+export async function duplicateProduct(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+
+  const { data: source } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!source) return;
+
+  const name = `${source.name}-복사본`;
+  const baseSlug = toSlug(name);
+
+  let created: { id: string } | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const slug =
+      attempt === 0
+        ? baseSlug
+        : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+
+    const { data, error } = await supabase
+      .from("products")
+      .insert({
+        name,
+        slug,
+        duration_min: source.duration_min,
+        buffer_after_min: source.buffer_after_min,
+        price: source.price,
+        max_people: source.max_people,
+        summary: source.summary,
+        description: source.description,
+        cover_image: source.cover_image,
+        gallery: source.gallery,
+        is_published: source.is_published,
+        tag_color: source.tag_color,
+      })
+      .select("id")
+      .single();
+
+    if (!error) {
+      created = data;
+      break;
+    }
+    if (error.code !== "23505") break; // 주소(slug) 충돌이 아니면 재시도해도 소용없다.
+  }
+
+  if (!created) return;
+
+  const { data: fields } = await supabase
+    .from("custom_fields")
+    .select("label, type, options, description, required, active, sort_order")
+    .eq("product_id", id)
+    .order("sort_order");
+
+  if (fields && fields.length > 0) {
+    await supabase
+      .from("custom_fields")
+      .insert(fields.map((field) => ({ ...field, product_id: created.id })));
+  }
+
+  revalidatePath("/admin/products");
+}
+
 export type ProductDeleteState = { error?: string; success?: boolean } | null;
 
 /**

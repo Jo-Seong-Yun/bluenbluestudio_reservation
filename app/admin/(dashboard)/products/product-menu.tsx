@@ -1,18 +1,24 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { deleteProduct, type ProductDeleteState } from "../../actions";
+import {
+  deleteProduct,
+  duplicateProduct,
+  type ProductDeleteState,
+} from "../../actions";
 import { Button } from "@/components/ui";
+import { PendingSubmit } from "@/components/submit-button";
 
 const CONFIRM_WORD = "삭제";
 
 /**
- * 카드 우상단의 점 세 개 메뉴. 지금은 "삭제" 하나뿐이다.
+ * 카드 우상단의 점 세 개 메뉴. "복제"와 "삭제"가 있다.
  *
- * 삭제는 예약 삭제(delete-reservation-button.tsx)와 같은 2단계 확인을
- * 거친다 — 실수로 지우는 걸 막기 위해서다. 예약 내역이 있는 상품은
- * DB 외래키 제약 때문에 애초에 지워지지 않고, deleteProduct가 그 경우를
- * 안내 문구로 바꿔 돌려준다.
+ * 복제는 되돌리기 쉬운(그냥 지우면 되는) 동작이라 확인 절차 없이 바로
+ * 실행된다. 삭제는 예약 삭제(delete-reservation-button.tsx)와 같은
+ * 2단계 확인을 거친다 — 실수로 지우는 걸 막기 위해서다. 예약 내역이
+ * 있는 상품은 DB 외래키 제약 때문에 애초에 지워지지 않고, deleteProduct가
+ * 그 경우를 안내 문구로 바꿔 돌려준다.
  */
 export function ProductMenu({
   productId,
@@ -70,6 +76,12 @@ export function ProductMenu({
 
       {menuOpen ? (
         <div className="border-border bg-surface absolute top-7 right-0 z-10 w-28 rounded-lg border py-1 shadow-lg">
+          <form action={duplicateProduct} onSubmit={() => setMenuOpen(false)}>
+            <input type="hidden" name="id" value={productId} />
+            <PendingSubmit className="hover:bg-surface-subtle block w-full px-3 py-2 text-left text-sm">
+              복제
+            </PendingSubmit>
+          </form>
           <button
             type="button"
             onClick={openDialog}
