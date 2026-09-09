@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/supabase/auth";
 import { missingServerEnv } from "@/lib/supabase/env";
 import { ConfigNotice } from "@/components/config-notice";
 import { signOut } from "../actions";
-import { Button } from "@/components/ui";
+import { AdminNav } from "@/components/admin-nav";
 import { SITE } from "@/lib/site";
 
 /**
@@ -27,58 +27,22 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="border-border bg-surface border-b">
-        <div className="flex w-full items-center gap-6 px-[8.5%] py-3">
+      <header className="border-border bg-surface relative border-b">
+        <div className="flex w-full items-center gap-4 px-4 py-3 sm:gap-6 sm:px-[8.5%]">
           <Link
             href="/admin/products"
-            className="flex flex-col items-center leading-tight font-bold tracking-[0.3px]"
+            className="flex shrink-0 flex-col items-center leading-tight font-bold tracking-[0.3px]"
           >
             {SITE.name}
             <span className="text-muted text-xs font-normal tracking-[5.76px]">
               관리자 페이지
             </span>
           </Link>
-          <nav className="flex flex-1 gap-4">
-            <Link
-              href="/admin/products"
-              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
-            >
-              상품관리
-            </Link>
-            <Link
-              href="/admin/reservations"
-              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
-            >
-              예약관리
-            </Link>
-            <Link
-              href="/admin/revenue"
-              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
-            >
-              매출관리
-            </Link>
-            <Link
-              href="/admin/schedule"
-              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
-            >
-              스케줄관리
-            </Link>
-            <Link
-              href="/admin/settings"
-              className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
-            >
-              설정
-            </Link>
-          </nav>
-          <form action={signOut}>
-            <Button variant="danger" type="submit">
-              로그아웃
-            </Button>
-          </form>
+          <AdminNav signOutAction={signOut} />
         </div>
       </header>
 
-      <main className="w-full flex-1 px-[8.5%] py-8">{children}</main>
+      <main className="w-full flex-1 px-4 py-8 sm:px-[8.5%]">{children}</main>
     </div>
   );
 }
