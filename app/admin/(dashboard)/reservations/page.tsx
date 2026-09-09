@@ -29,38 +29,29 @@ export default async function ReservationsPage({
   const grid = monthGridDates(month);
   const supabase = await createClient();
 
-  const { data: reservations } = await supabase
-    .from("reservations")
-    .select(
-      "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, cost, charged_amount, gender, birth_date, product_id",
-    )
-    .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
-    .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
-    .order("shoot_start");
+  // reservations와 products는 서로 독립적이라 동시에 불러온다. products는
+  // 이 달 예약에 걸린 상품 이름·태그색을 찾는 용도와, 아래 수기 예약 등록
+  // 폼의 선택지 용도를 겸한다 — 공개 여부와 무관하게 전부 가져온다(비공개
+  // 상품도 전화로는 예약을 받을 수 있어야 하고, 상품 수가 적어 전부
+  // 가져오는 쪽이 이 달에 쓰인 상품 id만 골라 한 번 더 왕복하는 것보다 낫다).
+  const [{ data: reservations }, { data: allProducts }] = await Promise.all([
+    supabase
+      .from("reservations")
+      .select(
+        "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, cost, charged_amount, gender, birth_date, product_id",
+      )
+      .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
+      .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
+      .order("shoot_start"),
+    supabase.from("products").select("id, name, tag_color").order("sort_order"),
+  ]);
 
-  const productIds = [
-    ...new Set((reservations ?? []).map((r) => r.product_id)),
-  ];
-  const { data: products } =
-    productIds.length > 0
-      ? await supabase
-          .from("products")
-          .select("id, name, tag_color")
-          .in("id", productIds)
-      : {
-          data: [] as { id: string; name: string; tag_color: string | null }[],
-        };
-  const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
-  const productTagColorById = new Map(
-    (products ?? []).map((p) => [p.id, p.tag_color]),
+  const productNameById = new Map(
+    (allProducts ?? []).map((p) => [p.id, p.name]),
   );
-
-  // 수기 예약 등록 폼의 상품 선택지. 공개 여부와 무관하게 전부 보여준다 —
-  // 비공개 상품도 전화로는 예약을 받을 수 있어야 한다.
-  const { data: allProducts } = await supabase
-    .from("products")
-    .select("id, name")
-    .order("sort_order");
+  const productTagColorById = new Map(
+    (allProducts ?? []).map((p) => [p.id, p.tag_color]),
+  );
 
   // 달력 칸에 넣을 형태로 날짜별로 묶는다.
   const byDate = new Map<DateString, CalendarReservation[]>();
