@@ -26,7 +26,7 @@ import { publicImageUrl } from "@/lib/images";
 import { uploadProductImage } from "@/lib/storage-upload";
 
 const editorContentClass =
-  "min-h-[380px] rounded-b-lg border border-t-0 border-border bg-surface " +
+  "h-[600px] overflow-auto rounded-b-lg border border-t-0 border-border bg-surface " +
   "px-4 py-3 text-base outline-none focus:border-brand " +
   "[&_a]:text-brand [&_a]:underline [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-bold " +
   "[&_h3]:mt-3 [&_h3]:font-bold [&_li]:ml-5 [&_li]:list-disc " +
