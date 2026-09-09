@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ActionState } from "../../actions";
-import { Button, ErrorText, Field, inputClass } from "@/components/ui";
+import { ErrorText, Field, inputClass } from "@/components/ui";
 import { ImageUploader } from "./image-uploader";
 
 export type ProductFormValues = {
@@ -24,14 +24,12 @@ export function ProductForm({
   initial,
   formId,
   action,
-  pending,
   state,
 }: {
   initial: ProductFormValues;
-  /** 이 id로 폼 밖(예: 타이틀 옆)에 있는 버튼도 같은 폼을 제출할 수 있다. */
+  /** 이 id로 폼 밖(타이틀 옆 저장 버튼, 공개 여부 토글)에서도 같은 폼을 쓴다. */
   formId: string;
   action: (formData: FormData) => void;
-  pending: boolean;
   state: ActionState;
 }) {
   const [coverImage, setCoverImage] = useState(initial.coverImage);
@@ -153,28 +151,7 @@ export function ProductForm({
         ))}
       </section>
 
-      <section className="border-border border-t pt-6">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            name="isPublished"
-            defaultChecked={initial.isPublished}
-            className="h-4 w-4"
-          />
-          <span className="text-sm font-medium">손님에게 공개</span>
-        </label>
-        <p className="text-muted mt-1 text-xs">
-          꺼두면 초안으로 저장돼요. 준비가 끝나면 켜세요.
-        </p>
-      </section>
-
       <ErrorText>{state?.error}</ErrorText>
-
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "저장 중…" : "저장"}
-        </Button>
-      </div>
     </form>
   );
 }

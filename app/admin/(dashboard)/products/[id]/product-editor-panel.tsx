@@ -36,6 +36,18 @@ export function ProductEditorPanel({
     <div>
       <div className="mb-6 flex items-center gap-3">
         <h1 className="text-2xl font-bold">{initial.name}</h1>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="isPublished"
+            form={FORM_ID}
+            defaultChecked={initial.isPublished}
+            className="h-4 w-4"
+          />
+          <span className="text-sm font-medium">손님에게 공개</span>
+        </label>
+
         <Button type="submit" form={FORM_ID} disabled={pending}>
           {pending ? "저장 중…" : "저장"}
         </Button>
@@ -47,7 +59,6 @@ export function ProductEditorPanel({
             initial={initial}
             formId={FORM_ID}
             action={action}
-            pending={pending}
             state={state}
           />
         </div>

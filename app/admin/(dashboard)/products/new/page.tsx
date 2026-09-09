@@ -13,11 +13,10 @@ export default async function NewProductPage() {
     <div>
       <Link
         href="/admin/products"
-        className="text-muted text-sm hover:underline"
+        className="text-muted mb-2 inline-block text-sm hover:underline"
       >
         ← 상품관리
       </Link>
-      <h1 className="mt-2 mb-6 text-2xl font-bold">상품 추가</h1>
 
       <NewProductForm
         initial={{
