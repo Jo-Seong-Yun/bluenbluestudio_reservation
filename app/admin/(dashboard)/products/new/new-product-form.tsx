@@ -21,23 +21,29 @@ export function NewProductForm({ initial }: { initial: ProductFormValues }) {
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-3">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">상품 추가</h1>
 
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            name="isPublished"
-            form={FORM_ID}
-            defaultChecked={initial.isPublished}
-            className="h-4 w-4"
-          />
-          <span className="text-sm font-medium">손님에게 공개</span>
-        </label>
+        <div className="flex items-center gap-4">
+          <label className="inline-flex cursor-pointer items-center gap-2">
+            <span className="relative inline-block h-6 w-11 shrink-0">
+              <input
+                type="checkbox"
+                name="isPublished"
+                form={FORM_ID}
+                defaultChecked={initial.isPublished}
+                className="peer sr-only"
+              />
+              <span className="bg-surface-subtle border-border peer-checked:bg-brand peer-checked:border-brand absolute inset-0 rounded-full border transition-colors" />
+              <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
+            </span>
+            <span className="text-sm font-medium">손님에게 공개</span>
+          </label>
 
-        <Button type="submit" form={FORM_ID} disabled={pending}>
-          {pending ? "저장 중…" : "저장"}
-        </Button>
+          <Button type="submit" form={FORM_ID} disabled={pending}>
+            {pending ? "저장 중…" : "저장"}
+          </Button>
+        </div>
       </div>
 
       <ProductForm
