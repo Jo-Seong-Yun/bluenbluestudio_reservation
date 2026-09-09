@@ -21,12 +21,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a141f;
-    --surface: #111e2c;
-    --surface-subtle: #16273a;
+    --background: #080f16;
+    --surface: #1a2b3d;
+    --surface-subtle: #29415b;
     --foreground: #e8eef5;
     --muted: #93a5b8;
-    --border: #23384e;
+    --border: #456587;
 
     --brand: #5a86ff;
     --brand-hover: #7b9eff;
