@@ -41,6 +41,15 @@ export function ProductGrid({ products }: { products: Product[] }) {
     setItems(products);
   }
 
+  const gridRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
+  const prevRects = useRef(new Map<string, DOMRect>());
+
+  // 카드 하나당 한 번만 자리를 바꾸고, 커서가 그 카드를 벗어났다가
+  // 다시 들어와야 또 한 번 바꾸도록 막는다 — 이게 없으면 카드 경계
+  // 근처에서 자리가 계속 왔다갔다 튕겨서 지나치게 예민하게 느껴진다.
+  const lastOverId = useRef<string | null>(null);
+
   function handleDragStart(e: React.DragEvent, id: string) {
     const target = e.target as HTMLElement;
     if (target.closest("a,button,input")) {
@@ -48,15 +57,54 @@ export function ProductGrid({ products }: { products: Product[] }) {
       return;
     }
     setDragId(id);
+    lastOverId.current = null;
     e.dataTransfer.effectAllowed = "move";
   }
 
-  function handleDragOver(e: React.DragEvent, overId: string) {
+  // dragover 대상 판정을 카드 각각의 이벤트가 아니라 그리드 전체에서
+  // 한 번에 한다. 카드별 dragover/dragleave에 맡기면, 자리가 바뀔 때
+  // 카드가 CSS transform으로 미끄러지는 동안 브라우저가 어떤 카드
+  // 위에 커서가 있는지 헷갈려하며 leave/over를 반복 발생시켜 자리가
+  // 튕기는 원인이 됐다. 대신 각 카드의 레이아웃 상 위치(offsetLeft
+  // 등, transform의 영향을 받지 않음)를 직접 비교해 판정하면 애니메이션
+  // 중에도 안정적이다.
+  function handleGridDragOver(e: React.DragEvent) {
     e.preventDefault();
-    if (!dragId || dragId === overId) return;
+    if (!dragId || !gridRef.current) return;
+
+    const containerRect = gridRef.current.getBoundingClientRect();
+    const pointerX = e.clientX - containerRect.left;
+    const pointerY = e.clientY - containerRect.top;
+
+    let targetId: string | null = null;
+    for (const [id, el] of cardRefs.current) {
+      if (id === dragId) continue;
+      const left = el.offsetLeft;
+      const top = el.offsetTop;
+      const width = el.offsetWidth;
+      const height = el.offsetHeight;
+      // 커서가 카드 가운데 쪽 절반 안에 들어왔을 때만 그 카드를
+      // 대상으로 본다 — 가장자리를 살짝 스치는 정도로는 반응하지 않는다.
+      const withinX =
+        pointerX > left + width * 0.25 && pointerX < left + width * 0.75;
+      const withinY =
+        pointerY > top + height * 0.25 && pointerY < top + height * 0.75;
+      if (withinX && withinY) {
+        targetId = id;
+        break;
+      }
+    }
+
+    if (!targetId) {
+      lastOverId.current = null;
+      return;
+    }
+    if (targetId === lastOverId.current) return;
+    lastOverId.current = targetId;
+
     setItems((prev) => {
       const from = prev.findIndex((p) => p.id === dragId);
-      const to = prev.findIndex((p) => p.id === overId);
+      const to = prev.findIndex((p) => p.id === targetId);
       if (from === -1 || to === -1 || from === to) return prev;
       const next = [...prev];
       const [moved] = next.splice(from, 1);
@@ -67,6 +115,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
 
   function handleDragEnd() {
     setDragId(null);
+    lastOverId.current = null;
     startTransition(async () => {
       await reorderProducts(items.map((p) => p.id));
     });
@@ -77,9 +126,6 @@ export function ProductGrid({ products }: { products: Product[] }) {
   // 각 카드를 "이전 위치"만큼 반대로 밀어둔 뒤, 다음 프레임에 그 이동을
   // 되돌리는 트랜지션을 걸어서 실제로는 이전 자리에서 새 자리로
   // 부드럽게 미끄러지듯 보이게 만든다.
-  const cardRefs = useRef(new Map<string, HTMLDivElement>());
-  const prevRects = useRef(new Map<string, DOMRect>());
-
   useLayoutEffect(() => {
     const nextRects = new Map<string, DOMRect>();
     cardRefs.current.forEach((el, id) => {
@@ -108,7 +154,12 @@ export function ProductGrid({ products }: { products: Product[] }) {
   }, [items]);
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div
+      ref={gridRef}
+      onDragOver={handleGridDragOver}
+      onDrop={(e) => e.preventDefault()}
+      className="relative grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+    >
       {items.map((product) => (
         <div
           key={product.id}
@@ -121,8 +172,6 @@ export function ProductGrid({ products }: { products: Product[] }) {
           }}
           draggable
           onDragStart={(e) => handleDragStart(e, product.id)}
-          onDragOver={(e) => handleDragOver(e, product.id)}
-          onDrop={(e) => e.preventDefault()}
           onDragEnd={handleDragEnd}
           className={`cursor-grab active:cursor-grabbing ${
             dragId === product.id ? "opacity-40" : ""
