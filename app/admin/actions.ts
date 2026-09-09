@@ -100,6 +100,41 @@ async function seedDefaultCustomFields(
   );
 }
 
+/**
+ * "상품 추가" 버튼을 누르면 곧바로 빈 상품을 하나 만들고 그 상품의 수정
+ * 화면으로 보낸다. 예전엔 이름 등 기본 정보만 입력하는 화면이 따로
+ * 있었고, 거길 저장해야만 상세 설명·신청서 문항까지 같이 보이는 수정
+ * 화면으로 넘어갔다 — 이제는 처음부터 그 화면에서 편집하도록, 상세
+ * 설명 에디터와 신청서 문항 관리가 필요로 하는 상품 id를 미리 만들어
+ * 둔다. saveProduct의 새 상품 저장 분기와 똑같이 기본 문항 5개도 바로
+ * 심는다.
+ */
+export async function createDraftProduct() {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const name = "새 상품";
+  const { data: created, error } = await supabase
+    .from("products")
+    .insert({
+      name,
+      slug: toSlug(name),
+      duration_min: 60,
+      buffer_after_min: 0,
+      price: 0,
+      is_published: false,
+    })
+    .select("id")
+    .single();
+
+  if (error || !created) redirect("/admin/products");
+
+  await seedDefaultCustomFields(supabase, created.id);
+
+  revalidatePath("/admin/products");
+  redirect(`/admin/products/${created.id}`);
+}
+
 export async function saveProduct(
   _prev: ActionState,
   formData: FormData,

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Button, ErrorText } from "@/components/ui";
+import { createDraftProduct } from "@/app/admin/actions";
+import { ErrorText } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import { ProductGrid } from "./product-grid";
 
 export const metadata: Metadata = { title: "상품관리" };
@@ -29,9 +30,9 @@ export default async function ProductsPage() {
             고객이 예약할 수 있는 촬영 상품 (순서는 예약화면의 순서와 동일함)
           </p>
         </div>
-        <Link href="/admin/products/new">
-          <Button>상품 추가</Button>
-        </Link>
+        <form action={createDraftProduct}>
+          <SubmitButton>상품 추가</SubmitButton>
+        </form>
       </div>
 
       {error ? (
