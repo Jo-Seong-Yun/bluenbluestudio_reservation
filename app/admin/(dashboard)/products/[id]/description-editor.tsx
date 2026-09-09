@@ -22,8 +22,9 @@ import {
   type ProductDescriptionState,
 } from "@/app/admin/actions";
 import { Button, ErrorText } from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
-import { publicImageUrl, PRODUCT_IMAGE_BUCKET } from "@/lib/images";
+import { ImageCropDialog } from "@/components/image-crop-dialog";
+import { publicImageUrl } from "@/lib/images";
+import { uploadProductImage } from "@/lib/storage-upload";
 
 const editorContentClass =
   "min-h-[380px] rounded-b-lg border border-t-0 border-border bg-surface " +
@@ -55,6 +56,7 @@ export function DescriptionEditor({
   const [description, setDescription] = useState(initial);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -117,22 +119,18 @@ export function DescriptionEditor({
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }
 
-  async function uploadImage(files: FileList | null) {
-    if (!files || files.length === 0 || !editor) return;
-    const file = files[0];
+  function pickImage(files: FileList | null) {
+    if (!files || files.length === 0) return;
     setUploadError(null);
+    setPendingImage(files[0]);
+  }
+
+  async function insertCroppedImage(blob: Blob) {
+    if (!editor || !pendingImage) return;
     setUploadingImage(true);
 
     try {
-      const supabase = createClient();
-      const extension = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const path = `${crypto.randomUUID()}.${extension}`;
-
-      const { error } = await supabase.storage
-        .from(PRODUCT_IMAGE_BUCKET)
-        .upload(path, file, { cacheControl: "31536000", upsert: false });
-      if (error) throw error;
-
+      const path = await uploadProductImage(blob, pendingImage.name);
       editor
         .chain()
         .focus()
@@ -146,6 +144,7 @@ export function DescriptionEditor({
       );
     } finally {
       setUploadingImage(false);
+      setPendingImage(null);
     }
   }
 
@@ -237,7 +236,7 @@ export function DescriptionEditor({
 
             <ToolbarButton
               title="사진 삽입"
-              disabled={uploadingImage}
+              disabled={uploadingImage || pendingImage !== null}
               onClick={() => fileInputRef.current?.click()}
             >
               <ImageIcon size={16} />
@@ -248,13 +247,19 @@ export function DescriptionEditor({
               accept="image/*"
               className="hidden"
               onChange={(event) => {
-                void uploadImage(event.target.files);
+                pickImage(event.target.files);
                 event.target.value = "";
               }}
             />
           </div>
           <EditorContent editor={editor} />
           <ErrorText>{uploadError}</ErrorText>
+
+          <ImageCropDialog
+            file={pendingImage}
+            onConfirm={insertCroppedImage}
+            onCancel={() => setPendingImage(null)}
+          />
         </div>
 
         <ErrorText>{state?.error}</ErrorText>
