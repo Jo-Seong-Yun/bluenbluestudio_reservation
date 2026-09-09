@@ -22,12 +22,12 @@ export function AdminNav({ signOutAction }: { signOutAction: () => void }) {
 
   return (
     <>
-      <nav className="hidden flex-1 gap-4 sm:flex">
+      <nav className="hidden flex-1 gap-6 sm:flex">
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="text-muted hover:text-foreground text-sm tracking-[0.5px]"
+            className="text-muted hover:text-foreground text-sm tracking-[0.4px]"
           >
             {item.label}
           </Link>
@@ -51,13 +51,13 @@ export function AdminNav({ signOutAction }: { signOutAction: () => void }) {
 
       {open ? (
         <div className="border-border bg-surface absolute inset-x-0 top-full z-20 border-b p-3 shadow-sm sm:hidden">
-          <nav className="flex flex-col gap-1">
+          <nav className="flex flex-col gap-1.5">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="hover:bg-surface-subtle rounded-lg px-3 py-2.5 text-sm font-medium"
+                className="hover:bg-surface-subtle rounded-lg px-3 py-2.5 text-sm font-medium tracking-[0.4px]"
               >
                 {item.label}
               </Link>
