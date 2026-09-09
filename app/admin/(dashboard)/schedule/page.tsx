@@ -55,6 +55,7 @@ export default async function SchedulePage({
     { data: blockRows },
     { data: reservationRows },
     { data: productRows },
+    { data: productColorRows },
   ] = await Promise.all([
     supabase
       .from("weekly_hours")
@@ -71,7 +72,7 @@ export default async function SchedulePage({
       .overlaps("period", range),
     supabase
       .from("reservations")
-      .select("id, period, customer_name")
+      .select("id, period, customer_name, product_id")
       .in("status", ["requested", "confirmed"])
       .overlaps("period", range),
     supabase
@@ -79,7 +80,14 @@ export default async function SchedulePage({
       .select("id, name")
       .eq("is_published", true)
       .order("sort_order"),
+    // 미리보기 목록(위)은 공개된 상품만 보여주지만, 예약은 그 사이 비공개로
+    // 바뀐 상품에도 걸려 있을 수 있어 태그 색은 전체 상품에서 찾는다.
+    supabase.from("products").select("id, tag_color"),
   ]);
+
+  const tagColorByProductId = new Map(
+    (productColorRows ?? []).map((p) => [p.id, p.tag_color]),
+  );
 
   const weeklyHoursByWeekday = new Map(
     (weeklyHoursRows ?? []).map((r) => [r.weekday, r]),
@@ -105,6 +113,9 @@ export default async function SchedulePage({
   const reservations = (reservationRows ?? []).map((r) => ({
     id: r.id,
     name: r.customer_name,
+    tagColor: r.product_id
+      ? (tagColorByProductId.get(r.product_id) ?? null)
+      : null,
     ...parseTstzRange(r.period),
   }));
 
@@ -151,6 +162,7 @@ export default async function SchedulePage({
           hour: hourStr,
           state: "reserved" as CellState,
           label: reservation.name,
+          tagColor: reservation.tagColor,
         };
       }
 

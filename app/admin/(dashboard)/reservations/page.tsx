@@ -43,9 +43,17 @@ export default async function ReservationsPage({
   ];
   const { data: products } =
     productIds.length > 0
-      ? await supabase.from("products").select("id, name").in("id", productIds)
-      : { data: [] as { id: string; name: string }[] };
+      ? await supabase
+          .from("products")
+          .select("id, name, tag_color")
+          .in("id", productIds)
+      : {
+          data: [] as { id: string; name: string; tag_color: string | null }[],
+        };
   const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
+  const productTagColorById = new Map(
+    (products ?? []).map((p) => [p.id, p.tag_color]),
+  );
 
   // 수기 예약 등록 폼의 상품 선택지. 공개 여부와 무관하게 전부 보여준다 —
   // 비공개 상품도 전화로는 예약을 받을 수 있어야 한다.
@@ -64,6 +72,7 @@ export default async function ReservationsPage({
       time: kstTimeString(new Date(r.shoot_start)),
       customerName: r.customer_name,
       status: r.status,
+      tagColor: productTagColorById.get(r.product_id) ?? null,
     });
     byDate.set(d, list);
   }

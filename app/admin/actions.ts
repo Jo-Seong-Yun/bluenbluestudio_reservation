@@ -16,6 +16,7 @@ import {
   notifyCustomerConfirmed,
 } from "@/lib/notifications/notify";
 import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
+import { PRODUCT_TAG_COLORS } from "@/lib/product-tag-colors";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -99,6 +100,12 @@ export async function saveProduct(
     .map(String)
     .filter((path) => path.length > 0);
 
+  // 정해둔 팔레트 밖의 값(조작되거나 옛날 값)이 오면 그냥 태그 없음으로 —
+  // DB 체크 제약에 걸려 저장 자체가 실패하게 두지 않는다.
+  const tagColorRaw = String(formData.get("tagColor") ?? "");
+  const tagColor =
+    PRODUCT_TAG_COLORS.find((color) => color.key === tagColorRaw)?.key ?? null;
+
   const row = {
     name: input.name,
     slug: input.slug || toSlug(input.name),
@@ -111,6 +118,7 @@ export async function saveProduct(
     cover_image: coverImage,
     gallery,
     is_published: input.isPublished,
+    tag_color: tagColor,
   };
 
   const supabase = await createClient();

@@ -5,6 +5,7 @@ import {
   weekdayOf,
   type DateString,
 } from "@/lib/time";
+import { tagColorCellClass } from "@/lib/product-tag-colors";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_CHIPS = 3;
@@ -14,6 +15,8 @@ export type CalendarReservation = {
   time: string; // "18:00"
   customerName: string;
   status: string;
+  /** 이 예약이 속한 상품의 태그 색상 키(없으면 기본 색). */
+  tagColor?: string | null;
 };
 
 const STATUS_DOT: Record<string, string> = {
@@ -105,22 +108,26 @@ export function AdminCalendar({
               </Link>
 
               <div className="mt-1 space-y-0.5">
-                {items.slice(0, MAX_CHIPS).map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/admin/reservations?month=${month}&date=${date}&id=${item.id}`}
-                    className={`block truncate rounded px-1 py-0.5 text-[10px] leading-tight transition-colors ${
-                      item.id === selectedId
-                        ? "bg-brand text-brand-foreground"
-                        : "bg-surface-subtle hover:bg-brand/20"
-                    }`}
-                  >
-                    <span
-                      className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[item.status] ?? "bg-gray-400"}`}
-                    />
-                    {item.time} {item.customerName}
-                  </Link>
-                ))}
+                {items.slice(0, MAX_CHIPS).map((item) => {
+                  const isSelected = item.id === selectedId;
+                  const tagClass = tagColorCellClass(item.tagColor);
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/admin/reservations?month=${month}&date=${date}&id=${item.id}`}
+                      className={`block truncate rounded px-1 py-0.5 text-[10px] leading-tight transition-colors ${
+                        isSelected
+                          ? "bg-brand text-brand-foreground"
+                          : (tagClass ?? "bg-surface-subtle hover:bg-brand/20")
+                      }`}
+                    >
+                      <span
+                        className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[item.status] ?? "bg-gray-400"}`}
+                      />
+                      {item.time} {item.customerName}
+                    </Link>
+                  );
+                })}
                 {items.length > MAX_CHIPS ? (
                   <Link
                     href={`/admin/reservations?month=${month}&date=${date}`}

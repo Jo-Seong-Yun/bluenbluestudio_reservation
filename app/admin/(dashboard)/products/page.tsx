@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button, ErrorText } from "@/components/ui";
 import { moveProduct, togglePublished } from "../../actions";
+import { tagColorDotClass } from "@/lib/product-tag-colors";
 
 export const metadata: Metadata = { title: "상품관리" };
 
@@ -14,7 +15,9 @@ export default async function ProductsPage() {
   const supabase = await createClient();
   const { data: products, error } = await supabase
     .from("products")
-    .select("id, name, slug, price, duration_min, is_published, sort_order")
+    .select(
+      "id, name, slug, price, duration_min, is_published, sort_order, tag_color",
+    )
     .order("sort_order")
     .order("created_at");
 
@@ -71,6 +74,7 @@ function ProductCard({
     price: number;
     duration_min: number;
     is_published: boolean;
+    tag_color: string | null;
   };
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -105,7 +109,14 @@ function ProductCard({
       </div>
 
       <div className="mt-auto">
-        <p className="truncate font-semibold">{product.name}</p>
+        <p className="flex items-center gap-1.5">
+          {tagColorDotClass(product.tag_color) ? (
+            <span
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${tagColorDotClass(product.tag_color)}`}
+            />
+          ) : null}
+          <span className="truncate font-semibold">{product.name}</span>
+        </p>
         <p className="text-muted mt-0.5 truncate text-sm">
           {product.duration_min}분 · {product.price.toLocaleString()}원
         </p>

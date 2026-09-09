@@ -34,6 +34,7 @@ export interface Database {
           max_people: number | null;
           is_published: boolean;
           sort_order: number;
+          tag_color: string | null;
           created_at: string;
           updated_at: string;
         };

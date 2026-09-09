@@ -50,6 +50,7 @@ export default async function EditProductPage({
           coverImage: product.cover_image,
           gallery: product.gallery ?? [],
           isPublished: product.is_published,
+          tagColor: product.tag_color,
         }}
         description={product.description ?? ""}
       >

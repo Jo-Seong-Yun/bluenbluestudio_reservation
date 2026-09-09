@@ -31,6 +31,7 @@ export default async function NewProductPage() {
           coverImage: null,
           gallery: [],
           isPublished: false,
+          tagColor: null,
         }}
       />
     </div>

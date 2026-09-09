@@ -2,6 +2,7 @@
 
 import { useOptimistic, useTransition } from "react";
 import { toggleBlockHour } from "@/app/admin/actions";
+import { tagColorCellClass } from "@/lib/product-tag-colors";
 import type { DateString } from "@/lib/time";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -12,6 +13,8 @@ export type WeekCell = {
   hour: string; // "14:00"
   state: CellState;
   label?: string;
+  /** 예약 칸일 때, 그 예약이 속한 상품의 태그 색상 키(없으면 기본 색). */
+  tagColor?: string | null;
 };
 
 export type DayColumn = {
@@ -136,10 +139,11 @@ function Cell({
   onToggle: (target: ToggleTarget) => void;
 }) {
   if (cell.state === "reserved") {
+    const cellClass = tagColorCellClass(cell.tagColor) ?? CELL_STYLE.reserved;
     return (
       <div
         title={cell.label}
-        className={`flex h-8 w-full items-center justify-center truncate rounded ${CELL_STYLE.reserved}`}
+        className={`flex h-8 w-full items-center justify-center truncate rounded ${cellClass}`}
       >
         예약
       </div>

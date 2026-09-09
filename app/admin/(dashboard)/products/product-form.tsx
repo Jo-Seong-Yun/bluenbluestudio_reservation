@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ActionState } from "../../actions";
 import { ErrorText, Field, inputClass } from "@/components/ui";
 import { ImageUploader } from "./image-uploader";
+import { PRODUCT_TAG_COLORS } from "@/lib/product-tag-colors";
 
 export type ProductFormValues = {
   id?: string;
@@ -18,6 +19,7 @@ export type ProductFormValues = {
   coverImage: string | null;
   gallery: string[];
   isPublished: boolean;
+  tagColor: string | null;
 };
 
 export function ProductForm({
@@ -123,6 +125,41 @@ export function ProductForm({
             />
           </Field>
         </div>
+
+        <Field label="태그 색상" hint="상품 목록 카드에 작게 표시돼요.">
+          <div className="flex flex-wrap gap-2">
+            <label title="색상 없음" className="cursor-pointer">
+              <input
+                type="radio"
+                name="tagColor"
+                value=""
+                defaultChecked={!initial.tagColor}
+                className="peer sr-only"
+              />
+              <span className="border-border text-muted peer-checked:border-brand peer-checked:ring-brand/30 flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs peer-checked:ring-2">
+                ✕
+              </span>
+            </label>
+            {PRODUCT_TAG_COLORS.map((color) => (
+              <label
+                key={color.key}
+                title={color.label}
+                className="cursor-pointer"
+              >
+                <input
+                  type="radio"
+                  name="tagColor"
+                  value={color.key}
+                  defaultChecked={initial.tagColor === color.key}
+                  className="peer sr-only"
+                />
+                <span
+                  className={`block h-8 w-8 rounded-full ring-2 ring-transparent ring-offset-2 ring-offset-(--color-surface) peer-checked:ring-(--color-brand) ${color.dot}`}
+                />
+              </label>
+            ))}
+          </div>
+        </Field>
       </section>
 
       {/* 상세 설명은 이 폼에서 다루지 않는다(옆 칸의 에디터가 따로
