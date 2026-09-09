@@ -222,22 +222,39 @@ export async function setProductTagColor(formData: FormData) {
   revalidatePath("/admin/products");
 }
 
+export type ProductDeleteState = { error?: string; success?: boolean } | null;
+
 /**
- * 목록에서 카드를 끌어다 놓아 순서를 바꾼다. 클라이언트가 새로 놓인
- * 순서대로 id 목록을 통째로 넘기면, 그 순서대로 0부터 다시 번호를 매긴다.
+ * 상품 완전 삭제. products(id)를 참조하는 reservations.product_id에
+ * cascade가 없어서, 예약 내역이 있는 상품을 지우려 하면 DB가 외래키
+ * 위반(23503)으로 막는다 — 그 경우를 알아보기 쉬운 안내로 바꿔 보여준다.
+ * 잘못 만들었거나 예약이 한 번도 없었던 상품만 지울 수 있는 셈이라,
+ * 예약이 있는 상품은 비공개 전환으로 유도한다.
  */
-export async function reorderProducts(ids: string[]) {
+export async function deleteProduct(
+  _prev: ProductDeleteState,
+  formData: FormData,
+): Promise<ProductDeleteState> {
   await requireAdmin();
-  if (ids.length === 0) return;
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "상품을 찾을 수 없어요." };
 
   const supabase = await createClient();
-  await Promise.all(
-    ids.map((id, order) =>
-      supabase.from("products").update({ sort_order: order }).eq("id", id),
-    ),
-  );
+  const { error } = await supabase.from("products").delete().eq("id", id);
+
+  if (error) {
+    if (error.code === "23503") {
+      return {
+        error:
+          "이 상품으로 예약된 내역이 있어 삭제할 수 없어요. 대신 비공개로 전환해주세요.",
+      };
+    }
+    return { error: `삭제하지 못했습니다: ${error.message}` };
+  }
 
   revalidatePath("/admin/products");
+  return { success: true };
 }
 
 const RESERVATION_STATUSES = [
@@ -408,7 +425,7 @@ export async function deleteReservation(formData: FormData) {
  * 여기 액션들은 그 테이블의 행을 쓰는 일만 한다.
  *
  * redirect()를 쓰지 않는다 — 다른 가벼운 토글 액션들(togglePublished,
- * reorderProducts 등)과 같은 이유다. 지금 보고 있는 페이지에 그대로 남아
+ * setProductTagColor 등)과 같은 이유다. 지금 보고 있는 페이지에 그대로 남아
  * revalidatePath로만 갱신해야, 매 클릭마다 페이지 전체를 다시 내비게이션하며
  * 5개 쿼리를 처음부터 다시 부르는 지연이 없다. 특히 주간 캘린더는 한 칸
  * 클릭마다 이 액션이 불리므로 여기서의 딜레이가 그대로 체감된다.
