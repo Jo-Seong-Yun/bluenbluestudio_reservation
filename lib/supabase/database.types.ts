@@ -14,7 +14,16 @@ export type ReservationStatus =
 export type Gender = "male" | "female";
 
 export type CustomFieldType =
-  "short_text" | "long_text" | "single_choice" | "multi_choice" | "checkbox";
+  | "short_text"
+  | "long_text"
+  | "single_choice"
+  | "multi_choice"
+  | "checkbox"
+  | "name"
+  | "phone"
+  | "email"
+  | "gender"
+  | "birth_date";
 
 export interface Database {
   public: {

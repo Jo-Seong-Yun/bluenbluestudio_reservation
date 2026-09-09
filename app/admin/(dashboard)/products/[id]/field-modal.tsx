@@ -3,17 +3,14 @@
 import { useRef, useState } from "react";
 import { addCustomField, updateCustomField } from "@/app/admin/actions";
 import { Button, inputClass } from "@/components/ui";
-import type { CustomField } from "@/lib/booking/custom-fields";
-
-const TYPE_LABELS: Record<string, string> = {
-  short_text: "단답형",
-  long_text: "장문형",
-  single_choice: "객관식 (하나 선택)",
-  multi_choice: "체크박스 (여러 개 선택)",
-  checkbox: "단일 체크박스 (동의/확인용)",
-};
+import {
+  FIELD_TYPE_LABELS,
+  SPECIAL_FIELD_TYPES,
+  type CustomField,
+} from "@/lib/booking/custom-fields-shared";
 
 const NEEDS_OPTIONS = new Set(["single_choice", "multi_choice"]);
+const IS_SPECIAL = new Set<string>(SPECIAL_FIELD_TYPES);
 
 /**
  * 문항 추가/수정 모달. "되는시간" 같은 예약 서비스의 문항 편집기를
@@ -143,26 +140,41 @@ export function FieldModal({
             </label>
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="type">
-              답변 종류{" "}
-              <span className="text-red-600 dark:text-red-400">*</span>
-            </label>
-            <select
-              id="type"
-              name="type"
-              required
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className={inputClass}
-            >
-              {Object.entries(TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {isEdit && field && IS_SPECIAL.has(field.type) ? (
+            <div>
+              <span className="mb-1.5 block text-sm font-medium">
+                답변 종류
+              </span>
+              <p className="border-border bg-surface-subtle text-muted rounded-lg border px-3 py-2 text-sm">
+                {FIELD_TYPE_LABELS[field.type] ?? field.type} (바꿀 수 없어요)
+              </p>
+              <input type="hidden" name="type" value={field.type} />
+            </div>
+          ) : (
+            <div>
+              <label
+                className="mb-1.5 block text-sm font-medium"
+                htmlFor="type"
+              >
+                답변 종류{" "}
+                <span className="text-red-600 dark:text-red-400">*</span>
+              </label>
+              <select
+                id="type"
+                name="type"
+                required
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className={inputClass}
+              >
+                {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {NEEDS_OPTIONS.has(type) ? (
             <div>

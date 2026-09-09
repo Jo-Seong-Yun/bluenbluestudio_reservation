@@ -68,6 +68,38 @@ export async function signOut() {
   redirect("/admin/login");
 }
 
+/**
+ * 새 상품을 만들면 문항편집 화면에 기본으로 생겨 있는 5개 문항.
+ * 손님용 신청서에는 더 이상 이름/연락처/이메일/성별/생년월일이
+ * 하드코딩돼 있지 않고, 이 문항들 그 자체가 신청서를 이룬다 —
+ * 그래서 상품을 만드는 순간 미리 만들어 둔다. 관리자가 라벨을
+ * 바꾸거나 지울 수 있다(supabase/migrations/20260909000500_
+ * custom_fields_special_types.sql이 기존 상품에도 같은 5개를
+ * 소급 적용한다).
+ */
+const DEFAULT_CUSTOM_FIELDS = [
+  { label: "이름", type: "name", required: true },
+  { label: "연락처", type: "phone", required: true },
+  { label: "이메일", type: "email", required: false },
+  { label: "성별", type: "gender", required: true },
+  { label: "생년월일", type: "birth_date", required: true },
+] as const;
+
+async function seedDefaultCustomFields(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  productId: string,
+) {
+  await supabase.from("custom_fields").insert(
+    DEFAULT_CUSTOM_FIELDS.map((field, index) => ({
+      product_id: productId,
+      label: field.label,
+      type: field.type,
+      required: field.required,
+      sort_order: index,
+    })),
+  );
+}
+
 export async function saveProduct(
   _prev: ActionState,
   formData: FormData,
@@ -122,15 +154,28 @@ export async function saveProduct(
   };
 
   const supabase = await createClient();
-  const { error } = id
-    ? await supabase.from("products").update(row).eq("id", id)
-    : await supabase.from("products").insert(row);
 
-  if (error) {
-    if (error.code === "23505") {
-      return { error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있어요.` };
+  if (id) {
+    const { error } = await supabase.from("products").update(row).eq("id", id);
+    if (error) {
+      if (error.code === "23505") {
+        return { error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있어요.` };
+      }
+      return { error: `저장하지 못했습니다: ${error.message}` };
     }
-    return { error: `저장하지 못했습니다: ${error.message}` };
+  } else {
+    const { data: created, error } = await supabase
+      .from("products")
+      .insert(row)
+      .select("id")
+      .single();
+    if (error) {
+      if (error.code === "23505") {
+        return { error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있어요.` };
+      }
+      return { error: `저장하지 못했습니다: ${error.message}` };
+    }
+    if (created) await seedDefaultCustomFields(supabase, created.id);
   }
 
   revalidatePath("/admin/products");
@@ -786,6 +831,11 @@ const CUSTOM_FIELD_TYPES = [
   "single_choice",
   "multi_choice",
   "checkbox",
+  "name",
+  "phone",
+  "email",
+  "gender",
+  "birth_date",
 ] as const;
 
 /**

@@ -18,7 +18,7 @@ import {
 } from "@/lib/notifications/notify";
 import { getProductName } from "@/lib/notifications/product-name";
 import {
-  extractCustomFieldAnswers,
+  extractReservationFormData,
   loadActiveCustomFields,
 } from "@/lib/booking/custom-fields";
 
@@ -74,13 +74,6 @@ export async function createReservation(
   const parsed = reservationSchema.safeParse({
     date: formData.get("date"),
     time: formData.get("time"),
-    customerName: formData.get("customerName"),
-    customerPhone: formData.get("customerPhone"),
-    customerEmail: formData.get("customerEmail"),
-    gender: formData.get("gender"),
-    birthDate: formData.get("birthDate"),
-    peopleCount: formData.get("peopleCount"),
-    memo: formData.get("memo"),
     agreePrivacy: formData.get("agreePrivacy"),
   });
 
@@ -94,10 +87,11 @@ export async function createReservation(
   const input = parsed.data;
 
   const customFields = await loadActiveCustomFields(productId);
-  const customAnswers = extractCustomFieldAnswers(customFields, formData);
-  if (!customAnswers.ok) {
-    return { status: "error", error: customAnswers.error };
+  const extracted = extractReservationFormData(customFields, formData);
+  if (!extracted.ok) {
+    return { status: "error", error: extracted.error };
   }
+  const { special, answers: customAnswers } = extracted;
 
   // 다시 계산해서, 지금도 정말 예약 가능한 시간인지 확인한다.
   const slots = await loadAvailableSlots({ date: input.date, productId });
@@ -130,13 +124,11 @@ export async function createReservation(
         period,
         shoot_start: shootStart.toISOString(),
         shoot_end: shootEnd.toISOString(),
-        customer_name: input.customerName,
-        customer_phone: input.customerPhone,
-        customer_email: input.customerEmail,
-        gender: input.gender,
-        birth_date: input.birthDate,
-        people_count: input.peopleCount,
-        memo: input.memo || null,
+        customer_name: special.customerName,
+        customer_phone: special.customerPhone,
+        customer_email: special.customerEmail,
+        gender: special.gender,
+        birth_date: special.birthDate,
       })
       .select("id")
       .single();
@@ -144,9 +136,9 @@ export async function createReservation(
     if (!error) {
       const reservationId = data?.id ?? "";
 
-      if (customAnswers.answers.length > 0) {
+      if (customAnswers.length > 0) {
         await supabase.from("reservation_answers").insert(
-          customAnswers.answers.map((answer) => ({
+          customAnswers.map((answer) => ({
             reservation_id: reservationId,
             field_id: answer.fieldId,
             value: answer.value,
@@ -156,8 +148,8 @@ export async function createReservation(
 
       const reservationNotice = {
         reservationId,
-        customerPhone: input.customerPhone,
-        customerEmail: input.customerEmail,
+        customerPhone: special.customerPhone,
+        customerEmail: special.customerEmail,
         productName,
         shootStart,
         code,
@@ -184,7 +176,7 @@ export async function createReservation(
             ...reservationNotice,
             adminPhone: settingsRow?.admin_notify_phone ?? null,
             adminEmail: settingsRow?.admin_notify_email ?? null,
-            customerName: input.customerName,
+            customerName: special.customerName,
           }),
         ]),
       );

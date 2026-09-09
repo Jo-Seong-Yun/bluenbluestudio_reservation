@@ -8,13 +8,23 @@ import {
 } from "@/lib/booking/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { calculateAge, parseBirthDate8 } from "@/lib/age";
-import type { CustomField } from "@/lib/booking/custom-fields";
+import {
+  fieldFormName,
+  type CustomField,
+} from "@/lib/booking/custom-fields-shared";
 
 const initialState: ReservationActionState = { status: "idle" };
 
 /**
  * 신청서 작성 페이지 본문. 날짜·시간은 이미 정해진 채로 이 페이지에
- * 들어오므로(URL에 박혀 있다), 여기서는 예약자 정보만 받는다.
+ * 들어오므로(URL에 박혀 있다), 여기서는 문항들만 받는다.
+ *
+ * 예전엔 이름·연락처·이메일·성별·생년월일·인원·요청사항이 이 컴포넌트에
+ * 하드코딩돼 항상 나갔는데, 이제는 그런 "기본 문항" 없이 상품별
+ * customFields 목록만 순서대로 그린다 — 이름/연락처 등도 문항편집에서
+ * 만든 문항 중 하나(타입이 name/phone/... 인 것)일 뿐이라 다른 상품엔
+ * 없을 수도 있다(app/admin/actions.ts의 DEFAULT_CUSTOM_FIELDS가 새
+ * 상품에 기본으로 5개를 만들어 둔다).
  */
 export function ReservationForm({
   productId,
@@ -51,10 +61,6 @@ export function ReservationForm({
     notice,
   );
   const [state, action, pending] = useActionState(boundAction, initialState);
-  const [birthDateInput, setBirthDateInput] = useState("");
-
-  const parsedBirthDate = parseBirthDate8(birthDateInput);
-  const ageInfo = parsedBirthDate ? calculateAge(parsedBirthDate) : null;
 
   if (state.status === "success") {
     return (
@@ -121,109 +127,8 @@ export function ReservationForm({
         <input type="hidden" name="date" value={date} />
         <input type="hidden" name="time" value={time} />
 
-        <Field label="이름" required>
-          <input
-            name="customerName"
-            required
-            maxLength={50}
-            className={inputClass}
-          />
-        </Field>
-
-        <Field
-          label="연락처"
-          required
-          hint="예약 조회할 때 필요해요. '-' 없이/있이 상관없어요."
-        >
-          <input
-            name="customerPhone"
-            type="tel"
-            inputMode="numeric"
-            placeholder="01012345678"
-            required
-            className={inputClass}
-          />
-        </Field>
-
-        <Field
-          label="이메일 (선택)"
-          hint="입력하시면 문자와 함께 이메일로도 안내해드려요."
-        >
-          <input
-            name="customerEmail"
-            type="email"
-            placeholder="you@example.com"
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label="성별" required>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-1.5 text-sm">
-              <input type="radio" name="gender" value="male" required />
-              남성
-            </label>
-            <label className="flex items-center gap-1.5 text-sm">
-              <input type="radio" name="gender" value="female" required />
-              여성
-            </label>
-          </div>
-        </Field>
-
-        <Field
-          label="생년월일"
-          required
-          hint="8자리 숫자로 입력해주세요. 예: 19990101"
-        >
-          <input
-            name="birthDate"
-            type="text"
-            inputMode="numeric"
-            placeholder="19990101"
-            maxLength={8}
-            required
-            value={birthDateInput}
-            onChange={(e) =>
-              setBirthDateInput(e.target.value.replace(/[^0-9]/g, ""))
-            }
-            className={inputClass}
-          />
-          {ageInfo ? (
-            <p className="text-muted mt-1 text-xs">
-              만 {ageInfo.manAge}세 (한국 나이 {ageInfo.koreanAge}세) ·{" "}
-              <span
-                className={
-                  ageInfo.isMinor
-                    ? "font-medium text-amber-600 dark:text-amber-400"
-                    : ""
-                }
-              >
-                {ageInfo.isMinor ? "미성년자" : "성인"}
-              </span>
-            </p>
-          ) : null}
-        </Field>
-
-        <Field label="인원 (선택)">
-          <input
-            name="peopleCount"
-            type="number"
-            min={1}
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label="요청사항 (선택)">
-          <textarea
-            name="memo"
-            rows={3}
-            maxLength={500}
-            className={inputClass}
-          />
-        </Field>
-
         {customFields.map((field) => (
-          <CustomFieldInput key={field.id} field={field} />
+          <ReservationFieldInput key={field.id} field={field} />
         ))}
 
         <label className="flex items-start gap-2 text-sm">
@@ -235,9 +140,8 @@ export function ReservationForm({
           />
           <span>
             <span className="text-red-600 dark:text-red-400">* </span>
-            예약 확인을 위해 이름과 연락처(입력하신 경우 이메일)를 수집합니다.
-            촬영일로부터 1년간 보관 후 삭제하며, 예약 외 다른 목적으로 쓰지
-            않습니다.
+            예약 확인을 위해 위 정보를 수집합니다. 촬영일로부터 1년간 보관 후
+            삭제하며, 예약 외 다른 목적으로 쓰지 않습니다.
             <br />
             <span className="font-medium">동의합니다.</span>
           </span>
@@ -253,9 +157,104 @@ export function ReservationForm({
   );
 }
 
-function CustomFieldInput({ field }: { field: CustomField }) {
-  const name = `custom_${field.id}`;
+/** 문항 하나를 타입에 맞는 입력으로 그린다. */
+function ReservationFieldInput({ field }: { field: CustomField }) {
+  const name = fieldFormName(field.id);
   const options = field.options ?? [];
+
+  if (field.type === "name") {
+    return (
+      <Field
+        label={field.label}
+        required={field.required}
+        hint={field.description ?? undefined}
+      >
+        <input
+          name={name}
+          required={field.required}
+          maxLength={50}
+          className={inputClass}
+        />
+      </Field>
+    );
+  }
+
+  if (field.type === "phone") {
+    return (
+      <Field
+        label={field.label}
+        required={field.required}
+        hint={
+          field.description ??
+          "예약 조회할 때 필요해요. '-' 없이/있이 상관없어요."
+        }
+      >
+        <input
+          name={name}
+          type="tel"
+          inputMode="numeric"
+          placeholder="01012345678"
+          required={field.required}
+          className={inputClass}
+        />
+      </Field>
+    );
+  }
+
+  if (field.type === "email") {
+    return (
+      <Field
+        label={field.label}
+        required={field.required}
+        hint={
+          field.description ?? "입력하시면 문자와 함께 이메일로도 안내해드려요."
+        }
+      >
+        <input
+          name={name}
+          type="email"
+          placeholder="you@example.com"
+          required={field.required}
+          className={inputClass}
+        />
+      </Field>
+    );
+  }
+
+  if (field.type === "gender") {
+    return (
+      <Field
+        label={field.label}
+        required={field.required}
+        hint={field.description ?? undefined}
+      >
+        <div className="flex gap-4">
+          <label className="flex items-center gap-1.5 text-sm">
+            <input
+              type="radio"
+              name={name}
+              value="male"
+              required={field.required}
+            />
+            남성
+          </label>
+          <label className="flex items-center gap-1.5 text-sm">
+            <input
+              type="radio"
+              name={name}
+              value="female"
+              required={field.required}
+            />
+            여성
+          </label>
+        </div>
+      </Field>
+    );
+  }
+
+  if (field.type === "birth_date") {
+    return <BirthDateInput field={field} name={name} />;
+  }
 
   if (field.type === "long_text") {
     return (
@@ -356,6 +355,47 @@ function CustomFieldInput({ field }: { field: CustomField }) {
         required={field.required}
         className={inputClass}
       />
+    </Field>
+  );
+}
+
+/** 생년월일 입력. 8자리를 타이핑하는 대로 만나이/한국나이/미성년자를 보여준다. */
+function BirthDateInput({ field, name }: { field: CustomField; name: string }) {
+  const [value, setValue] = useState("");
+  const parsedDate = parseBirthDate8(value);
+  const ageInfo = parsedDate ? calculateAge(parsedDate) : null;
+
+  return (
+    <Field
+      label={field.label}
+      required={field.required}
+      hint={field.description ?? "8자리 숫자로 입력해주세요. 예: 19990101"}
+    >
+      <input
+        name={name}
+        type="text"
+        inputMode="numeric"
+        placeholder="19990101"
+        maxLength={8}
+        required={field.required}
+        value={value}
+        onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ""))}
+        className={inputClass}
+      />
+      {ageInfo ? (
+        <p className="text-muted mt-1 text-xs">
+          만 {ageInfo.manAge}세 (한국 나이 {ageInfo.koreanAge}세) ·{" "}
+          <span
+            className={
+              ageInfo.isMinor
+                ? "font-medium text-amber-600 dark:text-amber-400"
+                : ""
+            }
+          >
+            {ageInfo.isMinor ? "미성년자" : "성인"}
+          </span>
+        </p>
+      ) : null}
     </Field>
   );
 }

@@ -3,10 +3,24 @@ import { parseBirthDate8 } from "../age";
 import { kstToday } from "../time";
 
 /**
+ * 이름·연락처·이메일·성별·생년월일은 더 이상 이 파일에 고정된 필드가
+ * 아니다 — 상품마다 문항편집에서 만드는 custom_fields 중 하나(타입이
+ * name/phone/email/gender/birth_date)일 뿐이고, 있을 수도 없을 수도
+ * 있다. 검증 규칙만 여기 남겨서 손님용 동적 신청서(lib/booking/
+ * custom-fields.ts)와 관리자 수기 등록(manualReservationSchema)이
+ * 같은 규칙을 쓰게 한다.
+ */
+export const nameField = z
+  .string()
+  .trim()
+  .min(1, "이름을 입력해주세요.")
+  .max(50);
+
+/**
  * 연락처. 하이픈을 넣든 안 넣든("010-1234-5678", "01012345678") 알아서
  * 숫자만 남기고 인식한다.
  */
-const phoneField = z
+export const phoneField = z
   .string()
   .trim()
   .transform((value) => value.replace(/[^0-9]/g, ""))
@@ -16,8 +30,20 @@ const phoneField = z
       .regex(/^01[0-9]{8,9}$/, "연락처는 숫자만, 010으로 시작해 입력해주세요."),
   );
 
+/** 빈 문자열이면 null로, 아니면 이메일 형식을 검사한다. */
+export const emailField = z
+  .union([
+    z.literal(""),
+    z.string().trim().email("이메일 형식을 확인해주세요."),
+  ])
+  .transform((value) => (value ? value : null));
+
+export const genderField = z.enum(["male", "female"], {
+  error: "성별을 선택해주세요.",
+});
+
 /** "19990101" 8자리 → "1999-01-01". 실존하는 날짜, 미래가 아닌 날짜만 통과한다. */
-const birthDateField = z
+export const birthDateField = z
   .string()
   .trim()
   .regex(/^\d{8}$/, "생년월일 8자리를 입력해주세요. 예: 19990101")
@@ -29,35 +55,17 @@ const birthDateField = z
   })
   .transform((value) => parseBirthDate8(value)!);
 
-const genderField = z.enum(["male", "female"], {
-  error: "성별을 선택해주세요.",
-});
-
 /**
- * 예약 신청 폼 검증.
+ * 예약 신청 폼 검증. 날짜·시간·개인정보 동의는 예약이라는 행위 자체에
+ * 항상 딸린 것이라 문항편집 대상이 아니고, 여기 고정으로 남는다. 이름
+ * 이하 문항들은 lib/booking/custom-fields.ts의 extractReservationFormData가
+ * 상품별 custom_fields 목록을 보고 그때그때 검증한다.
  */
 export const reservationSchema = z.object({
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "날짜 형식이 올바르지 않습니다."),
   time: z.string().regex(/^\d{2}:\d{2}$/, "시간 형식이 올바르지 않습니다."),
-  customerName: z.string().trim().min(1, "이름을 입력해주세요.").max(50),
-  customerPhone: phoneField,
-  // 선택 입력. 입력하면 SMS와 함께 이메일로도 안내를 보낸다.
-  customerEmail: z
-    .union([
-      z.literal(""),
-      z.string().trim().email("이메일 형식을 확인해주세요."),
-    ])
-    .optional()
-    .default("")
-    .transform((value) => (value ? value : null)),
-  gender: genderField,
-  birthDate: birthDateField,
-  peopleCount: z
-    .union([z.literal(""), z.coerce.number().int().min(1).max(100)])
-    .transform((value) => (value === "" ? null : value)),
-  memo: z.string().trim().max(500).optional().default(""),
   agreePrivacy: z.literal("on", {
     error: "개인정보 수집·이용에 동의해주세요.",
   }),
@@ -66,21 +74,24 @@ export const reservationSchema = z.object({
 export type ReservationInput = z.infer<typeof reservationSchema>;
 
 /**
- * 관리자가 전화·DM으로 받은 예약을 직접 등록할 때. 손님용 폼과 거의
- * 같은 규칙이지만 개인정보 동의 체크박스가 없다 — 관리자가 이미 통화로
- * 확인하고 넣는 것이라 화면에 그 동의 문구를 보여줄 대상이 없다.
- * 성별·생년월일도 전화로 못 물어봤을 수 있어 선택 입력으로 둔다.
+ * 관리자가 전화·DM으로 받은 예약을 직접 등록할 때. 손님용 문항편집과
+ * 무관한, 관리자 전용의 고정된 빠른 등록 폼이라 독립적으로 정의한다 —
+ * 개인정보 동의 체크박스가 없고(이미 통화로 확인했으니), 성별·생년월일도
+ * 아예 받지 않는다(전화로 못 물어봤을 수 있어서).
  */
-export const manualReservationSchema = reservationSchema
-  .omit({ agreePrivacy: true, gender: true, birthDate: true })
-  .extend({
-    productId: z.string().uuid("상품을 선택해주세요."),
-    gender: genderField.optional(),
-    birthDate: z
-      .union([z.literal(""), birthDateField])
-      .optional()
-      .default(""),
-  });
+export const manualReservationSchema = z.object({
+  productId: z.string().uuid("상품을 선택해주세요."),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "날짜 형식이 올바르지 않습니다."),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "시간 형식이 올바르지 않습니다."),
+  customerName: nameField,
+  customerPhone: phoneField,
+  peopleCount: z
+    .union([z.literal(""), z.coerce.number().int().min(1).max(100)])
+    .transform((value) => (value === "" ? null : value)),
+  memo: z.string().trim().max(500).optional().default(""),
+});
 
 export type ManualReservationInput = z.infer<typeof manualReservationSchema>;
 

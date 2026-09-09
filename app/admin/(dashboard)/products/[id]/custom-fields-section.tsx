@@ -2,20 +2,16 @@ import { inputClass } from "@/components/ui";
 import { moveCustomField } from "@/app/admin/actions";
 import { DeleteFieldButton } from "./delete-field-button";
 import { FieldModal } from "./field-modal";
-import type { CustomField } from "@/lib/booking/custom-fields";
-
-const TYPE_LABELS: Record<string, string> = {
-  short_text: "단답형",
-  long_text: "장문형",
-  single_choice: "객관식 (하나 선택)",
-  multi_choice: "체크박스 (여러 개 선택)",
-  checkbox: "단일 체크박스 (동의/확인용)",
-};
+import {
+  FIELD_TYPE_LABELS,
+  type CustomField,
+} from "@/lib/booking/custom-fields-shared";
 
 /**
- * 이 상품의 예약 폼에만 붙는 추가 문항 관리. 예전엔 전체 상품 공통인
- * 별도 화면(/admin/form-builder)이었는데, 상품마다 다른 문항이
- * 필요해져서 상품 수정 화면 안으로 옮겼다.
+ * 이 상품의 예약 폼 문항 전부를 여기서 관리한다. 이름·연락처·이메일·
+ * 성별·생년월일도 더 이상 폼에 하드코딩된 "기본 항목"이 아니라, 상품을
+ * 만들 때 기본으로 생겨나는 문항일 뿐이다(app/admin/actions.ts의
+ * DEFAULT_CUSTOM_FIELDS) — 다른 문항처럼 라벨을 바꾸거나 지울 수 있다.
  */
 export function CustomFieldsSection({
   productId,
@@ -28,10 +24,10 @@ export function CustomFieldsSection({
     <div>
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold">신청서 추가 문항</h2>
+          <h2 className="text-lg font-bold">신청서 문항</h2>
           <p className="text-muted mt-1 text-sm">
-            이 상품 예약 폼에 이름·연락처 같은 기본 항목 다음으로 붙는 질문을
-            직접 만들어요. 다른 상품엔 영향 없어요.
+            이 상품 예약 폼에 나갈 질문을 순서대로 관리해요. 다른 상품엔 영향
+            없어요.
           </p>
         </div>
         <FieldModal productId={productId} />
@@ -40,8 +36,8 @@ export function CustomFieldsSection({
       <div className="border-border bg-surface rounded-xl border">
         {fields.length === 0 ? (
           <p className="text-muted p-6 text-center text-sm">
-            아직 추가한 문항이 없어요. 기본 항목(이름·연락처·성별·생년월일
-            등)만으로 신청서가 나가요.
+            아직 문항이 없어요. &quot;질문 추가&quot;를 눌러 신청서에 넣을
+            질문을 만들어보세요.
           </p>
         ) : (
           <ul>
@@ -80,7 +76,7 @@ export function CustomFieldsSection({
                       ) : null}
                     </span>
                     <span className="text-muted text-xs">
-                      {TYPE_LABELS[field.type] ?? field.type}
+                      {FIELD_TYPE_LABELS[field.type] ?? field.type}
                     </span>
                     {!field.active ? (
                       <span className="bg-surface-subtle text-muted rounded-full px-2 py-0.5 text-xs">
@@ -155,6 +151,21 @@ function FieldPreview({ field }: { field: CustomField }) {
         <input type="checkbox" disabled />
         {field.label}
       </label>
+    );
+  }
+
+  if (field.type === "gender") {
+    return (
+      <div className="flex gap-4">
+        <label className="text-muted flex items-center gap-1.5 text-sm">
+          <input type="radio" disabled />
+          남성
+        </label>
+        <label className="text-muted flex items-center gap-1.5 text-sm">
+          <input type="radio" disabled />
+          여성
+        </label>
+      </div>
     );
   }
 
