@@ -25,7 +25,7 @@ export function CustomFieldsSection({
   fields: CustomField[];
 }) {
   return (
-    <div className="mt-10">
+    <div>
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold">신청서 추가 문항</h2>

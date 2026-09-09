@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { saveProduct, type ActionState } from "../../actions";
+import { useState } from "react";
+import type { ActionState } from "../../actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { ImageUploader } from "./image-uploader";
 
@@ -22,22 +22,23 @@ export type ProductFormValues = {
 
 export function ProductForm({
   initial,
-  onEditDescription,
+  formId,
+  action,
+  pending,
+  state,
 }: {
   initial: ProductFormValues;
-  /** 있으면 "상세 설명 편집" 버튼이 보인다 (아직 저장 전인 새 상품엔 없다). */
-  onEditDescription?: () => void;
+  /** 이 id로 폼 밖(예: 타이틀 옆)에 있는 버튼도 같은 폼을 제출할 수 있다. */
+  formId: string;
+  action: (formData: FormData) => void;
+  pending: boolean;
+  state: ActionState;
 }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(
-    saveProduct,
-    null,
-  );
-
   const [coverImage, setCoverImage] = useState(initial.coverImage);
   const [gallery, setGallery] = useState(initial.gallery);
 
   return (
-    <form action={action} className="space-y-8">
+    <form id={formId} action={action} className="space-y-8">
       {initial.id ? <input type="hidden" name="id" value={initial.id} /> : null}
 
       <section className="space-y-4">
@@ -126,30 +127,10 @@ export function ProductForm({
         </div>
       </section>
 
-      {/* 상세 설명은 여기서 다루지 않는다. 이 텍스트는 자기 자신을
-          건드리지 않으니 그대로 hidden input으로 실어 보내 저장 시
-          지워지지 않게 한다 — 편집은 별도 화면(에디터)의 몫이다. */}
+      {/* 상세 설명은 이 폼에서 다루지 않는다(옆 칸의 에디터가 따로
+          저장한다). 이 hidden input은 이 폼을 제출할 때 그 값을
+          지우지 않고 그대로 실어 보내기 위한 것이다. */}
       <input type="hidden" name="description" value={initial.description} />
-
-      <section className="border-border bg-surface-subtle rounded-lg border p-4">
-        <h2 className="text-sm font-medium">상세 설명</h2>
-        <p className="text-muted mt-1 text-xs">
-          손님에게 보여줄 자세한 소개는 따로 씁니다.
-        </p>
-        {onEditDescription ? (
-          <button
-            type="button"
-            onClick={onEditDescription}
-            className="text-brand mt-2 inline-block text-sm hover:underline"
-          >
-            상세 설명 편집하기 →
-          </button>
-        ) : (
-          <p className="text-muted mt-2 text-sm">
-            상품을 먼저 저장하면 상세 설명을 쓸 수 있어요.
-          </p>
-        )}
-      </section>
 
       <section className="space-y-4">
         <ImageUploader

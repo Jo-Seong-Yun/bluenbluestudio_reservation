@@ -46,7 +46,8 @@ export function DescriptionEditor({
 }: {
   productId: string;
   initial: string;
-  onClose: () => void;
+  /** 있으면 헤더에 닫기(×) 버튼이 뜬다. 상시 노출되는 화면에서는 안 준다. */
+  onClose?: () => void;
 }) {
   const [state, action, pending] = useActionState<
     ProductDescriptionState,
@@ -188,14 +189,16 @@ export function DescriptionEditor({
     <div className="border-border bg-surface rounded-xl border p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-bold">상세 설명</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="닫기"
-          className="text-muted hover:text-foreground text-lg leading-none"
-        >
-          ×
-        </button>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+            className="text-muted hover:text-foreground text-lg leading-none"
+          >
+            ×
+          </button>
+        ) : null}
       </div>
 
       <form action={action} className="space-y-4">

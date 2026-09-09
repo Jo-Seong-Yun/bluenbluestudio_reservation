@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ProductForm } from "../product-form";
+import { NewProductForm } from "./new-product-form";
 
 export const metadata: Metadata = { title: "상품 추가" };
 
@@ -19,7 +19,7 @@ export default async function NewProductPage() {
       </Link>
       <h1 className="mt-2 mb-6 text-2xl font-bold">상품 추가</h1>
 
-      <ProductForm
+      <NewProductForm
         initial={{
           name: "",
           slug: "",
