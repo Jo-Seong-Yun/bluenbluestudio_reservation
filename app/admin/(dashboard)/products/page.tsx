@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button, ErrorText } from "@/components/ui";
 import { moveProduct, togglePublished } from "../../actions";
-import { tagColorDotClass } from "@/lib/product-tag-colors";
+import { ProductTagPicker } from "./product-tag-picker";
 
 export const metadata: Metadata = { title: "상품관리" };
 
@@ -109,14 +109,13 @@ function ProductCard({
       </div>
 
       <div className="mt-auto">
-        <p className="flex items-center gap-1.5">
-          {tagColorDotClass(product.tag_color) ? (
-            <span
-              className={`h-2.5 w-2.5 shrink-0 rounded-full ${tagColorDotClass(product.tag_color)}`}
-            />
-          ) : null}
+        <div className="flex items-center gap-1.5">
+          <ProductTagPicker
+            productId={product.id}
+            tagColor={product.tag_color}
+          />
           <span className="truncate font-semibold">{product.name}</span>
-        </p>
+        </div>
         <p className="text-muted mt-0.5 truncate text-sm">
           {product.duration_min}분 · {product.price.toLocaleString()}원
         </p>

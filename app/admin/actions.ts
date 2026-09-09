@@ -202,6 +202,27 @@ export async function togglePublished(formData: FormData) {
 }
 
 /**
+ * 목록 카드에서 곧바로 태그 색만 바꾼다. 상품 수정 화면(saveProduct)에
+ * 들어가지 않고도 색만 빠르게 바꿀 수 있게 하기 위한 별도 액션 —
+ * 다른 상품 정보는 건드리지 않는다.
+ */
+export async function setProductTagColor(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const tagColorRaw = String(formData.get("tagColor") ?? "");
+  const tagColor =
+    PRODUCT_TAG_COLORS.find((color) => color.key === tagColorRaw)?.key ?? null;
+
+  const supabase = await createClient();
+  await supabase.from("products").update({ tag_color: tagColor }).eq("id", id);
+
+  revalidatePath("/admin/products");
+}
+
+/**
  * 목록에서의 순서 바꾸기.
  *
  * 드래그 대신 위/아래 버튼을 쓴다. 모바일에서도 확실히 동작하고
