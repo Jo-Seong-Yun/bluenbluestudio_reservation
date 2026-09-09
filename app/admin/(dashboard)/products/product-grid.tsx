@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui";
 import { reorderProducts, togglePublished } from "../../actions";
@@ -72,11 +72,53 @@ export function ProductGrid({ products }: { products: Product[] }) {
     });
   }
 
+  // FLIP 애니메이션: 순서가 바뀌면 그리드는 이미 새 자리로 즉시
+  // 재배치돼 있다(브라우저 레이아웃 특성상 순간적으로 튄다). 여기서는
+  // 각 카드를 "이전 위치"만큼 반대로 밀어둔 뒤, 다음 프레임에 그 이동을
+  // 되돌리는 트랜지션을 걸어서 실제로는 이전 자리에서 새 자리로
+  // 부드럽게 미끄러지듯 보이게 만든다.
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
+  const prevRects = useRef(new Map<string, DOMRect>());
+
+  useLayoutEffect(() => {
+    const nextRects = new Map<string, DOMRect>();
+    cardRefs.current.forEach((el, id) => {
+      nextRects.set(id, el.getBoundingClientRect());
+    });
+
+    cardRefs.current.forEach((el, id) => {
+      const prev = prevRects.current.get(id);
+      const next = nextRects.get(id);
+      if (!prev || !next) return;
+
+      const dx = prev.left - next.left;
+      const dy = prev.top - next.top;
+      if (dx === 0 && dy === 0) return;
+
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      el.getBoundingClientRect(); // 강제 리플로우로 위 스타일을 먼저 적용시킨다.
+      requestAnimationFrame(() => {
+        el.style.transition = "transform 220ms cubic-bezier(0.2, 0, 0, 1)";
+        el.style.transform = "";
+      });
+    });
+
+    prevRects.current = nextRects;
+  }, [items]);
+
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {items.map((product) => (
         <div
           key={product.id}
+          ref={(el) => {
+            if (!el) return;
+            cardRefs.current.set(product.id, el);
+            return () => {
+              cardRefs.current.delete(product.id);
+            };
+          }}
           draggable
           onDragStart={(e) => handleDragStart(e, product.id)}
           onDragOver={(e) => handleDragOver(e, product.id)}
