@@ -1,7 +1,7 @@
 "use client";
 
 import { deleteCustomField } from "@/app/admin/actions";
-import { Button } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 
 /** 문항 삭제. 지금까지 손님이 이 문항에 남긴 답변도 같이 사라진다. */
 export function DeleteFieldButton({
@@ -28,9 +28,9 @@ export function DeleteFieldButton({
     >
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="productId" value={productId} />
-      <Button variant="ghost" type="submit" className="text-xs">
+      <SubmitButton variant="ghost" className="text-xs">
         삭제
-      </Button>
+      </SubmitButton>
     </form>
   );
 }

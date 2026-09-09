@@ -1,4 +1,5 @@
 import { inputClass } from "@/components/ui";
+import { PendingSubmit } from "@/components/submit-button";
 import { moveCustomField } from "@/app/admin/actions";
 import { DeleteFieldButton } from "./delete-field-button";
 import { FieldModal } from "./field-modal";
@@ -196,14 +197,13 @@ function MoveButton({
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="direction" value={direction} />
-      <button
-        type="submit"
+      <PendingSubmit
         disabled={disabled}
         aria-label={label}
         className="text-muted hover:bg-surface-subtle hover:text-foreground flex h-5 w-6 items-center justify-center rounded text-xs disabled:opacity-25 disabled:hover:bg-transparent"
       >
         {direction === "up" ? "▲" : "▼"}
-      </button>
+      </PendingSubmit>
     </form>
   );
 }

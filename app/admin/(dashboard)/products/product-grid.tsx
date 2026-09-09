@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import { togglePublished } from "../../actions";
 import { ProductTagPicker } from "./product-tag-picker";
 import { ProductMenu } from "./product-menu";
@@ -65,9 +66,9 @@ function ProductCard({ product }: { product: Product }) {
               name="isPublished"
               value={String(!product.is_published)}
             />
-            <Button variant="ghost" type="submit" className="w-full">
+            <SubmitButton variant="ghost" className="w-full">
               {product.is_published ? "비공개로" : "공개하기"}
-            </Button>
+            </SubmitButton>
           </form>
         </div>
       </div>

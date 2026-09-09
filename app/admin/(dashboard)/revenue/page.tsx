@@ -3,7 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { addMonths, kstMonthString } from "@/lib/time";
 import type { ReservationStatus } from "@/lib/supabase/database.types";
-import { Button, inputClass } from "@/components/ui";
+import { inputClass } from "@/components/ui";
+import { SubmitButton, PendingSubmit } from "@/components/submit-button";
 import { addMonthlyExpense, deleteMonthlyExpense } from "@/app/admin/actions";
 
 export const metadata: Metadata = { title: "매출관리" };
@@ -254,12 +255,9 @@ export default async function RevenuePage({
                   </span>
                   <form action={deleteMonthlyExpense}>
                     <input type="hidden" name="id" value={expense.id} />
-                    <button
-                      type="submit"
-                      className="text-muted hover:text-foreground text-xs underline"
-                    >
+                    <PendingSubmit className="text-muted hover:text-foreground text-xs underline">
                       삭제
-                    </button>
+                    </PendingSubmit>
                   </form>
                 </span>
               </li>
@@ -298,9 +296,7 @@ export default async function RevenuePage({
               className={inputClass}
             />
           </label>
-          <Button type="submit" variant="ghost">
-            추가
-          </Button>
+          <SubmitButton variant="ghost">추가</SubmitButton>
         </form>
       </div>
     </div>

@@ -5,7 +5,8 @@ import {
   saveReservationCost,
   saveReservationChargedAmount,
 } from "@/app/admin/actions";
-import { Button, inputClass } from "@/components/ui";
+import { inputClass } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import { kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
 import { DeleteReservationButton } from "./delete-reservation-button";
@@ -204,9 +205,9 @@ function ReservationDetail({
           defaultValue={reservation.admin_memo ?? ""}
           className="border-border bg-surface focus:border-brand focus:ring-brand/30 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
         />
-        <Button type="submit" variant="ghost" className="mt-2">
+        <SubmitButton variant="ghost" className="mt-2">
           메모 저장
-        </Button>
+        </SubmitButton>
       </form>
 
       <form
@@ -235,9 +236,9 @@ function ReservationDetail({
             defaultValue={reservation.charged_amount ?? ""}
             className={inputClass}
           />
-          <Button type="submit" variant="ghost" className="shrink-0">
+          <SubmitButton variant="ghost" className="shrink-0">
             저장
-          </Button>
+          </SubmitButton>
         </div>
       </form>
 
@@ -264,9 +265,9 @@ function ReservationDetail({
             defaultValue={reservation.cost ?? ""}
             className={inputClass}
           />
-          <Button type="submit" variant="ghost" className="shrink-0">
+          <SubmitButton variant="ghost" className="shrink-0">
             저장
-          </Button>
+          </SubmitButton>
         </div>
       </form>
 
@@ -335,14 +336,13 @@ function StatusButton({
     <form action={updateReservationStatus}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="status" value={status} />
-      <Button
-        type="submit"
+      <SubmitButton
         variant={isCurrent ? "primary" : "ghost"}
         aria-pressed={isCurrent}
         className="text-xs"
       >
         {label}
-      </Button>
+      </SubmitButton>
     </form>
   );
 }

@@ -16,6 +16,7 @@ import {
   removeDateOverride,
 } from "@/app/admin/actions";
 import { Button, Field, inputClass } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import {
   WeekGrid,
   type CellState,
@@ -260,9 +261,9 @@ export default async function SchedulePage({
                   defaultValue={row?.close_time?.slice(0, 5) ?? "18:00"}
                   className={`${inputClass} !w-28 shrink-0 py-1 text-sm`}
                 />
-                <Button type="submit" variant="ghost" className="py-1 text-xs">
+                <SubmitButton variant="ghost" className="py-1 text-xs">
                   저장
-                </Button>
+                </SubmitButton>
               </form>
             );
           })}
@@ -348,7 +349,7 @@ export default async function SchedulePage({
               className={`${inputClass} w-40`}
             />
           </Field>
-          <Button type="submit">등록</Button>
+          <SubmitButton>등록</SubmitButton>
         </form>
 
         {upcomingOverrides.length > 0 ? (
@@ -369,13 +370,9 @@ export default async function SchedulePage({
                 </span>
                 <form action={removeDateOverride}>
                   <input type="hidden" name="id" value={o.id} />
-                  <Button
-                    type="submit"
-                    variant="ghost"
-                    className="py-1 text-xs"
-                  >
+                  <SubmitButton variant="ghost" className="py-1 text-xs">
                     해제
-                  </Button>
+                  </SubmitButton>
                 </form>
               </li>
             ))}
