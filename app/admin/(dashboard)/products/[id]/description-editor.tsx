@@ -1,19 +1,38 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useState } from "react";
+import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
+import { Markdown, type MarkdownStorage } from "tiptap-markdown";
 import {
   saveProductDescription,
   type ProductDescriptionState,
 } from "@/app/admin/actions";
-import { Button, ErrorText, inputClass } from "@/components/ui";
-import { Markdown } from "@/components/markdown";
+import { Button, ErrorText } from "@/components/ui";
+
+// tiptap-markdown은 editor.storage.markdown을 런타임에 채워주지만
+// @tiptap/core의 Storage 타입은 그 확장을 모르니 직접 알려준다.
+declare module "@tiptap/core" {
+  interface Storage {
+    markdown: MarkdownStorage;
+  }
+}
+
+const editorContentClass =
+  "min-h-[380px] rounded-b-lg border border-t-0 border-border bg-surface " +
+  "px-4 py-3 text-base outline-none focus:border-brand " +
+  "[&_a]:text-brand [&_a]:underline [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-bold " +
+  "[&_h3]:mt-3 [&_h3]:font-bold [&_li]:ml-5 [&_li]:list-disc " +
+  "[&_strong]:font-bold [&_p]:my-2";
 
 /**
- * 상세 설명 전용 에디터. 마크다운을 그대로 저장하지만(손님 화면이
- * react-markdown으로 렌더링하니 형식을 바꿀 이유가 없다), 사장님이
- * 문법을 직접 외우지 않아도 되도록 굵게·제목·목록·링크 버튼을 둔다.
- * 버튼은 지금 커서 위치나 선택 영역에 그 문법을 끼워 넣고, 커서를
- * 그 자리에 그대로 둔다.
+ * 상세 설명 전용 에디터. 손님 화면이 마크다운(react-markdown)으로
+ * 렌더링하니 저장 형식은 그대로 마크다운 문자열을 쓴다 — 다만 사장님이
+ * 문법을 외우거나 미리보기로 확인할 필요 없이, 지금 보이는 그대로가
+ * 손님에게 보이는 모습인 위지윅(WYSIWYG) 편집을 한다. tiptap-markdown이
+ * 편집 중인 문서와 마크다운 문자열을 서로 변환해준다.
  */
 export function DescriptionEditor({
   productId,
@@ -29,61 +48,62 @@ export function DescriptionEditor({
     FormData
   >(saveProductDescription, null);
   const [description, setDescription] = useState(initial);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  function wrapSelection(before: string, after: string = before) {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const { selectionStart, selectionEnd, value } = textarea;
-    const selected = value.slice(selectionStart, selectionEnd);
-    const next =
-      value.slice(0, selectionStart) +
-      before +
-      selected +
-      after +
-      value.slice(selectionEnd);
-    setDescription(next);
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [2, 3] } }),
+      Link.configure({ openOnClick: false, autolink: true }),
+      Placeholder.configure({
+        placeholder: "이런 분께 추천해요, 포함 사항 등을 자유롭게 써보세요.",
+      }),
+      Markdown.configure({ html: false, transformPastedText: true }),
+    ],
+    content: initial,
+    immediatelyRender: false,
+    onUpdate: ({ editor }) => {
+      setDescription(editor.storage.markdown.getMarkdown());
+    },
+    editorProps: {
+      attributes: { class: editorContentClass },
+    },
+  });
 
-    const cursorStart = selectionStart + before.length;
-    const cursorEnd = cursorStart + selected.length;
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(cursorStart, cursorEnd);
-    });
-  }
+  const editorState = useEditorState({
+    editor,
+    selector: (ctx) => ({
+      bold: ctx.editor?.isActive("bold") ?? false,
+      italic: ctx.editor?.isActive("italic") ?? false,
+      heading: ctx.editor?.isActive("heading", { level: 2 }) ?? false,
+      bulletList: ctx.editor?.isActive("bulletList") ?? false,
+      link: ctx.editor?.isActive("link") ?? false,
+    }),
+  });
 
-  function prefixLine(prefix: string) {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const { selectionStart, value } = textarea;
-    const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
-    const next = value.slice(0, lineStart) + prefix + value.slice(lineStart);
-    setDescription(next);
+  function toggleLink() {
+    if (!editor) return;
 
-    const cursor = selectionStart + prefix.length;
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(cursor, cursor);
-    });
-  }
+    if (editorState?.link) {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
 
-  function insertLink() {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const { selectionStart, selectionEnd, value } = textarea;
-    const selected = value.slice(selectionStart, selectionEnd) || "링크 텍스트";
-    const insertion = `[${selected}](https://)`;
-    const next =
-      value.slice(0, selectionStart) + insertion + value.slice(selectionEnd);
-    setDescription(next);
+    const url = window.prompt("연결할 주소를 입력하세요", "https://");
+    if (!url) return;
 
-    // 주소 부분을 선택 상태로 둬서 바로 이어서 입력할 수 있게 한다.
-    const urlStart = selectionStart + selected.length + 3;
-    const urlEnd = urlStart + "https://".length;
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(urlStart, urlEnd);
-    });
+    const { from, empty } = editor.state.selection;
+    if (empty) {
+      const label = "링크 텍스트";
+      editor.chain().focus().insertContentAt(from, label).run();
+      editor
+        .chain()
+        .focus()
+        .setTextSelection({ from, to: from + label.length })
+        .setLink({ href: url })
+        .run();
+      return;
+    }
+
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }
 
   return (
@@ -102,45 +122,49 @@ export function DescriptionEditor({
 
       <form action={action} className="space-y-4">
         <input type="hidden" name="id" value={productId} />
+        <input type="hidden" name="description" value={description} />
 
         <div>
           <div className="border-border bg-surface-subtle flex flex-wrap gap-1 rounded-t-lg border border-b-0 p-2">
-            <ToolbarButton onClick={() => prefixLine("## ")} title="제목">
+            <ToolbarButton
+              active={editorState?.heading}
+              title="제목"
+              onClick={() =>
+                editor?.chain().focus().toggleHeading({ level: 2 }).run()
+              }
+            >
               제목
             </ToolbarButton>
-            <ToolbarButton onClick={() => wrapSelection("**")} title="굵게">
+            <ToolbarButton
+              active={editorState?.bold}
+              title="굵게"
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+            >
               <b>굵게</b>
             </ToolbarButton>
-            <ToolbarButton onClick={() => wrapSelection("*")} title="기울임">
+            <ToolbarButton
+              active={editorState?.italic}
+              title="기울임"
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+            >
               <i>기울임</i>
             </ToolbarButton>
-            <ToolbarButton onClick={() => prefixLine("- ")} title="목록">
+            <ToolbarButton
+              active={editorState?.bulletList}
+              title="목록"
+              onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            >
               목록
             </ToolbarButton>
-            <ToolbarButton onClick={insertLink} title="링크">
+            <ToolbarButton
+              active={editorState?.link}
+              title="링크"
+              onClick={toggleLink}
+            >
               링크
             </ToolbarButton>
           </div>
-          <textarea
-            ref={textareaRef}
-            name="description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            rows={16}
-            placeholder={
-              "## 이런 분께 추천해요\n\n- 이력서용 사진이 필요한 분\n\n## 포함 사항\n\n- 촬영 60분\n- 보정본 5장"
-            }
-            className={`${inputClass} resize-y rounded-t-none font-mono text-sm`}
-          />
-        </div>
-
-        <div className="border-border bg-surface min-h-40 rounded-lg border px-4 py-3">
-          <p className="text-muted mb-2 text-xs">손님에게 보이는 모습</p>
-          {description.trim() ? (
-            <Markdown>{description}</Markdown>
-          ) : (
-            <p className="text-muted text-sm">위에서 입력하면 여기 보여요.</p>
-          )}
+          <EditorContent editor={editor} />
         </div>
 
         <ErrorText>{state?.error}</ErrorText>
@@ -161,10 +185,12 @@ export function DescriptionEditor({
 function ToolbarButton({
   onClick,
   title,
+  active,
   children,
 }: {
   onClick: () => void;
   title: string;
+  active?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -172,7 +198,11 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       title={title}
-      className="border-border bg-surface hover:bg-surface-subtle rounded border px-2.5 py-1 text-xs"
+      className={`rounded border px-2.5 py-1 text-xs ${
+        active
+          ? "border-brand bg-brand/10 text-brand"
+          : "border-border bg-surface hover:bg-surface-subtle"
+      }`}
     >
       {children}
     </button>
