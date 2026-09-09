@@ -14,8 +14,17 @@ const PUBLIC_VARS = [
 
 const SERVER_VARS = ["SUPABASE_SECRET_KEY"] as const;
 
-function required(name: string): string {
-  const value = process.env[name];
+/**
+ * `process.env[name]`처럼 이름을 변수로 감싸 읽으면(동적 접근) 번들러가
+ * NEXT_PUBLIC_ 값을 브라우저 번들에 박아 넣지 못한다 — 반드시
+ * `process.env.NEXT_PUBLIC_...`처럼 정적으로 쓴 표현만 인식한다. 그래서
+ * 이 함수는 값을 직접 읽지 않고, 호출하는 쪽에서 정적으로 읽은 값을
+ * 넘겨받기만 한다. 서버에서는 진짜 process.env 객체가 있어서 동적
+ * 접근도 되다 보니 이 버그가 서버 로그나 관리자 화면 진입에는 안 보이고,
+ * 브라우저에서 값을 쓰는 곳(로그인, 이미지 업로드 등)에서만 "환경변수가
+ * 없다"는 잘못된 에러로 나타난다.
+ */
+function required(name: string, value: string | undefined): string {
   if (!value) {
     throw new Error(
       `환경변수 ${name} 가 없습니다. docs/SUPABASE_SETUP.md 2번을 참고하세요.`,
@@ -25,12 +34,18 @@ function required(name: string): string {
 }
 
 export function supabaseUrl(): string {
-  return required("NEXT_PUBLIC_SUPABASE_URL");
+  return required(
+    "NEXT_PUBLIC_SUPABASE_URL",
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+  );
 }
 
 /** 브라우저에 노출돼도 되는 공개 키 (sb_publishable_... / 옛 이름 anon). */
 export function supabasePublishableKey(): string {
-  return required("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+  return required(
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  );
 }
 
 /**
@@ -38,7 +53,7 @@ export function supabasePublishableKey(): string {
  * 서버 전용. 절대 클라이언트 번들에 들어가면 안 된다.
  */
 export function supabaseSecretKey(): string {
-  return required("SUPABASE_SECRET_KEY");
+  return required("SUPABASE_SECRET_KEY", process.env.SUPABASE_SECRET_KEY);
 }
 
 /**
