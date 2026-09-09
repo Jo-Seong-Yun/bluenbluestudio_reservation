@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui";
 import { reorderProducts, togglePublished } from "../../actions";
@@ -43,7 +43,6 @@ export function ProductGrid({ products }: { products: Product[] }) {
 
   const gridRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef(new Map<string, HTMLDivElement>());
-  const prevRects = useRef(new Map<string, DOMRect>());
 
   // 카드 하나당 한 번만 자리를 바꾸고, 커서가 그 카드를 벗어났다가
   // 다시 들어와야 또 한 번 바꾸도록 막는다 — 이게 없으면 카드 경계
@@ -62,12 +61,10 @@ export function ProductGrid({ products }: { products: Product[] }) {
   }
 
   // dragover 대상 판정을 카드 각각의 이벤트가 아니라 그리드 전체에서
-  // 한 번에 한다. 카드별 dragover/dragleave에 맡기면, 자리가 바뀔 때
-  // 카드가 CSS transform으로 미끄러지는 동안 브라우저가 어떤 카드
-  // 위에 커서가 있는지 헷갈려하며 leave/over를 반복 발생시켜 자리가
-  // 튕기는 원인이 됐다. 대신 각 카드의 레이아웃 상 위치(offsetLeft
-  // 등, transform의 영향을 받지 않음)를 직접 비교해 판정하면 애니메이션
-  // 중에도 안정적이다.
+  // 한 번에 한다. 카드별 dragover/dragleave에 맡기면 브라우저가 어떤
+  // 카드 위에 커서가 있는지 헷갈려하며 leave/over를 반복 발생시켜
+  // 자리가 튕기는 원인이 됐다 — 대신 각 카드의 레이아웃 상 위치
+  // (offsetLeft 등)를 직접 비교해 판정하면 안정적이다.
   function handleGridDragOver(e: React.DragEvent) {
     e.preventDefault();
     if (!dragId || !gridRef.current) return;
@@ -120,38 +117,6 @@ export function ProductGrid({ products }: { products: Product[] }) {
       await reorderProducts(items.map((p) => p.id));
     });
   }
-
-  // FLIP 애니메이션: 순서가 바뀌면 그리드는 이미 새 자리로 즉시
-  // 재배치돼 있다(브라우저 레이아웃 특성상 순간적으로 튄다). 여기서는
-  // 각 카드를 "이전 위치"만큼 반대로 밀어둔 뒤, 다음 프레임에 그 이동을
-  // 되돌리는 트랜지션을 걸어서 실제로는 이전 자리에서 새 자리로
-  // 부드럽게 미끄러지듯 보이게 만든다.
-  useLayoutEffect(() => {
-    const nextRects = new Map<string, DOMRect>();
-    cardRefs.current.forEach((el, id) => {
-      nextRects.set(id, el.getBoundingClientRect());
-    });
-
-    cardRefs.current.forEach((el, id) => {
-      const prev = prevRects.current.get(id);
-      const next = nextRects.get(id);
-      if (!prev || !next) return;
-
-      const dx = prev.left - next.left;
-      const dy = prev.top - next.top;
-      if (dx === 0 && dy === 0) return;
-
-      el.style.transition = "none";
-      el.style.transform = `translate(${dx}px, ${dy}px)`;
-      el.getBoundingClientRect(); // 강제 리플로우로 위 스타일을 먼저 적용시킨다.
-      requestAnimationFrame(() => {
-        el.style.transition = "transform 220ms cubic-bezier(0.2, 0, 0, 1)";
-        el.style.transform = "";
-      });
-    });
-
-    prevRects.current = nextRects;
-  }, [items]);
 
   return (
     <div
