@@ -10,6 +10,7 @@ import {
   type LookupState,
 } from "@/lib/booking/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
+import { useReportPending } from "@/components/pending-overlay";
 
 const initialPhoneState: PhoneLookupState = { status: "idle" };
 const initialCancelState: LookupState = { status: "idle" };
@@ -60,6 +61,7 @@ export function LookupForm() {
     lookupReservationsByPhone,
     initialPhoneState,
   );
+  useReportPending(lookupPending);
 
   // 조회 결과를 별도 상태로 들고 있는다 — 취소 성공 시 그 한 건의 상태만
   // 바로 바꿔서 보여줘야 해서(전체를 다시 조회하지 않고).
@@ -100,6 +102,7 @@ export function LookupForm() {
     },
     initialCancelState,
   );
+  useReportPending(cancelPending);
 
   if (list) {
     // 결과는 3단으로 넓게 펼쳐야 하니 폭 제한 없이, 페이지 컨테이너

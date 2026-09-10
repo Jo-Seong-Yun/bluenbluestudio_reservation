@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { loadSlotsForDate } from "@/lib/booking/actions";
+import { useReportPending } from "@/components/pending-overlay";
 import {
   addMonths,
   monthGridDates,
@@ -40,6 +41,7 @@ export function BookingFlow({
   const [selectedDate, setSelectedDate] = useState<DateString | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsPending, startSlotsTransition] = useTransition();
+  useReportPending(slotsPending);
   const timeSectionRef = useRef<HTMLDivElement>(null);
 
   function handleSelectDate(date: DateString) {

@@ -7,6 +7,7 @@ import {
   type ReservationActionState,
 } from "@/lib/booking/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
+import { useReportPending } from "@/components/pending-overlay";
 import { calculateAge, parseBirthDate8 } from "@/lib/age";
 import {
   fieldFormName,
@@ -61,6 +62,7 @@ export function ReservationForm({
     notice,
   );
   const [state, action, pending] = useActionState(boundAction, initialState);
+  useReportPending(pending);
 
   if (state.status === "success") {
     return (
