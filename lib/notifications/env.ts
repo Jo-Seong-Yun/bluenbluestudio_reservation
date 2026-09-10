@@ -29,6 +29,42 @@ export function solapiSenderPhone(): string {
   return required("SOLAPI_SENDER_PHONE");
 }
 
+/**
+ * 카카오 알림톡(솔라피 경유) 설정.
+ *
+ * SMS/이메일과 달리 필수가 아니다 — 카카오톡 채널 개설, 솔라피에 발신
+ * 프로필(pfId) 등록, 목적별 템플릿 사전 심사까지 끝나야 값이 생기는데
+ * 그전까진 그냥 비워 두면 된다(사업자등록이 필요해 로드맵상 SMS보다
+ * 나중에 켜는 채널). `required()`처럼 던지지 않고 undefined를 돌려주는
+ * 이유는 그래서다 — notify.ts가 이 값들이 있는지로 "지금 알림톡을 쓸 수
+ * 있는가"를 판단해 없으면 조용히 SMS만 쓴다.
+ */
+export function solapiKakaoPfId(): string | undefined {
+  return process.env.SOLAPI_KAKAO_PF_ID || undefined;
+}
+
+/**
+ * 알림 목적별 알림톡 템플릿 ID. 카카오 심사는 문구 단위로 나기 때문에
+ * customer_requested/confirmed/cancelled/reminder, admin_new_request
+ * 다섯 개를 따로 등록해야 한다. 하나라도 비어 있으면 그 목적은 SMS로
+ * 대체한다(getKakaoTemplateId 참고).
+ */
+const KAKAO_TEMPLATE_ENV_KEYS = {
+  customer_requested: "SOLAPI_KAKAO_TEMPLATE_CUSTOMER_REQUESTED",
+  customer_confirmed: "SOLAPI_KAKAO_TEMPLATE_CUSTOMER_CONFIRMED",
+  customer_cancelled: "SOLAPI_KAKAO_TEMPLATE_CUSTOMER_CANCELLED",
+  customer_reminder: "SOLAPI_KAKAO_TEMPLATE_CUSTOMER_REMINDER",
+  admin_new_request: "SOLAPI_KAKAO_TEMPLATE_ADMIN_NEW_REQUEST",
+} as const;
+
+export type KakaoNotificationPurpose = keyof typeof KAKAO_TEMPLATE_ENV_KEYS;
+
+export function solapiKakaoTemplateId(
+  purpose: KakaoNotificationPurpose,
+): string | undefined {
+  return process.env[KAKAO_TEMPLATE_ENV_KEYS[purpose]] || undefined;
+}
+
 /** 발신에 쓸 Gmail 주소. */
 export function gmailUser(): string {
   return required("GMAIL_USER");

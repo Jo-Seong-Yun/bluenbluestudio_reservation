@@ -423,24 +423,37 @@ Supabase Table Editor에서 직접 입력해도 예약 엔진이 그대로 동�
       관리자 화면(`/admin/settings`)에서 직접 입력·수정
 - [x] 촬영 전날 리마인드 (Vercel Cron) — `app/api/cron/reminders`,
       매일 실행. `reservations.reminded_at`으로 중복 발송을 막는다
-- [x] 발송 실패 로깅 — `notification_logs` 테이블에 채널·수신자·성공
-      여부·에러를 남긴다. 발송 실패가 예약 흐름 자체를 막지 않는다
-      (SMS/이메일 발송은 항상 try/catch로 감싸 실패해도 예약은 그대로 진행)
+- [x] 카카오 알림톡(솔라피 경유) — `lib/notifications/kakao.ts`.
+      목적별 pfId·템플릿ID(`SOLAPI_KAKAO_*` 환경변수)가 채워진 알림만
+      알림톡으로 나가고, 안 채운 목적은 그대로 SMS를 쓴다(코드 변경 없이
+      목적 단위로 전환). 알림톡 발송이 막히면 솔라피가 자동으로 문자
+      대체 발송을 하므로 앱에서 이중 발송을 만들지 않는다(`disableSms:
+      false`)
+- [x] 발송 실패 로깅 — `notification_logs` 테이블에 채널(sms/email/kakao)·
+      수신자·성공 여부·에러를 남긴다. 발송 실패가 예약 흐름 자체를 막지
+      않는다(발송은 항상 try/catch로 감싸 실패해도 예약은 그대로 진행)
 - [ ] **실제 솔라피/Gmail 키로 발송 확인** — 이 환경에는 자격증명이 없어
       `lib/notifications/sms.ts`/`email.ts`의 HTTP 호출 자체는 실제로
       실행해보지 못했다. 템플릿 문구(`lib/notifications/templates.ts`)는
       단위 테스트로 검증했고, 마이그레이션은 로컬 Postgres에 적용해
       스키마가 맞는지 확인했다
+- [ ] **카카오 알림톡 채널 개설 + 템플릿 심사** — 사업자등록이 있어야
+      시작할 수 있다. 심사가 끝나기 전까지는 `SOLAPI_KAKAO_*` 환경변수를
+      비워 두면 되고(그러면 자동으로 SMS만 쓴다), 심사를 통과하면
+      `lib/notifications/templates.ts`의 `*KakaoVariables` 함수들을 실제
+      승인된 템플릿 변수 이름에 맞춰 고친 뒤 환경변수를 채운다
 
-**새로 만든 것**: `lib/notifications/` (env/sms/email/templates/log/notify),
-`app/api/cron/reminders/route.ts`, `notification_logs` 테이블,
+**새로 만든 것**: `lib/notifications/` (env/sms/email/kakao/templates/log/
+notify), `app/api/cron/reminders/route.ts`, `notification_logs` 테이블,
 `settings.admin_notify_phone`/`admin_notify_email`, `reservations.reminded_at`.
 
-**참고**: 카카오 알림톡은 사업자등록 + 템플릿 심사가 필요하다.
-심사를 기다리지 말고 **SMS나 이메일로 먼저 출시**하고 알림톡은 나중에 붙인다.
-(SMS는 솔라피, 이메일은 도메인 인증 없이 무료로 쓸 수 있는 Gmail SMTP로
-확정했다 — 실제 서비스 시작 전 솔라피 가입, Gmail 앱 비밀번호 발급을 마치고
-`.env.local`에 키를 넣어야 한다. `.env.example` 참고.)
+**참고**: 카카오 알림톡은 사업자등록 + 템플릿 심사가 필요해 SMS·이메일보다
+먼저 켤 수 없다. 그래서 **SMS·이메일로 먼저 출시**하고, 알림톡 발송 코드
+자체는 미리 만들어 뒀다가(위 항목) 심사가 끝나면 환경변수만 채워 전환하는
+쪽으로 정리했다. (SMS는 솔라피, 이메일은 도메인 인증 없이 무료로 쓸 수
+있는 Gmail SMTP로 확정했다 — 실제 서비스 시작 전 솔라피 가입, Gmail 앱
+비밀번호 발급을 마치고 `.env.local`에 키를 넣어야 한다. `.env.example`
+참고.)
 
 ### Phase 9 — 출시 준비 (약 1주)
 

@@ -10,7 +10,7 @@ import { createAdminClient } from "../supabase/admin";
  * 안 되므로 호출하는 쪽에서 항상 감싸서 부른다.
  */
 export async function logNotification(params: {
-  channel: "sms" | "email";
+  channel: "sms" | "email" | "kakao";
   purpose: string;
   recipient: string;
   reservationId?: string | null;

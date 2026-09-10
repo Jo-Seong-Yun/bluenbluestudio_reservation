@@ -1,15 +1,26 @@
 import "server-only";
 import { sendSms } from "./sms";
 import { sendEmail } from "./email";
+import { sendKakaoAlimtalk } from "./kakao";
 import { logNotification } from "./log";
 import {
+  solapiKakaoPfId,
+  solapiKakaoTemplateId,
+  type KakaoNotificationPurpose,
+} from "./env";
+import {
+  adminNewRequestKakaoVariables,
   adminNewRequestSubject,
   adminNewRequestText,
+  customerCancelledKakaoVariables,
   customerCancelledSubject,
   customerCancelledText,
+  customerConfirmedKakaoVariables,
   customerConfirmedSubject,
   customerConfirmedText,
+  customerReminderKakaoVariables,
   customerRequestedEmailText,
+  customerRequestedKakaoVariables,
   customerRequestedSubject,
   customerRequestedText,
   customerReminderSubject,
@@ -48,6 +59,53 @@ async function trySms(params: {
       error: error instanceof Error ? error.message : String(error),
     }).catch(() => {});
   }
+}
+
+/**
+ * 카카오 알림톡을 시도한다. pfId·템플릿ID가 아직 설정 안 됐으면(카카오
+ * 채널·템플릿 심사 전) false를 돌려주고 아무것도 하지 않는다 — 호출하는
+ * 쪽(notifyCustomer/notifyAdminNewRequest)은 이때 기존처럼 SMS를 보낸다.
+ * true를 돌려줬다는 건 "알림톡 발송을 시도했다"는 뜻으로, 실패해도
+ * 솔라피가 자동으로 문자 대체 발송을 하므로 여기서 SMS를 또 보내지
+ * 않는다(kakao.ts의 disableSms: false).
+ */
+async function tryKakao(params: {
+  purpose: KakaoNotificationPurpose;
+  to: string;
+  variables: Record<string, string>;
+  fallbackText: string;
+  reservationId?: string | null;
+}): Promise<boolean> {
+  const pfId = solapiKakaoPfId();
+  const templateId = solapiKakaoTemplateId(params.purpose);
+  if (!pfId || !templateId) return false;
+
+  try {
+    await sendKakaoAlimtalk({
+      to: params.to,
+      pfId,
+      templateId,
+      variables: params.variables,
+      fallbackText: params.fallbackText,
+    });
+    await logNotification({
+      channel: "kakao",
+      purpose: params.purpose,
+      recipient: params.to,
+      reservationId: params.reservationId,
+      success: true,
+    }).catch(() => {});
+  } catch (error) {
+    await logNotification({
+      channel: "kakao",
+      purpose: params.purpose,
+      recipient: params.to,
+      reservationId: params.reservationId,
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    }).catch(() => {});
+  }
+  return true;
 }
 
 async function tryEmail(params: {
@@ -93,26 +151,40 @@ type ReservationNotice = {
 };
 
 /**
- * 손님 알림 공통 처리. SMS는 항상 보내고(연락처는 필수 입력이라 늘 있다),
- * 이메일은 손님이 입력했을 때만 추가로 보낸다. 이메일 본문은 글자 수
- * 제한이 없으니 emailText로 따로 줄 수 있고, 안 주면 SMS 문구를 그대로
- * 쓴다.
+ * 손님 알림 공통 처리. 카카오 알림톡이 설정돼 있으면(pfId+템플릿ID)
+ * 그걸로 먼저 시도하고, 아직 안 됐으면 SMS로 보낸다 — 연락처는 필수
+ * 입력이라 둘 중 하나는 항상 나간다. 이메일은 손님이 입력했을 때만
+ * 추가로 보낸다. 이메일 본문은 글자 수 제한이 없으니 emailText로 따로
+ * 줄 수 있고, 안 주면 SMS 문구를 그대로 쓴다.
  */
 async function notifyCustomer(params: {
-  purpose: string;
+  purpose: KakaoNotificationPurpose;
   info: ReservationNotice;
   smsText: string;
+  kakaoVariables: Record<string, string>;
   emailSubject: string;
   emailText?: string;
 }): Promise<void> {
-  const tasks: Promise<void>[] = [
-    trySms({
-      purpose: params.purpose,
-      to: params.info.customerPhone,
-      text: params.smsText,
-      reservationId: params.info.reservationId,
-    }),
-  ];
+  const kakaoAttempted = await tryKakao({
+    purpose: params.purpose,
+    to: params.info.customerPhone,
+    variables: params.kakaoVariables,
+    fallbackText: params.smsText,
+    reservationId: params.info.reservationId,
+  });
+
+  const tasks: Promise<void>[] = [];
+
+  if (!kakaoAttempted) {
+    tasks.push(
+      trySms({
+        purpose: params.purpose,
+        to: params.info.customerPhone,
+        text: params.smsText,
+        reservationId: params.info.reservationId,
+      }),
+    );
+  }
 
   if (params.info.customerEmail) {
     tasks.push(
@@ -140,6 +212,7 @@ export async function notifyCustomerRequested(
     purpose: "customer_requested",
     info,
     smsText: customerRequestedText(info),
+    kakaoVariables: customerRequestedKakaoVariables(info),
     emailSubject: customerRequestedSubject(),
     emailText: customerRequestedEmailText(info),
   });
@@ -153,6 +226,7 @@ export async function notifyCustomerConfirmed(
     purpose: "customer_confirmed",
     info,
     smsText: customerConfirmedText(info),
+    kakaoVariables: customerConfirmedKakaoVariables(info),
     emailSubject: customerConfirmedSubject(),
   });
 }
@@ -165,6 +239,7 @@ export async function notifyCustomerCancelled(
     purpose: "customer_cancelled",
     info,
     smsText: customerCancelledText(info),
+    kakaoVariables: customerCancelledKakaoVariables(info),
     emailSubject: customerCancelledSubject(),
   });
 }
@@ -177,6 +252,7 @@ export async function notifyCustomerReminder(
     purpose: "customer_reminder",
     info,
     smsText: customerReminderText(info),
+    kakaoVariables: customerReminderKakaoVariables(info),
     emailSubject: customerReminderSubject(),
   });
 }
@@ -200,14 +276,24 @@ export async function notifyAdminNewRequest(info: {
   const tasks: Promise<void>[] = [];
 
   if (info.adminPhone) {
-    tasks.push(
-      trySms({
-        purpose: "admin_new_request",
-        to: info.adminPhone,
-        text: adminNewRequestText(info),
-        reservationId: info.reservationId,
-      }),
-    );
+    const kakaoAttempted = await tryKakao({
+      purpose: "admin_new_request",
+      to: info.adminPhone,
+      variables: adminNewRequestKakaoVariables(info),
+      fallbackText: adminNewRequestText(info),
+      reservationId: info.reservationId,
+    });
+
+    if (!kakaoAttempted) {
+      tasks.push(
+        trySms({
+          purpose: "admin_new_request",
+          to: info.adminPhone,
+          text: adminNewRequestText(info),
+          reservationId: info.reservationId,
+        }),
+      );
+    }
   }
 
   if (info.adminEmail) {

@@ -114,3 +114,65 @@ export function adminNewRequestText(info: AdminNewRequestInfo): string {
     `예약번호 ${info.code}`
   );
 }
+
+/**
+ * 카카오 알림톡 템플릿 변수. 알림톡은 SMS처럼 자유 문구를 못 보내고,
+ * 카카오 심사를 통과한 고정 문구의 빈칸(`#{변수명}`)만 채워 보낸다 —
+ * 그래서 위 SMS 문구 함수들과 별도로 "변수 이름 → 값" 맵을 만든다.
+ *
+ * 여기 적은 변수 이름(상품명/일시/예약번호 등)은 심사 신청 초안일 뿐이다.
+ * 실제 심사를 통과한 템플릿의 변수 이름과 정확히 일치해야 발송이 되므로,
+ * 심사 결과가 나오면 이 함수들의 키를 그에 맞게 고쳐야 한다
+ * (lib/notifications/kakao.ts 참고).
+ */
+export function customerRequestedKakaoVariables(
+  info: ReservationInfo,
+): Record<string, string> {
+  return {
+    "#{상품명}": info.productName,
+    "#{일시}": formatShootTime(info.shootStart),
+    "#{예약번호}": info.code,
+  };
+}
+
+export function customerConfirmedKakaoVariables(
+  info: ReservationInfo,
+): Record<string, string> {
+  return {
+    "#{상품명}": info.productName,
+    "#{일시}": formatShootTime(info.shootStart),
+    "#{예약번호}": info.code,
+  };
+}
+
+export function customerCancelledKakaoVariables(
+  info: ReservationInfo,
+): Record<string, string> {
+  return {
+    "#{상품명}": info.productName,
+    "#{일시}": formatShootTime(info.shootStart),
+    "#{예약번호}": info.code,
+  };
+}
+
+export function customerReminderKakaoVariables(
+  info: ReservationInfo,
+): Record<string, string> {
+  return {
+    "#{상품명}": info.productName,
+    "#{일시}": formatShootTime(info.shootStart),
+    "#{예약번호}": info.code,
+  };
+}
+
+export function adminNewRequestKakaoVariables(
+  info: AdminNewRequestInfo,
+): Record<string, string> {
+  return {
+    "#{상품명}": info.productName,
+    "#{일시}": formatShootTime(info.shootStart),
+    "#{예약번호}": info.code,
+    "#{손님이름}": info.customerName,
+    "#{손님연락처}": info.customerPhone,
+  };
+}

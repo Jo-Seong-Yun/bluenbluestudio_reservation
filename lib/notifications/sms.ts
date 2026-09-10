@@ -9,8 +9,11 @@ import { solapiApiKey, solapiApiSecret, solapiSenderPhone } from "./env";
  * 요청이라 SDK를 더할 이유가 없다(이 저장소는 Supabase 클라이언트도
  * 직접 감싸 쓰지, 불필요한 추상화 계층을 얹지 않는다).
  * 참고: https://developers.solapi.com/references/authentication/api-key
+ *
+ * kakao.ts(카카오 알림톡)도 같은 API 키로 같은 방식의 서명을 쓰므로
+ * 이 함수를 그대로 가져다 쓴다.
  */
-function authHeader(): string {
+export function authHeader(): string {
   const date = new Date().toISOString();
   const salt = randomBytes(32).toString("hex");
   const signature = createHmac("sha256", solapiApiSecret())
