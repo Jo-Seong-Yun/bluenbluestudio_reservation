@@ -17,6 +17,7 @@ import {
 } from "@/app/admin/actions";
 import { Button, Field, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
+import { TimeSelect } from "@/components/time-select";
 import {
   WeekGrid,
   type CellState,
@@ -248,18 +249,16 @@ export default async function SchedulePage({
                   <input type="checkbox" name="closed" defaultChecked={!row} />
                   휴무
                 </label>
-                <input
-                  type="time"
+                <TimeSelect
                   name="openTime"
                   defaultValue={row?.open_time?.slice(0, 5) ?? "09:00"}
-                  className={`${inputClass} !w-28 shrink-0 py-1 text-sm`}
+                  className={`${inputClass} !w-32 shrink-0 py-1 text-sm`}
                 />
                 <span className="text-muted text-xs">~</span>
-                <input
-                  type="time"
+                <TimeSelect
                   name="closeTime"
                   defaultValue={row?.close_time?.slice(0, 5) ?? "18:00"}
-                  className={`${inputClass} !w-28 shrink-0 py-1 text-sm`}
+                  className={`${inputClass} !w-32 shrink-0 py-1 text-sm`}
                 />
                 <SubmitButton variant="ghost" className="py-1 text-xs">
                   저장
@@ -328,17 +327,17 @@ export default async function SchedulePage({
             휴무
           </label>
           <Field label="시작 시간 (휴무 아닐 때)">
-            <input
-              type="time"
+            <TimeSelect
               name="openTime"
-              className={`${inputClass} w-28`}
+              defaultValue="09:00"
+              className={`${inputClass} w-32`}
             />
           </Field>
           <Field label="종료 시간 (휴무 아닐 때)">
-            <input
-              type="time"
+            <TimeSelect
               name="closeTime"
-              className={`${inputClass} w-28`}
+              defaultValue="18:00"
+              className={`${inputClass} w-32`}
             />
           </Field>
           <Field label="사유 (선택)">
