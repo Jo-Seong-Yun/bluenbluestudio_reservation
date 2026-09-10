@@ -3,6 +3,7 @@
 import { useFormStatus } from "react-dom";
 import type { ComponentProps } from "react";
 import { Button } from "./ui";
+import { useReportPending } from "./pending-overlay";
 
 /**
  * <form action={서버액션}> 안에서 쓰는 제출 버튼. useActionState 없이
@@ -18,6 +19,7 @@ export function SubmitButton({
   ...props
 }: ComponentProps<typeof Button>) {
   const { pending } = useFormStatus();
+  useReportPending(pending);
   return (
     <Button
       {...props}
@@ -38,6 +40,7 @@ export function PendingSubmit({
   ...props
 }: ComponentProps<"button">) {
   const { pending } = useFormStatus();
+  useReportPending(pending);
   return (
     <button
       {...props}

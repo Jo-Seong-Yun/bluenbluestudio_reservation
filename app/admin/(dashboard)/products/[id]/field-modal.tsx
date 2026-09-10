@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { addCustomField, updateCustomField } from "@/app/admin/actions";
 import { Button, inputClass } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import {
   FIELD_TYPE_LABELS,
   SPECIAL_FIELD_TYPES,
@@ -238,7 +239,7 @@ export function FieldModal({
             <Button type="button" variant="ghost" onClick={close}>
               취소
             </Button>
-            <Button type="submit">확인</Button>
+            <SubmitButton>확인</SubmitButton>
           </div>
         </form>
       </dialog>

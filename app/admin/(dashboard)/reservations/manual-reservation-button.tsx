@@ -6,6 +6,7 @@ import {
   type ManualReservationState,
 } from "@/app/admin/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
+import { useReportPending } from "@/components/pending-overlay";
 
 const initialState: ManualReservationState = { status: "idle" };
 
@@ -28,6 +29,7 @@ export function ManualReservationButton({
     createManualReservation,
     initialState,
   );
+  useReportPending(pending);
 
   function open() {
     dialogRef.current?.showModal();

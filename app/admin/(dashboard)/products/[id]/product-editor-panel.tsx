@@ -5,6 +5,7 @@ import { saveProduct, type ActionState } from "@/app/admin/actions";
 import { ProductForm, type ProductFormValues } from "../product-form";
 import { DescriptionEditor } from "./description-editor";
 import { Button } from "@/components/ui";
+import { useReportPending } from "@/components/pending-overlay";
 
 const FORM_ID = "product-form";
 
@@ -31,6 +32,7 @@ export function ProductEditorPanel({
     saveProduct,
     null,
   );
+  useReportPending(pending);
 
   return (
     <div>

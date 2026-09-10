@@ -21,6 +21,7 @@ import {
   type ProductDescriptionState,
 } from "@/app/admin/actions";
 import { Button, ErrorText } from "@/components/ui";
+import { useReportPending } from "@/components/pending-overlay";
 import { ResizableImage } from "@/components/tiptap/resizable-image";
 import { publicImageUrl } from "@/lib/images";
 import { uploadProductImage } from "@/lib/storage-upload";
@@ -53,6 +54,7 @@ export function DescriptionEditor({
     ProductDescriptionState,
     FormData
   >(saveProductDescription, null);
+  useReportPending(pending);
   const [description, setDescription] = useState(initial);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

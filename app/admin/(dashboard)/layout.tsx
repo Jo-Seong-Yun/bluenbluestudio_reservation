@@ -4,6 +4,10 @@ import { missingServerEnv } from "@/lib/supabase/env";
 import { ConfigNotice } from "@/components/config-notice";
 import { signOut } from "../actions";
 import { AdminNav } from "@/components/admin-nav";
+import {
+  PendingOverlay,
+  PendingOverlayProvider,
+} from "@/components/pending-overlay";
 import { SITE } from "@/lib/site";
 
 /**
@@ -26,23 +30,28 @@ export default async function AdminLayout({
   await requireAdmin();
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="border-border bg-surface sticky top-0 z-30 border-b">
-        <div className="flex w-full items-center gap-4 px-4 py-3 sm:gap-6 sm:px-[8.5%]">
-          <Link
-            href="/admin/products"
-            className="flex shrink-0 flex-col items-center leading-tight font-bold tracking-[0.3px]"
-          >
-            {SITE.name}
-            <span className="text-muted text-xs font-normal tracking-[5.76px]">
-              관리자 페이지
-            </span>
-          </Link>
-          <AdminNav signOutAction={signOut} />
-        </div>
-      </header>
+    <PendingOverlayProvider>
+      <div className="flex min-h-dvh flex-col">
+        <header className="border-border bg-surface sticky top-0 z-30 border-b">
+          <div className="flex w-full items-center gap-4 px-4 py-3 sm:gap-6 sm:px-[8.5%]">
+            <Link
+              href="/admin/products"
+              className="flex shrink-0 flex-col items-center leading-tight font-bold tracking-[0.3px]"
+            >
+              {SITE.name}
+              <span className="text-muted text-xs font-normal tracking-[5.76px]">
+                관리자 페이지
+              </span>
+            </Link>
+            <AdminNav signOutAction={signOut} />
+          </div>
+        </header>
 
-      <main className="w-full flex-1 px-4 py-8 sm:px-[8.5%]">{children}</main>
-    </div>
+        <main className="relative w-full flex-1 px-4 py-8 sm:px-[8.5%]">
+          {children}
+          <PendingOverlay />
+        </main>
+      </div>
+    </PendingOverlayProvider>
   );
 }

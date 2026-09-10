@@ -8,6 +8,7 @@ import {
 } from "../../actions";
 import { Button } from "@/components/ui";
 import { PendingSubmit } from "@/components/submit-button";
+import { useReportPending } from "@/components/pending-overlay";
 
 const CONFIRM_WORD = "삭제";
 
@@ -37,6 +38,7 @@ export function ProductMenu({
     deleteProduct,
     null,
   );
+  useReportPending(pending);
 
   useEffect(() => {
     if (!menuOpen) return;

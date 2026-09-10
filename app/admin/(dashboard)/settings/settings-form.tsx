@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { saveSettings, type SettingsActionState } from "@/app/admin/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
+import { useReportPending } from "@/components/pending-overlay";
 
 export type SettingsFormValues = {
   slotIntervalMin: number;
@@ -21,6 +22,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
     SettingsActionState,
     FormData
   >(saveSettings, null);
+  useReportPending(pending);
 
   return (
     <form action={action} className="max-w-xl space-y-8">
