@@ -69,103 +69,51 @@ export function BookingFlow({
   }, [selectedDate, slotsPending]);
 
   return (
-    <div className="mx-auto mt-8 w-full max-w-3xl px-4 sm:px-0">
-      {/* 날짜 선택 카드 - Double-Bezel 아키텍처 */}
-      <div className="space-y-8">
-        <div className="group/calendar">
-          {/* 외부 셸 */}
-          <div className="rounded-3xl bg-black/2.5 p-1.5 ring-1 ring-black/8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/calendar:bg-black/4 group-hover/calendar:ring-black/12">
-            {/* 내부 코어 */}
-            <div className="rounded-[calc(1.5rem-0.375rem)] bg-white/95 backdrop-blur-sm p-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)]">
-              {/* 헤더 */}
-              <div className="mb-8">
-                <p className="text-xs font-medium uppercase tracking-widest text-gray-500 mb-2">예약 가능 날짜</p>
-                <h2 className="text-3xl sm:text-4xl font-light tracking-tight text-gray-900">
-                  언제가 좋으신가요?
-                </h2>
-              </div>
+    <div className="mx-auto mt-8 w-full max-w-xl">
+      <div className="border-border bg-surface rounded-xl border p-5">
+        <h2 className="mb-4 font-bold">날짜 선택</h2>
+        <CalendarGrid
+          month={month}
+          availableDates={availableSet}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          basePath={basePath}
+          minMonth={minMonth}
+          maxMonth={maxMonth}
+        />
+      </div>
 
-              {/* 달력 */}
-              <CalendarGrid
-                month={month}
-                availableDates={availableSet}
-                selectedDate={selectedDate}
-                onSelectDate={handleSelectDate}
-                basePath={basePath}
-                minMonth={minMonth}
-                maxMonth={maxMonth}
-              />
-            </div>
+      {/* 날짜를 고르면 이 칸이 아래로 부드럽게 펼쳐진다. */}
+      <div
+        ref={timeSectionRef}
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+          selectedDate ? "mt-6 grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-border bg-surface rounded-xl border p-5">
+            <h2 className="mb-4 font-bold">시간 선택</h2>
+            {slotsPending ? (
+              <p className="text-muted text-sm">불러오는 중…</p>
+            ) : slots.length === 0 ? (
+              <p className="text-muted text-sm">
+                이 날짜는 예약할 수 있는 시간이 없어요.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {slots.map((time) => (
+                  <Link
+                    key={time}
+                    href={`${basePath}/${selectedDate}/${time.replace(":", "-")}`}
+                    className="border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground rounded-lg border py-2 text-center text-sm transition-colors"
+                  >
+                    {time}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-
-        {/* 시간 선택 카드 - Double-Bezel 아키텍처 */}
-        <div
-          ref={timeSectionRef}
-          className={`grid transition-[grid-template-rows,opacity] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-            selectedDate ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-          }`}
-        >
-          <div className="overflow-hidden">
-            <div className="group/time">
-              {/* 외부 셸 */}
-              <div className="rounded-3xl bg-black/2.5 p-1.5 ring-1 ring-black/8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/time:bg-black/4 group-hover/time:ring-black/12">
-                {/* 내부 코어 */}
-                <div className="rounded-[calc(1.5rem-0.375rem)] bg-white/95 backdrop-blur-sm p-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)]">
-                  {/* 헤더 */}
-                  <div className="mb-6">
-                    <p className="text-xs font-medium uppercase tracking-widest text-gray-500 mb-2">예약 시간</p>
-                    <h2 className="text-3xl sm:text-4xl font-light tracking-tight text-gray-900">
-                      정확한 시간을 선택해주세요
-                    </h2>
-                  </div>
-
-                  {/* 슬롯 그리드 */}
-                  {slotsPending ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="h-8 w-8 rounded-full border-2 border-gray-200 border-t-gray-900 animate-spin" />
-                        <p className="text-sm text-gray-600">불러오는 중…</p>
-                      </div>
-                    </div>
-                  ) : slots.length === 0 ? (
-                    <div className="py-12 text-center">
-                      <p className="text-gray-600 text-base leading-relaxed">
-                        이 날짜는 예약할 수 있는 시간이 없어요.
-                        <br />
-                        다른 날짜를 선택해주세요.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {slots.map((time, idx) => (
-                        <Link
-                          key={time}
-                          href={`${basePath}/${selectedDate}/${time.replace(":", "-")}`}
-                          className="group/slot"
-                        >
-                          <div
-                            className="relative rounded-2xl bg-gray-50 border border-gray-200 p-4 text-center transition-all duration-300 ease-out hover:bg-gray-900 hover:border-gray-900 hover:text-white group-hover/slot:shadow-lg group-hover/slot:scale-105 transform active:scale-95 opacity-0 animate-fadeInUp"
-                            style={{ animationDelay: `${idx * 30}ms` }}
-                          >
-                            <span className="block font-semibold text-sm sm:text-base tracking-tight">
-                              {time}
-                            </span>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 안내 텍스트 */}
-        <p className="text-center text-xs text-gray-600 tracking-wide uppercase font-medium">
-          🎯 시간을 선택하면 신청서 작성으로 이동합니다
-        </p>
       </div>
     </div>
   );
@@ -197,9 +145,8 @@ function CalendarGrid({
   const canGoNext = nextMonth <= maxMonth;
 
   return (
-    <div className="space-y-6">
-      {/* 월 네비게이션 */}
-      <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+    <div>
+      <div className="mb-3 flex items-center justify-between">
         <NavLink
           basePath={basePath}
           month={prevMonth}
@@ -208,11 +155,9 @@ function CalendarGrid({
         >
           ←
         </NavLink>
-        <div className="text-center">
-          <p className="text-2xl sm:text-3xl font-light tracking-tight text-gray-900">
-            {year}년 <span className="font-semibold">{m}</span>월
-          </p>
-        </div>
+        <p className="font-bold">
+          {year}년 {m}월
+        </p>
         <NavLink
           basePath={basePath}
           month={nextMonth}
@@ -223,39 +168,37 @@ function CalendarGrid({
         </NavLink>
       </div>
 
-      {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 gap-1.5 text-center">
         {WEEKDAY_LABELS.map((label) => (
-          <div
-            key={label}
-            className="text-center py-2 text-xs font-semibold uppercase tracking-widest text-gray-500"
-          >
+          <div key={label} className="text-muted py-1 text-xs font-medium">
             {label}
           </div>
         ))}
 
-        {/* 날짜 셀 */}
-        {grid.map((date, idx) => {
+        {grid.map((date) => {
           const inMonth = date.startsWith(month);
           const available = inMonth && availableDates.has(date);
           const day = Number(date.slice(8, 10));
           const weekday = weekdayOf(date);
           const isSelected = date === selectedDate;
 
-          const isWeekend = weekday === 0 || weekday === 6;
+          const weekdayColor =
+            weekday === 0
+              ? "text-red-600 dark:text-red-400"
+              : weekday === 6
+                ? "text-brand"
+                : "text-foreground";
 
           if (!available) {
             return (
               <div
                 key={date}
-                className={`aspect-square flex items-center justify-center rounded-2xl text-sm transition-opacity duration-300 ${
-                  inMonth
-                    ? `text-gray-400 ${isWeekend ? "font-medium" : ""}`
-                    : "opacity-0"
-                }`}
+                className={`aspect-square rounded-md text-sm ${
+                  inMonth ? `${weekdayColor} opacity-40` : "opacity-0"
+                } flex items-center justify-center`}
                 aria-hidden={!inMonth}
               >
-                {inMonth && day}
+                {day}
               </div>
             );
           }
@@ -265,26 +208,20 @@ function CalendarGrid({
               key={date}
               type="button"
               onClick={() => onSelectDate(date)}
-              className="group relative aspect-square"
+              className={`aspect-square rounded-md text-base font-medium transition-colors ${weekdayColor} flex items-center justify-center ${
+                isSelected
+                  ? "bg-brand text-brand-foreground"
+                  : "bg-brand/15 hover:bg-brand hover:text-brand-foreground"
+              }`}
             >
-              <div
-                className={`h-full w-full rounded-2xl flex items-center justify-center text-sm font-semibold transition-all duration-300 ease-out transform ${
-                  isSelected
-                    ? "bg-gray-900 text-white scale-100 shadow-lg ring-2 ring-gray-900"
-                    : "bg-gray-100 text-gray-900 group-hover:bg-gray-200 group-hover:scale-105 group-active:scale-95"
-                } ${isWeekend ? "font-bold" : ""} opacity-0 animate-fadeInUp`}
-                style={{ animationDelay: `${idx * 20}ms` }}
-              >
-                {day}
-              </div>
+              {day}
             </button>
           );
         })}
       </div>
 
-      {/* 안내 텍스트 */}
-      <p className="text-center text-xs text-gray-500 font-medium">
-        💡 밝은 배경의 날짜만 예약할 수 있습니다
+      <p className="text-muted mt-3 text-xs">
+        색이 있는 날짜만 예약할 수 있어요.
       </p>
     </div>
   );
@@ -305,10 +242,7 @@ function NavLink({
 }) {
   if (disabled) {
     return (
-      <span
-        aria-hidden
-        className="text-gray-300 px-3 py-2 text-lg font-light transition-opacity"
-      >
+      <span aria-hidden className="text-muted/30 px-2 py-1 text-sm">
         {children}
       </span>
     );
@@ -317,11 +251,9 @@ function NavLink({
     <Link
       href={`${basePath}?month=${month}`}
       aria-label={label}
-      className="group px-3 py-2 text-lg font-light text-gray-900 transition-all duration-300 ease-out hover:text-gray-600 active:scale-95"
+      className="hover:bg-surface-subtle rounded px-2 py-1 text-sm"
     >
-      <span className="block transition-transform duration-300 group-hover:translate-x-0.5">
-        {children}
-      </span>
+      {children}
     </Link>
   );
 }

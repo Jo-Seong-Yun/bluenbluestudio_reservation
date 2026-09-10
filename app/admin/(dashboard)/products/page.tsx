@@ -22,49 +22,33 @@ export default async function ProductsPage() {
     .order("created_at");
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 헤더 섹션 */}
-      <div className="border-b-2 border-gray-900 bg-gradient-to-br from-gray-100 to-white px-8 py-12">
-        <div className="max-w-7xl mx-auto flex items-start justify-between gap-8">
-          <div>
-            <h1 className="text-6xl sm:text-7xl font-black uppercase tracking-tighter text-gray-900 leading-none mb-2">
-              상품관리
-            </h1>
-            <p className="text-sm font-mono uppercase tracking-widest text-gray-700 mt-4">
-              ▼ 총 <span className="font-bold">{products?.length ?? 0}</span> 개 상품
-            </p>
-            <p className="text-xs text-gray-600 mt-2 leading-relaxed max-w-md">
-              고객이 예약할 수 있는 촬영 서비스를 관리합니다. 정렬 순서는 예약 페이지와 동일합니다.
-            </p>
-          </div>
-
-          {/* 상품 추가 버튼 */}
-          <form action={createDraftProduct}>
-            <SubmitButton className="px-8 py-4 bg-gray-900 text-white border-2 border-gray-900 font-black uppercase tracking-wider text-sm hover:bg-white hover:text-gray-900 transition-all duration-200">
-              ➕ 상품 추가
-            </SubmitButton>
-          </form>
+    <div>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">상품관리</h1>
+          <p className="text-muted mt-1 text-sm">
+            고객이 예약할 수 있는 촬영 상품 (순서는 예약화면의 순서와 동일함)
+          </p>
         </div>
+        <form action={createDraftProduct}>
+          <SubmitButton>상품 추가</SubmitButton>
+        </form>
       </div>
 
-      {/* 에러 표시 */}
       {error ? (
-        <div className="bg-red-100 border-l-4 border-red-900 px-6 py-4 mx-8 mt-8">
-          <p className="text-red-900 font-bold text-sm uppercase tracking-wider">
-            ⚠ ERROR
-          </p>
-          <p className="text-red-800 text-sm mt-1 font-mono">
-            불러오지 못했습니다: {error.message}
+        <ErrorText>불러오지 못했습니다: {error.message}</ErrorText>
+      ) : null}
+
+      {products && products.length === 0 ? (
+        <div className="border-border text-muted rounded-xl border border-dashed px-6 py-16 text-center">
+          <p>아직 상품이 없습니다.</p>
+          <p className="mt-1 text-sm">
+            &quot;상품 추가&quot;를 눌러 첫 촬영 상품을 만들어보세요.
           </p>
         </div>
       ) : null}
 
-      {/* 상품 그리드 */}
-      <div className="px-8 py-8">
-        <div className="max-w-7xl mx-auto">
-          <ProductGrid products={products ?? []} />
-        </div>
-      </div>
+      <ProductGrid products={products ?? []} />
     </div>
   );
 }
