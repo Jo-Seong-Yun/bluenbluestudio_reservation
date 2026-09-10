@@ -110,16 +110,17 @@ async function seedDefaultCustomFields(
  * 둔다. saveProduct의 새 상품 저장 분기와 똑같이 기본 문항 5개도 바로
  * 심는다.
  */
+const DRAFT_PRODUCT_NAME = "새 상품";
+
 export async function createDraftProduct() {
   await requireAdmin();
 
   const supabase = await createClient();
-  const name = "새 상품";
   const { data: created, error } = await supabase
     .from("products")
     .insert({
-      name,
-      slug: toSlug(name),
+      name: DRAFT_PRODUCT_NAME,
+      slug: toSlug(DRAFT_PRODUCT_NAME),
       duration_min: 60,
       buffer_after_min: 0,
       price: 0,
@@ -136,6 +137,68 @@ export async function createDraftProduct() {
   // ?new=1은 수정 화면에 "아직 한 번도 저장 안 한 상품"이라는 걸 알려줘,
   // 저장하지 않고 나가려 하면 확인을 받도록 한다(unsaved-guard.tsx).
   redirect(`/admin/products/${created.id}?new=1`);
+}
+
+/**
+ * "저장 안 하고 나가기"를 눌렀을 때 부른다. createDraftProduct가 만든
+ * 상품이 그 뒤로 정말 아무것도 안 건드려진 채(기본값 그대로, 기본
+ * 문항 5개도 그대로) 그대로라면 — 즉 손님에게 보여줄 것도, 사장님이
+ * 일부러 만든 내용도 전혀 없다면 — 상품관리 목록에 빈 "새 상품" 블럭만
+ * 남기지 않도록 통째로 지운다. 설명을 저장했거나 문항을 건드렸거나
+ * 기본정보 중 하나라도 실제로 저장된 값이 있으면(직접 저장 버튼을
+ * 눌러야만 반영되니, 여기 있다는 건 곧 사장님이 뭔가 의도적으로 저장한
+ * 것) 손댄 게 있는 것으로 보고 그대로 둔다.
+ *
+ * custom_fields.product_id는 on delete cascade라 상품만 지우면
+ * 문항도 같이 사라진다(supabase/migrations/20260909000300).
+ */
+export async function discardDraftProduct(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  const { data: product } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!product) return;
+
+  const isPristine =
+    product.name === DRAFT_PRODUCT_NAME &&
+    product.duration_min === 60 &&
+    product.buffer_after_min === 0 &&
+    product.price === 0 &&
+    product.is_published === false &&
+    !product.summary &&
+    !product.description &&
+    !product.cover_image &&
+    (product.gallery ?? []).length === 0 &&
+    product.max_people === null &&
+    !product.tag_color;
+  if (!isPristine) return;
+
+  const { data: fields } = await supabase
+    .from("custom_fields")
+    .select("label, type, required, active")
+    .eq("product_id", id);
+  const fieldsMatchDefault =
+    (fields ?? []).length === DEFAULT_CUSTOM_FIELDS.length &&
+    DEFAULT_CUSTOM_FIELDS.every((expected) =>
+      (fields ?? []).some(
+        (field) =>
+          field.label === expected.label &&
+          field.type === expected.type &&
+          field.required === expected.required &&
+          field.active === true,
+      ),
+    );
+  if (!fieldsMatchDefault) return;
+
+  await supabase.from("products").delete().eq("id", id);
+  revalidatePath("/admin/products");
 }
 
 export async function saveProduct(

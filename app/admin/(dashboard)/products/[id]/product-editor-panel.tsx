@@ -40,7 +40,9 @@ export function ProductEditorPanel({
 
   return (
     <div>
-      {isNewDraft ? <UnsavedGuard /> : null}
+      {isNewDraft ? (
+        <UnsavedGuard productId={initial.id!} formId={FORM_ID} />
+      ) : null}
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">{initial.name}</h1>
