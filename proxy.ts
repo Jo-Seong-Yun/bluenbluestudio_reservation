@@ -17,15 +17,29 @@ import { VERIFIED_ADMIN_HEADER } from "@/lib/supabase/auth-header";
  *   2. Supabase 설정이 안 된 상태에서도 랜딩 페이지는 떠야 한다.
  *      전체 경로에 걸었더니 환경변수가 없을 때 첫 화면까지 500이 났다
  *
- * getUser()는 쿠키만 믿는 게 아니라 Supabase에 실제로 확인하는
- * 호출이라 왕복 시간이 든다. 예전엔 여기서 한 번, 그리고 각 서버
- * 액션(lib/supabase/auth.ts의 requireAdmin)이 또 한 번, 요청마다
- * 두 번씩 확인했다 — 그래서 버튼 하나 누를 때마다 그 왕복이 두 배로
- * 들었다. 이제는 여기서 딱 한 번만 확인하고, 그 결과를 요청 헤더에
- * 실어 보낸다. 이 헤더는 클라이언트가 보낸 원본 요청에 같은 이름이
- * 있어도 아래에서 항상 덮어써서, 위조된 값이 그대로 통과할 수 없다.
- * (matcher가 /admin/:path* 이므로 이 경로로 들어오는 모든 요청—서버
- * 액션의 POST 포함—은 반드시 여기를 거친다. 우회할 방법이 없다.)
+ * getUser()는 요청마다 Supabase Auth 서버를 한 번 왕복해서 확인하는
+ * 호출이다 — 예전엔 여기서 한 번, 각 서버 액션(requireAdmin)이 또
+ * 한 번, 총 두 번씩 왕복했다가 한 번으로 줄였는데도(관리자 버튼 왕복을
+ * 절반으로 줄임 커밋) 여전히 admin 요청마다 그 한 번의 왕복 자체가
+ * 남아 있어 크게 안 빨라졌다.
+ *
+ * getClaims()로 바꾸면 이 왕복이 통째로 없어진다 — JWT 서명을
+ * Supabase의 공개키(JWKS, /.well-known/jwks.json)로 이 프로세스
+ * 안에서 직접 검증하기 때문에 매번 네트워크를 타지 않는다. 쿠키를
+ * 무조건 믿는 getSession()과는 다르다 — 서명 검증을 하므로 위조된
+ * 토큰은 여전히 걸러진다. JWKS 자체는 10분 캐시(@supabase/auth-js가
+ * 프로세스 전역에 들고 있음)라 처음 한 번만 왕복하고, 그 뒤로는 순수
+ * 로컬 연산이다. (auth-js 공식 주석: "Prefer this method over
+ * getUser() which always sends a request to the Auth server for
+ * each JWT.") 프로젝트가 옛날 방식(대칭키 서명)이면 auth-js가 자동으로
+ * getUser()로 되돌아가므로 이 프로젝트가 어느 쪽이든 안전하다.
+ *
+ * 이제 여기서 딱 한 번만(그마저도 대부분 로컬 연산으로) 확인하고,
+ * 그 결과를 요청 헤더에 실어 보낸다. 이 헤더는 클라이언트가 보낸
+ * 원본 요청에 같은 이름이 있어도 아래에서 항상 덮어써서, 위조된
+ * 값이 그대로 통과할 수 없다. (matcher가 /admin/:path* 이므로 이
+ * 경로로 들어오는 모든 요청—서버 액션의 POST 포함—은 반드시 여기를
+ * 거친다. 우회할 방법이 없다.)
  *
  * "로그인 안 했으면 막기"는 app/admin/(dashboard)/layout.tsx와 각
  * 서버 액션이 헤더를 보고 직접 판단한다 — proxy의 낙관적 검사만으로
@@ -56,11 +70,11 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const { data } = await supabase.auth.getUser();
+  const { data } = await supabase.auth.getClaims();
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.delete(VERIFIED_ADMIN_HEADER);
-  if (data.user) requestHeaders.set(VERIFIED_ADMIN_HEADER, data.user.id);
+  if (data?.claims) requestHeaders.set(VERIFIED_ADMIN_HEADER, data.claims.sub);
 
   const response = NextResponse.next({
     request: { headers: requestHeaders },
