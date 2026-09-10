@@ -6,6 +6,7 @@ import { ProductForm, type ProductFormValues } from "../product-form";
 import { DescriptionEditor } from "./description-editor";
 import { Button } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
+import { UnsavedGuard } from "./unsaved-guard";
 
 const FORM_ID = "product-form";
 
@@ -21,10 +22,13 @@ const FORM_ID = "product-form";
 export function ProductEditorPanel({
   initial,
   description,
+  isNewDraft,
   children,
 }: {
   initial: ProductFormValues;
   description: string;
+  /** 저장을 한 번도 안 한 새 상품이면, 나가기 전에 확인을 받는다. */
+  isNewDraft?: boolean;
   /** 세 번째 열에 놓을 신청서 추가 문항 관리 화면. */
   children: React.ReactNode;
 }) {
@@ -36,6 +40,8 @@ export function ProductEditorPanel({
 
   return (
     <div>
+      {isNewDraft ? <UnsavedGuard /> : null}
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">{initial.name}</h1>
 
