@@ -5,33 +5,35 @@ import { useRouter } from "next/navigation";
 import { discardDraftProduct } from "@/app/admin/actions";
 import { Button } from "@/components/ui";
 
-/** pendingHref로 쓰는 특수 값 — 링크 주소가 아니라 "뒤로가기를 눌렀다"는 표시. */
-const BACK_MARKER = "__back__";
-
 /**
- * "상품 추가"로 막 만들어진 새 상품(아직 한 번도 저장 안 한 상태)에서
- * 벗어나려 할 때 확인을 받는다. "상품 추가"는 문항편집·상세설명
- * 에디터가 필요로 하는 id를 미리 만들어 두려고 빈 상품을 바로 DB에
- * 저장하는데(app/admin/actions.ts의 createDraftProduct), 그 상태에서
- * 아무것도 안 누르고 나가버리면 "새 상품"이라는 빈 상품이 목록에 그대로
- * 남는다.
+ * 기본정보 폼(formId)에 저장 안 한 변경이 있는 채로 이 화면을 벗어나려
+ * 하면 확인을 받는다. 새로 만든 상품("상품 추가" 직후, 문항편집·상세
+ * 설명 에디터가 필요로 하는 id를 미리 만들어 두려고 빈 상품을 바로
+ * DB에 저장해 둔 상태 — app/admin/actions.ts의 createDraftProduct)
+ * 이든, 원래 있던 상품을 고치는 중이든 상관없이 똑같이 적용된다.
  *
- * 나갈 수 있는 세 가지 경로를 전부 가로챈다:
+ * "변경이 있다"는 그 폼 안(또는 form="…" 속성으로 밖에서 연결된
+ * 손님공개 체크박스처럼)의 input/select/textarea에서 input·change
+ * 이벤트가 한 번이라도 나면 그때부터 참으로 본다 — 실제 값이 원래
+ * 값으로 되돌아왔는지까지는 안 본다(어차피 결과는 같다: 저장 안 하면
+ * 반영 안 됨).
+ *
+ * 막는 경로는 두 가지다:
  *  1. 화면 안의 링크 클릭(뒤로가기 링크, 상단 메뉴 등) — document에
- *     캡처 단계로 클릭 자체를 막는다.
- *  2. 브라우저 뒤로/앞으로 가기 버튼 — popstate를 가로챈다. 감시가
- *     시작될 때 지금 자리를 가리키는 항목을 하나 더 쌓아 두고,
- *     popstate가 뜨면(뒤로가기가 눌린 것) 즉시 또 하나를 쌓아 주소를
- *     원래대로 돌려놓은 뒤(취소하면 아무 일도 없었던 것처럼) 모달을
- *     띄운다. 진짜 나가기로 하면 방금 쌓은 것 + 원래 있던 뒤로가기
- *     한 칸, 총 두 칸을 한 번에 건너뛴다.
- *  3. 탭 닫기/새로고침 — beforeunload로 막는다. 이건 브라우저 정책상
- *     우리가 만든 모달을 띄울 수 없어(동기적으로만 동작하는 네이티브
- *     확인창 하나만 허용된다) 브라우저 자기 문구를 그대로 쓴다.
+ *     캡처 단계로 클릭 자체를 막고 직접 만든 모달을 띄운다.
+ *  2. 탭 닫기/새로고침 — beforeunload로 막는다. 브라우저 정책상 우리가
+ *     만든 모달을 띄울 수 없어(동기적으로만 동작하는 네이티브 확인창
+ *     하나만 허용된다) 그 경우만 브라우저 자기 문구를 쓴다.
  *
- * "저장" 버튼은 <a>가 아니고 뒤로가기도 아니라 1·2에 안 걸리고, 저장에
- * 성공하면(항상 목록으로 리다이렉트) 이 컴포넌트째로 사라지므로 더
- * 감시하지 않는다.
+ * 브라우저 "뒤로가기" 버튼은 일부러 안 막는다 — history.pushState로
+ * 흉내 내려 하면(한때 그렇게 시도했었다) Next.js 라우터가 각 히스토리
+ * 항목에 자기 라우팅 상태를 실어 두는 것과 충돌해서, 이 화면을 나간
+ * 뒤에도 다른 페이지 이동이 이상하게 꼬이는 부작용이 있었다. 그
+ * 위험을 감수하느니, 뒤로가기는 막지 않는 대신 화면 안의 나가기
+ * 경로(1번)를 확실하게 막는 쪽을 택했다.
+ *
+ * "저장" 버튼은 <a>가 아니라 1번에 안 걸리고, 저장에 성공하면(항상
+ * 목록으로 리다이렉트) 이 컴포넌트째로 사라지므로 더 감시하지 않는다.
  */
 export function UnsavedGuard({
   productId,
@@ -43,16 +45,29 @@ export function UnsavedGuard({
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const dirtyRef = useRef(false);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [discarding, setDiscarding] = useState(false);
 
   useEffect(() => {
+    function belongsToTargetForm(target: EventTarget | null): boolean {
+      const el = target as
+        (HTMLElement & { form?: HTMLFormElement | null }) | null;
+      return !!el?.form && el.form.id === formId;
+    }
+
+    function onFormChange(event: Event) {
+      if (belongsToTargetForm(event.target)) dirtyRef.current = true;
+    }
+
     function onBeforeUnload(event: BeforeUnloadEvent) {
+      if (!dirtyRef.current) return;
       event.preventDefault();
       event.returnValue = "";
     }
 
     function onClickCapture(event: MouseEvent) {
+      if (!dirtyRef.current || event.defaultPrevented) return;
       const anchor = (event.target as HTMLElement | null)?.closest("a");
       const href = anchor?.getAttribute("href");
       if (!href || !href.startsWith("/")) return; // 외부 링크·앵커는 안 막는다
@@ -63,22 +78,19 @@ export function UnsavedGuard({
       dialogRef.current?.showModal();
     }
 
-    history.pushState(null, "", location.href);
-    function onPopState() {
-      history.pushState(null, "", location.href);
-      setPendingHref(BACK_MARKER);
-      dialogRef.current?.showModal();
-    }
-
+    // input은 타이핑마다, change는 select·checkbox·radio·file처럼
+    // input이 안 뜨는 컨트롤을 잡으려고 둘 다 듣는다.
+    document.addEventListener("input", onFormChange, true);
+    document.addEventListener("change", onFormChange, true);
     window.addEventListener("beforeunload", onBeforeUnload);
     document.addEventListener("click", onClickCapture, true);
-    window.addEventListener("popstate", onPopState);
     return () => {
+      document.removeEventListener("input", onFormChange, true);
+      document.removeEventListener("change", onFormChange, true);
       window.removeEventListener("beforeunload", onBeforeUnload);
       document.removeEventListener("click", onClickCapture, true);
-      window.removeEventListener("popstate", onPopState);
     };
-  }, []);
+  }, [formId]);
 
   function cancel() {
     dialogRef.current?.close();
@@ -94,16 +106,16 @@ export function UnsavedGuard({
 
   function leaveWithoutSaving() {
     if (!pendingHref) return;
-    const wasBack = pendingHref === BACK_MARKER;
     setDiscarding(true);
+    // 저장 안 하고 나가는 것이므로 방금 타이핑한 건 DB에 반영된 적이
+    // 없다 — 이 상품이 createDraftProduct가 만들어 둔 그대로(정말
+    // 아무 저장도 안 된 상태)라면 목록에 빈 블럭만 남기지 않도록
+    // 통째로 지운다. 이미 뭔가 실제로 저장돼 있는 상품이면 조용히
+    // 아무 일도 안 한다(discardDraftProduct가 스스로 판단한다).
     const formData = new FormData();
     formData.set("id", productId);
     discardDraftProduct(formData).finally(() => {
-      if (wasBack) {
-        history.go(-2);
-      } else {
-        router.push(pendingHref);
-      }
+      if (pendingHref) router.push(pendingHref);
     });
   }
 

@@ -9,13 +9,10 @@ export const metadata: Metadata = { title: "상품 수정" };
 
 export default async function EditProductPage({
   params,
-  searchParams,
 }: PageProps<"/admin/products/[id]">) {
   // 로그인 확인은 app/admin/(dashboard)/layout.tsx 가 이미 한다.
 
   const { id } = await params;
-  const { new: isNewParam } = await searchParams;
-  const isNewDraft = isNewParam === "1";
   const supabase = await createClient();
   const [{ data: product }, { data: customFields }] = await Promise.all([
     supabase.from("products").select("*").eq("id", id).maybeSingle(),
@@ -56,7 +53,6 @@ export default async function EditProductPage({
           tagColor: product.tag_color,
         }}
         description={product.description ?? ""}
-        isNewDraft={isNewDraft}
       >
         <CustomFieldsSection
           productId={product.id}

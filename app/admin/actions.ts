@@ -148,9 +148,7 @@ export async function createDraftProduct() {
   await seedDefaultCustomFields(supabase, created.id);
 
   revalidatePath("/admin/products");
-  // ?new=1은 수정 화면에 "아직 한 번도 저장 안 한 상품"이라는 걸 알려줘,
-  // 저장하지 않고 나가려 하면 확인을 받도록 한다(unsaved-guard.tsx).
-  redirect(`/admin/products/${created.id}?new=1`);
+  redirect(`/admin/products/${created.id}`);
 }
 
 /**
