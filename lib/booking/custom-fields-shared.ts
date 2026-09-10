@@ -9,17 +9,28 @@ import type { Database } from "@/lib/supabase/database.types";
 export type CustomField = Database["public"]["Tables"]["custom_fields"]["Row"];
 
 /**
- * 이름/연락처/이메일/성별/생년월일은 다른 문항과 달리 답변이
+ * 이름/연락처/이메일/생년월일은 다른 문항과 달리 답변이
  * reservation_answers가 아니라 reservations 테이블의 전용 컬럼으로
  * 간다(전화번호 조회·나이 계산·알림 발송이 그 컬럼을 그대로 쓰기
- * 때문). 상품을 만들 때 기본으로 5개가 생기고(app/admin/actions.ts의
- * DEFAULT_CUSTOM_FIELDS), 관리자가 문항편집에서 라벨을 바꿀 수 있다.
+ * 때문) — 그래서 이 답변 종류(type)는 문항편집에서 바꿀 수 없게 잠가
+ * 둔다(field-modal.tsx). 상품을 만들 때 기본으로 5개가 생기고
+ * (app/admin/actions.ts의 DEFAULT_CUSTOM_FIELDS), 성별도 그중
+ * 하나지만 그런 의존이 없는 단순 표시용 정보라 여기 안 넣는다 —
+ * 성별은 처음부터 문항이 만들어져 있긴 해도 다른 일반 문항처럼 답변
+ * 종류까지 자유롭게 바꿀 수 있다(기본은 single_choice, 옵션 남성/여성).
+ *
+ * "gender" 타입 자체는 여전히 존재한다 — 예전에 만들어진 문항이나
+ * 관리자가 직접 "성별"을 답변 종류로 고른 문항은 지금도 이 타입으로
+ * 저장되고, reservations.gender 컬럼으로 그대로 라우팅된다
+ * (lib/booking/custom-fields.ts의 extractReservationFormData). 다만
+ * 그 라우팅은 SPECIAL_FIELD_TYPES가 아니라 field.type을 직접 비교해서
+ * 하므로, 여기서 빼도 그 동작에는 영향이 없다 — 이 목록은 오직
+ * "답변 종류를 못 바꾸게 잠글지"만 결정한다.
  */
 export const SPECIAL_FIELD_TYPES = [
   "name",
   "phone",
   "email",
-  "gender",
   "birth_date",
 ] as const;
 export type SpecialFieldType = (typeof SPECIAL_FIELD_TYPES)[number];

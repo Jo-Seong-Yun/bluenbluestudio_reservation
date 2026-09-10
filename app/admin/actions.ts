@@ -77,13 +77,26 @@ export async function signOut() {
  * 바꾸거나 지울 수 있다(supabase/migrations/20260909000500_
  * custom_fields_special_types.sql이 기존 상품에도 같은 5개를
  * 소급 적용한다).
+ *
+ * 이름·연락처·이메일·생년월일은 예약 조회·나이 계산·알림 발송이 그
+ * 답을 reservations의 전용 컬럼에서 그대로 읽어 쓰기 때문에 답변 종류
+ * 자체(lib/booking/custom-fields-shared.ts의 SPECIAL_FIELD_TYPES)를
+ * 고정해 둔다. 성별은 그런 의존이 없는 단순 표시용 정보라 굳이 그렇게
+ * 미리 굳혀 둘 이유가 없다 — 문항 자체는 기본으로 만들어 두되
+ * (single_choice, 옵션 남성/여성) 다른 일반 문항과 똑같이 답변 종류도
+ * 자유롭게 바꿀 수 있게 둔다.
  */
 const DEFAULT_CUSTOM_FIELDS = [
-  { label: "이름", type: "name", required: true },
-  { label: "연락처", type: "phone", required: true },
-  { label: "이메일", type: "email", required: false },
-  { label: "성별", type: "gender", required: true },
-  { label: "생년월일", type: "birth_date", required: true },
+  { label: "이름", type: "name", required: true, options: null },
+  { label: "연락처", type: "phone", required: true, options: null },
+  { label: "이메일", type: "email", required: false, options: null },
+  {
+    label: "성별",
+    type: "single_choice",
+    required: true,
+    options: ["남성", "여성"],
+  },
+  { label: "생년월일", type: "birth_date", required: true, options: null },
 ] as const;
 
 async function seedDefaultCustomFields(
@@ -96,6 +109,7 @@ async function seedDefaultCustomFields(
       label: field.label,
       type: field.type,
       required: field.required,
+      options: field.options ? [...field.options] : null,
       sort_order: index,
     })),
   );
@@ -182,7 +196,7 @@ export async function discardDraftProduct(formData: FormData) {
 
   const { data: fields } = await supabase
     .from("custom_fields")
-    .select("label, type, required, active")
+    .select("label, type, required, active, options")
     .eq("product_id", id);
   const fieldsMatchDefault =
     (fields ?? []).length === DEFAULT_CUSTOM_FIELDS.length &&
@@ -192,7 +206,9 @@ export async function discardDraftProduct(formData: FormData) {
           field.label === expected.label &&
           field.type === expected.type &&
           field.required === expected.required &&
-          field.active === true,
+          field.active === true &&
+          JSON.stringify(field.options ?? null) ===
+            JSON.stringify(expected.options),
       ),
     );
   if (!fieldsMatchDefault) return;
