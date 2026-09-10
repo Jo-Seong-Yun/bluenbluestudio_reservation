@@ -19,21 +19,43 @@ type Product = {
 
 export function ProductGrid({ products }: { products: Product[] }) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
-      ))}
+    <div className="bg-gradient-to-br from-gray-50 via-white to-gray-100/50 border border-gray-300 rounded-none">
+      {/* 테이블 헤더 */}
+      <div className="grid grid-cols-12 gap-0 border-b-2 border-gray-900 bg-gray-100 text-gray-900 font-black uppercase text-xs tracking-widest">
+        <div className="col-span-1 px-4 py-3 text-center">ID</div>
+        <div className="col-span-4 px-4 py-3">상품명</div>
+        <div className="col-span-2 px-4 py-3 text-right">가격 KRW</div>
+        <div className="col-span-1 px-4 py-3 text-center">시간</div>
+        <div className="col-span-2 px-4 py-3 text-center">상태</div>
+        <div className="col-span-2 px-4 py-3 text-center">작업</div>
+      </div>
+
+      {/* 테이블 바디 */}
+      <div className="divide-y divide-gray-300">
+        {products.map((product, idx) => (
+          <ProductRow key={product.id} product={product} index={idx} />
+        ))}
+      </div>
+
+      {/* 빈 상태 */}
+      {products.length === 0 && (
+        <div className="flex items-center justify-center px-4 py-24 text-center">
+          <div>
+            <p className="text-4xl font-black text-gray-400 mb-2">∅</p>
+            <p className="text-gray-700 font-semibold uppercase tracking-wider text-sm">
+              상품 데이터 없음
+            </p>
+            <p className="text-gray-600 text-xs mt-1 font-mono">
+              [NEW PRODUCT] 버튼으로 첫 상품을 추가해주세요
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/**
- * 공개 여부는 서버 응답을 기다리지 않고 뱃지·버튼 문구부터 먼저
- * 바꾼다(useOptimistic) — 스케줄 화면의 주간 캘린더(components/
- * week-grid.tsx)와 같은 방식. 실제 저장은 뒤에서 이뤄지고, 실패하면
- * 다음 렌더링에서 원래 값으로 되돌아간다.
- */
-function ProductCard({ product }: { product: Product }) {
+function ProductRow({ product, index }: { product: Product; index: number }) {
   const [, startTransition] = useTransition();
   const [isPublished, setOptimisticPublished] = useOptimistic(
     product.is_published,
@@ -50,48 +72,79 @@ function ProductCard({ product }: { product: Product }) {
     });
   }
 
+  const rowNum = String(index + 1).padStart(3, "0");
+
   return (
-    <div className="border-border bg-surface flex aspect-square flex-col rounded-xl border p-4">
-      <div className="flex items-center justify-between gap-2">
-        {isPublished ? (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-            공개 중
-          </span>
-        ) : (
-          <span className="bg-surface-subtle text-muted rounded-full px-2 py-0.5 text-xs font-medium">
-            비공개
-          </span>
-        )}
-        <ProductMenu productId={product.id} productName={product.name} />
+    <div
+      className="group grid grid-cols-12 gap-0 border-gray-300 bg-white transition-all duration-200 hover:bg-gray-50 hover:shadow-[inset_0_0_0_1px_rgba(0,0,0,0.1)] items-center"
+    >
+      {/* ID */}
+      <div className="col-span-1 px-4 py-4 font-mono text-xs text-gray-500 font-bold">
+        [{rowNum}]
       </div>
 
-      <div className="mt-auto">
-        <div className="flex items-center gap-1.5">
+      {/* 상품명 + 태그 */}
+      <div className="col-span-4 px-4 py-4 space-y-1 border-l border-gray-300">
+        <div className="flex items-center gap-2">
           <ProductTagPicker
             productId={product.id}
             tagColor={product.tag_color}
           />
-          <span className="truncate font-semibold">{product.name}</span>
+          <span className="font-semibold text-gray-900 truncate text-sm">
+            {product.name}
+          </span>
         </div>
-        <p className="text-muted mt-0.5 truncate text-sm">
-          {product.duration_min}분 · {product.price.toLocaleString()}원
-        </p>
+        <p className="text-xs text-gray-600 font-mono">/slug/{product.slug}</p>
+      </div>
 
-        <div className="mt-3 flex gap-1.5">
-          <Link href={`/admin/products/${product.id}`} className="flex-1">
-            <Button variant="ghost" className="w-full">
-              수정
-            </Button>
-          </Link>
-          <Button
-            type="button"
-            variant="ghost"
-            className="flex-1"
-            onClick={toggle}
-          >
-            {isPublished ? "비공개로" : "공개하기"}
-          </Button>
-        </div>
+      {/* 가격 */}
+      <div className="col-span-2 px-4 py-4 border-l border-gray-300 text-right">
+        <span className="font-mono font-bold text-gray-900 text-sm">
+          {product.price.toLocaleString()}
+        </span>
+      </div>
+
+      {/* 시간 */}
+      <div className="col-span-1 px-4 py-4 border-l border-gray-300 text-center">
+        <span className="font-mono font-semibold text-gray-700 text-sm">
+          {product.duration_min}m
+        </span>
+      </div>
+
+      {/* 상태 */}
+      <div className="col-span-2 px-4 py-4 border-l border-gray-300 text-center">
+        {isPublished ? (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 border border-green-900">
+            <div className="w-2 h-2 bg-green-900 rounded-full animate-pulse" />
+            <span className="text-xs font-bold uppercase tracking-wider text-green-900">
+              LIVE
+            </span>
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-200 border border-gray-900">
+            <div className="w-2 h-2 bg-gray-600" />
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
+              DRAFT
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* 작업 */}
+      <div className="col-span-2 px-4 py-4 border-l border-gray-300 flex items-center justify-center gap-2">
+        <Link href={`/admin/products/${product.id}`}>
+          <button className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-gray-700 border border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-200">
+            EDIT
+          </button>
+        </Link>
+        <button
+          type="button"
+          onClick={toggle}
+          className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-gray-700 border border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-200"
+        >
+          {isPublished ? "OFF" : "ON"}
+        </button>
+        <ProductMenu productId={product.id} productName={product.name} />
       </div>
     </div>
   );
