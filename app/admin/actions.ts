@@ -17,6 +17,7 @@ import {
 } from "@/lib/notifications/notify";
 import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 import { PRODUCT_TAG_COLORS } from "@/lib/product-tag-colors";
+import { LOCKED_FIELD_TYPES } from "@/lib/booking/custom-fields-shared";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -1031,6 +1032,12 @@ export async function updateCustomField(formData: FormData) {
   revalidateCustomFieldPaths(row.product_id);
 }
 
+/**
+ * 이름·연락처(LOCKED_FIELD_TYPES)는 UI(delete-field-button.tsx)에서
+ * 삭제 버튼 자체를 안 보여주지만, 그것만으로는 화면을 거치지 않고
+ * 조작된 요청까지 막지 못한다 — 그래서 여기서도 그 타입은 애초에
+ * 조건에서 빼서, 지우려는 요청이 와도 실제로는 지워지지 않는다.
+ */
 export async function deleteCustomField(formData: FormData) {
   await requireAdmin();
 
@@ -1039,7 +1046,11 @@ export async function deleteCustomField(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  await supabase.from("custom_fields").delete().eq("id", id);
+  await supabase
+    .from("custom_fields")
+    .delete()
+    .eq("id", id)
+    .not("type", "in", `(${LOCKED_FIELD_TYPES.join(",")})`);
 
   if (productId) revalidateCustomFieldPaths(productId);
 }

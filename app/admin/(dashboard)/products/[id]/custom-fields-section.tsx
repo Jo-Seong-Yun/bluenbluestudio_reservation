@@ -7,8 +7,11 @@ import { DeleteFieldButton } from "./delete-field-button";
 import { FieldModal } from "./field-modal";
 import {
   FIELD_TYPE_LABELS,
+  LOCKED_FIELD_TYPES,
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
+
+const LOCKED_TYPE_SET = new Set<string>(LOCKED_FIELD_TYPES);
 
 type MoveTarget = { id: string; direction: "up" | "down" };
 
@@ -133,6 +136,7 @@ export function CustomFieldsSection({
                     id={field.id}
                     productId={productId}
                     label={field.label}
+                    locked={LOCKED_TYPE_SET.has(field.type)}
                   />
                 </div>
               </li>
