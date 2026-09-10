@@ -245,7 +245,7 @@ export interface Database {
       notification_logs: {
         Row: {
           id: string;
-          channel: "sms" | "email";
+          channel: "sms" | "email" | "kakao";
           purpose: string;
           recipient: string;
           reservation_id: string | null;
@@ -256,7 +256,7 @@ export interface Database {
         Insert: Partial<
           Database["public"]["Tables"]["notification_logs"]["Row"]
         > & {
-          channel: "sms" | "email";
+          channel: "sms" | "email" | "kakao";
           purpose: string;
           recipient: string;
           success: boolean;

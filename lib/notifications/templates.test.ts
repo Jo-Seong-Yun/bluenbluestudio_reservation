@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminNewRequestKakaoVariables,
   adminNewRequestSubject,
   adminNewRequestText,
+  customerCancelledKakaoVariables,
   customerCancelledSubject,
   customerCancelledText,
+  customerConfirmedKakaoVariables,
   customerConfirmedSubject,
   customerConfirmedText,
+  customerReminderKakaoVariables,
   customerReminderSubject,
   customerReminderText,
   customerRequestedEmailText,
+  customerRequestedKakaoVariables,
   customerRequestedSubject,
   customerRequestedText,
 } from "./templates";
@@ -99,5 +104,29 @@ describe("알림 문구", () => {
       shootStart: new Date("2026-01-01T15:00:00Z"),
     });
     expect(text).toContain("1월 2일(금) 00:00");
+  });
+
+  it("카카오 알림톡 변수에도 상품·시간·예약번호가 들어간다", () => {
+    for (const variables of [
+      customerRequestedKakaoVariables(RESERVATION_INFO),
+      customerConfirmedKakaoVariables(RESERVATION_INFO),
+      customerCancelledKakaoVariables(RESERVATION_INFO),
+      customerReminderKakaoVariables(RESERVATION_INFO),
+    ]) {
+      expect(variables["#{상품명}"]).toBe("프로필 촬영");
+      expect(variables["#{일시}"]).toBe("9월 10일(목) 14:00");
+      expect(variables["#{예약번호}"]).toBe("AB12CD34");
+    }
+  });
+
+  it("사장님용 카카오 알림톡 변수에 손님 이름·연락처가 들어간다", () => {
+    const variables = adminNewRequestKakaoVariables({
+      ...RESERVATION_INFO,
+      customerName: "김철수",
+      customerPhone: "01012345678",
+    });
+    expect(variables["#{손님이름}"]).toBe("김철수");
+    expect(variables["#{손님연락처}"]).toBe("01012345678");
+    expect(variables["#{상품명}"]).toBe("프로필 촬영");
   });
 });
