@@ -4,6 +4,7 @@ import { sendEmail } from "./email";
 import { sendKakaoAlimtalk } from "./kakao";
 import { logNotification } from "./log";
 import {
+  smsNotificationsEnabled,
   solapiKakaoPfId,
   solapiKakaoTemplateId,
   type KakaoNotificationPurpose,
@@ -152,8 +153,10 @@ type ReservationNotice = {
 
 /**
  * 손님 알림 공통 처리. 카카오 알림톡이 설정돼 있으면(pfId+템플릿ID)
- * 그걸로 먼저 시도하고, 아직 안 됐으면 SMS로 보낸다 — 연락처는 필수
- * 입력이라 둘 중 하나는 항상 나간다. 이메일은 손님이 입력했을 때만
+ * 그걸로 먼저 시도하고, 아직 안 됐으면 SMS로 보낸다 — 단, SMS는 건당
+ * 비용이 들어 `SOLAPI_SMS_ENABLED=false`로 꺼둘 수 있고, 꺼져 있으면
+ * 카카오도 안 됐을 때 손님 연락처로는 아무것도 안 나간다(이메일은 이
+ * 스위치와 무관하게 항상 그대로 나간다). 이메일은 손님이 입력했을 때만
  * 추가로 보낸다. 이메일 본문은 글자 수 제한이 없으니 emailText로 따로
  * 줄 수 있고, 안 주면 SMS 문구를 그대로 쓴다.
  */
@@ -175,7 +178,7 @@ async function notifyCustomer(params: {
 
   const tasks: Promise<void>[] = [];
 
-  if (!kakaoAttempted) {
+  if (!kakaoAttempted && smsNotificationsEnabled()) {
     tasks.push(
       trySms({
         purpose: params.purpose,
@@ -284,7 +287,7 @@ export async function notifyAdminNewRequest(info: {
       reservationId: info.reservationId,
     });
 
-    if (!kakaoAttempted) {
+    if (!kakaoAttempted && smsNotificationsEnabled()) {
       tasks.push(
         trySms({
           purpose: "admin_new_request",

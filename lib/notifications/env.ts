@@ -30,6 +30,17 @@ export function solapiSenderPhone(): string {
 }
 
 /**
+ * SMS 발송 스위치. 솔라피는 건당 비용이 들어서, 키는 그대로 둔 채 이
+ * 값만으로 잠깐 꺼둘 수 있게 만들었다 — 다시 켤 때 API 키를 또 찾아
+ * 넣지 않아도 된다. 값을 정확히 "false"로 줬을 때만 꺼지고, 안 정하면
+ * (기존처럼) 켜진 채로 동작한다. 이메일은 이 스위치와 무관하게 항상
+ * 그대로 나간다.
+ */
+export function smsNotificationsEnabled(): boolean {
+  return process.env.SOLAPI_SMS_ENABLED !== "false";
+}
+
+/**
  * 카카오 알림톡(솔라피 경유) 설정.
  *
  * SMS/이메일과 달리 필수가 아니다 — 카카오톡 채널 개설, 솔라피에 발신
