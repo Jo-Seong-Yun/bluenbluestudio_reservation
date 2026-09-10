@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  updateReservationStatus,
   saveAdminMemo,
   saveReservationCost,
   saveReservationChargedAmount,
@@ -10,6 +9,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
 import { DeleteReservationButton } from "./delete-reservation-button";
+import { StatusButtons } from "./status-buttons";
 
 const GENDER_LABEL: Record<string, string> = { male: "남성", female: "여성" };
 
@@ -164,32 +164,10 @@ function ReservationDetail({
             (파란 버튼이 지금 상태예요)
           </span>
         </p>
-        <div className="flex flex-wrap gap-2">
-          <StatusButton
-            id={reservation.id}
-            status="confirmed"
-            label="확정"
-            current={reservation.status}
-          />
-          <StatusButton
-            id={reservation.id}
-            status="completed"
-            label="완료 처리"
-            current={reservation.status}
-          />
-          <StatusButton
-            id={reservation.id}
-            status="no_show"
-            label="노쇼 처리"
-            current={reservation.status}
-          />
-          <StatusButton
-            id={reservation.id}
-            status="cancelled"
-            label="취소"
-            current={reservation.status}
-          />
-        </div>
+        <StatusButtons
+          reservationId={reservation.id}
+          status={reservation.status}
+        />
       </div>
 
       <form action={saveAdminMemo} className="border-border mt-4 border-t pt-4">
@@ -315,34 +293,5 @@ function Row({
       <dt className="text-muted w-14 shrink-0">{label}</dt>
       <dd>{children}</dd>
     </div>
-  );
-}
-
-function StatusButton({
-  id,
-  status,
-  label,
-  current,
-}: {
-  id: string;
-  status: string;
-  label: string;
-  /** 이 예약의 지금 상태. status와 같으면 파란색으로 켜져 있는 것처럼 보여준다. */
-  current: string;
-}) {
-  const isCurrent = status === current;
-
-  return (
-    <form action={updateReservationStatus}>
-      <input type="hidden" name="id" value={id} />
-      <input type="hidden" name="status" value={status} />
-      <SubmitButton
-        variant={isCurrent ? "primary" : "ghost"}
-        aria-pressed={isCurrent}
-        className="text-xs"
-      >
-        {label}
-      </SubmitButton>
-    </form>
   );
 }

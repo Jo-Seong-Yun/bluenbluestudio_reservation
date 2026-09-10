@@ -1,5 +1,7 @@
+"use client";
+
+import { useOptimistic, useTransition } from "react";
 import { inputClass } from "@/components/ui";
-import { PendingSubmit } from "@/components/submit-button";
 import { moveCustomField } from "@/app/admin/actions";
 import { DeleteFieldButton } from "./delete-field-button";
 import { FieldModal } from "./field-modal";
@@ -8,11 +10,17 @@ import {
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
 
+type MoveTarget = { id: string; direction: "up" | "down" };
+
 /**
  * 이 상품의 예약 폼 문항 전부를 여기서 관리한다. 이름·연락처·이메일·
  * 성별·생년월일도 더 이상 폼에 하드코딩된 "기본 항목"이 아니라, 상품을
  * 만들 때 기본으로 생겨나는 문항일 뿐이다(app/admin/actions.ts의
  * DEFAULT_CUSTOM_FIELDS) — 다른 문항처럼 라벨을 바꾸거나 지울 수 있다.
+ *
+ * 순서 변경은 서버 응답을 기다리지 않고 목록부터 먼저 바꾼다
+ * (useOptimistic) — ▲▼를 여러 번 눌러 순서를 다듬을 때 한 번씩
+ * 왕복을 기다리면 굉장히 굼뜨게 느껴진다.
  */
 export function CustomFieldsSection({
   productId,
@@ -21,6 +29,32 @@ export function CustomFieldsSection({
   productId: string;
   fields: CustomField[];
 }) {
+  const [, startTransition] = useTransition();
+  const [optimisticFields, applyMove] = useOptimistic(
+    fields,
+    (state: CustomField[], target: MoveTarget) => {
+      const index = state.findIndex((f) => f.id === target.id);
+      const swapWith = target.direction === "up" ? index - 1 : index + 1;
+      if (index === -1 || swapWith < 0 || swapWith >= state.length) {
+        return state;
+      }
+      const next = [...state];
+      [next[index], next[swapWith]] = [next[swapWith], next[index]];
+      return next;
+    },
+  );
+
+  function move(id: string, direction: "up" | "down") {
+    startTransition(async () => {
+      applyMove({ id, direction });
+      const formData = new FormData();
+      formData.set("id", id);
+      formData.set("productId", productId);
+      formData.set("direction", direction);
+      await moveCustomField(formData);
+    });
+  }
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-4">
@@ -35,14 +69,14 @@ export function CustomFieldsSection({
       </div>
 
       <div className="border-border bg-surface rounded-xl border">
-        {fields.length === 0 ? (
+        {optimisticFields.length === 0 ? (
           <p className="text-muted p-6 text-center text-sm">
             아직 문항이 없어요. &quot;질문 추가&quot;를 눌러 신청서에 넣을
             질문을 만들어보세요.
           </p>
         ) : (
           <ul>
-            {fields.map((field, index) => (
+            {optimisticFields.map((field, index) => (
               <li
                 key={field.id}
                 className={`border-border flex flex-wrap items-start gap-3 border-b p-4 last:border-0 ${
@@ -51,18 +85,16 @@ export function CustomFieldsSection({
               >
                 <div className="flex flex-col gap-0.5">
                   <MoveButton
-                    id={field.id}
-                    productId={productId}
                     direction="up"
                     disabled={index === 0}
                     label="위로"
+                    onClick={() => move(field.id, "up")}
                   />
                   <MoveButton
-                    id={field.id}
-                    productId={productId}
                     direction="down"
-                    disabled={index === fields.length - 1}
+                    disabled={index === optimisticFields.length - 1}
                     label="아래로"
+                    onClick={() => move(field.id, "down")}
                   />
                 </div>
 
@@ -180,30 +212,25 @@ function FieldPreview({ field }: { field: CustomField }) {
 }
 
 function MoveButton({
-  id,
-  productId,
   direction,
   disabled,
   label,
+  onClick,
 }: {
-  id: string;
-  productId: string;
   direction: "up" | "down";
   disabled: boolean;
   label: string;
+  onClick: () => void;
 }) {
   return (
-    <form action={moveCustomField}>
-      <input type="hidden" name="id" value={id} />
-      <input type="hidden" name="productId" value={productId} />
-      <input type="hidden" name="direction" value={direction} />
-      <PendingSubmit
-        disabled={disabled}
-        aria-label={label}
-        className="text-muted hover:bg-surface-subtle hover:text-foreground flex h-5 w-6 items-center justify-center rounded text-xs disabled:opacity-25 disabled:hover:bg-transparent"
-      >
-        {direction === "up" ? "▲" : "▼"}
-      </PendingSubmit>
-    </form>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="text-muted hover:bg-surface-subtle hover:text-foreground flex h-5 w-6 items-center justify-center rounded text-xs disabled:opacity-25 disabled:hover:bg-transparent"
+    >
+      {direction === "up" ? "▲" : "▼"}
+    </button>
   );
 }
