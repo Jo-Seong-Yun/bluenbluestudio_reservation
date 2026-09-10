@@ -143,11 +143,11 @@ export function BookingFlow({
                           key={time}
                           href={`${basePath}/${selectedDate}/${time.replace(":", "-")}`}
                           className="group/slot"
-                          style={{
-                            animationDelay: `${idx * 30}ms`,
-                          }}
                         >
-                          <div className="relative rounded-2xl bg-gray-50 border border-gray-200 p-4 text-center transition-all duration-300 ease-out hover:bg-gray-900 hover:border-gray-900 hover:text-white group-hover/slot:shadow-lg group-hover/slot:scale-105 transform active:scale-95 opacity-0 animate-[fadeInUp_500ms_ease-out_forwards]">
+                          <div
+                            className="relative rounded-2xl bg-gray-50 border border-gray-200 p-4 text-center transition-all duration-300 ease-out hover:bg-gray-900 hover:border-gray-900 hover:text-white group-hover/slot:shadow-lg group-hover/slot:scale-105 transform active:scale-95 opacity-0 animate-fadeInUp"
+                            style={{ animationDelay: `${idx * 30}ms` }}
+                          >
                             <span className="block font-semibold text-sm sm:text-base tracking-tight">
                               {time}
                             </span>
@@ -266,16 +266,14 @@ function CalendarGrid({
               type="button"
               onClick={() => onSelectDate(date)}
               className="group relative aspect-square"
-              style={{
-                animationDelay: `${idx * 20}ms`,
-              }}
             >
               <div
                 className={`h-full w-full rounded-2xl flex items-center justify-center text-sm font-semibold transition-all duration-300 ease-out transform ${
                   isSelected
                     ? "bg-gray-900 text-white scale-100 shadow-lg ring-2 ring-gray-900"
                     : "bg-gray-100 text-gray-900 group-hover:bg-gray-200 group-hover:scale-105 group-active:scale-95"
-                } ${isWeekend ? "font-bold" : ""} opacity-0 animate-[fadeInUp_500ms_ease-out_forwards]`}
+                } ${isWeekend ? "font-bold" : ""} opacity-0 animate-fadeInUp`}
+                style={{ animationDelay: `${idx * 20}ms` }}
               >
                 {day}
               </div>
