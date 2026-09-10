@@ -50,10 +50,19 @@ export function UnsavedGuard({
   const [discarding, setDiscarding] = useState(false);
 
   useEffect(() => {
+    // document.getElementById(formId).id로 다시 비교하면 안 된다 — 이
+    // 폼 안에는 name="id"인 hidden input(product-form.tsx, 상품
+    // 수정 시)이 있는데, 폼에 name="id" 컨트롤이 있으면 브라우저가
+    // form.id 프로퍼티 접근 자체를 그 컨트롤로 가로채 버린다("form의
+    // 이름 붙은 컨트롤이 같은 이름의 폼 프로퍼티를 가린다"는 오래된
+    // HTML 동작). 그래서 문자열 비교가 아니라 엘리먼트 자체를
+    // 캐싱해서 참조로 비교한다.
+    const targetForm = document.getElementById(formId);
+
     function belongsToTargetForm(target: EventTarget | null): boolean {
       const el = target as
         (HTMLElement & { form?: HTMLFormElement | null }) | null;
-      return !!el?.form && el.form.id === formId;
+      return !!el?.form && el.form === targetForm;
     }
 
     function onFormChange(event: Event) {
