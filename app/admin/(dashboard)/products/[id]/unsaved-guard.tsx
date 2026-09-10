@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { discardDraftProduct } from "@/app/admin/actions";
 import { Button } from "@/components/ui";
 
+/** pendingHref로 쓰는 특수 값 — 링크 주소가 아니라 "뒤로가기를 눌렀다"는 표시. */
+const BACK_MARKER = "__back__";
+
 /**
  * "상품 추가"로 막 만들어진 새 상품(아직 한 번도 저장 안 한 상태)에서
  * 벗어나려 할 때 확인을 받는다. "상품 추가"는 문항편집·상세설명
@@ -13,13 +16,22 @@ import { Button } from "@/components/ui";
  * 아무것도 안 누르고 나가버리면 "새 상품"이라는 빈 상품이 목록에 그대로
  * 남는다.
  *
- * 탭 닫기/새로고침은 beforeunload로 막는다 — 이건 브라우저 정책상
- * 우리가 만든 팝업을 띄울 수 없어(동기적으로만 동작하는 네이티브
- * 확인창 하나만 허용된다) 브라우저 자기 문구를 그대로 쓴다. 이 화면
- * 안의 링크 클릭(뒤로가기, 상단 메뉴 등)은 document에 캡처 단계로
- * 가로채 직접 만든 모달(취소/저장하고 나가기/저장 안 하고 나가기)을
- * 띄운다. "저장" 버튼은 <a>가 아니라 안 걸리고, 저장에 성공하면(항상
- * 목록으로 리다이렉트) 이 컴포넌트째로 사라지므로 더 감시하지 않는다.
+ * 나갈 수 있는 세 가지 경로를 전부 가로챈다:
+ *  1. 화면 안의 링크 클릭(뒤로가기 링크, 상단 메뉴 등) — document에
+ *     캡처 단계로 클릭 자체를 막는다.
+ *  2. 브라우저 뒤로/앞으로 가기 버튼 — popstate를 가로챈다. 감시가
+ *     시작될 때 지금 자리를 가리키는 항목을 하나 더 쌓아 두고,
+ *     popstate가 뜨면(뒤로가기가 눌린 것) 즉시 또 하나를 쌓아 주소를
+ *     원래대로 돌려놓은 뒤(취소하면 아무 일도 없었던 것처럼) 모달을
+ *     띄운다. 진짜 나가기로 하면 방금 쌓은 것 + 원래 있던 뒤로가기
+ *     한 칸, 총 두 칸을 한 번에 건너뛴다.
+ *  3. 탭 닫기/새로고침 — beforeunload로 막는다. 이건 브라우저 정책상
+ *     우리가 만든 모달을 띄울 수 없어(동기적으로만 동작하는 네이티브
+ *     확인창 하나만 허용된다) 브라우저 자기 문구를 그대로 쓴다.
+ *
+ * "저장" 버튼은 <a>가 아니고 뒤로가기도 아니라 1·2에 안 걸리고, 저장에
+ * 성공하면(항상 목록으로 리다이렉트) 이 컴포넌트째로 사라지므로 더
+ * 감시하지 않는다.
  */
 export function UnsavedGuard({
   productId,
@@ -51,11 +63,20 @@ export function UnsavedGuard({
       dialogRef.current?.showModal();
     }
 
+    history.pushState(null, "", location.href);
+    function onPopState() {
+      history.pushState(null, "", location.href);
+      setPendingHref(BACK_MARKER);
+      dialogRef.current?.showModal();
+    }
+
     window.addEventListener("beforeunload", onBeforeUnload);
     document.addEventListener("click", onClickCapture, true);
+    window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
       document.removeEventListener("click", onClickCapture, true);
+      window.removeEventListener("popstate", onPopState);
     };
   }, []);
 
@@ -73,11 +94,16 @@ export function UnsavedGuard({
 
   function leaveWithoutSaving() {
     if (!pendingHref) return;
+    const wasBack = pendingHref === BACK_MARKER;
     setDiscarding(true);
     const formData = new FormData();
     formData.set("id", productId);
     discardDraftProduct(formData).finally(() => {
-      router.push(pendingHref);
+      if (wasBack) {
+        history.go(-2);
+      } else {
+        router.push(pendingHref);
+      }
     });
   }
 
