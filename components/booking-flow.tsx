@@ -76,8 +76,9 @@ export function BookingFlow({
       }
       return [...prev, { date: selectedDate, time }];
     });
-    setSelectedDate(null);
-    setSlots([]);
+    // 시간을 고를 때마다 날짜 선택으로 되돌아가면 여러 후보를 고를 때
+    // 매번 달력부터 다시 눌러야 해서 번거롭다 — 시간 칸은 그대로 열어
+    // 두고, 방금 고른 시간만 파란색으로 표시한다(아래 alreadyPicked).
   }
 
   function removeCandidate(index: number) {
@@ -194,7 +195,11 @@ export function BookingFlow({
                       type="button"
                       disabled={alreadyPicked}
                       onClick={() => addCandidate(time)}
-                      className="border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground disabled:hover:border-border disabled:hover:bg-surface disabled:text-muted rounded-lg border py-2 text-center text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                      className={`rounded-lg border py-2 text-center text-sm transition-colors ${
+                        alreadyPicked
+                          ? "border-brand bg-brand text-brand-foreground cursor-default"
+                          : "border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground"
+                      }`}
                     >
                       {time}
                       {alreadyPicked ? " (선택됨)" : ""}
