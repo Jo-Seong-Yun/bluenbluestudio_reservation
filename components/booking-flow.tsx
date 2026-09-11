@@ -143,13 +143,6 @@ export function BookingFlow({
           maxMonth={maxMonth}
         />
 
-        {isFull ? (
-          <p className="text-muted mt-3 text-xs">
-            {MAX_CANDIDATES}개를 모두 선택하셨습니다. 다른 시간으로 바꾸려면
-            아래 목록에서 삭제해 주시기 바랍니다.
-          </p>
-        ) : null}
-
         {/* 지금까지 고른 후보(1~3지망) 목록. 사장님이 이 중 하나를 골라
             확정한다 — 손님도 순서가 그대로 우선순위라는 걸 알 수 있게
             "n지망"을 붙여 보여준다.
@@ -328,26 +321,26 @@ function CalendarGrid({
           }
 
           return (
-            <button
+            <div
               key={date}
-              type="button"
-              onClick={() => onSelectDate(date)}
-              className="group text-foreground aspect-square rounded-md text-base font-medium transition-colors flex items-center justify-center"
+              className="aspect-square flex items-center justify-center"
             >
-              {/* 마우스오버 배경도 원 안에만 나오게, 버튼(정사각형 칸) 전체가
-                  아니라 이 span(원)에만 hover 배경을 준다 — group-hover로
-                  버튼 어디에 올려도(칸 모서리 포함) 반응은 하되, 실제로
-                  보이는 건 원 모양만 남긴다. */}
-              <span
-                className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+              {/* clip-path로 히트 영역 자체를 원으로 깎는다 — border-radius만
+                  으로는 시각적으로만 둥글 뿐, 네모난 모서리도 여전히 클릭
+                  된다. clip-path를 주면 원 밖은 클릭도 호버도 안 먹는다. */}
+              <button
+                type="button"
+                onClick={() => onSelectDate(date)}
+                style={{ clipPath: "circle(50%)" }}
+                className={`text-foreground flex h-10 w-10 items-center justify-center text-base font-medium transition-colors ${
                   isSelected
                     ? "bg-neutral-200 dark:bg-neutral-700"
-                    : "group-hover:bg-surface-subtle"
+                    : "hover:bg-surface-subtle"
                 }`}
               >
                 {day}
-              </span>
-            </button>
+              </button>
+            </div>
           );
         })}
       </div>
