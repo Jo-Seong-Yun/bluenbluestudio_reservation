@@ -35,7 +35,7 @@ export function RescheduleForm({
     <form action={action} className="border-border mt-4 border-t pt-4">
       <input type="hidden" name="id" value={reservationId} />
       <p className="mb-2 text-sm font-medium">일정 변경</p>
-      <div className="flex gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <input
           type="date"
           name="date"
@@ -50,15 +50,15 @@ export function RescheduleForm({
           required
           className={inputClass}
         />
-        <Button
-          type="submit"
-          variant="ghost"
-          disabled={pending}
-          className="shrink-0"
-        >
-          {pending ? "변경 중…" : "변경"}
-        </Button>
       </div>
+      <Button
+        type="submit"
+        variant="ghost"
+        disabled={pending}
+        className="mt-2 w-full"
+      >
+        {pending ? "변경 중…" : "변경"}
+      </Button>
       <ErrorText>{state?.error ?? null}</ErrorText>
     </form>
   );

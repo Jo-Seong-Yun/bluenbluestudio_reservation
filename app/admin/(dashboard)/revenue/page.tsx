@@ -119,7 +119,7 @@ export default async function RevenuePage({
         </p>
       ) : null}
 
-      <div className="mt-6 mb-4 flex items-center justify-between">
+      <div className="mt-6 mb-4 flex items-center justify-center gap-4">
         <Link
           href={`/admin/revenue?month=${prevMonth}`}
           aria-label="이전 달"
