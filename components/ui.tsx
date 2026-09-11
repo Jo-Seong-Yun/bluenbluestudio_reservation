@@ -14,16 +14,21 @@ export function Field({
   hint,
   required,
   children,
+  labelClassName = "text-sm font-medium",
+  hintClassName = "text-xs",
 }: {
   label: string;
-  hint?: string;
+  hint?: React.ReactNode;
   /** 필수 입력이면 라벨 옆에 빨간 별표를 붙인다. */
   required?: boolean;
   children: React.ReactNode;
+  /** 라벨 글자 크기/굵기. 손님용 신청서(reservation-form.tsx)는 더 크게 쓴다. */
+  labelClassName?: string;
+  hintClassName?: string;
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">
+      <span className={`mb-1.5 block ${labelClassName}`}>
         {label}
         {required ? (
           <span className="ml-0.5 text-red-600 dark:text-red-400">*</span>
@@ -31,7 +36,9 @@ export function Field({
       </span>
       {children}
       {hint ? (
-        <span className="text-muted mt-1 block text-xs">{hint}</span>
+        <span className={`text-muted mt-1 block ${hintClassName}`}>
+          {hint}
+        </span>
       ) : null}
     </label>
   );

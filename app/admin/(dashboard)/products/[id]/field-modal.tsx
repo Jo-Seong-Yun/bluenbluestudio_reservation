@@ -9,6 +9,7 @@ import {
   SPECIAL_FIELD_TYPES,
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
+import { FieldDescriptionEditor } from "./field-description-editor";
 
 const NEEDS_OPTIONS = new Set(["single_choice", "multi_choice"]);
 const IS_SPECIAL = new Set<string>(SPECIAL_FIELD_TYPES);
@@ -31,6 +32,11 @@ export function FieldModal({
   const [options, setOptions] = useState<string[]>(
     field?.options && field.options.length > 0 ? field.options : [""],
   );
+  // "질문 추가" 모달은 하나를 등록한 뒤 다이얼로그를 닫지 않고 그대로
+  // 다시 열 수 있다 — 그때 상세설명 에디터(FieldDescriptionEditor)가
+  // 이전에 타이핑한 내용을 그대로 들고 있지 않도록, 열 때마다 이
+  // 값을 바꿔 key로 줘서 강제로 새로 마운트한다.
+  const [editorEpoch, setEditorEpoch] = useState(0);
   const isEdit = Boolean(field);
 
   function open() {
@@ -38,6 +44,7 @@ export function FieldModal({
     setOptions(
       field?.options && field.options.length > 0 ? field.options : [""],
     );
+    setEditorEpoch((n) => n + 1);
     dialogRef.current?.showModal();
   }
 
@@ -216,22 +223,16 @@ export function FieldModal({
           ) : null}
 
           <div>
-            <label
-              className="mb-1.5 block text-sm font-medium"
-              htmlFor="description"
-            >
+            <span className="mb-1.5 block text-sm font-medium">
               상세 설명{" "}
               <span className="text-muted font-normal">
                 (질문 아래 작게 표시됩니다)
               </span>
-            </label>
-            <textarea
-              id="description"
+            </span>
+            <FieldDescriptionEditor
+              key={editorEpoch}
               name="description"
-              rows={2}
-              maxLength={200}
               defaultValue={field?.description ?? ""}
-              className={inputClass}
             />
           </div>
 

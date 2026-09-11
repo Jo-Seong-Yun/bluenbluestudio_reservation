@@ -232,20 +232,23 @@ export function BookingFlow({
               })}
             </div>
           )}
-        </div>
-      </div>
 
-      <div className="mt-6 lg:max-w-[36rem]">
-        <Button
-          type="button"
-          disabled={!isFull}
-          onClick={goToApply}
-          className="w-full"
-        >
-          {isFull
-            ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
-            : `희망 시간을 ${MAX_CANDIDATES}개 모두 선택해 주십시오`}
-        </Button>
+          {/* 신청 버튼은 달력이 아니라 시간 선택 칸에 딸린 동작이다
+              (3개를 다 고르면 다음 단계로 넘어간다) — 그래서 이 칸
+              바로 아래, 슬롯 목록 다음에 둔다. */}
+          <div className="mt-6">
+            <Button
+              type="button"
+              disabled={!isFull}
+              onClick={goToApply}
+              className="w-full"
+            >
+              {isFull
+                ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
+                : `희망 시간을 ${MAX_CANDIDATES}개 모두 선택해 주십시오`}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -86,7 +86,7 @@ export default async function ProductDetailPage({
           두는 기준을 2xl(넓은 데스크톱)로 높여뒀다 — 그보다 좁으면
           예약 흐름에게 화면 전체 폭을 내줘야 달력이 찌그러지지 않는다. */}
       <div className="mt-6 flex flex-col gap-10 2xl:flex-row 2xl:items-start">
-        <div className="2xl:w-[28rem] 2xl:shrink-0">
+        <div className="min-w-0 2xl:w-[28rem] 2xl:shrink-0">
           {product.cover_image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

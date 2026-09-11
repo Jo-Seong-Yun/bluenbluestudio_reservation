@@ -9,10 +9,32 @@ import {
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
 import { calculateAge, parseBirthDate8 } from "@/lib/age";
+import { FieldDescription } from "@/components/field-description";
 import {
   fieldFormName,
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
+
+/**
+ * 손님용 신청서는 관리자 화면보다 훨씬 큰 글자로 보여준다 — 문항을
+ * 놓치거나 실수로 건너뛰지 않도록, 라벨/보조설명 크기를 키우고
+ * 문항 사이는 구분선으로 나눈다(아래 FIELD_WRAPPER_CLASS).
+ */
+const FIELD_LABEL_CLASS = "text-base font-semibold";
+const FIELD_HINT_CLASS = "text-sm";
+const OPTION_LABEL_CLASS = "flex items-center gap-2 text-base";
+const FIELD_WRAPPER_CLASS =
+  "border-border border-b pb-6 last:border-0 last:pb-0";
+
+/** 문항 상세 설명이 있으면 서식 있는 렌더러로, 없으면 기본 힌트를 보여준다. */
+function descriptionHint(
+  field: CustomField,
+  fallback?: React.ReactNode,
+): React.ReactNode {
+  return field.description ? (
+    <FieldDescription html={field.description} />
+  ) : fallback;
+}
 
 const initialState: ReservationActionState = { status: "idle" };
 
@@ -134,7 +156,7 @@ export function ReservationForm({
         ))}
       </ul>
 
-      <form action={action} className="mt-6 space-y-4">
+      <form action={action} className="mt-6 space-y-6">
         {candidates.map((c, i) => (
           <div key={i}>
             <input type="hidden" name="candidateDate" value={c.date} />
@@ -143,7 +165,9 @@ export function ReservationForm({
         ))}
 
         {customFields.map((field) => (
-          <ReservationFieldInput key={field.id} field={field} />
+          <div key={field.id} className={FIELD_WRAPPER_CLASS}>
+            <ReservationFieldInput field={field} />
+          </div>
         ))}
 
         <label className="flex items-start gap-2 text-sm">
@@ -182,7 +206,9 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       <Field
         label={field.label}
         required={field.required}
-        hint={field.description ?? undefined}
+        hint={descriptionHint(field)}
+        labelClassName={FIELD_LABEL_CLASS}
+        hintClassName={FIELD_HINT_CLASS}
       >
         <input
           name={name}
@@ -199,10 +225,12 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       <Field
         label={field.label}
         required={field.required}
-        hint={
-          field.description ??
-          "예약 조회할 때 필요합니다. '-' 없이/있이 상관없습니다."
-        }
+        hint={descriptionHint(
+          field,
+          "예약 조회할 때 필요합니다. '-' 없이/있이 상관없습니다.",
+        )}
+        labelClassName={FIELD_LABEL_CLASS}
+        hintClassName={FIELD_HINT_CLASS}
       >
         <input
           name={name}
@@ -221,9 +249,12 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       <Field
         label={field.label}
         required={field.required}
-        hint={
-          field.description ?? "입력하시면 문자와 함께 이메일로도 안내해 드립니다."
-        }
+        hint={descriptionHint(
+          field,
+          "입력하시면 문자와 함께 이메일로도 안내해 드립니다.",
+        )}
+        labelClassName={FIELD_LABEL_CLASS}
+        hintClassName={FIELD_HINT_CLASS}
       >
         <input
           name={name}
@@ -241,10 +272,12 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       <Field
         label={field.label}
         required={field.required}
-        hint={field.description ?? undefined}
+        hint={descriptionHint(field)}
+        labelClassName={FIELD_LABEL_CLASS}
+        hintClassName={FIELD_HINT_CLASS}
       >
         <div className="flex gap-4">
-          <label className="flex items-center gap-1.5 text-sm">
+          <label className={OPTION_LABEL_CLASS}>
             <input
               type="radio"
               name={name}
@@ -253,7 +286,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
             />
             남성
           </label>
-          <label className="flex items-center gap-1.5 text-sm">
+          <label className={OPTION_LABEL_CLASS}>
             <input
               type="radio"
               name={name}
@@ -276,7 +309,9 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       <Field
         label={field.label}
         required={field.required}
-        hint={field.description ?? undefined}
+        hint={descriptionHint(field)}
+        labelClassName={FIELD_LABEL_CLASS}
+        hintClassName={FIELD_HINT_CLASS}
       >
         <textarea
           name={name}
@@ -294,11 +329,13 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       <Field
         label={field.label}
         required={field.required}
-        hint={field.description ?? undefined}
+        hint={descriptionHint(field)}
+        labelClassName={FIELD_LABEL_CLASS}
+        hintClassName={FIELD_HINT_CLASS}
       >
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {options.map((option) => (
-            <label key={option} className="flex items-center gap-1.5 text-sm">
+            <label key={option} className={OPTION_LABEL_CLASS}>
               <input
                 type="radio"
                 name={name}
@@ -318,11 +355,13 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       <Field
         label={field.label}
         required={field.required}
-        hint={field.description ?? undefined}
+        hint={descriptionHint(field)}
+        labelClassName={FIELD_LABEL_CLASS}
+        hintClassName={FIELD_HINT_CLASS}
       >
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {options.map((option) => (
-            <label key={option} className="flex items-center gap-1.5 text-sm">
+            <label key={option} className={OPTION_LABEL_CLASS}>
               <input type="checkbox" name={name} value={option} />
               {option}
             </label>
@@ -334,21 +373,21 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
 
   if (field.type === "checkbox") {
     return (
-      <label className="flex items-start gap-2 text-sm">
+      <label className="flex items-start gap-2 text-base">
         <input
           type="checkbox"
           name={name}
           required={field.required}
           className="mt-0.5 h-4 w-4"
         />
-        <span>
+        <span className="font-semibold">
           {field.label}
           {field.required ? (
             <span className="ml-0.5 text-red-600 dark:text-red-400">*</span>
           ) : null}
           {field.description ? (
-            <span className="text-muted mt-1 block text-xs">
-              {field.description}
+            <span className="text-muted mt-1 block text-sm font-normal">
+              <FieldDescription html={field.description} />
             </span>
           ) : null}
         </span>
@@ -361,7 +400,9 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
     <Field
       label={field.label}
       required={field.required}
-      hint={field.description ?? undefined}
+      hint={descriptionHint(field)}
+      labelClassName={FIELD_LABEL_CLASS}
+      hintClassName={FIELD_HINT_CLASS}
     >
       <input
         name={name}
@@ -384,7 +425,9 @@ function BirthDateInput({ field, name }: { field: CustomField; name: string }) {
     <Field
       label={field.label}
       required={field.required}
-      hint={field.description ?? "8자리 숫자로 입력해 주십시오. 예: 19990101"}
+      hint={descriptionHint(field, "8자리 숫자로 입력해 주십시오. 예: 19990101")}
+      labelClassName={FIELD_LABEL_CLASS}
+      hintClassName={FIELD_HINT_CLASS}
     >
       <input
         name={name}
