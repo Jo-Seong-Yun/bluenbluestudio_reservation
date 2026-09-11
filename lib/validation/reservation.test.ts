@@ -9,16 +9,8 @@ import {
   emailField,
 } from "./reservation";
 
-describe("reservationSchema — 후보(1~3지망)·개인정보 동의", () => {
-  it("후보 1개·동의가 있으면 통과한다", () => {
-    const parsed = reservationSchema.safeParse({
-      candidates: [{ date: "2026-09-10", time: "14:00" }],
-      agreePrivacy: "on",
-    });
-    expect(parsed.success).toBe(true);
-  });
-
-  it("후보 3개까지는 통과한다", () => {
+describe("reservationSchema — 후보(정확히 3지망)·개인정보 동의", () => {
+  it("후보 3개·동의가 있으면 통과한다", () => {
     const parsed = reservationSchema.safeParse({
       candidates: [
         { date: "2026-09-10", time: "14:00" },
@@ -28,6 +20,14 @@ describe("reservationSchema — 후보(1~3지망)·개인정보 동의", () => {
       agreePrivacy: "on",
     });
     expect(parsed.success).toBe(true);
+  });
+
+  it("후보 1개는 실패한다 — 3개를 모두 채워야 한다", () => {
+    const parsed = reservationSchema.safeParse({
+      candidates: [{ date: "2026-09-10", time: "14:00" }],
+      agreePrivacy: "on",
+    });
+    expect(parsed.success).toBe(false);
   });
 
   it("후보 4개는 실패한다", () => {
@@ -56,6 +56,7 @@ describe("reservationSchema — 후보(1~3지망)·개인정보 동의", () => {
       candidates: [
         { date: "2026-09-10", time: "14:00" },
         { date: "2026-09-10", time: "14:00" },
+        { date: "2026-09-11", time: "10:00" },
       ],
       agreePrivacy: "on",
     });
@@ -64,14 +65,22 @@ describe("reservationSchema — 후보(1~3지망)·개인정보 동의", () => {
 
   it("동의를 안 하면 실패한다", () => {
     const parsed = reservationSchema.safeParse({
-      candidates: [{ date: "2026-09-10", time: "14:00" }],
+      candidates: [
+        { date: "2026-09-10", time: "14:00" },
+        { date: "2026-09-11", time: "10:00" },
+        { date: "2026-09-12", time: "16:00" },
+      ],
     });
     expect(parsed.success).toBe(false);
   });
 
   it("날짜 형식이 틀리면 실패한다", () => {
     const parsed = reservationSchema.safeParse({
-      candidates: [{ date: "2026/09/10", time: "14:00" }],
+      candidates: [
+        { date: "2026/09/10", time: "14:00" },
+        { date: "2026-09-11", time: "10:00" },
+        { date: "2026-09-12", time: "16:00" },
+      ],
       agreePrivacy: "on",
     });
     expect(parsed.success).toBe(false);

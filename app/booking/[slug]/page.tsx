@@ -74,15 +74,19 @@ export default async function ProductDetailPage({
   });
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-12">
+    <main className="mx-auto w-full max-w-[100rem] px-6 py-12">
       <Link href="/booking" className="text-muted text-sm hover:underline">
         ← 상품 목록
       </Link>
 
       {/* 왼쪽엔 상품 설명, 오른쪽엔 달력·시간 선택. 좁은 화면에서는
-          위아래로 쌓인다(설명을 먼저 읽고 예약 흐름으로 이어지도록). */}
-      <div className="mt-6 flex flex-col gap-10 lg:flex-row lg:items-start">
-        <div className="lg:w-[28rem] lg:shrink-0">
+          위아래로 쌓인다(설명을 먼저 읽고 예약 흐름으로 이어지도록).
+          예약 흐름 쪽(BookingFlow)이 달력 + 그 옆 시간 선택 칸을
+          나란히 두려면 꽤 넓은 폭이 필요해서, 상품 설명과 나란히
+          두는 기준을 2xl(넓은 데스크톱)로 높여뒀다 — 그보다 좁으면
+          예약 흐름에게 화면 전체 폭을 내줘야 달력이 찌그러지지 않는다. */}
+      <div className="mt-6 flex flex-col gap-10 2xl:flex-row 2xl:items-start">
+        <div className="2xl:w-[28rem] 2xl:shrink-0">
           {product.cover_image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

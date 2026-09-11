@@ -17,7 +17,7 @@ import {
 const initialState: ReservationActionState = { status: "idle" };
 
 /**
- * 신청서 작성 페이지 본문. 손님이 고른 희망 시간(1~3개, 1지망부터)이
+ * 신청서 작성 페이지 본문. 손님이 고른 희망 시간(정확히 3개, 1지망부터)이
  * 이미 정해진 채로 이 페이지에 들어오므로(쿼리스트링에 담겨 있다),
  * 여기서는 문항들만 받는다.
  *
@@ -43,7 +43,7 @@ export function ReservationForm({
   productName: string;
   durationMin: number;
   bufferAfterMin: number;
-  /** 1~3개, 1지망부터 순서대로. */
+  /** 정확히 3개, 1지망부터 순서대로. */
   candidates: { date: string; time: string }[];
   backHref: string;
   bankAccount: string | null;

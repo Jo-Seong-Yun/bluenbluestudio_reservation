@@ -105,7 +105,10 @@ export default async function ApplyPage({
     (slotsByDate.get(c.date) ?? []).some((slot) => slot.time === c.time),
   );
 
-  if (candidates.length === 0) {
+  // 예약 신청은 정확히 3개의 후보가 있어야 한다(reservationSchema).
+  // 고르신 3개 중 하나라도 그사이 다른 예약에 먼저 찼으면, 이 페이지가
+  // 2개짜리로 신청서를 보여주는 대신 처음부터 다시 고르게 한다.
+  if (candidates.length < 3) {
     return (
       <main className="mx-auto w-full max-w-xl px-6 py-12">
         <Link href={backHref} className="text-muted text-sm hover:underline">
