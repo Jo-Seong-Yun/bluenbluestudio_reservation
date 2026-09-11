@@ -278,7 +278,7 @@ function CalendarGrid({
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-center gap-4">
         <NavLink
           basePath={basePath}
           month={prevMonth}

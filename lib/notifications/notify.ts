@@ -27,6 +27,10 @@ import {
   customerRequestedKakaoVariables,
   customerRequestedSubject,
   customerRequestedText,
+  customerRescheduledEmailVariables,
+  customerRescheduledKakaoVariables,
+  customerRescheduledSubject,
+  customerRescheduledText,
   customerReminderSubject,
   customerReminderText,
   reservationEmailVariables,
@@ -281,6 +285,30 @@ export async function notifyCustomerCancelled(
     kakaoVariables: customerCancelledKakaoVariables(info),
     emailSubject: customerCancelledSubject(),
     emailVariables: reservationEmailVariables(info),
+  });
+}
+
+/**
+ * 손님: 예약 일정 변경. 관리자가 확정된 예약의 날짜·시간을 직접
+ * 바꿨을 때(app/admin/actions.ts의 rescheduleReservation)만 보낸다 —
+ * 손님이 스스로 바꾸는 경로는 없다(취소 후 재신청만 가능).
+ */
+export async function notifyCustomerRescheduled(
+  info: CustomerContact & {
+    customerName: string;
+    productName: string;
+    oldShootStart: Date;
+    newShootStart: Date;
+    code: string;
+  },
+): Promise<void> {
+  await notifyCustomer({
+    purpose: "customer_rescheduled",
+    info,
+    smsText: customerRescheduledText(info),
+    kakaoVariables: customerRescheduledKakaoVariables(info),
+    emailSubject: customerRescheduledSubject(),
+    emailVariables: customerRescheduledEmailVariables(info),
   });
 }
 

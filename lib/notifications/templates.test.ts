@@ -18,6 +18,10 @@ import {
   customerRequestedKakaoVariables,
   customerRequestedSubject,
   customerRequestedText,
+  customerRescheduledEmailVariables,
+  customerRescheduledKakaoVariables,
+  customerRescheduledSubject,
+  customerRescheduledText,
   reservationEmailVariables,
 } from "./templates";
 
@@ -122,6 +126,44 @@ describe("알림 문구", () => {
     expect(customerConfirmedSubject()).toContain("확정");
     expect(customerCancelledSubject()).toContain("취소");
     expect(customerReminderSubject()).toContain("내일");
+    expect(customerRescheduledSubject()).toContain("변경");
+  });
+
+  it("일정 변경 안내에 기존·변경 시간이 모두 들어간다", () => {
+    const text = customerRescheduledText({
+      productName: "프로필 촬영",
+      oldShootStart: SHOOT_START,
+      newShootStart: SECOND_CANDIDATE,
+      code: "AB12CD34",
+    });
+    expect(text).toContain("9월 10일(목) 14:00");
+    expect(text).toContain("9월 11일(금) 15:00");
+    expect(text).toContain("AB12CD34");
+  });
+
+  it("일정 변경 카카오 알림톡 변수에 기존·변경 일시가 들어간다", () => {
+    const variables = customerRescheduledKakaoVariables({
+      productName: "프로필 촬영",
+      oldShootStart: SHOOT_START,
+      newShootStart: SECOND_CANDIDATE,
+      code: "AB12CD34",
+    });
+    expect(variables["#{기존일시}"]).toBe("9월 10일(목) 14:00");
+    expect(variables["#{변경일시}"]).toBe("9월 11일(금) 15:00");
+    expect(variables["#{예약번호}"]).toBe("AB12CD34");
+  });
+
+  it("일정 변경 이메일 변수({{}})에 이름·기존·변경 일시가 들어간다", () => {
+    const variables = customerRescheduledEmailVariables({
+      customerName: "김철수",
+      productName: "프로필 촬영",
+      oldShootStart: SHOOT_START,
+      newShootStart: SECOND_CANDIDATE,
+      code: "AB12CD34",
+    });
+    expect(variables["이름"]).toBe("김철수");
+    expect(variables["기존일시"]).toBe("9월 10일(목) 14:00");
+    expect(variables["변경일시"]).toBe("9월 11일(금) 15:00");
   });
 
   it("자정 근처 KST 날짜도 정확히 표시한다", () => {

@@ -10,6 +10,7 @@ export const EMAIL_TEMPLATE_PURPOSES = [
   "customer_confirmed",
   "customer_cancelled",
   "customer_reminder",
+  "customer_rescheduled",
   "admin_new_request",
 ] as const;
 
@@ -22,6 +23,7 @@ export const EMAIL_TEMPLATE_LABELS: Record<EmailTemplatePurpose, string> = {
   customer_confirmed: "손님 — 예약 확정",
   customer_cancelled: "손님 — 예약 취소",
   customer_reminder: "손님 — 촬영 전날 리마인드",
+  customer_rescheduled: "손님 — 예약 일정 변경",
   admin_new_request: "사장님 — 새 예약 신청",
 };
 
@@ -57,6 +59,13 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<
     { key: "이름", description: "손님 이름" },
     { key: "상품명", description: "촬영 상품 이름" },
     { key: "일시", description: "내일 촬영 일시" },
+    { key: "예약번호", description: "예약 조회용 번호" },
+  ],
+  customer_rescheduled: [
+    { key: "이름", description: "손님 이름" },
+    { key: "상품명", description: "촬영 상품 이름" },
+    { key: "기존일시", description: "변경 전 촬영 일시" },
+    { key: "변경일시", description: "변경된 촬영 일시" },
     { key: "예약번호", description: "예약 조회용 번호" },
   ],
   admin_new_request: [
@@ -103,6 +112,13 @@ export const EMAIL_TEMPLATE_PREVIEW_VALUES: Record<
     이름: "김철수",
     상품명: "프로필 촬영",
     일시: "9월 12일(토) 10:00",
+    예약번호: "AB12CD34",
+  },
+  customer_rescheduled: {
+    이름: "김철수",
+    상품명: "프로필 촬영",
+    기존일시: "9월 12일(토) 10:00",
+    변경일시: "9월 13일(일) 14:00",
     예약번호: "AB12CD34",
   },
   admin_new_request: {
@@ -166,6 +182,15 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
 예약번호: {{예약번호}}
 
 늦지 않게 와주시기 바랍니다.`,
+  },
+  customer_rescheduled: {
+    subject: "[푸르른 스튜디오] 예약 일정이 변경되었습니다",
+    body: `{{이름}}님, 예약 일정이 변경되었습니다.
+
+상품: {{상품명}}
+기존 일시: {{기존일시}}
+변경된 일시: {{변경일시}}
+예약번호: {{예약번호}}`,
   },
   admin_new_request: {
     subject: "[푸르른 스튜디오] 새 예약 신청이 들어왔습니다",

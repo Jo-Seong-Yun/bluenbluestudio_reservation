@@ -314,6 +314,7 @@ export interface Database {
             | "customer_confirmed"
             | "customer_cancelled"
             | "customer_reminder"
+            | "customer_rescheduled"
             | "admin_new_request";
           subject: string;
           body: string;
@@ -327,6 +328,7 @@ export interface Database {
             | "customer_confirmed"
             | "customer_cancelled"
             | "customer_reminder"
+            | "customer_rescheduled"
             | "admin_new_request";
           subject: string;
           body: string;
