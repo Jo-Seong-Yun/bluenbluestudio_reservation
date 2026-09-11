@@ -68,17 +68,25 @@ export function BookingFlow({
     });
   }
 
-  function addCandidate(time: string) {
-    if (!selectedDate || isFull) return;
+  // 시간을 고를 때마다 날짜 선택으로 되돌아가면 여러 후보를 고를 때
+  // 매번 달력부터 다시 눌러야 해서 번거롭다 — 시간 칸은 그대로 열어
+  // 두고, 방금 고른 시간만 파란색으로 표시한다(아래 alreadyPicked).
+  // 같은 버튼을 다시 누르면 취소되도록, 위 목록의 ✕와 동일하게
+  // removeCandidate로 뺀다(토글).
+  function toggleCandidate(time: string) {
+    if (!selectedDate) return;
     setCandidates((prev) => {
-      if (prev.some((c) => c.date === selectedDate && c.time === time)) {
-        return prev; // 이미 후보로 낸 시간
+      const exists = prev.some(
+        (c) => c.date === selectedDate && c.time === time,
+      );
+      if (exists) {
+        return prev.filter(
+          (c) => !(c.date === selectedDate && c.time === time),
+        );
       }
+      if (prev.length >= MAX_CANDIDATES) return prev;
       return [...prev, { date: selectedDate, time }];
     });
-    // 시간을 고를 때마다 날짜 선택으로 되돌아가면 여러 후보를 고를 때
-    // 매번 달력부터 다시 눌러야 해서 번거롭다 — 시간 칸은 그대로 열어
-    // 두고, 방금 고른 시간만 파란색으로 표시한다(아래 alreadyPicked).
   }
 
   function removeCandidate(index: number) {
@@ -130,17 +138,17 @@ export function BookingFlow({
             {candidates.map((c, i) => (
               <li
                 key={`${c.date}-${c.time}`}
-                className="border-border bg-surface-subtle flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
+                className="border-brand bg-brand text-brand-foreground flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
               >
                 <span>
-                  <span className="text-muted mr-1.5">{i + 1}지망</span>
+                  <span className="mr-1.5 opacity-80">{i + 1}지망</span>
                   {formatCandidate(c)}
                 </span>
                 <button
                   type="button"
                   onClick={() => removeCandidate(i)}
                   aria-label={`${i + 1}지망 삭제`}
-                  className="text-muted hover:text-foreground px-1"
+                  className="text-brand-foreground/80 hover:text-brand-foreground px-1"
                 >
                   ✕
                 </button>
@@ -193,12 +201,12 @@ export function BookingFlow({
                     <button
                       key={time}
                       type="button"
-                      disabled={alreadyPicked}
-                      onClick={() => addCandidate(time)}
+                      disabled={!alreadyPicked && isFull}
+                      onClick={() => toggleCandidate(time)}
                       className={`rounded-lg border py-2 text-center text-sm transition-colors ${
                         alreadyPicked
-                          ? "border-brand bg-brand text-brand-foreground cursor-default"
-                          : "border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground"
+                          ? "border-brand bg-brand text-brand-foreground"
+                          : "border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground disabled:cursor-not-allowed disabled:opacity-50"
                       }`}
                     >
                       {time}
@@ -288,22 +296,14 @@ function CalendarGrid({
           const inMonth = date.startsWith(month);
           const available = inMonth && availableDates.has(date);
           const day = Number(date.slice(8, 10));
-          const weekday = weekdayOf(date);
           const isSelected = date === selectedDate;
-
-          const weekdayColor =
-            weekday === 0
-              ? "text-red-600 dark:text-red-400"
-              : weekday === 6
-                ? "text-brand"
-                : "text-foreground";
 
           if (!available) {
             return (
               <div
                 key={date}
-                className={`aspect-square rounded-md text-sm ${
-                  inMonth ? `${weekdayColor} opacity-40` : "opacity-0"
+                className={`text-muted aspect-square rounded-md text-sm ${
+                  inMonth ? "" : "opacity-0"
                 } flex items-center justify-center`}
                 aria-hidden={!inMonth}
               >
@@ -317,10 +317,10 @@ function CalendarGrid({
               key={date}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`aspect-square rounded-md text-base font-medium transition-colors ${weekdayColor} flex items-center justify-center ${
+              className={`text-foreground aspect-square rounded-md text-base font-medium transition-colors flex items-center justify-center ${
                 isSelected
                   ? "bg-brand text-brand-foreground"
-                  : "bg-brand/15 hover:bg-brand hover:text-brand-foreground"
+                  : "hover:bg-surface-subtle"
               }`}
             >
               {day}
