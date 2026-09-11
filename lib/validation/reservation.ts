@@ -70,15 +70,15 @@ export type CandidateInput = z.infer<typeof candidateSchema>;
  * 이하 문항들은 lib/booking/custom-fields.ts의 extractReservationFormData가
  * 상품별 custom_fields 목록을 보고 그때그때 검증한다.
  *
- * 손님이 시간 하나가 아니라 최대 3개까지 후보(1지망~3지망)를 낼 수
- * 있다 — 관리자가 그중 하나를 골라 확정한다. 후보는 1개 이상 3개
- * 이하이고, 같은 (날짜,시간) 조합을 중복으로 낼 수 없다(의미가 없어서).
+ * 손님이 시간 하나가 아니라 정확히 3개의 후보(1지망~3지망)를 낸다 —
+ * 관리자가 그중 하나를 골라 확정한다. 1~2개만 내면 우선순위를 고를
+ * 여지가 부족해지므로 꼭 3개를 채우게 한다. 같은 (날짜,시간) 조합을
+ * 중복으로 낼 수도 없다(의미가 없어서).
  */
 export const reservationSchema = z.object({
   candidates: z
     .array(candidateSchema)
-    .min(1, "최소 1개 이상의 희망 시간을 선택해 주시기 바랍니다.")
-    .max(3, "희망 시간은 최대 3개까지 선택할 수 있습니다.")
+    .length(3, "희망 시간을 3개 모두 선택해 주시기 바랍니다.")
     .refine(
       (list) => {
         const keys = list.map((c) => `${c.date}T${c.time}`);

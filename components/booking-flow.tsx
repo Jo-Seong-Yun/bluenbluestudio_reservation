@@ -26,12 +26,13 @@ function formatCandidate({ date, time }: Candidate): string {
 }
 
 /**
- * 달력 → 시간 선택을 최대 3번(1지망~3지망) 반복해 희망 시간 후보를
+ * 달력 → 시간 선택을 정확히 3번(1지망~3지망) 반복해 희망 시간 후보를
  * 모은다. 후보는 확정 전까지 어떤 시간도 잠그지 않는 정책이라(다른
  * 손님도 같은 시간을 후보로 낼 수 있다), 여기서는 그냥 목록에 담기만
  * 하고 실제 서버 확인은 신청서 페이지(apply)와 제출 시점에 한다.
  *
- * 최소 1개만 골라도 신청할 수 있다 — 3개를 다 채우라고 강제하지 않는다.
+ * 3개를 다 채워야만 신청할 수 있다 — 우선순위를 고를 여지를 남기기
+ * 위해서다(reservationSchema가 서버에서도 정확히 3개를 요구한다).
  */
 export function BookingFlow({
   productId,
@@ -119,14 +120,16 @@ export function BookingFlow({
   }, [selectedDate, slotsPending]);
 
   return (
-    <div className="mx-auto mt-8 w-full max-w-3xl">
+    <div className="mx-auto mt-8 w-full max-w-5xl">
       {/* 시간 선택 칸을 달력 아래가 아니라 옆에 둔다 — 아래에 두면
           시간을 고를 때마다, 또는 날짜를 바꿀 때마다 그 칸 높이가
           바뀌면서 화면 전체가 위아래로 움직였다. 옆에 두면 이 칸
-          안에서만 내용이 바뀌고 달력·후보 목록은 그대로 있다. 화면이
-          좁으면(sm 미만) 옆에 놓을 자리가 없으니 그때만 아래로 쌓는다. */}
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <div className="border-border bg-surface w-full shrink-0 rounded-xl border p-5 sm:w-80">
+          안에서만 내용이 바뀌고 달력·후보 목록은 그대로 있다.
+          달력 자체 크기는 원래 크기(lg:w-[36rem])를 그대로 유지하고,
+          옆에 시간 칸을 놓을 만큼 폭이 넉넉할 때만(lg 이상) 나란히
+          두며, 그전에는(화면이 좁을 때) 기존처럼 아래로 쌓는다. */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="border-border bg-surface w-full shrink-0 rounded-xl border p-5 lg:w-[36rem]">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold">희망 시간 고르기</h2>
             <span className="text-muted text-xs">
@@ -134,8 +137,8 @@ export function BookingFlow({
             </span>
           </div>
           <p className="text-muted mb-3 text-xs">
-            원하시는 시간을 최대 {MAX_CANDIDATES}개까지 골라 주시면, 그중
-            하나로 예약을 확정해 드립니다. 1개만 선택해도 신청할 수 있습니다.
+            희망 시간을 {MAX_CANDIDATES}개 모두 선택해 주시면, 그중 하나로
+            예약을 확정해 드립니다.
           </p>
 
           {/* 3개를 다 골라도 달력은 그대로 둔다 — 대신 오른쪽 시간
@@ -224,7 +227,6 @@ export function BookingFlow({
                     }`}
                   >
                     {time}
-                    {alreadyPicked ? " (선택됨)" : ""}
                   </button>
                 );
               })}
@@ -233,16 +235,16 @@ export function BookingFlow({
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 lg:max-w-[36rem]">
         <Button
           type="button"
-          disabled={candidates.length === 0}
+          disabled={!isFull}
           onClick={goToApply}
           className="w-full"
         >
-          {candidates.length === 0
-            ? "희망 시간을 먼저 선택해 주십시오"
-            : `이 ${candidates.length}개 시간으로 신청하기`}
+          {isFull
+            ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
+            : `희망 시간을 ${MAX_CANDIDATES}개 모두 선택해 주십시오`}
         </Button>
       </div>
     </div>
