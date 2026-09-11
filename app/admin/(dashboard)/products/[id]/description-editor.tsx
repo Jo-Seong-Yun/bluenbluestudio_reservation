@@ -64,7 +64,7 @@ export function DescriptionEditor({
       StarterKit.configure({ heading: { levels: [2, 3] } }),
       Link.configure({ openOnClick: false, autolink: true }),
       Placeholder.configure({
-        placeholder: "이런 분께 추천해요, 포함 사항 등을 자유롭게 써보세요.",
+        placeholder: "이런 분께 추천합니다, 포함 사항 등을 자유롭게 작성해 주십시오.",
       }),
       TextStyle,
       Color,
@@ -100,7 +100,7 @@ export function DescriptionEditor({
       return;
     }
 
-    const url = window.prompt("연결할 주소를 입력하세요", "https://");
+    const url = window.prompt("연결할 주소를 입력해 주십시오", "https://");
     if (!url) return;
 
     const { from, empty } = editor.state.selection;
@@ -299,7 +299,7 @@ export function DescriptionEditor({
         <ErrorText>{state?.error}</ErrorText>
         {state?.success ? (
           <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            저장했어요.
+            저장했습니다.
           </p>
         ) : null}
 

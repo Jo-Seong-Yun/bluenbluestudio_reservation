@@ -108,14 +108,14 @@ export default async function RevenuePage({
     <div>
       <h1 className="text-2xl font-bold">매출관리</h1>
       <p className="text-muted mt-1 text-sm">
-        확정·완료·노쇼 처리된 예약을 예약별 실제 지불액 기준으로 집계해요.
-        취소된 예약과 입금 전 신청은 빠져 있어요.
+        확정·완료·노쇼 처리된 예약을 예약별 실제 지불액 기준으로 집계합니다.
+        취소된 예약과 입금 전 신청은 빠져 있습니다.
       </p>
 
       {unpricedCount > 0 ? (
         <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
           이 중 {unpricedCount}건은 아직 지불액이 입력되지 않아 0원으로
-          계산됐어요. 예약 상세에서 실제 지불액을 입력해주세요.
+          계산되었습니다. 예약 상세에서 실제 지불액을 입력해 주시기 바랍니다.
         </p>
       ) : null}
 
@@ -196,7 +196,7 @@ export default async function RevenuePage({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-muted px-4 py-8 text-center">
-                  이 달엔 집계할 예약이 없어요.
+                  이 달엔 집계할 예약이 없습니다.
                 </td>
               </tr>
             ) : (
@@ -237,7 +237,7 @@ export default async function RevenuePage({
       <div className="border-border bg-surface mt-6 rounded-xl border p-4">
         <p className="font-medium">이 달의 고정비</p>
         <p className="text-muted mt-0.5 text-sm">
-          촬영 건수와 무관하게 매달 나가는 지출이에요 (임대료, 장비 구매, 마케팅
+          촬영 건수와 무관하게 매달 나가는 지출입니다 (임대료, 장비 구매, 마케팅
           등).
         </p>
 
@@ -265,7 +265,7 @@ export default async function RevenuePage({
           </ul>
         ) : (
           <p className="text-muted mt-3 text-sm">
-            아직 등록한 고정비가 없어요.
+            아직 등록한 고정비가 없습니다.
           </p>
         )}
 

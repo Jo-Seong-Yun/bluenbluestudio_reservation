@@ -92,7 +92,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
       <section className="space-y-4">
         <h2 className="font-bold">손님에게 보여줄 문구</h2>
 
-        <Field label="입금 계좌" hint="예약 완료 화면에 안내돼요.">
+        <Field label="입금 계좌" hint="예약 완료 화면에 안내됩니다.">
           <input
             name="bankAccount"
             defaultValue={initial.bankAccount}
@@ -103,18 +103,18 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
 
         <Field
           label="예약 공지"
-          hint="예약 완료 화면에 계좌 안내와 함께 보여요."
+          hint="예약 완료 화면에 계좌 안내와 함께 표시됩니다."
         >
           <textarea
             name="notice"
             rows={3}
             defaultValue={initial.notice}
-            placeholder="예약 후 24시간 안에 입금이 확인되지 않으면 자동 취소돼요."
+            placeholder="예약 후 24시간 안에 입금이 확인되지 않으면 자동 취소됩니다."
             className={inputClass}
           />
         </Field>
 
-        <Field label="스튜디오 소개" hint="랜딩 페이지에 마크다운으로 보여요.">
+        <Field label="스튜디오 소개" hint="랜딩 페이지에 마크다운으로 표시됩니다.">
           <textarea
             name="studioIntro"
             rows={5}
@@ -127,8 +127,8 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
       <section className="space-y-4">
         <h2 className="font-bold">알림 받을 연락처</h2>
         <p className="text-muted -mt-2 text-xs">
-          새 예약 신청이 들어오면 즉시 알려드려요. 둘 다 비워두면 사장님 알림은
-          보내지 않고, 손님에게만 접수·확정·취소·리마인드가 나가요.
+          새 예약 신청이 들어오면 즉시 알려 드립니다. 둘 다 비워두면 사장님
+          알림은 보내지 않고, 손님에게만 접수·확정·취소·리마인드가 발송됩니다.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -156,7 +156,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
       <ErrorText>{state?.error ?? null}</ErrorText>
       {state?.success ? (
         <p className="text-sm text-emerald-700 dark:text-emerald-400">
-          저장했어요.
+          저장했습니다.
         </p>
       ) : null}
 

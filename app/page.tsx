@@ -27,7 +27,7 @@ export default function Home() {
 
       <div className="border-border mt-16 border-t pt-8">
         <p className="text-muted text-sm">
-          예약이 어려우시면 인스타그램 DM으로도 문의해주세요.
+          예약이 어려우시면 인스타그램 DM으로도 문의해 주시기 바랍니다.
         </p>
       </div>
     </main>

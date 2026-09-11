@@ -40,11 +40,11 @@ export function EmailTemplatesSection({
       <div>
         <h2 className="font-bold">이메일 문구 설정</h2>
         <p className="text-muted mt-1 text-xs">
-          손님·사장님에게 나가는 이메일 제목과 본문을 직접 고칠 수 있어요.{" "}
+          손님·사장님에게 나가는 이메일 제목과 본문을 직접 고칠 수 있습니다.{" "}
           <code className="bg-surface-subtle rounded px-1">
             {"{{변수}}"}
           </code>{" "}
-          형태로 쓰면 발송할 때 실제 값(이름, 시간 등)으로 자동 채워져요.
+          형태로 쓰면 발송할 때 실제 값(이름, 시간 등)으로 자동 채워집니다.
         </p>
       </div>
 
@@ -189,7 +189,7 @@ function TemplateEditor({
         <ErrorText>{state?.error ?? null}</ErrorText>
         {state?.success ? (
           <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            저장했어요.
+            저장했습니다.
           </p>
         ) : null}
 

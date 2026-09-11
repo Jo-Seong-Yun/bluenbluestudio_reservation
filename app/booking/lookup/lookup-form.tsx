@@ -133,7 +133,7 @@ export function LookupForm() {
                   {group.title} ({items.length})
                 </h2>
                 {items.length === 0 ? (
-                  <p className="text-muted text-sm">없어요.</p>
+                  <p className="text-muted text-sm">없습니다.</p>
                 ) : (
                   <ul className="space-y-3">
                     {items.map((reservation) => (
@@ -180,7 +180,7 @@ export function LookupForm() {
       <Header />
 
       <form action={lookupAction} className="mt-8 space-y-4">
-        <Field label="연락처" hint="예약하실 때 입력하신 번호예요.">
+        <Field label="연락처" hint="예약하실 때 입력하신 번호입니다.">
           <input
             name="phone"
             type="tel"
@@ -211,7 +211,7 @@ function Header() {
       </Link>
       <h1 className="mt-2 text-2xl font-bold">예약 조회</h1>
       <p className="text-muted mt-2 text-sm">
-        예약하실 때 입력하신 연락처를 넣으시면 예약 내역을 볼 수 있어요.
+        예약하실 때 입력하신 연락처를 넣으시면 예약 내역을 볼 수 있습니다.
       </p>
     </>
   );
@@ -273,7 +273,7 @@ function ReservationCard({
 
               {/* 이 예약에 대한 취소 시도 결과만 여기 보여준다. 성공(=상태가
                   cancelled로 바뀜)이면 이 조건 자체가 false가 되어
-                  아래의 "변경할 수 없어요" 문구로 자연스럽게 바뀐다. */}
+                  아래의 "변경할 수 없습니다" 문구로 자연스럽게 바뀐다. */}
               <div className="mt-2">
                 {cancelState.status === "error" ? (
                   <ErrorText>{cancelState.error}</ErrorText>
@@ -282,8 +282,8 @@ function ReservationCard({
                 cancelState.reservation.code === reservation.code &&
                 cancelState.reservation.status !== "cancelled" ? (
                   <ErrorText>
-                    취소 기한이 지났거나 이미 처리된 예약이라 취소할 수 없어요.
-                    스튜디오로 문의해주세요.
+                    취소 기한이 지났거나 이미 처리된 예약이라 취소할 수 없습니다.
+                    스튜디오로 문의해 주시기 바랍니다.
                   </ErrorText>
                 ) : null}
               </div>
@@ -291,8 +291,8 @@ function ReservationCard({
           ) : (
             <p className="text-muted mt-2 text-sm">
               {reservation.status === "cancelled"
-                ? "이미 취소된 예약이에요."
-                : "이 예약은 더 이상 변경할 수 없어요."}
+                ? "이미 취소된 예약입니다."
+                : "이 예약은 더 이상 변경할 수 없습니다."}
             </p>
           )}
         </div>

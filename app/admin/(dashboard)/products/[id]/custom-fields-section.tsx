@@ -64,8 +64,8 @@ export function CustomFieldsSection({
         <div>
           <h2 className="text-lg font-bold">신청서 문항</h2>
           <p className="text-muted mt-1 text-sm">
-            이 상품 예약 폼에 나갈 질문을 순서대로 관리해요. 다른 상품엔 영향
-            없어요.
+            이 상품 예약 폼에 나갈 질문을 순서대로 관리합니다. 다른 상품에는
+            영향이 없습니다.
           </p>
         </div>
         <FieldModal productId={productId} />
@@ -74,8 +74,8 @@ export function CustomFieldsSection({
       <div className="border-border bg-surface rounded-xl border">
         {optimisticFields.length === 0 ? (
           <p className="text-muted p-6 text-center text-sm">
-            아직 문항이 없어요. &quot;질문 추가&quot;를 눌러 신청서에 넣을
-            질문을 만들어보세요.
+            아직 문항이 없습니다. &quot;질문 추가&quot;를 눌러 신청서에 넣을
+            질문을 만들어 보시기 바랍니다.
           </p>
         ) : (
           <ul>

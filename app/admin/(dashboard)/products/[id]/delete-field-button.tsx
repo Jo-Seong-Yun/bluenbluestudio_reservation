@@ -23,7 +23,7 @@ export function DeleteFieldButton({
   if (locked) {
     return (
       <span
-        title="이름·연락처는 예약을 받으려면 꼭 필요해서 지울 수 없어요."
+        title="이름·연락처는 예약을 받으려면 꼭 필요해서 지울 수 없습니다."
         className="text-muted/60 cursor-default text-xs"
       >
         삭제 불가
@@ -37,7 +37,7 @@ export function DeleteFieldButton({
       onSubmit={(event) => {
         if (
           !confirm(
-            `"${label}" 문항을 삭제할까요? 지금까지 이 문항에 남긴 손님 답변도 함께 사라지고 되돌릴 수 없어요.`,
+            `"${label}" 문항을 삭제하시겠습니까? 지금까지 이 문항에 남긴 손님 답변도 함께 사라지며 되돌릴 수 없습니다.`,
           )
         ) {
           event.preventDefault();

@@ -201,7 +201,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         required={field.required}
         hint={
           field.description ??
-          "예약 조회할 때 필요해요. '-' 없이/있이 상관없어요."
+          "예약 조회할 때 필요합니다. '-' 없이/있이 상관없습니다."
         }
       >
         <input
@@ -222,7 +222,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         label={field.label}
         required={field.required}
         hint={
-          field.description ?? "입력하시면 문자와 함께 이메일로도 안내해드려요."
+          field.description ?? "입력하시면 문자와 함께 이메일로도 안내해 드립니다."
         }
       >
         <input
@@ -384,7 +384,7 @@ function BirthDateInput({ field, name }: { field: CustomField; name: string }) {
     <Field
       label={field.label}
       required={field.required}
-      hint={field.description ?? "8자리 숫자로 입력해주세요. 예: 19990101"}
+      hint={field.description ?? "8자리 숫자로 입력해 주십시오. 예: 19990101"}
     >
       <input
         name={name}

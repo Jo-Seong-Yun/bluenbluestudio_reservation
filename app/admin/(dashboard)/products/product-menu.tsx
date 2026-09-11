@@ -101,10 +101,11 @@ export function ProductMenu({
       >
         {step === "ask" ? (
           <>
-            <p className="font-bold">&quot;{productName}&quot; 삭제할까요?</p>
+            <p className="font-bold">&quot;{productName}&quot; 삭제하시겠습니까?</p>
             <p className="text-muted mt-2 text-sm">
-              상품 정보와 신청서 문항이 모두 사라지고 되돌릴 수 없어요. 예약
-              내역이 있는 상품은 삭제할 수 없어요 — 대신 비공개로 전환해주세요.
+              상품 정보와 신청서 문항이 모두 사라지며 되돌릴 수 없습니다. 예약
+              내역이 있는 상품은 삭제할 수 없습니다 — 대신 비공개로 전환해
+              주시기 바랍니다.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={closeDialog}>
@@ -123,10 +124,10 @@ export function ProductMenu({
           <form action={action}>
             <input type="hidden" name="id" value={productId} />
 
-            <p className="font-bold">마지막 확인이에요</p>
+            <p className="font-bold">마지막 확인입니다</p>
             <p className="text-muted mt-2 text-sm">
               아래 칸에 <span className="text-foreground font-bold">삭제</span>
-              를 정확히 입력하면 삭제 버튼이 눌려요.
+              를 정확히 입력해야 삭제 버튼이 활성화됩니다.
             </p>
             <input
               autoFocus

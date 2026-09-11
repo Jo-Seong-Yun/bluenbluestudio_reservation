@@ -56,7 +56,7 @@ export function ManualReservationButton({
       >
         {state.status === "success" ? (
           <div>
-            <p className="font-bold">등록됐어요</p>
+            <p className="font-bold">등록되었습니다</p>
             <p className="text-muted mt-2 text-sm">
               예약번호 <span className="font-mono">{state.code}</span>
             </p>
@@ -72,7 +72,7 @@ export function ManualReservationButton({
 
             <Field label="상품">
               <select name="productId" required className={inputClass}>
-                <option value="">선택해주세요</option>
+                <option value="">선택해 주십시오</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}

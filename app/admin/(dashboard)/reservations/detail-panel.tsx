@@ -64,7 +64,7 @@ export function DetailPanel({
       <div className="border-border bg-surface rounded-xl border p-4">
         <p className="mb-3 text-sm font-medium">{selectedDate}</p>
         {dayReservations.length === 0 ? (
-          <p className="text-muted text-sm">이 날은 예약이 없어요.</p>
+          <p className="text-muted text-sm">이 날은 예약이 없습니다.</p>
         ) : (
           <ul className="space-y-1">
             {dayReservations.map((r) => (
@@ -91,7 +91,7 @@ export function DetailPanel({
 
   return (
     <div className="border-border bg-surface text-muted rounded-xl border p-6 text-center text-sm">
-      달력에서 날짜나 예약을 선택해주세요.
+      달력에서 날짜나 예약을 선택해 주시기 바랍니다.
     </div>
   );
 }
@@ -130,7 +130,7 @@ function ReservationDetail({
           {kstTimeString(start)} ~ {kstTimeString(end)}
         </p>
       ) : (
-        <p className="text-muted mt-0.5 text-sm">확정 대기 중 — 아래 희망 시간 중 하나를 골라주세요.</p>
+        <p className="text-muted mt-0.5 text-sm">확정 대기 중 — 아래 희망 시간 중 하나를 선택해 주시기 바랍니다.</p>
       )}
 
       <dl className="mt-4 space-y-1.5 text-sm">
@@ -184,7 +184,7 @@ function ReservationDetail({
             <p className="mb-2 text-sm font-medium">
               상태 변경{" "}
               <span className="text-muted font-normal">
-                (파란 버튼이 지금 상태예요)
+                (파란 버튼이 지금 상태입니다)
               </span>
             </p>
             <StatusButtons
@@ -199,7 +199,7 @@ function ReservationDetail({
         <input type="hidden" name="id" value={reservation.id} />
         <label className="mb-1.5 block text-sm font-medium" htmlFor="adminMemo">
           사장님 메모{" "}
-          <span className="text-muted font-normal">(손님에게 안 보여요)</span>
+          <span className="text-muted font-normal">(손님에게 표시되지 않습니다)</span>
         </label>
         <textarea
           id="adminMemo"
@@ -224,7 +224,7 @@ function ReservationDetail({
         >
           실제 지불액{" "}
           <span className="text-muted font-normal">
-            (할인 등으로 정가와 다를 수 있어요. 매출관리 매출 계산에 쓰여요)
+            (할인 등으로 정가와 다를 수 있습니다. 매출관리 매출 계산에 사용됩니다)
           </span>
         </label>
         <div className="flex gap-2">
@@ -253,7 +253,7 @@ function ReservationDetail({
         <label className="mb-1.5 block text-sm font-medium" htmlFor="cost">
           촬영 원가{" "}
           <span className="text-muted font-normal">
-            (대관료·소품·외주 등, 매출관리 순이익 계산에 쓰여요)
+            (대관료·소품·외주 등, 매출관리 순이익 계산에 사용됩니다)
           </span>
         </label>
         <div className="flex gap-2">
@@ -278,7 +278,7 @@ function ReservationDetail({
           실수로 다른 버튼과 헷갈려 누르는 일이 없어야 한다. */}
       <div className="mt-6 border-t border-dashed border-red-300 pt-4 dark:border-red-900">
         <p className="text-muted mb-2 text-xs">
-          아래는 되돌릴 수 없는 작업이에요.
+          아래는 되돌릴 수 없는 작업입니다.
         </p>
         <DeleteReservationButton
           id={reservation.id}

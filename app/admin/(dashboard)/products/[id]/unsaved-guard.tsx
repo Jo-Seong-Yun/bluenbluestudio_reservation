@@ -134,9 +134,9 @@ export function UnsavedGuard({
       onClose={() => setPendingHref(null)}
       className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-sm rounded-xl border p-5 backdrop:bg-black/50"
     >
-      <p className="font-bold">아직 저장하지 않았어요</p>
+      <p className="font-bold">아직 저장하지 않았습니다</p>
       <p className="text-muted mt-2 text-sm">
-        지금 나가면 이 상품이 저장되지 않을 수 있어요. 어떻게 할까요?
+        지금 나가면 이 상품이 저장되지 않을 수 있습니다. 어떻게 하시겠습니까?
       </p>
       <div className="mt-4 flex flex-col gap-2">
         <Button type="button" onClick={saveAndLeave}>

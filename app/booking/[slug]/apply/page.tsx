@@ -113,8 +113,8 @@ export default async function ApplyPage({
         </Link>
         <div className="border-border bg-surface mt-8 rounded-xl border p-6 text-center">
           <p className="text-muted">
-            고르신 시간을 더는 예약할 수 없게 됐어요. 이미 다른 분이
-            예약했거나, 예약 가능한 시간이 아니에요.
+            고르신 시간을 더는 예약할 수 없게 되었습니다. 이미 다른 분이
+            예약했거나, 예약 가능한 시간이 아닙니다.
           </p>
           <Link
             href={backHref}

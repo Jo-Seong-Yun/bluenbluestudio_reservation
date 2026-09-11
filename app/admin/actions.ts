@@ -42,7 +42,7 @@ export async function signIn(
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return { error: "이메일과 비밀번호를 입력해주세요." };
+    return { error: "이메일과 비밀번호를 입력해 주시기 바랍니다." };
   }
 
   const supabase = await createClient();
@@ -55,9 +55,9 @@ export async function signIn(
     if (error.code === "email_not_confirmed") {
       return {
         error:
-          "이 계정은 아직 이메일 인증이 안 됐어요. Supabase 대시보드 " +
+          "이 계정은 아직 이메일 인증이 완료되지 않았습니다. Supabase 대시보드 " +
           "Authentication → Users 에서 해당 계정을 열고 이메일을 " +
-          "확인(confirm) 상태로 바꿔주세요.",
+          "확인(confirm) 상태로 바꿔 주시기 바랍니다.",
       };
     }
     return { error: "이메일 또는 비밀번호가 맞지 않습니다." };
@@ -239,7 +239,7 @@ export async function saveProduct(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.",
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -278,7 +278,7 @@ export async function saveProduct(
     const { error } = await supabase.from("products").update(row).eq("id", id);
     if (error) {
       if (error.code === "23505") {
-        return { error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있어요.` };
+        return { error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있습니다.` };
       }
       return { error: `저장하지 못했습니다: ${error.message}` };
     }
@@ -290,7 +290,7 @@ export async function saveProduct(
       .single();
     if (error) {
       if (error.code === "23505") {
-        return { error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있어요.` };
+        return { error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있습니다.` };
       }
       return { error: `저장하지 못했습니다: ${error.message}` };
     }
@@ -319,11 +319,11 @@ export async function saveProductDescription(
   await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
-  if (!id) return { error: "상품을 찾을 수 없어요." };
+  if (!id) return { error: "상품을 찾을 수 없습니다." };
 
   const rawDescription = String(formData.get("description") ?? "");
   if (rawDescription.length > 20_000) {
-    return { error: "설명이 너무 길어요." };
+    return { error: "설명이 너무 깁니다." };
   }
   const description = sanitizeDescriptionHtml(rawDescription);
 
@@ -334,7 +334,7 @@ export async function saveProductDescription(
     .eq("id", id)
     .maybeSingle();
 
-  if (!product) return { error: "상품을 찾을 수 없어요." };
+  if (!product) return { error: "상품을 찾을 수 없습니다." };
 
   const { error } = await supabase
     .from("products")
@@ -477,7 +477,7 @@ export async function deleteProduct(
   await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
-  if (!id) return { error: "상품을 찾을 수 없어요." };
+  if (!id) return { error: "상품을 찾을 수 없습니다." };
 
   const supabase = await createClient();
   const { error } = await supabase.from("products").delete().eq("id", id);
@@ -486,7 +486,7 @@ export async function deleteProduct(
     if (error.code === "23503") {
       return {
         error:
-          "이 상품으로 예약된 내역이 있어 삭제할 수 없어요. 대신 비공개로 전환해주세요.",
+          "이 상품으로 예약된 내역이 있어 삭제할 수 없습니다. 대신 비공개로 전환해 주시기 바랍니다.",
       };
     }
     return { error: `삭제하지 못했습니다: ${error.message}` };
@@ -600,7 +600,7 @@ export async function confirmReservationCandidate(
   const id = String(formData.get("id") ?? "");
   const rank = Number(formData.get("rank") ?? "");
   if (!id || !Number.isInteger(rank) || rank < 1 || rank > 3) {
-    return { error: "잘못된 요청이에요." };
+    return { error: "잘못된 요청입니다." };
   }
 
   const supabase = await createClient();
@@ -613,7 +613,7 @@ export async function confirmReservationCandidate(
     .maybeSingle();
 
   if (!candidate) {
-    return { error: "그 후보를 찾을 수 없어요." };
+    return { error: "그 후보를 찾을 수 없습니다." };
   }
 
   const period = toTstzRange({
@@ -641,7 +641,7 @@ export async function confirmReservationCandidate(
     return {
       error:
         error.code === "23P01"
-          ? "이 시간은 이미 다른 예약으로 확정됐어요. 다른 후보를 골라주세요."
+          ? "이 시간은 이미 다른 예약으로 확정되었습니다. 다른 후보를 선택해 주시기 바랍니다."
           : `확정에 실패했습니다: ${error.message}`,
     };
   }
@@ -916,7 +916,7 @@ export async function createManualReservation(
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.",
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -930,7 +930,7 @@ export async function createManualReservation(
     .single();
 
   if (!product) {
-    return { status: "error", error: "상품을 찾을 수 없어요." };
+    return { status: "error", error: "상품을 찾을 수 없습니다." };
   }
 
   const slots = await loadAvailableSlots({
@@ -942,7 +942,7 @@ export async function createManualReservation(
     return {
       status: "error",
       error:
-        "이 시간은 예약할 수 없어요. 이미 다른 예약이 있거나 운영시간이 아니에요.",
+        "이 시간은 예약할 수 없습니다. 이미 다른 예약이 있거나 운영시간이 아닙니다.",
     };
   }
 
@@ -1002,7 +1002,7 @@ export async function createManualReservation(
       // EXCLUDE 제약. 위 재확인 이후 그사이에 진짜로 시간이 찬 경우.
       return {
         status: "error",
-        error: "방금 그 시간이 다른 예약으로 찼어요. 다시 골라주세요.",
+        error: "방금 그 시간이 다른 예약으로 찼습니다. 다시 선택해 주시기 바랍니다.",
       };
     }
 
@@ -1011,7 +1011,7 @@ export async function createManualReservation(
 
   return {
     status: "error",
-    error: "일시적인 오류로 등록하지 못했습니다. 다시 시도해주세요.",
+    error: "일시적인 오류로 등록하지 못했습니다. 다시 시도해 주시기 바랍니다.",
   };
 }
 
@@ -1051,15 +1051,17 @@ export async function saveSettings(
     !Number.isInteger(cancelDeadlineHours) ||
     cancelDeadlineHours < 0
   ) {
-    return { error: "숫자 값을 다시 확인해주세요." };
+    return { error: "숫자 값을 다시 확인해 주시기 바랍니다." };
   }
 
   if (adminNotifyPhone && !/^01[0-9]{8,9}$/.test(adminNotifyPhone)) {
-    return { error: "알림 받을 번호는 숫자만, 010으로 시작해 입력해주세요." };
+    return {
+      error: "알림 받을 번호는 숫자만, 010으로 시작해 입력해 주시기 바랍니다.",
+    };
   }
 
   if (adminNotifyEmail && !adminNotifyEmail.includes("@")) {
-    return { error: "알림 받을 이메일 형식을 확인해주세요." };
+    return { error: "알림 받을 이메일 형식을 확인해 주시기 바랍니다." };
   }
 
   const supabase = await createClient();
@@ -1112,14 +1114,14 @@ export async function saveEmailTemplate(
 
   const purpose = String(formData.get("purpose") ?? "");
   if (!EMAIL_TEMPLATE_PURPOSES.includes(purpose as EmailTemplatePurpose)) {
-    return { error: "잘못된 요청이에요." };
+    return { error: "잘못된 요청입니다." };
   }
 
   const subject = String(formData.get("subject") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
 
-  if (!subject) return { error: "제목을 입력해주세요." };
-  if (!body) return { error: "본문을 입력해주세요." };
+  if (!subject) return { error: "제목을 입력해 주시기 바랍니다." };
+  if (!body) return { error: "본문을 입력해 주시기 바랍니다." };
 
   const supabase = await createClient();
   const { error } = await supabase

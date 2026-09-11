@@ -60,9 +60,9 @@ export function DeleteReservationButton({
           <>
             <p className="font-bold">정말 삭제하시겠습니까?</p>
             <p className="text-muted mt-2 text-sm">
-              이 예약은 관리자·손님 화면 양쪽에서 완전히 사라지고, 되돌릴 수
-              없어요. 그냥 취소 처리만 하려면 위의 &quot;취소&quot; 버튼을
-              쓰세요.
+              이 예약은 관리자·손님 화면 양쪽에서 완전히 사라지며, 되돌릴 수
+              없습니다. 그냥 취소 처리만 하려면 위의 &quot;취소&quot; 버튼을
+              사용해 주십시오.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={close}>
@@ -83,10 +83,10 @@ export function DeleteReservationButton({
             <input type="hidden" name="month" value={month} />
             <input type="hidden" name="date" value={date ?? ""} />
 
-            <p className="font-bold">마지막 확인이에요</p>
+            <p className="font-bold">마지막 확인입니다</p>
             <p className="text-muted mt-2 text-sm">
               아래 칸에 <span className="text-foreground font-bold">삭제</span>
-              를 정확히 입력하면 삭제 버튼이 눌려요.
+              를 정확히 입력해야 삭제 버튼이 활성화됩니다.
             </p>
             <input
               autoFocus

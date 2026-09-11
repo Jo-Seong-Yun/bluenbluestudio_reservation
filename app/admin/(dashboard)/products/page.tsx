@@ -43,7 +43,7 @@ export default async function ProductsPage() {
         <div className="border-border text-muted rounded-xl border border-dashed px-6 py-16 text-center">
           <p>아직 상품이 없습니다.</p>
           <p className="mt-1 text-sm">
-            &quot;상품 추가&quot;를 눌러 첫 촬영 상품을 만들어보세요.
+            &quot;상품 추가&quot;를 눌러 첫 촬영 상품을 만들어 보시기 바랍니다.
           </p>
         </div>
       ) : null}
