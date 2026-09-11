@@ -6,7 +6,10 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { productSchema, toSlug } from "@/lib/validation/product";
-import { manualReservationSchema } from "@/lib/validation/reservation";
+import {
+  manualReservationSchema,
+  rescheduleReservationSchema,
+} from "@/lib/validation/reservation";
 import { addDays, diffDays, kstToInstant, type DateString } from "@/lib/time";
 import { loadAvailableSlots } from "@/lib/availability/load";
 import { toTstzRange } from "@/lib/availability/range";
@@ -14,6 +17,7 @@ import { generateReservationCode } from "@/lib/booking/code";
 import {
   notifyCustomerCancelled,
   notifyCustomerConfirmed,
+  notifyCustomerRescheduled,
 } from "@/lib/notifications/notify";
 import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 import { PRODUCT_TAG_COLORS } from "@/lib/product-tag-colors";
@@ -514,22 +518,11 @@ export async function updateReservationStatus(formData: FormData) {
 
   const supabase = await createClient();
 
-  if (status === "confirmed") {
-    // 1~3지망 후보로 들어온 예약은 이 버튼이 아니라 후보 중 하나를 골라
-    // confirmReservationCandidate로 확정해야 한다 — shoot_start가 없는
-    // 채로 confirmed가 되면 안 되므로, 후보가 있는 예약이면 아무것도
-    // 하지 않고 조용히 무시한다(레거시 방식으로 들어온, 후보가 없는
-    // 예약만 계속 이 경로로 확정한다).
-    const { count } = await supabase
-      .from("reservation_candidates")
-      .select("id", { count: "exact", head: true })
-      .eq("reservation_id", id);
-    if (count && count > 0) return;
-  }
-
   // 손님에게 알릴 상태(확정/취소)로 바뀔 때만, 갱신 전에 필요한 정보를
   // 미리 읽어둔다 — update 자체는 status 컬럼만 건드리니 갱신 뒤에는
   // 이 정보가 사라지지 않지만, 어차피 한 번 더 조회할 이유가 없다.
+  // "확정"으로 바꾸려는 경우엔 항상 미리 읽는다 — shoot_start가 있는지
+  // 판단하는 데도 이 값이 필요하다(바로 아래).
   const notifiable = status === "confirmed" || status === "cancelled";
   const { data: reservation } = notifiable
     ? await supabase
@@ -541,7 +534,25 @@ export async function updateReservationStatus(formData: FormData) {
         .single()
     : { data: null };
 
-  await supabase.from("reservations").update({ status }).eq("id", id);
+  if (status === "confirmed") {
+    // 아직 후보만 낸 채 시간이 정해지지 않은 예약(shoot_start가 없음)은
+    // 이 버튼이 아니라 후보 중 하나를 골라 confirmReservationCandidate로
+    // 확정해야 한다 — 그런 예약이면 아무것도 하지 않고 조용히 무시한다.
+    // 반대로 한 번 확정됐다가 취소·완료·노쇼로 바뀐 예약은 그때 정해진
+    // shoot_start·period가 그대로 남아있어, 이 버튼으로 다시 확정할 수
+    // 있다(취소 → 재확정 등).
+    if (!reservation?.shoot_start) return;
+  }
+
+  const { error } = await supabase
+    .from("reservations")
+    .update({ status })
+    .eq("id", id);
+
+  // EXCLUDE 제약(23P01): 취소됐던 예약을 다시 확정하려는데, 그사이 같은
+  // 시간이 다른 예약으로 먼저 확정된 경우. 상태가 안 바뀌었으니 알림도
+  // 보내지 않고 조용히 멈춘다 — 관리자가 다른 시간을 다시 확인해야 한다.
+  if (error) return;
 
   revalidatePath("/admin/reservations");
 
@@ -1013,6 +1024,109 @@ export async function createManualReservation(
     status: "error",
     error: "일시적인 오류로 등록하지 못했습니다. 다시 시도해 주시기 바랍니다.",
   };
+}
+
+/**
+ * 확정된 예약의 일정(날짜·시간)을 관리자가 직접 바꾼다.
+ *
+ * 손님용 신청·수기 예약 등록과 달리 운영시간·리드타임을 확인하지
+ * 않는다 — "내가 마음대로 바꿀 수 있어야 한다"는 요구에 따라, 형식만
+ * 맞으면 관리자가 원하는 아무 날짜·시간이나 넣을 수 있다. 실제 다른
+ * 예약과 겹치는지는 DB의 EXCLUDE 제약(confirmed 상태에서만 걸림)이
+ * 막아준다 — 겹치면 23P01로 거절되고, 그 경우 상태는 그대로 두고
+ * 에러만 보여준다(손님에게 잘못된 알림이 나가지 않게).
+ *
+ * 아직 후보만 낸 채 확정 전인 예약(shoot_start 없음)이나, 확정 이력이
+ * 없는 예약은 바꿀 시간 자체가 없으므로 대상에서 제외한다.
+ */
+export async function rescheduleReservation(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireAdmin();
+
+  const parsed = rescheduleReservationSchema.safeParse({
+    id: formData.get("id"),
+    date: formData.get("date"),
+    time: formData.get("time"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
+    };
+  }
+
+  const input = parsed.data;
+  const supabase = await createClient();
+
+  const { data: reservation } = await supabase
+    .from("reservations")
+    .select(
+      "code, status, shoot_start, customer_name, customer_phone, customer_email, product_id",
+    )
+    .eq("id", input.id)
+    .single();
+
+  if (!reservation) return { error: "예약을 찾을 수 없습니다." };
+  if (reservation.status !== "confirmed") {
+    return { error: "확정된 예약만 일정을 바꿀 수 있습니다." };
+  }
+  if (!reservation.shoot_start) {
+    return { error: "아직 시간이 정해지지 않은 예약입니다." };
+  }
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("name, duration_min, buffer_after_min")
+    .eq("id", reservation.product_id)
+    .single();
+  if (!product) return { error: "상품을 찾을 수 없습니다." };
+
+  const oldShootStart = new Date(reservation.shoot_start);
+  const newShootStart = kstToInstant(input.date, input.time);
+  const newShootEnd = new Date(
+    newShootStart.getTime() + product.duration_min * 60_000,
+  );
+  const occupiesEnd = new Date(
+    newShootEnd.getTime() + product.buffer_after_min * 60_000,
+  );
+  const period = toTstzRange({ start: newShootStart, end: occupiesEnd });
+
+  const { error } = await supabase
+    .from("reservations")
+    .update({
+      period,
+      shoot_start: newShootStart.toISOString(),
+      shoot_end: newShootEnd.toISOString(),
+    })
+    .eq("id", input.id);
+
+  if (error) {
+    if (error.code === "23P01") {
+      return {
+        error: "그 시간은 이미 다른 예약과 겹칩니다. 다른 시간을 입력해 주시기 바랍니다.",
+      };
+    }
+    return { error: `일정을 바꾸지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/reservations");
+
+  after(() =>
+    notifyCustomerRescheduled({
+      reservationId: input.id,
+      customerName: reservation.customer_name,
+      customerPhone: reservation.customer_phone,
+      customerEmail: reservation.customer_email,
+      productName: product.name,
+      oldShootStart,
+      newShootStart,
+      code: reservation.code,
+    }),
+  );
+
+  return null;
 }
 
 /**

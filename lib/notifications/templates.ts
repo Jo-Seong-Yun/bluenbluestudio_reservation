@@ -127,6 +127,28 @@ export function customerCancelledText(info: ReservationCancelledInfo): string {
   return `[${SITE.name}] 예약이 취소되었습니다. ${timePart}예약번호 ${info.code}.`;
 }
 
+type ReservationRescheduledInfo = {
+  productName: string;
+  oldShootStart: Date;
+  newShootStart: Date;
+  code: string;
+};
+
+/** 관리자가 확정된 예약의 일정을 직접 바꿨을 때 손님에게 보내는 안내. */
+export function customerRescheduledSubject(): string {
+  return `[${SITE.name}] 예약 일정이 변경되었습니다`;
+}
+
+export function customerRescheduledText(
+  info: ReservationRescheduledInfo,
+): string {
+  return (
+    `[${SITE.name}] 예약 일정이 변경되었습니다. ` +
+    `기존 ${formatShootTime(info.oldShootStart)} → 변경 ${formatShootTime(info.newShootStart)}, ` +
+    `예약번호 ${info.code}.`
+  );
+}
+
 export function customerReminderSubject(): string {
   return `[${SITE.name}] 내일 촬영 예약 안내`;
 }
@@ -211,6 +233,17 @@ export function customerReminderKakaoVariables(
   };
 }
 
+export function customerRescheduledKakaoVariables(
+  info: ReservationRescheduledInfo,
+): Record<string, string> {
+  return {
+    "#{상품명}": info.productName,
+    "#{기존일시}": formatShootTime(info.oldShootStart),
+    "#{변경일시}": formatShootTime(info.newShootStart),
+    "#{예약번호}": info.code,
+  };
+}
+
 export function adminNewRequestKakaoVariables(
   info: AdminNewRequestInfo,
 ): Record<string, string> {
@@ -257,6 +290,18 @@ export function reservationEmailVariables(info: {
     이름: info.customerName,
     상품명: info.productName,
     일시: info.shootStart ? formatShootTime(info.shootStart) : "",
+    예약번호: info.code,
+  };
+}
+
+export function customerRescheduledEmailVariables(
+  info: ReservationRescheduledInfo & { customerName: string },
+): Record<string, string> {
+  return {
+    이름: info.customerName,
+    상품명: info.productName,
+    기존일시: formatShootTime(info.oldShootStart),
+    변경일시: formatShootTime(info.newShootStart),
     예약번호: info.code,
   };
 }

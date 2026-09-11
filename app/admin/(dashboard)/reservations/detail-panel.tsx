@@ -6,11 +6,12 @@ import {
 } from "@/app/admin/actions";
 import { inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
-import { kstTimeString } from "@/lib/time";
+import { kstDateString, kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
 import { DeleteReservationButton } from "./delete-reservation-button";
 import { StatusButtons } from "./status-buttons";
 import { ConfirmCandidateButtons } from "./confirm-candidate-buttons";
+import { RescheduleForm } from "./reschedule-form";
 
 const GENDER_LABEL: Record<string, string> = { male: "남성", female: "여성" };
 
@@ -194,6 +195,16 @@ function ReservationDetail({
           </>
         )}
       </div>
+
+      {/* 확정된 예약만 날짜·시간을 바꿀 수 있다 — 후보만 낸 상태는
+          위 ConfirmCandidateButtons로 먼저 확정해야 한다. */}
+      {reservation.status === "confirmed" && start ? (
+        <RescheduleForm
+          reservationId={reservation.id}
+          currentDate={kstDateString(start)}
+          currentTime={kstTimeString(start)}
+        />
+      ) : null}
 
       <form action={saveAdminMemo} className="border-border mt-4 border-t pt-4">
         <input type="hidden" name="id" value={reservation.id} />

@@ -115,6 +115,23 @@ export const manualReservationSchema = z.object({
 
 export type ManualReservationInput = z.infer<typeof manualReservationSchema>;
 
+/**
+ * 관리자가 확정된 예약의 날짜·시간을 직접 바꿀 때. 손님용 신청과 달리
+ * 운영시간·리드타임 제약 없이 관리자가 원하는 대로 정할 수 있다 —
+ * 형식만 맞으면 통과한다(실제 겹침은 DB의 EXCLUDE 제약이 막는다).
+ */
+export const rescheduleReservationSchema = z.object({
+  id: z.string().uuid("예약을 찾을 수 없습니다."),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "날짜 형식이 올바르지 않습니다."),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "시간 형식이 올바르지 않습니다."),
+});
+
+export type RescheduleReservationInput = z.infer<
+  typeof rescheduleReservationSchema
+>;
+
 /** 전화번호만으로 예약 목록을 찾을 때. */
 export const phoneLookupSchema = z.object({
   phone: phoneField,
