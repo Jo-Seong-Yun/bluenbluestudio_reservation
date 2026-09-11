@@ -188,11 +188,13 @@ export function BookingFlow({
         </ul>
       </div>
 
-      {/* 날짜를 고르면 이 칸이 아래로 부드럽게 펼쳐진다. */}
+      {/* 날짜를 고르면 이 칸이 아래로 부드럽게 펼쳐진다. 3개를 다
+          골라도(isFull) 달력처럼 이 칸도 사라지지 않는다 — 시간
+          버튼들만 disabled로 조용히 막는다. */}
       <div
         ref={timeSectionRef}
         className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-          selectedDate && !isFull ? "mt-6 grid-rows-[1fr]" : "grid-rows-[0fr]"
+          selectedDate ? "mt-6 grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
         <div className="overflow-hidden">
@@ -330,13 +332,17 @@ function CalendarGrid({
               key={date}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`text-foreground aspect-square rounded-md text-base font-medium transition-colors flex items-center justify-center ${
-                isSelected ? "" : "hover:bg-surface-subtle"
-              }`}
+              className="group text-foreground aspect-square rounded-md text-base font-medium transition-colors flex items-center justify-center"
             >
+              {/* 마우스오버 배경도 원 안에만 나오게, 버튼(정사각형 칸) 전체가
+                  아니라 이 span(원)에만 hover 배경을 준다 — group-hover로
+                  버튼 어디에 올려도(칸 모서리 포함) 반응은 하되, 실제로
+                  보이는 건 원 모양만 남긴다. */}
               <span
                 className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-                  isSelected ? "bg-neutral-200 dark:bg-neutral-700" : ""
+                  isSelected
+                    ? "bg-neutral-200 dark:bg-neutral-700"
+                    : "group-hover:bg-surface-subtle"
                 }`}
               >
                 {day}
