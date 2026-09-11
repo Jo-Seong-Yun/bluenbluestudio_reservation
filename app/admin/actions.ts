@@ -510,6 +510,19 @@ export async function updateReservationStatus(formData: FormData) {
 
   const supabase = await createClient();
 
+  if (status === "confirmed") {
+    // 1~3지망 후보로 들어온 예약은 이 버튼이 아니라 후보 중 하나를 골라
+    // confirmReservationCandidate로 확정해야 한다 — shoot_start가 없는
+    // 채로 confirmed가 되면 안 되므로, 후보가 있는 예약이면 아무것도
+    // 하지 않고 조용히 무시한다(레거시 방식으로 들어온, 후보가 없는
+    // 예약만 계속 이 경로로 확정한다).
+    const { count } = await supabase
+      .from("reservation_candidates")
+      .select("id", { count: "exact", head: true })
+      .eq("reservation_id", id);
+    if (count && count > 0) return;
+  }
+
   // 손님에게 알릴 상태(확정/취소)로 바뀔 때만, 갱신 전에 필요한 정보를
   // 미리 읽어둔다 — update 자체는 status 컬럼만 건드리니 갱신 뒤에는
   // 이 정보가 사라지지 않지만, 어차피 한 번 더 조회할 이유가 없다.
@@ -533,24 +546,118 @@ export async function updateReservationStatus(formData: FormData) {
       .eq("id", reservation.product_id)
       .single();
 
-    const notice = {
+    const base = {
       reservationId: id,
       customerPhone: reservation.customer_phone,
       customerEmail: reservation.customer_email,
       productName: product?.name ?? "촬영",
-      shootStart: new Date(reservation.shoot_start),
       code: reservation.code,
     };
 
     // 알림 발송(SMS·이메일)은 응답을 붙잡지 않는다 — 관리자가 상태를
     // 바꾸는 버튼을 눌렀을 때 발송이 끝날 때까지 화면이 멈춰 있으면
     // 안 되니, after()로 응답 뒤에 보낸다.
+    //
+    // confirmed 경로는 위에서 이미 "후보 있는 예약이면 여기 안 옴"을
+    // 보장했으므로 shoot_start가 항상 있다(레거시 예약만 도달).
     after(() =>
       status === "confirmed"
-        ? notifyCustomerConfirmed(notice)
-        : notifyCustomerCancelled(notice),
+        ? notifyCustomerConfirmed({
+            ...base,
+            shootStart: new Date(reservation.shoot_start!),
+          })
+        : notifyCustomerCancelled({
+            ...base,
+            shootStart: reservation.shoot_start
+              ? new Date(reservation.shoot_start)
+              : null,
+          }),
     );
   }
+}
+
+/**
+ * 관리자가 손님의 후보(1~3지망) 중 하나를 골라 확정한다. 이 순간에야
+ * 비로소 그 시간이 실제로 점유된다(EXCLUDE 제약이 confirmed 상태에서만
+ * 걸리므로, 그사이 다른 예약이 같은 시간을 먼저 확정했으면 여기서
+ * 23P01로 걸린다). 선택 안 된 나머지 후보는 지우지 않고
+ * reservation_candidates에 이력으로 남긴다 — confirmed_candidate_rank로
+ * 어느 게 선택됐는지 구분한다.
+ */
+export async function confirmReservationCandidate(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const rank = Number(formData.get("rank") ?? "");
+  if (!id || !Number.isInteger(rank) || rank < 1 || rank > 3) {
+    return { error: "잘못된 요청이에요." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: candidate } = await supabase
+    .from("reservation_candidates")
+    .select("shoot_start, shoot_end")
+    .eq("reservation_id", id)
+    .eq("rank", rank)
+    .maybeSingle();
+
+  if (!candidate) {
+    return { error: "그 후보를 찾을 수 없어요." };
+  }
+
+  const period = toTstzRange({
+    start: new Date(candidate.shoot_start),
+    end: new Date(candidate.shoot_end),
+  });
+
+  const { data: reservation, error } = await supabase
+    .from("reservations")
+    .update({
+      status: "confirmed",
+      period,
+      shoot_start: candidate.shoot_start,
+      shoot_end: candidate.shoot_end,
+      confirmed_candidate_rank: rank,
+    })
+    .eq("id", id)
+    .select("code, customer_phone, customer_email, product_id")
+    .single();
+
+  revalidatePath("/admin/reservations");
+
+  if (error) {
+    // EXCLUDE 제약(23P01): 이 시간이 그사이 다른 예약으로 먼저 확정됐다.
+    return {
+      error:
+        error.code === "23P01"
+          ? "이 시간은 이미 다른 예약으로 확정됐어요. 다른 후보를 골라주세요."
+          : `확정에 실패했습니다: ${error.message}`,
+    };
+  }
+  if (!reservation) return { error: "확정에 실패했습니다." };
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("name")
+    .eq("id", reservation.product_id)
+    .single();
+
+  after(() =>
+    notifyCustomerConfirmed({
+      reservationId: id,
+      customerPhone: reservation.customer_phone,
+      customerEmail: reservation.customer_email,
+      productName: product?.name ?? "촬영",
+      shootStart: new Date(candidate.shoot_start),
+      code: reservation.code,
+    }),
+  );
+
+  return null;
 }
 
 export async function saveAdminMemo(formData: FormData) {
@@ -973,7 +1080,7 @@ export async function saveSettings(
   // 타입이 먹는다 — /booking 아래엔 layout.tsx가 없어 개별로 지정한다).
   revalidatePath("/booking"); // 리터럴 경로
   revalidatePath("/booking/[slug]", "page");
-  revalidatePath("/booking/[slug]/[date]/[time]", "page");
+  revalidatePath("/booking/[slug]/apply", "page");
 
   return { success: true };
 }
@@ -1070,7 +1177,7 @@ function parseCustomFieldForm(formData: FormData) {
 
 function revalidateCustomFieldPaths(productId: string) {
   revalidatePath(`/admin/products/${productId}`);
-  revalidatePath("/booking/[slug]/[date]/[time]", "page");
+  revalidatePath("/booking/[slug]/apply", "page");
 }
 
 export async function addCustomField(formData: FormData) {

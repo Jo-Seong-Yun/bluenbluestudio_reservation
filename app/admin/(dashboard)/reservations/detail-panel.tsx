@@ -10,6 +10,7 @@ import { kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
 import { DeleteReservationButton } from "./delete-reservation-button";
 import { StatusButtons } from "./status-buttons";
+import { ConfirmCandidateButtons } from "./confirm-candidate-buttons";
 
 const GENDER_LABEL: Record<string, string> = { male: "남성", female: "여성" };
 
@@ -17,8 +18,9 @@ type ReservationRow = {
   id: string;
   code: string;
   status: string;
-  shoot_start: string;
-  shoot_end: string;
+  /** 후보(1~3지망)만 낸 채 아직 확정 전이면 null. */
+  shoot_start: string | null;
+  shoot_end: string | null;
   customer_name: string;
   customer_phone: string;
   people_count: number | null;
@@ -30,6 +32,8 @@ type ReservationRow = {
   birth_date: string | null;
   productName: string;
   customAnswers?: { label: string; value: string }[];
+  /** shoot_start가 null일 때만 채워진다 — 손님이 낸 희망 시간들. */
+  candidates?: { rank: number; shootStart: string; shootEnd: string }[];
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -70,7 +74,8 @@ export function DetailPanel({
                   className="hover:bg-surface-subtle -mx-2 flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm"
                 >
                   <span>
-                    {kstTimeString(new Date(r.shoot_start))} · {r.customer_name}
+                    {/* 이 목록은 캘린더 날짜 칸에서 온 것이라 항상 shoot_start가 있다. */}
+                    {kstTimeString(new Date(r.shoot_start!))} · {r.customer_name}
                   </span>
                   <span className="text-muted text-xs">
                     {STATUS_LABEL[r.status] ?? r.status}
@@ -98,24 +103,35 @@ function ReservationDetail({
   reservation: ReservationRow;
   month: string;
 }) {
-  const start = new Date(reservation.shoot_start);
-  const end = new Date(reservation.shoot_end);
-  const date = reservation.shoot_start.slice(0, 10);
+  // 후보(1~3지망)만 낸 채 아직 확정 전이면 shoot_start가 없다 — 날짜
+  // 자체가 안 정해졌으니 "그날 목록으로" 링크도, 시간 표시도 못 한다.
+  const isPending = !reservation.shoot_start;
+  const start = reservation.shoot_start ? new Date(reservation.shoot_start) : null;
+  const end = reservation.shoot_end ? new Date(reservation.shoot_end) : null;
+  const date = reservation.shoot_start?.slice(0, 10);
 
   return (
     <div className="border-border bg-surface rounded-xl border p-4">
       <Link
-        href={`/admin/reservations?month=${month}&date=${date}`}
+        href={
+          date
+            ? `/admin/reservations?month=${month}&date=${date}`
+            : `/admin/reservations?month=${month}`
+        }
         className="text-muted text-xs hover:underline"
       >
-        ← {date} 목록
+        ← {date ? `${date} 목록` : "예약관리"}
       </Link>
 
       <p className="mt-2 font-mono text-sm">{reservation.code}</p>
       <h2 className="text-lg font-bold">{reservation.productName}</h2>
-      <p className="text-muted mt-0.5 text-sm">
-        {kstTimeString(start)} ~ {kstTimeString(end)}
-      </p>
+      {start && end ? (
+        <p className="text-muted mt-0.5 text-sm">
+          {kstTimeString(start)} ~ {kstTimeString(end)}
+        </p>
+      ) : (
+        <p className="text-muted mt-0.5 text-sm">확정 대기 중 — 아래 희망 시간 중 하나를 골라주세요.</p>
+      )}
 
       <dl className="mt-4 space-y-1.5 text-sm">
         <Row label="예약자">{reservation.customer_name}</Row>
@@ -158,16 +174,25 @@ function ReservationDetail({
       ) : null}
 
       <div className="border-border mt-4 border-t pt-4">
-        <p className="mb-2 text-sm font-medium">
-          상태 변경{" "}
-          <span className="text-muted font-normal">
-            (파란 버튼이 지금 상태예요)
-          </span>
-        </p>
-        <StatusButtons
-          reservationId={reservation.id}
-          status={reservation.status}
-        />
+        {isPending && reservation.candidates ? (
+          <ConfirmCandidateButtons
+            reservationId={reservation.id}
+            candidates={reservation.candidates}
+          />
+        ) : (
+          <>
+            <p className="mb-2 text-sm font-medium">
+              상태 변경{" "}
+              <span className="text-muted font-normal">
+                (파란 버튼이 지금 상태예요)
+              </span>
+            </p>
+            <StatusButtons
+              reservationId={reservation.id}
+              status={reservation.status}
+            />
+          </>
+        )}
       </div>
 
       <form action={saveAdminMemo} className="border-border mt-4 border-t pt-4">

@@ -105,9 +105,13 @@ export interface Database {
           id: string;
           code: string;
           product_id: string;
-          period: string;
-          shoot_start: string;
-          shoot_end: string;
+          // 접수(requested) 직후엔 아직 후보 중 하나로 확정되지 않아 null —
+          // confirmed로 바뀌는 순간 선택된 후보 값으로 채워진다.
+          // (마이그레이션 이전 방식으로 들어온 requested 예약은 예외적으로
+          // 처음부터 값이 있다 — reservation_candidates.sql 참고)
+          period: string | null;
+          shoot_start: string | null;
+          shoot_end: string | null;
           status: ReservationStatus;
           customer_name: string;
           customer_phone: string;
@@ -120,15 +124,14 @@ export interface Database {
           gender: Gender | null;
           birth_date: string | null; // "YYYY-MM-DD"
           reminded_at: string | null;
+          /** 확정할 때 고른 후보의 rank(1~3). 확정 전엔 null. */
+          confirmed_candidate_rank: number | null;
           created_at: string;
           updated_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["reservations"]["Row"]> & {
           code: string;
           product_id: string;
-          period: string;
-          shoot_start: string;
-          shoot_end: string;
           customer_name: string;
           customer_phone: string;
         };
@@ -138,6 +141,37 @@ export interface Database {
             foreignKeyName: "reservations_product_id_fkey";
             columns: ["product_id"];
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      reservation_candidates: {
+        Row: {
+          id: string;
+          reservation_id: string;
+          rank: number; // 1~3, 1지망~3지망
+          shoot_start: string;
+          shoot_end: string;
+          period: string;
+          created_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["reservation_candidates"]["Row"]
+        > & {
+          reservation_id: string;
+          rank: number;
+          shoot_start: string;
+          shoot_end: string;
+          period: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["reservation_candidates"]["Row"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "reservation_candidates_reservation_id_fkey";
+            columns: ["reservation_id"];
+            referencedRelation: "reservations";
             referencedColumns: ["id"];
           },
         ];
@@ -289,8 +323,9 @@ export interface Database {
         Returns: {
           code: string;
           status: ReservationStatus;
-          shoot_start: string;
-          shoot_end: string;
+          // 아직 확정 안 된(후보만 낸) 예약은 null.
+          shoot_start: string | null;
+          shoot_end: string | null;
           customer_name: string;
           product_name: string;
         }[];
@@ -298,6 +333,20 @@ export interface Database {
       toggle_block_hour: {
         Args: { p_start: string; p_end: string };
         Returns: boolean;
+      };
+      create_reservation_with_candidates: {
+        Args: {
+          p_code: string;
+          p_product_id: string;
+          p_customer_name: string;
+          p_customer_phone: string;
+          p_customer_email: string | null;
+          p_gender: Gender | null;
+          p_birth_date: string | null;
+          p_candidate_starts: string[];
+          p_candidate_ends: string[];
+        };
+        Returns: Database["public"]["Tables"]["reservations"]["Row"];
       };
     };
   };

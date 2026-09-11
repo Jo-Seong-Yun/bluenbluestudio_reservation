@@ -23,7 +23,8 @@ export function DeleteReservationButton({
 }: {
   id: string;
   month: string;
-  date: string;
+  /** 확정 전(후보만 낸 상태)이라 날짜가 아직 없으면 undefined. */
+  date?: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState<"ask" | "confirm">("ask");
@@ -80,7 +81,7 @@ export function DeleteReservationButton({
           <form action={deleteReservation}>
             <input type="hidden" name="id" value={id} />
             <input type="hidden" name="month" value={month} />
-            <input type="hidden" name="date" value={date} />
+            <input type="hidden" name="date" value={date ?? ""} />
 
             <p className="font-bold">마지막 확인이에요</p>
             <p className="text-muted mt-2 text-sm">

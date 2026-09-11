@@ -43,6 +43,10 @@ export async function GET(request: NextRequest) {
 
   let sent = 0;
   for (const reservation of reservations ?? []) {
+    // status='confirmed' 조건으로 걸러 왔으니 shoot_start는 항상 있다
+    // (아직 후보만 낸 requested 상태만 null일 수 있다).
+    if (!reservation.shoot_start) continue;
+
     const productName = await getProductName(reservation.product_id);
     await notifyCustomerReminder({
       reservationId: reservation.id,

@@ -215,8 +215,15 @@ function unwrap<T>(
   return result.data;
 }
 
-function toIntervals(rows: { period: string }[] | null): Interval[] {
-  return (rows ?? []).map((row) => parseTstzRange(row.period));
+/**
+ * period가 null인 행(1~3지망 후보만 낸 채 아직 확정 전인 예약)은 실제로는
+ * 이 쿼리(.overlaps("period", range))가 걸러내지만, 타입 시스템은 그걸
+ * 모르니 여기서 한 번 더 걸러 좁힌다.
+ */
+function toIntervals(rows: { period: string | null }[] | null): Interval[] {
+  return (rows ?? [])
+    .filter((row): row is { period: string } => row.period !== null)
+    .map((row) => parseTstzRange(row.period));
 }
 
 function toAvailabilitySettings(
