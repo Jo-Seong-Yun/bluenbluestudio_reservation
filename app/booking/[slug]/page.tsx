@@ -84,8 +84,12 @@ export default async function ProductDetailPage({
           예약 흐름 쪽(BookingFlow)이 달력 + 그 옆 시간 선택 칸을
           나란히 두려면 꽤 넓은 폭이 필요해서, 상품 설명과 나란히
           두는 기준을 2xl(넓은 데스크톱)로 높여뒀다 — 그보다 좁으면
-          예약 흐름에게 화면 전체 폭을 내줘야 달력이 찌그러지지 않는다. */}
-      <div className="mt-6 flex flex-col gap-10 2xl:flex-row 2xl:items-start">
+          예약 흐름에게 화면 전체 폭을 내줘야 달력이 찌그러지지 않는다.
+          flex-wrap을 같이 둬서, 혹시 2xl이어도 실제로 두 칸이 나란히
+          들어갈 만큼 폭이 넉넉하지 않은 경우(브라우저 확대, 좁은 창
+          등) 설명 글자가 달력 뒤로 잘리는 대신 그냥 아래 줄로
+          넘어가게 한다. */}
+      <div className="mt-6 flex flex-col flex-wrap gap-10 2xl:flex-row 2xl:items-start">
         <div className="min-w-0 2xl:w-[28rem] 2xl:shrink-0">
           {product.cover_image ? (
             // eslint-disable-next-line @next/next/no-img-element

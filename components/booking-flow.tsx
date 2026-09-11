@@ -128,8 +128,8 @@ export function BookingFlow({
           달력 자체 크기는 원래 크기(lg:w-[36rem])를 그대로 유지하고,
           옆에 시간 칸을 놓을 만큼 폭이 넉넉할 때만(lg 이상) 나란히
           두며, 그전에는(화면이 좁을 때) 기존처럼 아래로 쌓는다. */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="border-border bg-surface w-full shrink-0 rounded-xl border p-5 lg:w-[36rem]">
+      <div className="flex flex-col flex-wrap gap-6 lg:flex-row lg:items-start">
+        <div className="border-border bg-surface min-w-0 w-full shrink-0 rounded-xl border p-5 lg:w-[36rem]">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold">희망 시간 고르기</h2>
             <span className="text-muted text-xs">
@@ -232,23 +232,25 @@ export function BookingFlow({
               })}
             </div>
           )}
-
-          {/* 신청 버튼은 달력이 아니라 시간 선택 칸에 딸린 동작이다
-              (3개를 다 고르면 다음 단계로 넘어간다) — 그래서 이 칸
-              바로 아래, 슬롯 목록 다음에 둔다. */}
-          <div className="mt-6">
-            <Button
-              type="button"
-              disabled={!isFull}
-              onClick={goToApply}
-              className="w-full"
-            >
-              {isFull
-                ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
-                : `희망 시간을 ${MAX_CANDIDATES}개 모두 선택해 주십시오`}
-            </Button>
-          </div>
         </div>
+      </div>
+
+      {/* 신청 버튼은 시간 칸 안이 아니라 그 바깥, 두 칸 전체 아래에
+          따로 둔다 — 시간 칸 안에 넣으면 슬롯이 몇 개 뜨느냐에 따라
+          칸 높이가 바뀌면서 버튼 위치도 매번 따라 움직였다. 바깥에
+          두면 두 칸 중 어느 쪽 높이가 바뀌어도 버튼은 항상 그 아래,
+          같은 자리에 고정된다. */}
+      <div className="mt-6">
+        <Button
+          type="button"
+          disabled={!isFull}
+          onClick={goToApply}
+          className="w-full"
+        >
+          {isFull
+            ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
+            : `희망 시간을 ${MAX_CANDIDATES}개 모두 선택해 주십시오`}
+        </Button>
       </div>
     </div>
   );
