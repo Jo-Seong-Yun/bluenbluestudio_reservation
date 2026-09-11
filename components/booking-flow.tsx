@@ -127,8 +127,14 @@ export function BookingFlow({
           안에서만 내용이 바뀌고 달력·후보 목록은 그대로 있다.
           달력 자체 크기는 원래 크기(lg:w-[36rem])를 그대로 유지하고,
           옆에 시간 칸을 놓을 만큼 폭이 넉넉할 때만(lg 이상) 나란히
-          두며, 그전에는(화면이 좁을 때) 기존처럼 아래로 쌓는다. */}
-      <div className="flex flex-col flex-wrap gap-6 lg:flex-row lg:items-start">
+          두며, 그전에는(화면이 좁을 때) 기존처럼 아래로 쌓는다.
+          lg 이상에서는 items-stretch로 오른쪽 칸의 전체 높이를 달력과
+          맞추고, 그 안에서 신청 버튼은 항상 맨 아래에 고정한다(아래
+          Button — 시간 칸은 flex-1로 남는 공간을 채우고 버튼은 그
+          다음에 오므로, 슬롯이 몇 개든 버튼 위치는 달력 바닥과 나란히
+          그대로 있다). 좁은 화면(위아래로 쌓일 때)은 오른쪽 칸이 그냥
+          내용 높이만큼만 차지하면 되므로 items-stretch가 필요 없다. */}
+      <div className="flex flex-col flex-wrap gap-6 lg:flex-row lg:items-stretch">
         <div className="border-border bg-surface min-w-0 w-full shrink-0 rounded-xl border p-5 lg:w-[36rem]">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold">희망 시간 고르기</h2>
@@ -193,64 +199,65 @@ export function BookingFlow({
           </ul>
         </div>
 
-        <div
-          ref={timeSectionRef}
-          className="border-border bg-surface w-full flex-1 rounded-xl border p-5"
-        >
-          <h2 className="mb-4 font-bold">시간 선택</h2>
-          {!selectedDate ? (
-            <p className="text-muted text-sm">
-              달력에서 날짜를 먼저 선택해 주시기 바랍니다.
-            </p>
-          ) : slotsPending ? (
-            <p className="text-muted text-sm">불러오는 중…</p>
-          ) : slots.length === 0 ? (
-            <p className="text-muted text-sm">
-              이 날짜는 예약할 수 있는 시간이 없습니다.
-            </p>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {slots.map((time) => {
-                const alreadyPicked = candidates.some(
-                  (c) => c.date === selectedDate && c.time === time,
-                );
-                return (
-                  <button
-                    key={time}
-                    type="button"
-                    disabled={!alreadyPicked && isFull}
-                    onClick={() => toggleCandidate(time)}
-                    className={`rounded-lg border py-2 text-center text-sm transition-colors ${
-                      alreadyPicked
-                        ? "border-brand bg-brand text-brand-foreground"
-                        : "border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                    }`}
-                  >
-                    {time}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+        <div className="flex w-full min-w-0 flex-1 flex-col gap-6">
+          <div
+            ref={timeSectionRef}
+            className="border-border bg-surface min-w-0 flex-1 rounded-xl border p-5"
+          >
+            <h2 className="mb-4 font-bold">시간 선택</h2>
+            {!selectedDate ? (
+              <p className="text-muted text-sm">
+                달력에서 날짜를 먼저 선택해 주시기 바랍니다.
+              </p>
+            ) : slotsPending ? (
+              <p className="text-muted text-sm">불러오는 중…</p>
+            ) : slots.length === 0 ? (
+              <p className="text-muted text-sm">
+                이 날짜는 예약할 수 있는 시간이 없습니다.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {slots.map((time) => {
+                  const alreadyPicked = candidates.some(
+                    (c) => c.date === selectedDate && c.time === time,
+                  );
+                  return (
+                    <button
+                      key={time}
+                      type="button"
+                      disabled={!alreadyPicked && isFull}
+                      onClick={() => toggleCandidate(time)}
+                      className={`rounded-lg border py-2 text-center text-sm transition-colors ${
+                        alreadyPicked
+                          ? "border-brand bg-brand text-brand-foreground"
+                          : "border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-      {/* 신청 버튼은 시간 칸 안이 아니라 그 바깥, 두 칸 전체 아래에
-          따로 둔다 — 시간 칸 안에 넣으면 슬롯이 몇 개 뜨느냐에 따라
-          칸 높이가 바뀌면서 버튼 위치도 매번 따라 움직였다. 바깥에
-          두면 두 칸 중 어느 쪽 높이가 바뀌어도 버튼은 항상 그 아래,
-          같은 자리에 고정된다. */}
-      <div className="mt-6">
-        <Button
-          type="button"
-          disabled={!isFull}
-          onClick={goToApply}
-          className="w-full"
-        >
-          {isFull
-            ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
-            : `희망 시간을 ${MAX_CANDIDATES}개 모두 선택해 주십시오`}
-        </Button>
+          {/* 신청 버튼은 달력이 아니라 시간 칸 쪽(오른쪽)에 딸려 있되,
+              시간 칸 박스 "안"에는 넣지 않는다 — 안에 넣으면 슬롯이
+              몇 개 뜨느냐에 따라 박스 높이가 바뀌면서 버튼도 매번
+              따라 움직인다. 시간 칸을 flex-1로 둬 남는 세로 공간을
+              전부 흡수하게 하고, 버튼은 그 다음 형제로 둬 오른쪽 칸
+              맨 아래(=lg 이상에서는 달력 바닥과 같은 높이)에 고정한다. */}
+          <Button
+            type="button"
+            disabled={!isFull}
+            onClick={goToApply}
+            className="w-full"
+          >
+            {isFull
+              ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
+              : `희망 시간을 ${MAX_CANDIDATES}개 모두 선택해 주십시오`}
+          </Button>
+        </div>
       </div>
     </div>
   );
