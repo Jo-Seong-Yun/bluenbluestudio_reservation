@@ -50,7 +50,7 @@ export function AdminCalendar({
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-center gap-4">
         <Link
           href={`/admin/reservations?month=${prevMonth}`}
           aria-label="이전 달"
