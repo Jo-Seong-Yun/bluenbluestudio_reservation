@@ -11,6 +11,7 @@ import {
 import { parseTstzRange, toTstzRange, type Interval } from "./range";
 import {
   computeAvailableSlots,
+  isTimeBookable,
   type AvailabilitySettings,
   type DateOverride,
   type Slot,
@@ -50,6 +51,44 @@ export async function loadAvailableSlots(params: {
 
   return computeAvailableSlots({
     date: params.date,
+    now,
+    today: kstToday(now),
+    product: context.product,
+    settings: context.settings,
+    weeklyHours: context.weeklyHours.filter(
+      (hours) => hours.weekday === weekdayOf(params.date),
+    ),
+    dateOverride: context.dateOverrides.get(params.date) ?? null,
+    blocks: context.blocks,
+    reservations: context.reservations,
+  });
+}
+
+/**
+ * 손님용 시간 선택 화면과 달리, 격자(slotIntervalMin)에 매이지 않고
+ * 임의의 시각 하나가 지금 예약 가능한지 확인한다. 관리자가 수기로
+ * 예약을 등록할 때(전화로 받은 시각을 그대로 입력) 쓴다 — 자세한
+ * 이유는 slots.ts의 isTimeBookable 참고.
+ */
+export async function isReservationTimeAvailable(params: {
+  date: DateString;
+  time: string;
+  productId: string;
+  now?: Date;
+  settings?: AvailabilitySettings;
+}): Promise<boolean> {
+  const now = params.now ?? new Date();
+  const context = await loadScheduleContext({
+    productId: params.productId,
+    from: params.date,
+    to: params.date,
+    settings: params.settings,
+  });
+  if (!context) return false;
+
+  return isTimeBookable({
+    date: params.date,
+    time: params.time,
     now,
     today: kstToday(now),
     product: context.product,

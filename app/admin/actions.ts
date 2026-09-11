@@ -11,7 +11,7 @@ import {
   rescheduleReservationSchema,
 } from "@/lib/validation/reservation";
 import { addDays, diffDays, kstToInstant, type DateString } from "@/lib/time";
-import { loadAvailableSlots } from "@/lib/availability/load";
+import { isReservationTimeAvailable } from "@/lib/availability/load";
 import { toTstzRange } from "@/lib/availability/range";
 import { generateReservationCode } from "@/lib/booking/code";
 import {
@@ -897,11 +897,15 @@ export async function removeDateOverride(formData: FormData) {
 /**
  * 수기 예약 등록 (Phase 7).
  *
- * 전화나 DM으로 받은 예약을 관리자가 직접 넣는다. 손님용 신청과 같은
- * 계산(loadAvailableSlots)으로 다시 확인한다 — 관리자가 통화 중 착각해
- * 이미 찬 시간이나 운영시간 밖을 입력해도 이중예약으로 이어지지 않는다.
- * 이미 통화로 확인된 예약이라 개인정보 동의 체크박스는 없고, 상태도
- * 확인 대기(requested)가 아니라 바로 확정(confirmed)으로 넣는다.
+ * 전화나 DM으로 받은 예약을 관리자가 직접 넣는다. isReservationTimeAvailable로
+ * 다시 확인한다 — 관리자가 통화 중 착각해 이미 찬 시간이나 운영시간
+ * 밖을 입력해도 이중예약으로 이어지지 않는다. 손님용 화면이 쓰는
+ * loadAvailableSlots(격자 목록)가 아니라 이 함수를 쓰는 이유는, 시간을
+ * 직접 타이핑하는 이 폼에서는 손님이 부른 시각(예: 14:07)이 슬롯
+ * 간격의 배수가 아닐 수 있어서다 — 격자 목록에 없다고 해서 실제로
+ * 겹치는 건 아닌데, 목록 포함 여부만 보면 "이미 찼다"고 잘못 거절하게
+ * 된다. 이미 통화로 확인된 예약이라 개인정보 동의 체크박스는 없고,
+ * 상태도 확인 대기(requested)가 아니라 바로 확정(confirmed)으로 넣는다.
  */
 export type ManualReservationState =
   | { status: "idle" }
@@ -944,11 +948,11 @@ export async function createManualReservation(
     return { status: "error", error: "상품을 찾을 수 없습니다." };
   }
 
-  const slots = await loadAvailableSlots({
+  const stillAvailable = await isReservationTimeAvailable({
     date: input.date,
+    time: input.time,
     productId: input.productId,
   });
-  const stillAvailable = slots.some((slot) => slot.time === input.time);
   if (!stillAvailable) {
     return {
       status: "error",
