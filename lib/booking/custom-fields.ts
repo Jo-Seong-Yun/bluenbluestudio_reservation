@@ -76,14 +76,14 @@ export function extractReservationFormData(
     if (field.type === "name") {
       const raw = String(formData.get(name) ?? "").trim();
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"에 답해주세요.` };
+        return { ok: false, error: `"${field.label}"에 답변해 주시기 바랍니다.` };
       }
       if (raw) {
         const parsed = nameField.safeParse(raw);
         if (!parsed.success) {
           return {
             ok: false,
-            error: parsed.error.issues[0]?.message ?? "이름을 확인해주세요.",
+            error: parsed.error.issues[0]?.message ?? "이름을 확인해 주시기 바랍니다.",
           };
         }
         special.customerName = parsed.data;
@@ -94,14 +94,14 @@ export function extractReservationFormData(
     if (field.type === "phone") {
       const raw = String(formData.get(name) ?? "").trim();
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"에 답해주세요.` };
+        return { ok: false, error: `"${field.label}"에 답변해 주시기 바랍니다.` };
       }
       if (raw) {
         const parsed = phoneField.safeParse(raw);
         if (!parsed.success) {
           return {
             ok: false,
-            error: parsed.error.issues[0]?.message ?? "연락처를 확인해주세요.",
+            error: parsed.error.issues[0]?.message ?? "연락처를 확인해 주시기 바랍니다.",
           };
         }
         special.customerPhone = parsed.data;
@@ -112,13 +112,13 @@ export function extractReservationFormData(
     if (field.type === "email") {
       const raw = String(formData.get(name) ?? "").trim();
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"에 답해주세요.` };
+        return { ok: false, error: `"${field.label}"에 답변해 주시기 바랍니다.` };
       }
       const parsed = emailField.safeParse(raw);
       if (!parsed.success) {
         return {
           ok: false,
-          error: parsed.error.issues[0]?.message ?? "이메일을 확인해주세요.",
+          error: parsed.error.issues[0]?.message ?? "이메일을 확인해 주시기 바랍니다.",
         };
       }
       if (parsed.data) special.customerEmail = parsed.data;
@@ -128,12 +128,12 @@ export function extractReservationFormData(
     if (field.type === "gender") {
       const raw = formData.get(name);
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"을 선택해주세요.` };
+        return { ok: false, error: `"${field.label}"을 선택해 주시기 바랍니다.` };
       }
       if (raw) {
         const parsed = genderField.safeParse(String(raw));
         if (!parsed.success) {
-          return { ok: false, error: `"${field.label}"을 선택해주세요.` };
+          return { ok: false, error: `"${field.label}"을 선택해 주시기 바랍니다.` };
         }
         special.gender = parsed.data;
       }
@@ -143,7 +143,7 @@ export function extractReservationFormData(
     if (field.type === "birth_date") {
       const raw = String(formData.get(name) ?? "").trim();
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"을 입력해주세요.` };
+        return { ok: false, error: `"${field.label}"을 입력해 주시기 바랍니다.` };
       }
       if (raw) {
         const parsed = birthDateField.safeParse(raw);
@@ -151,7 +151,7 @@ export function extractReservationFormData(
           return {
             ok: false,
             error:
-              parsed.error.issues[0]?.message ?? "생년월일을 확인해주세요.",
+              parsed.error.issues[0]?.message ?? "생년월일을 확인해 주시기 바랍니다.",
           };
         }
         special.birthDate = parsed.data;
@@ -162,7 +162,7 @@ export function extractReservationFormData(
     if (field.type === "multi_choice") {
       const values = formData.getAll(name).map(String).filter(Boolean);
       if (field.required && values.length === 0) {
-        return { ok: false, error: `"${field.label}"에 답해주세요.` };
+        return { ok: false, error: `"${field.label}"에 답변해 주시기 바랍니다.` };
       }
       if (values.length > 0) {
         answers.push({ fieldId: field.id, value: JSON.stringify(values) });
@@ -173,7 +173,7 @@ export function extractReservationFormData(
     if (field.type === "checkbox") {
       const checked = formData.get(name) === "on";
       if (field.required && !checked) {
-        return { ok: false, error: `"${field.label}"에 동의해주세요.` };
+        return { ok: false, error: `"${field.label}"에 동의해 주시기 바랍니다.` };
       }
       answers.push({ fieldId: field.id, value: checked ? "true" : "false" });
       continue;
@@ -181,7 +181,7 @@ export function extractReservationFormData(
 
     const raw = String(formData.get(name) ?? "").trim();
     if (field.required && !raw) {
-      return { ok: false, error: `"${field.label}"에 답해주세요.` };
+      return { ok: false, error: `"${field.label}"에 답변해 주시기 바랍니다.` };
     }
     if (raw) {
       answers.push({ fieldId: field.id, value: raw });

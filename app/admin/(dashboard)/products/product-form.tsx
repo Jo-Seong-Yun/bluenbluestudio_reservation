@@ -52,7 +52,7 @@ export function ProductForm({
           />
         </Field>
 
-        <Field label="한 줄 소개" hint="상품 목록에서 이름 아래 작게 보여요.">
+        <Field label="한 줄 소개" hint="상품 목록에서 이름 아래 작게 표시됩니다.">
           <input
             name="summary"
             defaultValue={initial.summary}
@@ -62,7 +62,7 @@ export function ProductForm({
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="촬영 시간 (분)" hint="예약 한 칸의 길이예요.">
+          <Field label="촬영 시간 (분)" hint="예약 한 칸의 길이입니다.">
             <input
               name="durationMin"
               type="number"
@@ -76,7 +76,7 @@ export function ProductForm({
 
           <Field
             label="정리 시간 (분)"
-            hint="촬영 뒤 정리에 필요한 시간. 다음 칸을 막아요."
+            hint="촬영 뒤 정리에 필요한 시간. 다음 칸을 차단합니다."
           >
             <input
               name="bufferAfterMin"
@@ -115,7 +115,7 @@ export function ProductForm({
 
           <Field
             label="주소 (선택)"
-            hint="비워두면 자동으로 만들어요. 예: profile"
+            hint="비워두면 자동으로 생성됩니다. 예: profile"
           >
             <input
               name="slug"
@@ -126,7 +126,7 @@ export function ProductForm({
           </Field>
         </div>
 
-        <Field label="태그 색상" hint="상품 목록 카드에 작게 표시돼요.">
+        <Field label="태그 색상" hint="상품 목록 카드에 작게 표시됩니다.">
           <div className="flex flex-wrap gap-2">
             <label title="색상 없음" className="cursor-pointer">
               <input
@@ -170,7 +170,7 @@ export function ProductForm({
       <section className="space-y-4">
         <ImageUploader
           label="대표 이미지"
-          hint="상품 목록과 상세 화면 맨 위에 보여요."
+          hint="상품 목록과 상세 화면 맨 위에 표시됩니다."
           value={coverImage ? [coverImage] : []}
           onChange={(paths) => setCoverImage(paths[0] ?? null)}
           max={1}
@@ -179,7 +179,7 @@ export function ProductForm({
 
         <ImageUploader
           label="예시 사진"
-          hint="여러 장 올릴 수 있어요."
+          hint="여러 장 업로드할 수 있습니다."
           value={gallery}
           onChange={setGallery}
         />

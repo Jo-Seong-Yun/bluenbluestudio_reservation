@@ -27,7 +27,7 @@ const SERVER_VARS = ["SUPABASE_SECRET_KEY"] as const;
 function required(name: string, value: string | undefined): string {
   if (!value) {
     throw new Error(
-      `환경변수 ${name} 가 없습니다. docs/SUPABASE_SETUP.md 2번을 참고하세요.`,
+      `환경변수 ${name} 가 없습니다. docs/SUPABASE_SETUP.md 2번을 참고해 주시기 바랍니다.`,
     );
   }
   return value;

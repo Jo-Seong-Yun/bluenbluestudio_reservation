@@ -33,7 +33,7 @@ export default async function SettingsPage() {
   if (!settings) {
     return (
       <p className="text-muted text-sm">
-        설정 행을 찾을 수 없어요. 마이그레이션이 제대로 적용됐는지 확인해주세요.
+        설정 행을 찾을 수 없습니다. 마이그레이션이 제대로 적용되었는지 확인해 주시기 바랍니다.
       </p>
     );
   }

@@ -21,11 +21,11 @@ export default async function BookingPage() {
         {SITE.nameEn}
       </p>
       <h1 className="mt-2 text-3xl font-bold">촬영 상품 선택</h1>
-      <p className="text-muted mt-2">원하시는 촬영을 골라주세요.</p>
+      <p className="text-muted mt-2">원하시는 촬영을 골라 주시기 바랍니다.</p>
 
       {!products || products.length === 0 ? (
         <p className="text-muted mt-12 text-center">
-          현재 예약 가능한 상품이 없어요. 곧 준비하겠습니다.
+          현재 예약 가능한 상품이 없습니다. 곧 준비하겠습니다.
         </p>
       ) : (
         <ul className="mt-8 space-y-3">
@@ -68,7 +68,7 @@ export default async function BookingPage() {
           href="/booking/lookup"
           className="text-muted text-sm hover:underline"
         >
-          이미 예약하셨나요? 예약 조회 →
+          이미 예약하셨습니까? 예약 조회 →
         </Link>
       </div>
     </main>

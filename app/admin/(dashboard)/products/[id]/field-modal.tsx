@@ -147,7 +147,7 @@ export function FieldModal({
                 답변 종류
               </span>
               <p className="border-border bg-surface-subtle text-muted rounded-lg border px-3 py-2 text-sm">
-                {FIELD_TYPE_LABELS[field.type] ?? field.type} (바꿀 수 없어요)
+                {FIELD_TYPE_LABELS[field.type] ?? field.type} (바꿀 수 없습니다)
               </p>
               <input type="hidden" name="type" value={field.type} />
             </div>
@@ -222,7 +222,7 @@ export function FieldModal({
             >
               상세 설명{" "}
               <span className="text-muted font-normal">
-                (질문 아래 작게 보여줘요)
+                (질문 아래 작게 표시됩니다)
               </span>
             </label>
             <textarea

@@ -91,7 +91,7 @@ export async function createReservation(
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.",
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -116,8 +116,8 @@ export async function createReservation(
     return {
       status: "error",
       error:
-        `${invalidIndex + 1}번째로 고르신 시간은 예약할 수 없게 됐어요. ` +
-        "이미 확정됐거나 예약 가능 시간이 아니에요. 뒤로 가서 다시 골라주세요.",
+        `${invalidIndex + 1}번째로 고르신 시간은 예약할 수 없게 되었습니다. ` +
+        "이미 확정되었거나 예약 가능 시간이 아닙니다. 뒤로 가서 다시 선택해 주시기 바랍니다.",
     };
   }
 
@@ -214,7 +214,7 @@ export async function createReservation(
 
   return {
     status: "error",
-    error: "일시적인 오류로 예약에 실패했습니다. 다시 시도해주세요.",
+    error: "일시적인 오류로 예약에 실패했습니다. 다시 시도해 주시기 바랍니다.",
   };
 }
 
@@ -244,7 +244,7 @@ export async function lookupReservation(
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.",
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -262,7 +262,7 @@ export async function lookupReservation(
   if (!reservation) {
     return {
       status: "error",
-      error: "예약번호와 연락처가 일치하는 예약을 찾지 못했어요.",
+      error: "예약번호와 연락처가 일치하는 예약을 찾지 못했습니다.",
     };
   }
 
@@ -290,7 +290,7 @@ export async function cancelReservation(
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.",
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -308,7 +308,7 @@ export async function cancelReservation(
   if (!reservation) {
     return {
       status: "error",
-      error: "예약번호와 연락처가 일치하는 예약을 찾지 못했어요.",
+      error: "예약번호와 연락처가 일치하는 예약을 찾지 못했습니다.",
     };
   }
 
@@ -363,7 +363,7 @@ export async function lookupReservationsByPhone(
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.",
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -379,7 +379,7 @@ export async function lookupReservationsByPhone(
   if (!data || data.length === 0) {
     return {
       status: "error",
-      error: "이 연락처로 등록된 예약을 찾지 못했어요.",
+      error: "이 연락처로 등록된 예약을 찾지 못했습니다.",
     };
   }
 

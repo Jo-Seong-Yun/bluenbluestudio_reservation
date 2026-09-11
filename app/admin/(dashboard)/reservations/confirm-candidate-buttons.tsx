@@ -40,7 +40,7 @@ export function ConfirmCandidateButtons({
   return (
     <div>
       <p className="mb-2 text-sm font-medium">
-        희망 시간 중 하나를 골라 확정하세요
+        희망 시간 중 하나를 선택하여 확정해 주십시오
       </p>
       <div className="flex flex-col gap-2">
         {candidates.map((c) => (

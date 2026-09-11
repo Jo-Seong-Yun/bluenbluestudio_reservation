@@ -20,7 +20,7 @@ export async function generateMetadata({
     .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle();
-  return { title: product?.name ?? "상품을 찾을 수 없어요" };
+  return { title: product?.name ?? "상품을 찾을 수 없습니다" };
 }
 
 export default async function ProductDetailPage({
@@ -107,7 +107,7 @@ export default async function ProductDetailPage({
 
         <div className="min-w-0 flex-1">
           <p className="text-muted text-xs">
-            {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있어요.
+            {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
           </p>
 
           <BookingFlow

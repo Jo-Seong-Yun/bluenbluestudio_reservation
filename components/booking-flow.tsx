@@ -120,8 +120,8 @@ export function BookingFlow({
           </span>
         </div>
         <p className="text-muted mb-3 text-xs">
-          원하시는 시간을 최대 {MAX_CANDIDATES}개까지 골라주시면, 그중
-          하나로 예약을 확정해드려요. 1개만 골라도 신청할 수 있어요.
+          원하시는 시간을 최대 {MAX_CANDIDATES}개까지 골라 주시면, 그중
+          하나로 예약을 확정해 드립니다. 1개만 선택해도 신청할 수 있습니다.
         </p>
 
         {candidates.length > 0 ? (
@@ -150,8 +150,8 @@ export function BookingFlow({
 
         {isFull ? (
           <p className="text-muted mb-3 text-xs">
-            {MAX_CANDIDATES}개를 다 고르셨어요. 다른 시간으로 바꾸려면 위에서
-            지워주세요.
+            {MAX_CANDIDATES}개를 모두 선택하셨습니다. 다른 시간으로 바꾸려면
+            위에서 삭제해 주시기 바랍니다.
           </p>
         ) : (
           <CalendarGrid
@@ -180,7 +180,7 @@ export function BookingFlow({
               <p className="text-muted text-sm">불러오는 중…</p>
             ) : slots.length === 0 ? (
               <p className="text-muted text-sm">
-                이 날짜는 예약할 수 있는 시간이 없어요.
+                이 날짜는 예약할 수 있는 시간이 없습니다.
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-2">
@@ -215,7 +215,7 @@ export function BookingFlow({
           className="w-full"
         >
           {candidates.length === 0
-            ? "희망 시간을 먼저 골라주세요"
+            ? "희망 시간을 먼저 선택해 주십시오"
             : `이 ${candidates.length}개 시간으로 신청하기`}
         </Button>
       </div>
@@ -325,7 +325,7 @@ function CalendarGrid({
       </div>
 
       <p className="text-muted mt-3 text-xs">
-        색이 있는 날짜만 예약할 수 있어요.
+        색이 있는 날짜만 예약할 수 있습니다.
       </p>
     </div>
   );

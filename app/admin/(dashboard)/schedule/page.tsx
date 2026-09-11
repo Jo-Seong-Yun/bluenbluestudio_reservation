@@ -227,8 +227,8 @@ export default async function SchedulePage({
       <section className="border-border bg-surface mb-6 rounded-xl border p-4">
         <h2 className="font-bold">요일별 기본 운영시간</h2>
         <p className="text-muted mt-1 text-sm">
-          매주 반복되는 기본 영업시간이에요. 특정 날짜만 다르게 하려면 아래
-          &quot;날짜 단위 휴무/특별 운영시간&quot;을 쓰세요.
+          매주 반복되는 기본 영업시간입니다. 특정 날짜만 다르게 하려면 아래
+          &quot;날짜 단위 휴무/특별 운영시간&quot;을 사용해 주십시오.
         </p>
 
         <div className="mt-4 space-y-2">
@@ -303,7 +303,7 @@ export default async function SchedulePage({
         <h2 className="font-bold">날짜 단위 휴무 / 특별 운영시간</h2>
         <p className="text-muted mt-1 text-sm">
           시험기간처럼 여러 날을 한 번에 휴무로 등록하거나, 특정 날짜만
-          영업시간을 다르게 할 때 써요.
+          영업시간을 다르게 할 때 사용합니다.
         </p>
 
         <form
@@ -383,7 +383,7 @@ export default async function SchedulePage({
           </ul>
         ) : (
           <p className="text-muted mt-3 text-sm">
-            앞으로 등록된 휴무/예외가 없어요.
+            앞으로 등록된 휴무/예외가 없습니다.
           </p>
         )}
       </section>
@@ -391,7 +391,7 @@ export default async function SchedulePage({
       <section className="border-border bg-surface rounded-xl border p-4">
         <h2 className="font-bold">손님 화면 미리보기</h2>
         <p className="text-muted mt-1 text-sm">
-          위 설정대로 특정 날짜에 손님에게 실제로 어떤 시간이 보이는지 확인해요.
+          위 설정대로 특정 날짜에 손님에게 실제로 어떤 시간이 보이는지 확인합니다.
         </p>
 
         {productRows && productRows.length > 0 ? (
@@ -440,20 +440,20 @@ export default async function SchedulePage({
                   </div>
                 ) : (
                   <p className="text-muted mt-2 text-sm">
-                    이 날은 예약 가능한 시간이 없어요.
+                    이 날은 예약 가능한 시간이 없습니다.
                   </p>
                 )}
               </div>
             ) : (
               <p className="text-muted mt-4 text-sm">
-                상품과 날짜를 고르고 확인을 눌러보세요.
+                상품과 날짜를 선택하고 확인을 눌러 주시기 바랍니다.
               </p>
             )}
           </>
         ) : (
           <p className="text-muted mt-3 text-sm">
-            공개된 상품이 없어서 미리볼 수 없어요. 상품관리에서 상품을 먼저
-            공개해주세요.
+            공개된 상품이 없어서 미리볼 수 없습니다. 상품관리에서 상품을 먼저
+            공개해 주시기 바랍니다.
           </p>
         )}
       </section>

@@ -172,7 +172,7 @@ async function loadScheduleContext(params: {
 
   if (!productRow || !productRow.is_published) return null;
   if (!settingsRow) {
-    throw new Error("settings 행(id=1)이 없습니다. 마이그레이션을 확인하세요.");
+    throw new Error("settings 행(id=1)이 없습니다. 마이그레이션을 확인해 주시기 바랍니다.");
   }
 
   return {

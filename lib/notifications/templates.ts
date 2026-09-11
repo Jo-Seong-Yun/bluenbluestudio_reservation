@@ -49,14 +49,14 @@ type ReservationRequestInfo = {
 };
 
 export function customerRequestedSubject(): string {
-  return `[${SITE.name}] 예약 신청이 접수됐어요`;
+  return `[${SITE.name}] 예약 신청이 접수되었습니다`;
 }
 
 export function customerRequestedText(info: ReservationRequestInfo): string {
   return (
-    `[${SITE.name}] ${info.productName} 예약 신청이 접수됐어요. ` +
+    `[${SITE.name}] ${info.productName} 예약 신청이 접수되었습니다. ` +
     `희망시간 ${formatCandidateList(info.candidateTimes)}, 예약번호 ${info.code}. ` +
-    `이 중 하나로 확정되면 다시 안내드릴게요.`
+    `이 중 하나로 확정되면 다시 안내드리겠습니다.`
   );
 }
 
@@ -75,7 +75,7 @@ export function customerRequestedEmailText(
   const lines = [
     `${info.productName} 예약 신청이 접수되었습니다.`,
     "",
-    "희망 시간(이 중 하나로 확정돼요):",
+    "희망 시간(이 중 하나로 확정됩니다):",
     ...info.candidateTimes.map(
       (time, i) => `  ${i + 1}지망: ${formatShootTime(time)}`,
     ),
@@ -98,19 +98,19 @@ export function customerRequestedEmailText(
 }
 
 export function customerConfirmedSubject(): string {
-  return `[${SITE.name}] 예약이 확정됐어요`;
+  return `[${SITE.name}] 예약이 확정되었습니다`;
 }
 
 export function customerConfirmedText(info: ReservationInfo): string {
   return (
-    `[${SITE.name}] 예약이 확정됐어요. ` +
+    `[${SITE.name}] 예약이 확정되었습니다. ` +
     `${formatShootTime(info.shootStart)}, 예약번호 ${info.code}. ` +
-    `촬영 전날 다시 안내드릴게요.`
+    `촬영 전날 다시 안내드리겠습니다.`
   );
 }
 
 export function customerCancelledSubject(): string {
-  return `[${SITE.name}] 예약이 취소됐어요`;
+  return `[${SITE.name}] 예약이 취소되었습니다`;
 }
 
 type ReservationCancelledInfo = {
@@ -124,7 +124,7 @@ export function customerCancelledText(info: ReservationCancelledInfo): string {
   const timePart = info.shootStart
     ? `${formatShootTime(info.shootStart)}, `
     : "";
-  return `[${SITE.name}] 예약이 취소됐어요. ${timePart}예약번호 ${info.code}.`;
+  return `[${SITE.name}] 예약이 취소되었습니다. ${timePart}예약번호 ${info.code}.`;
 }
 
 export function customerReminderSubject(): string {
@@ -133,9 +133,9 @@ export function customerReminderSubject(): string {
 
 export function customerReminderText(info: ReservationInfo): string {
   return (
-    `[${SITE.name}] 내일 촬영 예약 안내예요. ` +
+    `[${SITE.name}] 내일 촬영 예약 안내입니다. ` +
     `${formatShootTime(info.shootStart)}, 예약번호 ${info.code}. ` +
-    `늦지 않게 와주세요!`
+    `늦지 않게 와주시기 바랍니다.`
   );
 }
 
@@ -145,7 +145,7 @@ type AdminNewRequestInfo = ReservationRequestInfo & {
 };
 
 export function adminNewRequestSubject(): string {
-  return `[${SITE.name}] 새 예약 신청이 들어왔어요`;
+  return `[${SITE.name}] 새 예약 신청이 들어왔습니다`;
 }
 
 export function adminNewRequestText(info: AdminNewRequestInfo): string {

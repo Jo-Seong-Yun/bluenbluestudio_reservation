@@ -9,5 +9,5 @@ export const SITE = {
   name: "푸르른 스튜디오",
   nameEn: "Blue n Blue Studio",
   description:
-    "사진과 영상을 담는 푸르른 스튜디오입니다. 원하는 날짜와 시간을 골라 예약하세요.",
+    "사진과 영상을 담는 푸르른 스튜디오입니다. 원하는 날짜와 시간을 선택하여 예약해 주시기 바랍니다.",
 } as const;
