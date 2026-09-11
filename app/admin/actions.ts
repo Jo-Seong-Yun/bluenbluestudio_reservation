@@ -1319,7 +1319,16 @@ function parseCustomFieldForm(formData: FormData) {
   const productId = String(formData.get("productId") ?? "");
   const label = String(formData.get("label") ?? "").trim();
   const type = String(formData.get("type") ?? "");
-  const description = String(formData.get("description") ?? "").trim();
+  // 상세 설명은 굵게/기울임/줄바꿈을 쓸 수 있는 위지윅 에디터
+  // (field-description-editor.tsx)가 HTML로 보낸다 — 상품 설명과
+  // 같은 이유로 저장 전에 정화(sanitize)한다. 에디터를 비워두면
+  // 빈 문단("<p></p>")만 남는데, 그건 "설명 없음"과 같은 뜻이라
+  // 태그를 뺀 실제 글자가 하나도 없으면 null로 저장한다.
+  const rawDescription = String(formData.get("description") ?? "")
+    .trim()
+    .slice(0, 2_000);
+  const description = sanitizeDescriptionHtml(rawDescription);
+  const descriptionText = description.replace(/<[^>]*>/g, "").trim();
   const required = formData.get("required") === "on";
   const active = formData.get("active") === "on";
   const options = formData
@@ -1341,7 +1350,7 @@ function parseCustomFieldForm(formData: FormData) {
     label,
     type: type as (typeof CUSTOM_FIELD_TYPES)[number],
     options: needsOptions ? options : null,
-    description: description || null,
+    description: descriptionText ? description : null,
     required,
     active,
   };

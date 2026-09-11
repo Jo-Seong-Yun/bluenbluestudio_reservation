@@ -3,6 +3,7 @@
 import { useOptimistic, useTransition } from "react";
 import { inputClass } from "@/components/ui";
 import { moveCustomField } from "@/app/admin/actions";
+import { FieldDescription } from "@/components/field-description";
 import { DeleteFieldButton } from "./delete-field-button";
 import { FieldModal } from "./field-modal";
 import {
@@ -125,7 +126,7 @@ export function CustomFieldsSection({
 
                   {field.description ? (
                     <p className="text-muted mt-1 text-xs">
-                      {field.description}
+                      <FieldDescription html={field.description} />
                     </p>
                   ) : null}
                 </div>
