@@ -18,6 +18,10 @@ import {
 import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 import { PRODUCT_TAG_COLORS } from "@/lib/product-tag-colors";
 import { LOCKED_FIELD_TYPES } from "@/lib/booking/custom-fields-shared";
+import {
+  EMAIL_TEMPLATE_PURPOSES,
+  type EmailTemplatePurpose,
+} from "@/lib/notifications/email-templates-shared";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -530,7 +534,9 @@ export async function updateReservationStatus(formData: FormData) {
   const { data: reservation } = notifiable
     ? await supabase
         .from("reservations")
-        .select("code, customer_phone, customer_email, shoot_start, product_id")
+        .select(
+          "code, customer_name, customer_phone, customer_email, shoot_start, product_id",
+        )
         .eq("id", id)
         .single()
     : { data: null };
@@ -548,6 +554,7 @@ export async function updateReservationStatus(formData: FormData) {
 
     const base = {
       reservationId: id,
+      customerName: reservation.customer_name,
       customerPhone: reservation.customer_phone,
       customerEmail: reservation.customer_email,
       productName: product?.name ?? "촬영",
@@ -624,7 +631,7 @@ export async function confirmReservationCandidate(
       confirmed_candidate_rank: rank,
     })
     .eq("id", id)
-    .select("code, customer_phone, customer_email, product_id")
+    .select("code, customer_name, customer_phone, customer_email, product_id")
     .single();
 
   revalidatePath("/admin/reservations");
@@ -649,6 +656,7 @@ export async function confirmReservationCandidate(
   after(() =>
     notifyCustomerConfirmed({
       reservationId: id,
+      customerName: reservation.customer_name,
       customerPhone: reservation.customer_phone,
       customerEmail: reservation.customer_email,
       productName: product?.name ?? "촬영",
@@ -977,6 +985,7 @@ export async function createManualReservation(
       after(() =>
         notifyCustomerConfirmed({
           reservationId: data?.id ?? "",
+          customerName: input.customerName,
           customerPhone: input.customerPhone,
           productName: product.name,
           shootStart,
@@ -1082,6 +1091,49 @@ export async function saveSettings(
   revalidatePath("/booking/[slug]", "page");
   revalidatePath("/booking/[slug]/apply", "page");
 
+  return { success: true };
+}
+
+/**
+ * 이메일 문구(제목/본문) 저장. 5개 목적(customer_requested 등) 중
+ * 하나씩 고친다 — 화면(email-templates-section.tsx)이 한 번에 한
+ * 템플릿만 보여주고 저장하는 구조라 이 액션도 한 건씩 받는다.
+ *
+ * 본문 안의 {{변수명}}은 검증하지 않는다 — 모르는 변수를 써도 발송
+ * 시점에 그대로 남을 뿐(lib/notifications/email-templates-shared.ts의
+ * renderEmailTemplate), 저장 자체를 막을 이유가 없다. 오타를 미리
+ * 걸러주기보다는 화면에 "사용 가능한 변수" 목록을 보여주는 쪽을 택했다.
+ */
+export async function saveEmailTemplate(
+  _prev: SettingsActionState,
+  formData: FormData,
+): Promise<SettingsActionState> {
+  await requireAdmin();
+
+  const purpose = String(formData.get("purpose") ?? "");
+  if (!EMAIL_TEMPLATE_PURPOSES.includes(purpose as EmailTemplatePurpose)) {
+    return { error: "잘못된 요청이에요." };
+  }
+
+  const subject = String(formData.get("subject") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+
+  if (!subject) return { error: "제목을 입력해주세요." };
+  if (!body) return { error: "본문을 입력해주세요." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("email_templates")
+    .upsert(
+      { purpose: purpose as EmailTemplatePurpose, subject, body },
+      { onConflict: "purpose" },
+    );
+
+  if (error) {
+    return { error: `저장하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/settings");
   return { success: true };
 }
 
