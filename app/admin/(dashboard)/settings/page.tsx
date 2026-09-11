@@ -10,6 +10,9 @@ import {
 } from "@/lib/notifications/email-templates-shared";
 
 export const metadata: Metadata = { title: "예약 설정" };
+// 새로 추가한 이메일 문구 섹션이 캐시된 옛 페이지 때문에 안 보이는 일이
+// 없게, 이 페이지는 항상 요청마다 새로 렌더링한다.
+export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
