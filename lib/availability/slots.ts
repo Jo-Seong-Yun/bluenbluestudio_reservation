@@ -128,6 +128,52 @@ export function computeAvailableSlots(input: AvailabilityInput): Slot[] {
 }
 
 /**
+ * 격자(slotIntervalMin 간격)와 무관하게, 특정 시작 시각 하나가 예약
+ * 가능한지 직접 확인한다.
+ *
+ * computeAvailableSlots는 openTime부터 slotIntervalMin 간격으로 후보를
+ * "생성"하기 때문에, 그 격자 위에 없는 시각(예: 14:07)은 애초에 후보
+ * 목록에 나타나지 않는다 — 관리자가 손님과 통화하며 수기로 예약을
+ * 등록할 때(app/admin/actions.ts의 createManualReservation) 이 목록에
+ * 있는지만 검사하면, 실제로는 비어 있는데 그저 격자 위에 없다는 이유로
+ * "이미 다른 예약이 있다"는 잘못된 에러가 나간다. 이 함수는 그 대신
+ * 입력받은 시각 하나를 직접, 운영시간·차단·기존예약과의 실제 겹침만
+ * 봐서 판정한다 — 몇 분 단위든 상관없다.
+ */
+export function isTimeBookable(
+  input: AvailabilityInput & { time: string },
+): boolean {
+  const { date, now, today, product, settings, blocks, reservations, time } =
+    input;
+
+  if (!isWithinBookingWindow(date, today, settings)) return false;
+
+  const openings = resolveOpeningHours(input);
+  if (openings.length === 0) return false;
+
+  const start = kstToInstant(date, time);
+  if (start <= now) return false;
+
+  const end = new Date(start.getTime() + product.durationMin * MINUTE);
+  const occupies: Interval = {
+    start,
+    end: new Date(end.getTime() + product.bufferAfterMin * MINUTE),
+  };
+
+  const withinOpening = openings.some((opening) => {
+    const openAt = kstToInstant(date, opening.openTime);
+    const closeAt = kstToInstant(date, opening.closeTime);
+    return start >= openAt && occupies.end <= closeAt;
+  });
+  if (!withinOpening) return false;
+
+  const occupied = [...blocks, ...reservations];
+  if (occupied.some((taken) => overlaps(occupies, taken))) return false;
+
+  return true;
+}
+
+/**
  * 예약을 받는 날짜 범위인가.
  *
  * 리드타임은 "날짜" 기준이다. minLeadDays가 1이면 오늘이 9월 3일일 때

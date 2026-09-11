@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { kstToInstant, weekdayOf } from "../time";
-import { computeAvailableSlots, type AvailabilityInput } from "./slots";
+import {
+  computeAvailableSlots,
+  isTimeBookable,
+  type AvailabilityInput,
+} from "./slots";
 
 /** 기준 상황: 2026-09-03(목) 아침에 접속. 목요일은 18~21시 운영. 60분 촬영. */
 function input(overrides: Partial<AvailabilityInput> = {}): AvailabilityInput {
@@ -329,6 +333,56 @@ describe("시간대 — 서버가 UTC로 돌아도 흔들리지 않는다", () =
       }),
     );
     expect(times).toEqual(["18:00", "19:00"]);
+  });
+});
+
+describe("isTimeBookable — 격자에 없는 시각도 직접 확인한다", () => {
+  it("슬롯 간격(60분)의 배수가 아닌 시각도 비어 있으면 예약 가능하다", () => {
+    // 18~21시 60분 간격이면 격자 목록엔 18:07이 없지만, 실제로는 비어 있다.
+    expect(isTimeBookable({ ...input(), time: "18:07" })).toBe(true);
+  });
+
+  it("다른 예약과 실제로 겹치면 격자 여부와 무관하게 거절한다", () => {
+    expect(
+      isTimeBookable({
+        ...input(),
+        time: "18:30",
+        reservations: [span("2026-09-10", "18:00", "19:00")],
+      }),
+    ).toBe(false);
+  });
+
+  it("버퍼가 마감을 넘기면 거절한다", () => {
+    expect(
+      isTimeBookable({
+        ...input(),
+        time: "20:45",
+        product: { durationMin: 60, bufferAfterMin: 30 },
+      }),
+    ).toBe(false);
+  });
+
+  it("운영시간 밖이면 거절한다", () => {
+    expect(isTimeBookable({ ...input(), time: "22:00" })).toBe(false);
+  });
+
+  it("차단된 시간과 겹치면 거절한다", () => {
+    expect(
+      isTimeBookable({
+        ...input(),
+        time: "19:15",
+        blocks: [span("2026-09-10", "19:00", "20:00")],
+      }),
+    ).toBe(false);
+  });
+
+  it("리드타임 밖이면(오늘) 거절한다", () => {
+    expect(
+      isTimeBookable({
+        ...input({ date: "2026-09-03", today: "2026-09-03" }),
+        time: "18:00",
+      }),
+    ).toBe(false);
   });
 });
 
