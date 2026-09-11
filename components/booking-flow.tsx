@@ -118,9 +118,6 @@ export function BookingFlow({
 
   return (
     <div className="mx-auto mt-8 w-full max-w-xl">
-      {/* 지금까지 고른 후보(1~3지망) 목록. 사장님이 이 중 하나를 골라
-          확정한다 — 손님도 순서가 그대로 우선순위라는 걸 알 수 있게
-          "n지망"을 붙여 보여준다. */}
       <div className="border-border bg-surface rounded-xl border p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-bold">희망 시간 고르기</h2>
@@ -133,46 +130,62 @@ export function BookingFlow({
           하나로 예약을 확정해 드립니다. 1개만 선택해도 신청할 수 있습니다.
         </p>
 
-        {candidates.length > 0 ? (
-          <ul className="mb-4 space-y-1.5">
-            {candidates.map((c, i) => (
+        {/* 3개를 다 골라도 달력은 그대로 둔다 — 대신 아래 시간 버튼들이
+            더는 눌리지 않는다(isFull). 사라졌다 나타나는 것보다, 왜 안
+            눌리는지 눈으로 계속 보이는 쪽이 덜 헷갈린다. */}
+        <CalendarGrid
+          month={month}
+          availableDates={availableSet}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          basePath={basePath}
+          minMonth={minMonth}
+          maxMonth={maxMonth}
+        />
+
+        {isFull ? (
+          <p className="text-muted mt-3 text-xs">
+            {MAX_CANDIDATES}개를 모두 선택하셨습니다. 다른 시간으로 바꾸려면
+            아래 목록에서 삭제해 주시기 바랍니다.
+          </p>
+        ) : null}
+
+        {/* 지금까지 고른 후보(1~3지망) 목록. 사장님이 이 중 하나를 골라
+            확정한다 — 손님도 순서가 그대로 우선순위라는 걸 알 수 있게
+            "n지망"을 붙여 보여준다.
+            자리를 항상 {MAX_CANDIDATES}칸 미리 잡아둔다 — 시간을 고를
+            때마다 이 목록만 커지면 아래(시간 선택 칸·신청 버튼)가 매번
+            밀려 내려가 불편하다. 빈 자리는 높이만 차지한 채 안 보이게
+            둬서, 채워지는 동안 화면이 흔들리지 않게 한다. */}
+        <ul className="mt-4 space-y-1.5">
+          {Array.from({ length: MAX_CANDIDATES }, (_, i) => candidates[i]).map(
+            (c, i) => (
               <li
-                key={`${c.date}-${c.time}`}
-                className="border-brand bg-brand text-brand-foreground flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
+                key={i}
+                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  c
+                    ? "border-brand bg-brand text-brand-foreground"
+                    : "border-transparent invisible"
+                }`}
               >
                 <span>
                   <span className="mr-1.5 opacity-80">{i + 1}지망</span>
-                  {formatCandidate(c)}
+                  {c ? formatCandidate(c) : " "}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => removeCandidate(i)}
-                  aria-label={`${i + 1}지망 삭제`}
-                  className="text-brand-foreground/80 hover:text-brand-foreground px-1"
-                >
-                  ✕
-                </button>
+                {c ? (
+                  <button
+                    type="button"
+                    onClick={() => removeCandidate(i)}
+                    aria-label={`${i + 1}지망 삭제`}
+                    className="text-brand-foreground/80 hover:text-brand-foreground px-1"
+                  >
+                    ✕
+                  </button>
+                ) : null}
               </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {isFull ? (
-          <p className="text-muted mb-3 text-xs">
-            {MAX_CANDIDATES}개를 모두 선택하셨습니다. 다른 시간으로 바꾸려면
-            위에서 삭제해 주시기 바랍니다.
-          </p>
-        ) : (
-          <CalendarGrid
-            month={month}
-            availableDates={availableSet}
-            selectedDate={selectedDate}
-            onSelectDate={handleSelectDate}
-            basePath={basePath}
-            minMonth={minMonth}
-            maxMonth={maxMonth}
-          />
-        )}
+            ),
+          )}
+        </ul>
       </div>
 
       {/* 날짜를 고르면 이 칸이 아래로 부드럽게 펼쳐진다. */}
@@ -318,12 +331,16 @@ function CalendarGrid({
               type="button"
               onClick={() => onSelectDate(date)}
               className={`text-foreground aspect-square rounded-md text-base font-medium transition-colors flex items-center justify-center ${
-                isSelected
-                  ? "bg-brand text-brand-foreground"
-                  : "hover:bg-surface-subtle"
+                isSelected ? "" : "hover:bg-surface-subtle"
               }`}
             >
-              {day}
+              <span
+                className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                  isSelected ? "bg-neutral-200 dark:bg-neutral-700" : ""
+                }`}
+              >
+                {day}
+              </span>
             </button>
           );
         })}
