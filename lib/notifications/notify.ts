@@ -141,11 +141,14 @@ async function tryEmail(params: {
   }
 }
 
-type ReservationNotice = {
+type CustomerContact = {
   reservationId: string;
   customerPhone: string;
   /** 선택 입력. 있으면 SMS와 함께 이메일로도 보낸다. */
   customerEmail?: string | null;
+};
+
+type ReservationNotice = CustomerContact & {
   productName: string;
   shootStart: Date;
   code: string;
@@ -162,7 +165,7 @@ type ReservationNotice = {
  */
 async function notifyCustomer(params: {
   purpose: KakaoNotificationPurpose;
-  info: ReservationNotice;
+  info: CustomerContact;
   smsText: string;
   kakaoVariables: Record<string, string>;
   emailSubject: string;
@@ -204,9 +207,12 @@ async function notifyCustomer(params: {
   await Promise.all(tasks);
 }
 
-/** 손님: 예약 접수. */
+/** 손님: 예약 접수. 확정 전이라 시간 하나가 아니라 후보(1~3개)를 안내한다. */
 export async function notifyCustomerRequested(
-  info: ReservationNotice & {
+  info: CustomerContact & {
+    productName: string;
+    candidateTimes: Date[];
+    code: string;
     bankAccount?: string | null;
     notice?: string | null;
   },
@@ -234,9 +240,16 @@ export async function notifyCustomerConfirmed(
   });
 }
 
-/** 손님: 예약 취소. */
+/**
+ * 손님: 예약 취소. 확정 전(후보만 낸 상태)에 취소될 수도 있어 shootStart가
+ * null일 수 있다 — 그땐 "몇 시 예약"이 아니라 예약번호만으로 안내한다.
+ */
 export async function notifyCustomerCancelled(
-  info: ReservationNotice,
+  info: CustomerContact & {
+    productName: string;
+    shootStart: Date | null;
+    code: string;
+  },
 ): Promise<void> {
   await notifyCustomer({
     purpose: "customer_cancelled",
@@ -273,7 +286,7 @@ export async function notifyAdminNewRequest(info: {
   customerName: string;
   customerPhone: string;
   productName: string;
-  shootStart: Date;
+  candidateTimes: Date[];
   code: string;
 }): Promise<void> {
   const tasks: Promise<void>[] = [];

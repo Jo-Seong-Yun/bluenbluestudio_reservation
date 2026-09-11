@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
   kstDateString,
@@ -34,17 +35,31 @@ export default async function ReservationsPage({
   // 폼의 선택지 용도를 겸한다 — 공개 여부와 무관하게 전부 가져온다(비공개
   // 상품도 전화로는 예약을 받을 수 있어야 하고, 상품 수가 적어 전부
   // 가져오는 쪽이 이 달에 쓰인 상품 id만 골라 한 번 더 왕복하는 것보다 낫다).
-  const [{ data: reservations }, { data: allProducts }] = await Promise.all([
-    supabase
-      .from("reservations")
-      .select(
-        "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, cost, charged_amount, gender, birth_date, product_id",
-      )
-      .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
-      .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
-      .order("shoot_start"),
-    supabase.from("products").select("id, name, tag_color").order("sort_order"),
-  ]);
+  //
+  // pendingReservations는 손님이 1~3지망 후보만 낸 채 아직 확정 안 된
+  // 신청들 — shoot_start가 없어 날짜가 정해지지 않았으니 달력에 표시할
+  // 수가 없다(어느 칸에 놓을지 알 수 없다). 그래서 달력과 별개로, 월과
+  // 무관하게 "확정 대기 중" 목록으로 항상 보여준다.
+  const [{ data: reservations }, { data: allProducts }, { data: pendingReservations }] =
+    await Promise.all([
+      supabase
+        .from("reservations")
+        .select(
+          "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, cost, charged_amount, gender, birth_date, product_id",
+        )
+        .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
+        .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
+        .order("shoot_start"),
+      supabase.from("products").select("id, name, tag_color").order("sort_order"),
+      supabase
+        .from("reservations")
+        .select(
+          "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, cost, charged_amount, gender, birth_date, product_id",
+        )
+        .eq("status", "requested")
+        .is("shoot_start", null)
+        .order("created_at"),
+    ]);
 
   const productNameById = new Map(
     (allProducts ?? []).map((p) => [p.id, p.name]),
@@ -53,14 +68,16 @@ export default async function ReservationsPage({
     (allProducts ?? []).map((p) => [p.id, p.tag_color]),
   );
 
-  // 달력 칸에 넣을 형태로 날짜별로 묶는다.
+  // 달력 칸에 넣을 형태로 날짜별로 묶는다. reservations 쿼리 자체가
+  // shoot_start로 범위 조회를 했으니(gte/lt) 여기 담긴 행은 항상
+  // shoot_start가 있다 — null이면애초에 그 조건에 걸리지 않는다.
   const byDate = new Map<DateString, CalendarReservation[]>();
   for (const r of reservations ?? []) {
-    const d = kstDateString(new Date(r.shoot_start));
+    const d = kstDateString(new Date(r.shoot_start!));
     const list = byDate.get(d) ?? [];
     list.push({
       id: r.id,
-      time: kstTimeString(new Date(r.shoot_start)),
+      time: kstTimeString(new Date(r.shoot_start!)),
       customerName: r.customer_name,
       status: r.status,
       tagColor: productTagColorById.get(r.product_id) ?? null,
@@ -70,7 +87,7 @@ export default async function ReservationsPage({
 
   const dayReservations = selectedDate
     ? (reservations ?? [])
-        .filter((r) => kstDateString(new Date(r.shoot_start)) === selectedDate)
+        .filter((r) => kstDateString(new Date(r.shoot_start!)) === selectedDate)
         .map((r) => ({
           ...r,
           productName: productNameById.get(r.product_id) ?? "",
@@ -78,8 +95,21 @@ export default async function ReservationsPage({
     : [];
 
   const selected = selectedId
-    ? (reservations ?? []).find((r) => r.id === selectedId)
+    ? [...(reservations ?? []), ...(pendingReservations ?? [])].find(
+        (r) => r.id === selectedId,
+      )
     : undefined;
+
+  // 확정 대기 중인 예약이면(shoot_start가 없다) 손님이 낸 후보들을
+  // 같이 가져와야 관리자가 그중 하나를 골라 확정할 수 있다.
+  const { data: candidateRows } =
+    selected && !selected.shoot_start
+      ? await supabase
+          .from("reservation_candidates")
+          .select("rank, shoot_start, shoot_end")
+          .eq("reservation_id", selected.id)
+          .order("rank")
+      : { data: [] as { rank: number; shoot_start: string; shoot_end: string }[] };
 
   // 선택된 예약의 커스텀 문항 답변. 목록 전체가 아니라 선택된 한 건에만
   // 필요하니 여기서 따로 가져온다.
@@ -122,8 +152,20 @@ export default async function ReservationsPage({
         ...selected,
         productName: productNameById.get(selected.product_id) ?? "",
         customAnswers,
+        candidates: (candidateRows ?? []).map((c) => ({
+          rank: c.rank,
+          shootStart: c.shoot_start,
+          shootEnd: c.shoot_end,
+        })),
       }
     : undefined;
+
+  const pendingList = (pendingReservations ?? []).map((r) => ({
+    id: r.id,
+    code: r.code,
+    customerName: r.customer_name,
+    productName: productNameById.get(r.product_id) ?? "",
+  }));
 
   return (
     <div>
@@ -131,6 +173,32 @@ export default async function ReservationsPage({
         <h1 className="text-2xl font-bold">예약관리</h1>
         <ManualReservationButton products={allProducts ?? []} />
       </div>
+
+      {pendingList.length > 0 ? (
+        <div className="border-border bg-surface mb-6 rounded-xl border p-4">
+          <h2 className="mb-2 text-sm font-bold">
+            확정 대기 중인 신청 ({pendingList.length})
+          </h2>
+          <p className="text-muted mb-3 text-xs">
+            손님이 낸 희망 시간 중 하나를 골라 확정해야 하는 신청들이에요.
+            아직 날짜가 정해지지 않아 달력에는 표시되지 않아요.
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {pendingList.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/admin/reservations?month=${month}&id=${p.id}`}
+                  className={`border-border hover:bg-surface-subtle rounded-lg border px-3 py-1.5 text-sm ${
+                    selectedId === p.id ? "bg-surface-subtle" : ""
+                  }`}
+                >
+                  {p.customerName} · {p.productName}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="border-border bg-surface rounded-xl border p-4">

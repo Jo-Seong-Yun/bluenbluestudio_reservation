@@ -55,17 +55,37 @@ export const birthDateField = z
   })
   .transform((value) => parseBirthDate8(value)!);
 
+const candidateSchema = z.object({
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "날짜 형식이 올바르지 않습니다."),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "시간 형식이 올바르지 않습니다."),
+});
+
+export type CandidateInput = z.infer<typeof candidateSchema>;
+
 /**
  * 예약 신청 폼 검증. 날짜·시간·개인정보 동의는 예약이라는 행위 자체에
  * 항상 딸린 것이라 문항편집 대상이 아니고, 여기 고정으로 남는다. 이름
  * 이하 문항들은 lib/booking/custom-fields.ts의 extractReservationFormData가
  * 상품별 custom_fields 목록을 보고 그때그때 검증한다.
+ *
+ * 손님이 시간 하나가 아니라 최대 3개까지 후보(1지망~3지망)를 낼 수
+ * 있다 — 관리자가 그중 하나를 골라 확정한다. 후보는 1개 이상 3개
+ * 이하이고, 같은 (날짜,시간) 조합을 중복으로 낼 수 없다(의미가 없어서).
  */
 export const reservationSchema = z.object({
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "날짜 형식이 올바르지 않습니다."),
-  time: z.string().regex(/^\d{2}:\d{2}$/, "시간 형식이 올바르지 않습니다."),
+  candidates: z
+    .array(candidateSchema)
+    .min(1, "최소 1개 이상의 희망 시간을 골라주세요.")
+    .max(3, "희망 시간은 최대 3개까지 고를 수 있어요.")
+    .refine(
+      (list) => {
+        const keys = list.map((c) => `${c.date}T${c.time}`);
+        return new Set(keys).size === keys.length;
+      },
+      { message: "같은 시간을 두 번 이상 고를 수 없어요." },
+    ),
   agreePrivacy: z.literal("on", {
     error: "개인정보 수집·이용에 동의해주세요.",
   }),

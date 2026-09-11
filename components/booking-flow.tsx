@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loadSlotsForDate } from "@/lib/booking/actions";
 import { useReportPending } from "@/components/pending-overlay";
+import { Button } from "@/components/ui";
 import {
   addMonths,
   monthGridDates,
@@ -12,14 +14,24 @@ import {
 } from "@/lib/time";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const MAX_CANDIDATES = 3;
+
+type Candidate = { date: DateString; time: string };
+
+/** "9월 12일(토) 10:00" 형태로 후보 하나를 보여준다. */
+function formatCandidate({ date, time }: Candidate): string {
+  const [, month, day] = date.split("-").map(Number);
+  const weekday = WEEKDAY_LABELS[weekdayOf(date)];
+  return `${month}월 ${day}일(${weekday}) ${time}`;
+}
 
 /**
- * 달력 → 시간 선택. 날짜를 고르면 그 아래로 시간 칸이 펼쳐진다.
+ * 달력 → 시간 선택을 최대 3번(1지망~3지망) 반복해 희망 시간 후보를
+ * 모은다. 후보는 확정 전까지 어떤 시간도 잠그지 않는 정책이라(다른
+ * 손님도 같은 시간을 후보로 낼 수 있다), 여기서는 그냥 목록에 담기만
+ * 하고 실제 서버 확인은 신청서 페이지(apply)와 제출 시점에 한다.
  *
- * 시간까지 고르면(칸을 클릭하면) 곧바로 신청서 페이지
- * (`${basePath}/${date}/${time}`)로 이동한다 — 신청서 작성은 이 화면이
- * 아니라 별도 페이지의 몫이다. 그래서 이 컴포넌트는 달력과 시간
- * 그리드만 다루고, 화면 가운데 하나의 카드로 넉넉하게 자리 잡는다.
+ * 최소 1개만 골라도 신청할 수 있다 — 3개를 다 채우라고 강제하지 않는다.
  */
 export function BookingFlow({
   productId,
@@ -36,13 +48,17 @@ export function BookingFlow({
   minMonth: string;
   maxMonth: string;
 }) {
+  const router = useRouter();
   const availableSet = new Set(availableDates);
 
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedDate, setSelectedDate] = useState<DateString | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsPending, startSlotsTransition] = useTransition();
   useReportPending(slotsPending);
   const timeSectionRef = useRef<HTMLDivElement>(null);
+
+  const isFull = candidates.length >= MAX_CANDIDATES;
 
   function handleSelectDate(date: DateString) {
     setSelectedDate(date);
@@ -50,6 +66,29 @@ export function BookingFlow({
       const result = await loadSlotsForDate(productId, date);
       setSlots(result);
     });
+  }
+
+  function addCandidate(time: string) {
+    if (!selectedDate || isFull) return;
+    setCandidates((prev) => {
+      if (prev.some((c) => c.date === selectedDate && c.time === time)) {
+        return prev; // 이미 후보로 낸 시간
+      }
+      return [...prev, { date: selectedDate, time }];
+    });
+    setSelectedDate(null);
+    setSlots([]);
+  }
+
+  function removeCandidate(index: number) {
+    setCandidates((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function goToApply() {
+    const slotsParam = candidates
+      .map((c) => `${c.date}_${c.time.replace(":", "-")}`)
+      .join(",");
+    router.push(`${basePath}/apply?slots=${encodeURIComponent(slotsParam)}`);
   }
 
   // 시간 슬롯이 실제로 도착해 칸이 최종 높이까지 다 펼쳐진 뒤에
@@ -70,24 +109,68 @@ export function BookingFlow({
 
   return (
     <div className="mx-auto mt-8 w-full max-w-xl">
+      {/* 지금까지 고른 후보(1~3지망) 목록. 사장님이 이 중 하나를 골라
+          확정한다 — 손님도 순서가 그대로 우선순위라는 걸 알 수 있게
+          "n지망"을 붙여 보여준다. */}
       <div className="border-border bg-surface rounded-xl border p-5">
-        <h2 className="mb-4 font-bold">날짜 선택</h2>
-        <CalendarGrid
-          month={month}
-          availableDates={availableSet}
-          selectedDate={selectedDate}
-          onSelectDate={handleSelectDate}
-          basePath={basePath}
-          minMonth={minMonth}
-          maxMonth={maxMonth}
-        />
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-bold">희망 시간 고르기</h2>
+          <span className="text-muted text-xs">
+            {candidates.length}/{MAX_CANDIDATES}개 선택
+          </span>
+        </div>
+        <p className="text-muted mb-3 text-xs">
+          원하시는 시간을 최대 {MAX_CANDIDATES}개까지 골라주시면, 그중
+          하나로 예약을 확정해드려요. 1개만 골라도 신청할 수 있어요.
+        </p>
+
+        {candidates.length > 0 ? (
+          <ul className="mb-4 space-y-1.5">
+            {candidates.map((c, i) => (
+              <li
+                key={`${c.date}-${c.time}`}
+                className="border-border bg-surface-subtle flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
+              >
+                <span>
+                  <span className="text-muted mr-1.5">{i + 1}지망</span>
+                  {formatCandidate(c)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeCandidate(i)}
+                  aria-label={`${i + 1}지망 삭제`}
+                  className="text-muted hover:text-foreground px-1"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {isFull ? (
+          <p className="text-muted mb-3 text-xs">
+            {MAX_CANDIDATES}개를 다 고르셨어요. 다른 시간으로 바꾸려면 위에서
+            지워주세요.
+          </p>
+        ) : (
+          <CalendarGrid
+            month={month}
+            availableDates={availableSet}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            basePath={basePath}
+            minMonth={minMonth}
+            maxMonth={maxMonth}
+          />
+        )}
       </div>
 
       {/* 날짜를 고르면 이 칸이 아래로 부드럽게 펼쳐진다. */}
       <div
         ref={timeSectionRef}
         className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-          selectedDate ? "mt-6 grid-rows-[1fr]" : "grid-rows-[0fr]"
+          selectedDate && !isFull ? "mt-6 grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
         <div className="overflow-hidden">
@@ -101,19 +184,40 @@ export function BookingFlow({
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {slots.map((time) => (
-                  <Link
-                    key={time}
-                    href={`${basePath}/${selectedDate}/${time.replace(":", "-")}`}
-                    className="border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground rounded-lg border py-2 text-center text-sm transition-colors"
-                  >
-                    {time}
-                  </Link>
-                ))}
+                {slots.map((time) => {
+                  const alreadyPicked = candidates.some(
+                    (c) => c.date === selectedDate && c.time === time,
+                  );
+                  return (
+                    <button
+                      key={time}
+                      type="button"
+                      disabled={alreadyPicked}
+                      onClick={() => addCandidate(time)}
+                      className="border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground disabled:hover:border-border disabled:hover:bg-surface disabled:text-muted rounded-lg border py-2 text-center text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {time}
+                      {alreadyPicked ? " (선택됨)" : ""}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <Button
+          type="button"
+          disabled={candidates.length === 0}
+          onClick={goToApply}
+          className="w-full"
+        >
+          {candidates.length === 0
+            ? "희망 시간을 먼저 골라주세요"
+            : `이 ${candidates.length}개 시간으로 신청하기`}
+        </Button>
       </div>
     </div>
   );

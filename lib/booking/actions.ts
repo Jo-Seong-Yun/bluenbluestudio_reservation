@@ -10,7 +10,6 @@ import {
   lookupSchema,
   phoneLookupSchema,
 } from "@/lib/validation/reservation";
-import { toTstzRange } from "@/lib/availability/range";
 import {
   notifyAdminNewRequest,
   notifyCustomerCancelled,
@@ -47,19 +46,25 @@ export type ReservationActionState =
   | {
       status: "success";
       code: string;
-      dateLabel: string;
-      timeLabel: string;
+      /** 손님이 낸 희망 시간(1~3개), 접수 순서 그대로(1지망부터). */
+      candidates: { dateLabel: string; timeLabel: string }[];
     };
 
 /**
  * 예약 신청.
  *
- * 손님이 고른 시간을 서버가 다시 계산해서 확인한다 — 화면에 떠 있던
- * 목록은 몇 초 전 스냅샷이라 그사이 다른 사람이 채웠을 수 있고, 폼
- * 데이터는 브라우저에서 오는 값이라 조작될 수도 있다. 마지막 방어선은
- * reservations 테이블의 EXCLUDE 제약이지만, 그 앞에서 "운영시간 안이고
- * 아직 리드타임 안에 안 걸리는 시간인가"까지 다시 확인해야 애초에
- * 규칙에 안 맞는 시간이 걸러진다.
+ * 손님이 최대 3개까지 낸 희망 시간(1~3지망) 각각을 서버가 다시 계산해서
+ * 확인한다 — 화면에 떠 있던 목록은 몇 초 전 스냅샷이라 그사이 다른
+ * 사람이 채웠을 수 있고, 폼 데이터는 브라우저에서 오는 값이라 조작될
+ * 수도 있다.
+ *
+ * 이전 버전과 달리 접수(requested) 자체는 어떤 시간도 점유하지 않는다
+ * — 후보는 그냥 선호일 뿐이고, 관리자가 그중 하나를 골라 확정할 때만
+ * 그 시간이 실제로 점유된다(EXCLUDE 제약은 confirmed 상태에서만 걸림).
+ * 그래서 여기서는 "그 시간이 운영시간·리드타임 안이고 이미 확정된
+ * 다른 예약과 안 겹치는가"(loadAvailableSlots)만 확인하면 되고, 접수
+ * 시점의 동시 접수 충돌(23P01)은 나지 않는다 — 후보끼리는 겹쳐도 되는
+ * 정책이라서다.
  */
 export async function createReservation(
   productId: string,
@@ -71,9 +76,15 @@ export async function createReservation(
   _prev: ReservationActionState,
   formData: FormData,
 ): Promise<ReservationActionState> {
+  const rawDates = formData.getAll("candidateDate");
+  const rawTimes = formData.getAll("candidateTime");
+  const candidates = rawDates.map((date, i) => ({
+    date,
+    time: rawTimes[i] ?? "",
+  }));
+
   const parsed = reservationSchema.safeParse({
-    date: formData.get("date"),
-    time: formData.get("time"),
+    candidates,
     agreePrivacy: formData.get("agreePrivacy"),
   });
 
@@ -93,22 +104,29 @@ export async function createReservation(
   }
   const { special, answers: customAnswers } = extracted;
 
-  // 다시 계산해서, 지금도 정말 예약 가능한 시간인지 확인한다.
-  const slots = await loadAvailableSlots({ date: input.date, productId });
-  const stillAvailable = slots.some((slot) => slot.time === input.time);
-  if (!stillAvailable) {
+  // 후보마다 다시 계산해서, 지금도 정말 예약 가능한 시간인지 확인한다.
+  // 날짜가 다를 수 있어 후보별로 loadAvailableSlots를 따로 부른다.
+  const slotsByDate = await Promise.all(
+    input.candidates.map((c) => loadAvailableSlots({ date: c.date, productId })),
+  );
+  const invalidIndex = input.candidates.findIndex(
+    (c, i) => !slotsByDate[i].some((slot) => slot.time === c.time),
+  );
+  if (invalidIndex !== -1) {
     return {
       status: "error",
       error:
-        "이 시간은 예약할 수 없게 됐어요. 방금 다른 분이 예약했거나, " +
-        "예약 가능 시간이 아니에요. 뒤로 가서 다시 골라주세요.",
+        `${invalidIndex + 1}번째로 고르신 시간은 예약할 수 없게 됐어요. ` +
+        "이미 확정됐거나 예약 가능 시간이 아니에요. 뒤로 가서 다시 골라주세요.",
     };
   }
 
-  const shootStart = kstToInstant(input.date, input.time);
-  const shootEnd = new Date(shootStart.getTime() + durationMin * 60_000);
-  const occupiesEnd = new Date(shootEnd.getTime() + bufferAfterMin * 60_000);
-  const period = toTstzRange({ start: shootStart, end: occupiesEnd });
+  const candidateTimes = input.candidates.map((c) => {
+    const shootStart = kstToInstant(c.date, c.time);
+    const shootEnd = new Date(shootStart.getTime() + durationMin * 60_000);
+    const occupiesEnd = new Date(shootEnd.getTime() + bufferAfterMin * 60_000);
+    return { date: c.date, time: c.time, shootStart, occupiesEnd };
+  });
 
   const supabase = await createClient();
 
@@ -116,22 +134,20 @@ export async function createReservation(
   for (let attempt = 0; attempt < 3; attempt++) {
     const code = generateReservationCode();
 
-    const { data, error } = await supabase
-      .from("reservations")
-      .insert({
-        code,
-        product_id: productId,
-        period,
-        shoot_start: shootStart.toISOString(),
-        shoot_end: shootEnd.toISOString(),
-        customer_name: special.customerName,
-        customer_phone: special.customerPhone,
-        customer_email: special.customerEmail,
-        gender: special.gender,
-        birth_date: special.birthDate,
-      })
-      .select("id")
-      .single();
+    const { data, error } = await supabase.rpc(
+      "create_reservation_with_candidates",
+      {
+        p_code: code,
+        p_product_id: productId,
+        p_customer_name: special.customerName,
+        p_customer_phone: special.customerPhone,
+        p_customer_email: special.customerEmail,
+        p_gender: special.gender,
+        p_birth_date: special.birthDate,
+        p_candidate_starts: candidateTimes.map((c) => c.shootStart.toISOString()),
+        p_candidate_ends: candidateTimes.map((c) => c.occupiesEnd.toISOString()),
+      },
+    );
 
     if (!error) {
       const reservationId = data?.id ?? "";
@@ -151,8 +167,8 @@ export async function createReservation(
         customerPhone: special.customerPhone,
         customerEmail: special.customerEmail,
         productName,
-        shootStart,
         code,
+        candidateTimes: candidateTimes.map((c) => c.shootStart),
       };
 
       const { data: settingsRow } = await supabase
@@ -184,21 +200,14 @@ export async function createReservation(
       return {
         status: "success",
         code,
-        dateLabel: input.date,
-        timeLabel: input.time,
+        candidates: input.candidates.map((c) => ({
+          dateLabel: c.date,
+          timeLabel: c.time,
+        })),
       };
     }
 
     if (error.code === "23505") continue; // 예약번호 충돌. 다시 시도.
-
-    if (error.code === "23P01") {
-      // EXCLUDE 제약. loadAvailableSlots 재확인 이후 그사이에 다른 손님이
-      // 정확히 같은 시간을 채간, 진짜 동시 접수 충돌이다.
-      return {
-        status: "error",
-        error: "방금 다른 분이 같은 시간에 예약했어요. 다시 골라주세요.",
-      };
-    }
 
     return { status: "error", error: `예약에 실패했습니다: ${error.message}` };
   }
@@ -217,7 +226,8 @@ export type LookupState =
       reservation: {
         code: string;
         status: string;
-        shootStart: string;
+        /** 아직 확정 전(후보만 낸 상태)이면 null. */
+        shootStart: string | null;
         customerName: string;
       };
       canCancel: boolean;
@@ -310,7 +320,7 @@ export async function cancelReservation(
         customerPhone: reservation.customer_phone,
         customerEmail: reservation.customer_email,
         productName,
-        shootStart: new Date(reservation.shoot_start),
+        shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
         code: reservation.code,
       }),
     );
@@ -331,8 +341,9 @@ export async function cancelReservation(
 export type PhoneReservation = {
   code: string;
   status: string;
-  shootStart: string;
-  shootEnd: string;
+  /** 아직 확정 전(후보만 낸 상태)이면 둘 다 null. */
+  shootStart: string | null;
+  shootEnd: string | null;
   customerName: string;
   productName: string;
 };

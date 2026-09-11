@@ -112,14 +112,19 @@ export default async function SchedulePage({
     reason: r.reason,
     ...parseTstzRange(r.period),
   }));
-  const reservations = (reservationRows ?? []).map((r) => ({
-    id: r.id,
-    name: r.customer_name,
-    tagColor: r.product_id
-      ? (tagColorByProductId.get(r.product_id) ?? null)
-      : null,
-    ...parseTstzRange(r.period),
-  }));
+  // period가 null인 행(1~3지망 후보만 낸 채 아직 확정 전인 예약)은
+  // 위 쿼리의 .overlaps("period", range)가 이미 걸러내지만, 타입
+  // 시스템은 그걸 모르니 한 번 더 좁힌다.
+  const reservations = (reservationRows ?? [])
+    .filter((r): r is typeof r & { period: string } => r.period !== null)
+    .map((r) => ({
+      id: r.id,
+      name: r.customer_name,
+      tagColor: r.product_id
+        ? (tagColorByProductId.get(r.product_id) ?? null)
+        : null,
+      ...parseTstzRange(r.period),
+    }));
 
   // 이번 주에 표시할 시간 범위. 그 주에 실제로 열려있는 시간이 하나도
   // 없으면(전부 휴무) 기본값으로 09~21시를 보여준다 — 빈 화면보다는

@@ -17,8 +17,9 @@ import {
 const initialState: ReservationActionState = { status: "idle" };
 
 /**
- * 신청서 작성 페이지 본문. 날짜·시간은 이미 정해진 채로 이 페이지에
- * 들어오므로(URL에 박혀 있다), 여기서는 문항들만 받는다.
+ * 신청서 작성 페이지 본문. 손님이 고른 희망 시간(1~3개, 1지망부터)이
+ * 이미 정해진 채로 이 페이지에 들어오므로(쿼리스트링에 담겨 있다),
+ * 여기서는 문항들만 받는다.
  *
  * 예전엔 이름·연락처·이메일·성별·생년월일·인원·요청사항이 이 컴포넌트에
  * 하드코딩돼 항상 나갔는데, 이제는 그런 "기본 문항" 없이 상품별
@@ -32,9 +33,7 @@ export function ReservationForm({
   productName,
   durationMin,
   bufferAfterMin,
-  date,
-  time,
-  dateLabel,
+  candidates,
   backHref,
   bankAccount,
   notice,
@@ -44,9 +43,8 @@ export function ReservationForm({
   productName: string;
   durationMin: number;
   bufferAfterMin: number;
-  date: string;
-  time: string;
-  dateLabel: string;
+  /** 1~3개, 1지망부터 순서대로. */
+  candidates: { date: string; time: string }[];
   backHref: string;
   bankAccount: string | null;
   notice: string | null;
@@ -73,7 +71,7 @@ export function ReservationForm({
         <p className="mt-3 text-2xl font-bold tracking-wide">{state.code}</p>
         <p className="text-muted mt-1 text-sm">
           예약 내역은 입력하신 연락처로 조회할 수 있으며, 아래 계좌로 예약금을
-          입금하시면 예약이 최종 확정됩니다.
+          입금하시면 신청하신 희망 시간 중 하나로 예약이 확정됩니다.
         </p>
 
         <dl className="mt-4 space-y-1 text-sm">
@@ -82,9 +80,15 @@ export function ReservationForm({
             <dd>{productName}</dd>
           </div>
           <div className="flex gap-2">
-            <dt className="text-muted w-16 shrink-0">일시</dt>
+            <dt className="text-muted w-16 shrink-0">희망시간</dt>
             <dd>
-              {state.dateLabel} {state.timeLabel}
+              <ul className="space-y-0.5">
+                {state.candidates.map((c, i) => (
+                  <li key={i}>
+                    {i + 1}지망 · {c.dateLabel} {c.timeLabel}
+                  </li>
+                ))}
+              </ul>
             </dd>
           </div>
         </dl>
@@ -121,13 +125,22 @@ export function ReservationForm({
       </Link>
 
       <h1 className="mt-2 text-xl font-bold">신청 내용 작성</h1>
-      <p className="text-muted mt-1 text-sm">
-        {productName} · {dateLabel} {time}
-      </p>
+      <p className="text-muted mt-1 text-sm">{productName}</p>
+      <ul className="text-muted mt-1 space-y-0.5 text-sm">
+        {candidates.map((c, i) => (
+          <li key={i}>
+            {i + 1}지망 · {c.date} {c.time}
+          </li>
+        ))}
+      </ul>
 
       <form action={action} className="mt-6 space-y-4">
-        <input type="hidden" name="date" value={date} />
-        <input type="hidden" name="time" value={time} />
+        {candidates.map((c, i) => (
+          <div key={i}>
+            <input type="hidden" name="candidateDate" value={c.date} />
+            <input type="hidden" name="candidateTime" value={c.time} />
+          </div>
+        ))}
 
         {customFields.map((field) => (
           <ReservationFieldInput key={field.id} field={field} />

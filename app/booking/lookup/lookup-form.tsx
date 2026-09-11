@@ -119,7 +119,14 @@ export function LookupForm() {
               .filter((r) =>
                 (group.statuses as readonly string[]).includes(r.status),
               )
-              .sort((a, b) => a.shootStart.localeCompare(b.shootStart));
+              // 아직 확정 전(후보만 낸 상태)이라 shootStart가 없는 건
+              // 맨 뒤로 보낸다 — 정해진 시간이 없어 다른 것과 비교할
+              // 기준이 없다.
+              .sort((a, b) =>
+                (a.shootStart ?? "9999-99-99").localeCompare(
+                  b.shootStart ?? "9999-99-99",
+                ),
+              );
             return (
               <div key={group.key}>
                 <h2 className="text-muted mb-2 text-xs font-bold tracking-wide uppercase">
@@ -240,7 +247,9 @@ function ReservationCard({
         <div>
           <p className="font-medium">{reservation.productName}</p>
           <p className="text-muted mt-0.5 text-sm">
-            {formatDateTime(reservation.shootStart)}
+            {reservation.shootStart
+              ? formatDateTime(reservation.shootStart)
+              : "확정 대기 중 (희망 시간 중 선택 예정)"}
           </p>
         </div>
         <span className="text-muted shrink-0 text-xs">
