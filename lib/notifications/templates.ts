@@ -19,6 +19,18 @@ function formatCandidateList(candidateTimes: Date[]): string {
     .join(" / ");
 }
 
+/**
+ * 이메일 본문의 {{후보목록}} 변수용. SMS는 한 줄에 다 욱여넣어야 해서
+ * " / "로 이어 붙이지만, 이메일은 줄 수 제한이 없으니 각 지망을 한
+ * 줄씩 보여준다.
+ */
+function formatCandidateListMultiline(candidateTimes: Date[]): string {
+  const labels = ["1지망", "2지망", "3지망"];
+  return candidateTimes
+    .map((time, i) => `${labels[i]}: ${formatShootTime(time)}`)
+    .join("\n");
+}
+
 type ReservationInfo = {
   productName: string;
   shootStart: Date;
@@ -211,5 +223,52 @@ export function adminNewRequestKakaoVariables(
     "#{예약번호}": info.code,
     "#{손님이름}": info.customerName,
     "#{손님연락처}": info.customerPhone,
+  };
+}
+
+/**
+ * 관리자가 /admin/settings에서 직접 고칠 수 있는 이메일 문구용 변수맵.
+ * {{변수명}} 자리표시자(lib/notifications/email-templates-shared.ts의
+ * renderEmailTemplate)를 채우는 데 쓴다 — 카카오 변수(#{...})와 이름
+ * 형식이 겹치지 않게 다른 접두사를 쓴다.
+ */
+export function customerRequestedEmailVariables(
+  info: ReservationRequestedEmailInfo & { customerName: string },
+): Record<string, string> {
+  return {
+    이름: info.customerName,
+    상품명: info.productName,
+    후보목록: formatCandidateListMultiline(info.candidateTimes),
+    예약번호: info.code,
+    계좌: info.bankAccount ?? "",
+    공지: info.notice ?? "",
+  };
+}
+
+/** 확정/취소/리마인드 셋 다 "손님 이름 + 상품 + 시간 하나 + 예약번호" 형태라 공용으로 쓴다. */
+export function reservationEmailVariables(info: {
+  customerName: string;
+  productName: string;
+  /** 확정 전(후보만 낸 상태)에 취소됐으면 null. */
+  shootStart: Date | null;
+  code: string;
+}): Record<string, string> {
+  return {
+    이름: info.customerName,
+    상품명: info.productName,
+    일시: info.shootStart ? formatShootTime(info.shootStart) : "",
+    예약번호: info.code,
+  };
+}
+
+export function adminNewRequestEmailVariables(
+  info: AdminNewRequestInfo,
+): Record<string, string> {
+  return {
+    이름: info.customerName,
+    연락처: info.customerPhone,
+    상품명: info.productName,
+    후보목록: formatCandidateListMultiline(info.candidateTimes),
+    예약번호: info.code,
   };
 }

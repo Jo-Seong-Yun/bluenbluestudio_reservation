@@ -3,6 +3,7 @@ import { sendSms } from "./sms";
 import { sendEmail } from "./email";
 import { sendKakaoAlimtalk } from "./kakao";
 import { logNotification } from "./log";
+import { loadEmailTemplate, renderEmailTemplate } from "./email-templates";
 import {
   smsNotificationsEnabled,
   solapiKakaoPfId,
@@ -10,6 +11,7 @@ import {
   type KakaoNotificationPurpose,
 } from "./env";
 import {
+  adminNewRequestEmailVariables,
   adminNewRequestKakaoVariables,
   adminNewRequestSubject,
   adminNewRequestText,
@@ -21,11 +23,13 @@ import {
   customerConfirmedText,
   customerReminderKakaoVariables,
   customerRequestedEmailText,
+  customerRequestedEmailVariables,
   customerRequestedKakaoVariables,
   customerRequestedSubject,
   customerRequestedText,
   customerReminderSubject,
   customerReminderText,
+  reservationEmailVariables,
 } from "./templates";
 
 /**
@@ -109,19 +113,31 @@ async function tryKakao(params: {
   return true;
 }
 
+/**
+ * 이메일 발송. /admin/settings에서 관리자가 이 목적(purpose)의 문구를
+ * 직접 고쳐뒀으면 그 subject/body에 변수를 채워 넣어 쓰고, 아직 안
+ * 고쳤으면(DB에 행이 없으면) 코드에 남아있는 기본 문구로 조용히
+ * 되돌아간다 — 관리자 화면을 한 번도 안 열어본 사장님도 발송 자체는
+ * 그대로 되어야 한다.
+ */
 async function tryEmail(params: {
-  purpose: string;
+  purpose: KakaoNotificationPurpose;
   to: string;
-  subject: string;
-  text: string;
+  variables: Record<string, string>;
+  fallbackSubject: string;
+  fallbackText: string;
   reservationId?: string | null;
 }): Promise<void> {
   try {
-    await sendEmail({
-      to: params.to,
-      subject: params.subject,
-      text: params.text,
-    });
+    const custom = await loadEmailTemplate(params.purpose);
+    const subject = custom
+      ? renderEmailTemplate(custom.subject, params.variables)
+      : params.fallbackSubject;
+    const text = custom
+      ? renderEmailTemplate(custom.body, params.variables)
+      : params.fallbackText;
+
+    await sendEmail({ to: params.to, subject, text });
     await logNotification({
       channel: "email",
       purpose: params.purpose,
@@ -160,8 +176,9 @@ type ReservationNotice = CustomerContact & {
  * 비용이 들어 `SOLAPI_SMS_ENABLED=false`로 꺼둘 수 있고, 꺼져 있으면
  * 카카오도 안 됐을 때 손님 연락처로는 아무것도 안 나간다(이메일은 이
  * 스위치와 무관하게 항상 그대로 나간다). 이메일은 손님이 입력했을 때만
- * 추가로 보낸다. 이메일 본문은 글자 수 제한이 없으니 emailText로 따로
- * 줄 수 있고, 안 주면 SMS 문구를 그대로 쓴다.
+ * 추가로 보낸다. emailVariables는 관리자가 /admin/settings에서 고친
+ * {{변수}} 문구를 채우는 데 쓰고, DB에 커스텀 문구가 없을 때는
+ * emailText(없으면 smsText)로 되돌아간다.
  */
 async function notifyCustomer(params: {
   purpose: KakaoNotificationPurpose;
@@ -170,6 +187,7 @@ async function notifyCustomer(params: {
   kakaoVariables: Record<string, string>;
   emailSubject: string;
   emailText?: string;
+  emailVariables: Record<string, string>;
 }): Promise<void> {
   const kakaoAttempted = await tryKakao({
     purpose: params.purpose,
@@ -197,8 +215,9 @@ async function notifyCustomer(params: {
       tryEmail({
         purpose: params.purpose,
         to: params.info.customerEmail,
-        subject: params.emailSubject,
-        text: params.emailText ?? params.smsText,
+        variables: params.emailVariables,
+        fallbackSubject: params.emailSubject,
+        fallbackText: params.emailText ?? params.smsText,
         reservationId: params.info.reservationId,
       }),
     );
@@ -210,6 +229,7 @@ async function notifyCustomer(params: {
 /** 손님: 예약 접수. 확정 전이라 시간 하나가 아니라 후보(1~3개)를 안내한다. */
 export async function notifyCustomerRequested(
   info: CustomerContact & {
+    customerName: string;
     productName: string;
     candidateTimes: Date[];
     code: string;
@@ -224,12 +244,13 @@ export async function notifyCustomerRequested(
     kakaoVariables: customerRequestedKakaoVariables(info),
     emailSubject: customerRequestedSubject(),
     emailText: customerRequestedEmailText(info),
+    emailVariables: customerRequestedEmailVariables(info),
   });
 }
 
 /** 손님: 예약 확정. */
 export async function notifyCustomerConfirmed(
-  info: ReservationNotice,
+  info: ReservationNotice & { customerName: string },
 ): Promise<void> {
   await notifyCustomer({
     purpose: "customer_confirmed",
@@ -237,6 +258,7 @@ export async function notifyCustomerConfirmed(
     smsText: customerConfirmedText(info),
     kakaoVariables: customerConfirmedKakaoVariables(info),
     emailSubject: customerConfirmedSubject(),
+    emailVariables: reservationEmailVariables(info),
   });
 }
 
@@ -246,6 +268,7 @@ export async function notifyCustomerConfirmed(
  */
 export async function notifyCustomerCancelled(
   info: CustomerContact & {
+    customerName: string;
     productName: string;
     shootStart: Date | null;
     code: string;
@@ -257,12 +280,13 @@ export async function notifyCustomerCancelled(
     smsText: customerCancelledText(info),
     kakaoVariables: customerCancelledKakaoVariables(info),
     emailSubject: customerCancelledSubject(),
+    emailVariables: reservationEmailVariables(info),
   });
 }
 
 /** 손님: 촬영 전날 리마인드 (Vercel Cron에서 호출). */
 export async function notifyCustomerReminder(
-  info: ReservationNotice,
+  info: ReservationNotice & { customerName: string },
 ): Promise<void> {
   await notifyCustomer({
     purpose: "customer_reminder",
@@ -270,6 +294,7 @@ export async function notifyCustomerReminder(
     smsText: customerReminderText(info),
     kakaoVariables: customerReminderKakaoVariables(info),
     emailSubject: customerReminderSubject(),
+    emailVariables: reservationEmailVariables(info),
   });
 }
 
@@ -317,8 +342,9 @@ export async function notifyAdminNewRequest(info: {
       tryEmail({
         purpose: "admin_new_request",
         to: info.adminEmail,
-        subject: adminNewRequestSubject(),
-        text: adminNewRequestText(info),
+        variables: adminNewRequestEmailVariables(info),
+        fallbackSubject: adminNewRequestSubject(),
+        fallbackText: adminNewRequestText(info),
         reservationId: info.reservationId,
       }),
     );

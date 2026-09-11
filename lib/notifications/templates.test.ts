@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminNewRequestEmailVariables,
   adminNewRequestKakaoVariables,
   adminNewRequestSubject,
   adminNewRequestText,
@@ -13,9 +14,11 @@ import {
   customerReminderSubject,
   customerReminderText,
   customerRequestedEmailText,
+  customerRequestedEmailVariables,
   customerRequestedKakaoVariables,
   customerRequestedSubject,
   customerRequestedText,
+  reservationEmailVariables,
 } from "./templates";
 
 // 2026-09-10T05:00:00Z → KST 2026-09-10(목) 14:00
@@ -161,5 +164,67 @@ describe("알림 문구", () => {
     expect(variables["#{손님연락처}"]).toBe("01012345678");
     expect(variables["#{상품명}"]).toBe("프로필 촬영");
     expect(variables["#{1지망}"]).toBe("9월 10일(목) 14:00");
+  });
+
+  it("설정 화면에서 편집하는 접수 이메일 변수({{}})에 이름·후보목록·계좌·공지가 들어간다", () => {
+    const variables = customerRequestedEmailVariables({
+      ...REQUEST_INFO,
+      customerName: "김철수",
+      bankAccount: "카카오뱅크 3333-01-1234567 홍길동",
+      notice: "촬영 10분 전까지 도착해주세요.",
+    });
+    expect(variables["이름"]).toBe("김철수");
+    expect(variables["상품명"]).toBe("프로필 촬영");
+    expect(variables["후보목록"]).toBe(
+      "1지망: 9월 10일(목) 14:00\n2지망: 9월 11일(금) 15:00",
+    );
+    expect(variables["예약번호"]).toBe("AB12CD34");
+    expect(variables["계좌"]).toBe("카카오뱅크 3333-01-1234567 홍길동");
+    expect(variables["공지"]).toBe("촬영 10분 전까지 도착해주세요.");
+  });
+
+  it("접수 이메일 변수는 계좌·공지가 없으면 빈 문자열이다", () => {
+    const variables = customerRequestedEmailVariables({
+      ...REQUEST_INFO,
+      customerName: "김철수",
+    });
+    expect(variables["계좌"]).toBe("");
+    expect(variables["공지"]).toBe("");
+  });
+
+  it("확정/취소/리마인드 이메일 변수에 이름·상품명·일시·예약번호가 들어간다", () => {
+    const variables = reservationEmailVariables({
+      customerName: "김철수",
+      productName: "프로필 촬영",
+      shootStart: SHOOT_START,
+      code: "AB12CD34",
+    });
+    expect(variables["이름"]).toBe("김철수");
+    expect(variables["상품명"]).toBe("프로필 촬영");
+    expect(variables["일시"]).toBe("9월 10일(목) 14:00");
+    expect(variables["예약번호"]).toBe("AB12CD34");
+  });
+
+  it("확정 전 취소된 경우 이메일 변수의 일시는 빈 문자열이다", () => {
+    const variables = reservationEmailVariables({
+      customerName: "김철수",
+      productName: "프로필 촬영",
+      shootStart: null,
+      code: "AB12CD34",
+    });
+    expect(variables["일시"]).toBe("");
+  });
+
+  it("사장님용 이메일 변수에 이름·연락처·후보목록이 들어간다", () => {
+    const variables = adminNewRequestEmailVariables({
+      ...REQUEST_INFO,
+      customerName: "김철수",
+      customerPhone: "01012345678",
+    });
+    expect(variables["이름"]).toBe("김철수");
+    expect(variables["연락처"]).toBe("01012345678");
+    expect(variables["후보목록"]).toBe(
+      "1지망: 9월 10일(목) 14:00\n2지망: 9월 11일(금) 15:00",
+    );
   });
 });

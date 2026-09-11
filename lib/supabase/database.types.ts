@@ -307,6 +307,33 @@ export interface Database {
           },
         ];
       };
+      email_templates: {
+        Row: {
+          purpose:
+            | "customer_requested"
+            | "customer_confirmed"
+            | "customer_cancelled"
+            | "customer_reminder"
+            | "admin_new_request";
+          subject: string;
+          body: string;
+          updated_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["email_templates"]["Row"]
+        > & {
+          purpose:
+            | "customer_requested"
+            | "customer_confirmed"
+            | "customer_cancelled"
+            | "customer_reminder"
+            | "admin_new_request";
+          subject: string;
+          body: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["email_templates"]["Row"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

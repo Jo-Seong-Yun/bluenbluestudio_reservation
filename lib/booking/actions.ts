@@ -164,6 +164,7 @@ export async function createReservation(
 
       const reservationNotice = {
         reservationId,
+        customerName: special.customerName,
         customerPhone: special.customerPhone,
         customerEmail: special.customerEmail,
         productName,
@@ -192,7 +193,6 @@ export async function createReservation(
             ...reservationNotice,
             adminPhone: settingsRow?.admin_notify_phone ?? null,
             adminEmail: settingsRow?.admin_notify_email ?? null,
-            customerName: special.customerName,
           }),
         ]),
       );
@@ -317,6 +317,7 @@ export async function cancelReservation(
     after(() =>
       notifyCustomerCancelled({
         reservationId: reservation.id,
+        customerName: reservation.customer_name,
         customerPhone: reservation.customer_phone,
         customerEmail: reservation.customer_email,
         productName,
