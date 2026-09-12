@@ -225,10 +225,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       <Field
         label={field.label}
         required={field.required}
-        hint={descriptionHint(
-          field,
-          "예약 조회할 때 필요합니다. '-' 없이/있이 상관없습니다.",
-        )}
+        hint={descriptionHint(field)}
         labelClassName={FIELD_LABEL_CLASS}
         hintClassName={FIELD_HINT_CLASS}
       >
