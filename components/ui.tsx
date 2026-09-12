@@ -40,9 +40,14 @@ export function Field({
     </span>
   ) : null;
 
+  // 라벨→상세설명 간격은 라벨→입력칸(hintPosition="after") 간격의
+  // 절반(mb-1.5의 절반인 3px)으로 좁힌다 — 상세설명→입력칸 간격은
+  // 그대로 mb-1.5를 쓰는 hintNode 쪽에서 처리하므로 손대지 않는다.
+  const labelMarginClass = hintPosition === "before" ? "mb-[3px]" : "mb-1.5";
+
   return (
     <label className="block">
-      <span className={`mb-1.5 block ${labelClassName}`}>
+      <span className={`${labelMarginClass} block ${labelClassName}`}>
         {label}
         {required ? (
           <span className="ml-0.5 text-red-600 dark:text-red-400">*</span>
