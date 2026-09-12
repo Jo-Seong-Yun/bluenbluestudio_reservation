@@ -16,6 +16,7 @@ export function Field({
   children,
   labelClassName = "text-sm font-medium",
   hintClassName = "text-xs",
+  hintPosition = "after",
 }: {
   label: string;
   hint?: React.ReactNode;
@@ -25,7 +26,20 @@ export function Field({
   /** 라벨 글자 크기/굵기. 손님용 신청서(reservation-form.tsx)는 더 크게 쓴다. */
   labelClassName?: string;
   hintClassName?: string;
+  /**
+   * 상세설명(hint)을 입력칸 앞/뒤 어디에 둘지. 관리자 화면들은 입력칸
+   * 아래 보조 설명으로 쓰므로 기본값 "after"를 그대로 쓰고, 손님용
+   * 신청서(reservation-form.tsx)만 구글폼처럼 "라벨 → 상세설명 →
+   * 입력칸" 순서가 되도록 "before"를 넘긴다.
+   */
+  hintPosition?: "before" | "after";
 }) {
+  const hintNode = hint ? (
+    <span className={`text-muted block ${hintPosition === "before" ? "mb-1.5" : "mt-1"} ${hintClassName}`}>
+      {hint}
+    </span>
+  ) : null;
+
   return (
     <label className="block">
       <span className={`mb-1.5 block ${labelClassName}`}>
@@ -34,12 +48,9 @@ export function Field({
           <span className="ml-0.5 text-red-600 dark:text-red-400">*</span>
         ) : null}
       </span>
+      {hintPosition === "before" ? hintNode : null}
       {children}
-      {hint ? (
-        <span className={`text-muted mt-1 block ${hintClassName}`}>
-          {hint}
-        </span>
-      ) : null}
+      {hintPosition === "after" ? hintNode : null}
     </label>
   );
 }
