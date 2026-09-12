@@ -129,11 +129,13 @@ export function BookingFlow({
           못박아 두면(오른쪽 칸은 minmax(0,1fr)), 안의 글자가 아무리
           길어도 트랙 자체가 늘어나 옆 칸을 침범하는 일이 없다.
           그전에는(화면이 좁을 때) 기존처럼 아래로 쌓는다.
-          items-start를 써서 시간 칸이 달력 높이에 맞춰 억지로
-          늘어나지 않고 자기 내용(고른 날짜가 없으면 안내 한 줄뿐)
-          만큼만 차지하게 한다 — 신청 버튼은 그 칸 바로 아래, 칸의
-          "실제" 맨 아래에 그대로 붙는다(달력 바닥과는 무관하게). */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[36rem_minmax(0,1fr)] lg:items-start">
+          lg 이상에서는 items-stretch로 오른쪽 칸의 높이를 달력과
+          정확히 맞춘다 — 신청 버튼을 그 칸 안에서 absolute+세로
+          중앙(top-1/2)으로 박아두면, 칸 높이=달력 높이이므로 버튼은
+          곧 "달력의 세로 중앙"에 고정된다. 시간 칸은 그 안에서 원래
+          위치(맨 위)에 그대로 있고 내용이 몇 줄이든 버튼 위치엔
+          영향을 주지 않는다. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[36rem_minmax(0,1fr)] lg:items-stretch">
         <div className="border-border bg-surface min-w-0 w-full rounded-xl border p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold">희망 시간 고르기</h2>
@@ -198,7 +200,7 @@ export function BookingFlow({
           </ul>
         </div>
 
-        <div className="min-w-0 w-full">
+        <div className="relative min-w-0 w-full">
           <div
             ref={timeSectionRef}
             className="border-border bg-surface min-w-0 rounded-xl border p-5"
@@ -240,22 +242,26 @@ export function BookingFlow({
             )}
           </div>
 
-          {/* 신청 버튼은 달력이 아니라 시간 칸 쪽(오른쪽)에 딸려 있되,
-              시간 칸 박스 "안"에는 넣지 않는다 — 시간 칸은 이제 내용
-              만큼만 차지하므로(items-start), 버튼은 그 바로 아래,
-              칸의 실제 맨 아래에 그대로 붙는다. 높이는 기본 버튼
-              높이(실측 36px)의 1.5배인 54px(3.375rem)로 키워 신청
-              버튼이 눈에 더 잘 띄게 한다. */}
-          <Button
-            type="button"
-            disabled={!isFull}
-            onClick={goToApply}
-            className="mt-6 h-[3.375rem] w-full text-base"
-          >
-            {isFull
-              ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
-              : `희망 시간을 ${MAX_CANDIDATES}개 모두 선택해 주십시오`}
-          </Button>
+          {/* 신청 버튼을 달력의 세로 중앙에 고정한다 — lg 이상에서는
+              이 칸(오른쪽 컬럼)이 items-stretch로 달력과 높이가 같아지므로,
+              버튼을 이 칸 안에서 absolute + top-1/2로 세로 중앙에 두면
+              곧 달력 높이의 정중앙이 된다. 시간 칸(위 div)은 그대로 맨
+              위에 남아 있어, 시간 칸 내용이 몇 줄이든(슬롯이 없든 많든)
+              버튼 위치는 전혀 흔들리지 않는다. 좁은 화면(칸이 위아래로
+              쌓일 때)은 달력 높이 개념이 없으니 시간 칸 바로 아래에
+              평범하게 둔다. */}
+          <div className="mt-6 lg:absolute lg:inset-x-0 lg:top-1/2 lg:mt-0 lg:-translate-y-1/2">
+            <Button
+              type="button"
+              disabled={!isFull}
+              onClick={goToApply}
+              className="h-[3.375rem] w-full text-base"
+            >
+              {isFull
+                ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
+                : `희망 시간을 ${MAX_CANDIDATES}개 모두 선택해 주십시오`}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
