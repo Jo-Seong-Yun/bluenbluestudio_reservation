@@ -125,17 +125,18 @@ export function BookingFlow({
           시간을 고를 때마다, 또는 날짜를 바꿀 때마다 그 칸 높이가
           바뀌면서 화면 전체가 위아래로 움직였다. 옆에 두면 이 칸
           안에서만 내용이 바뀌고 달력·후보 목록은 그대로 있다.
-          달력 자체 크기는 원래 크기(lg:w-[36rem])를 그대로 유지하고,
-          옆에 시간 칸을 놓을 만큼 폭이 넉넉할 때만(lg 이상) 나란히
-          두며, 그전에는(화면이 좁을 때) 기존처럼 아래로 쌓는다.
+          flex 대신 grid를 쓴다 — 달력 칸을 36rem "고정 트랙"으로
+          못박아 두면(오른쪽 칸은 minmax(0,1fr)), 안의 글자가 아무리
+          길어도 트랙 자체가 늘어나 옆 칸을 침범하는 일이 없다.
+          그전에는(화면이 좁을 때) 기존처럼 아래로 쌓는다.
           lg 이상에서는 items-stretch로 오른쪽 칸의 전체 높이를 달력과
           맞추고, 그 안에서 신청 버튼은 항상 맨 아래에 고정한다(아래
           Button — 시간 칸은 flex-1로 남는 공간을 채우고 버튼은 그
           다음에 오므로, 슬롯이 몇 개든 버튼 위치는 달력 바닥과 나란히
           그대로 있다). 좁은 화면(위아래로 쌓일 때)은 오른쪽 칸이 그냥
           내용 높이만큼만 차지하면 되므로 items-stretch가 필요 없다. */}
-      <div className="flex flex-col flex-wrap gap-6 lg:flex-row lg:items-stretch">
-        <div className="border-border bg-surface min-w-0 w-full shrink-0 rounded-xl border p-5 lg:w-[36rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[36rem_minmax(0,1fr)] lg:items-stretch">
+        <div className="border-border bg-surface min-w-0 w-full rounded-xl border p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold">희망 시간 고르기</h2>
             <span className="text-muted text-xs">
@@ -199,7 +200,7 @@ export function BookingFlow({
           </ul>
         </div>
 
-        <div className="flex w-full min-w-0 flex-1 flex-col gap-6">
+        <div className="flex min-w-0 w-full flex-col gap-6">
           <div
             ref={timeSectionRef}
             className="border-border bg-surface min-w-0 flex-1 rounded-xl border p-5"

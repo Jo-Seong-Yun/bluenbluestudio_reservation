@@ -85,12 +85,15 @@ export default async function ProductDetailPage({
           나란히 두려면 꽤 넓은 폭이 필요해서, 상품 설명과 나란히
           두는 기준을 2xl(넓은 데스크톱)로 높여뒀다 — 그보다 좁으면
           예약 흐름에게 화면 전체 폭을 내줘야 달력이 찌그러지지 않는다.
-          flex-wrap을 같이 둬서, 혹시 2xl이어도 실제로 두 칸이 나란히
-          들어갈 만큼 폭이 넉넉하지 않은 경우(브라우저 확대, 좁은 창
-          등) 설명 글자가 달력 뒤로 잘리는 대신 그냥 아래 줄로
-          넘어가게 한다. */}
-      <div className="mt-6 flex flex-col flex-wrap gap-10 2xl:flex-row 2xl:items-start">
-        <div className="min-w-0 2xl:w-[28rem] 2xl:shrink-0">
+          flex 대신 grid를 쓴다 — 왼쪽 칸을 28rem "고정 트랙"으로 못박아
+          두면, 그 안의 글자가 아무리 길어도 트랙 자체가 늘어나는 일은
+          없다(flex의 width는 min-content가 크면 그보다 더 넓어질 수
+          있어 옆 칸(달력)을 침범할 수 있었다 — grid의 명시적 트랙
+          크기는 그런 식으로 밀리지 않는다). min-w-0은 각 칸 내부
+          콘텐츠가 트랙 폭 안에서 실제로 줄바꿈되도록 하는 안전장치로
+          그대로 둔다. */}
+      <div className="mt-6 grid grid-cols-1 gap-10 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
+        <div className="min-w-0">
           {product.cover_image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -113,7 +116,7 @@ export default async function ProductDetailPage({
           ) : null}
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <p className="text-muted text-xs">
             {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
           </p>
