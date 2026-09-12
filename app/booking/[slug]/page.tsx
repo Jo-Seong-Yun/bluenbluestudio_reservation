@@ -79,6 +79,19 @@ export default async function ProductDetailPage({
         ← 상품 목록
       </Link>
 
+      {/* 제목과 예약 가능 기간은 그리드 바깥, 맨 위 한 줄에 같이 둔다 —
+          왼쪽 칸(상품 설명 박스) 안에 제목을 넣으면 그 칸만 제목 높이만큼
+          아래로 밀려, 오른쪽의 달력·시간 선택 박스와 상단이 안 맞는다.
+          제목·기간 텍스트를 그리드보다 위에 두고 그리드 안에는 박스만
+          남겨야, 세 박스(설명/달력/시간 선택)가 각자의 칸 맨 위에서
+          시작해 상단이 그대로 맞는다. */}
+      <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-2xl font-bold">{product.name}</h1>
+        <p className="text-muted text-xs">
+          {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
+        </p>
+      </div>
+
       {/* 왼쪽엔 상품 설명, 오른쪽엔 달력·시간 선택. 좁은 화면에서는
           위아래로 쌓인다(설명을 먼저 읽고 예약 흐름으로 이어지도록).
           예약 흐름 쪽(BookingFlow)이 달력 + 그 옆 시간 선택 칸을
@@ -91,36 +104,34 @@ export default async function ProductDetailPage({
           있어 옆 칸(달력)을 침범할 수 있었다 — grid의 명시적 트랙
           크기는 그런 식으로 밀리지 않는다). min-w-0은 각 칸 내부
           콘텐츠가 트랙 폭 안에서 실제로 줄바꿈되도록 하는 안전장치로
-          그대로 둔다. */}
-      <div className="mt-6 grid grid-cols-1 gap-10 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
+          그대로 둔다. items-start라 어느 한쪽 박스가 더 높아져도 서로
+          늘어나지 않고, 각자 자기 칸 맨 위에 그대로 붙어 있는다. */}
+      <div className="mt-3 grid grid-cols-1 gap-10 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
         <div className="min-w-0">
           {product.cover_image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={publicImageUrl(product.cover_image)}
               alt=""
-              className="aspect-video w-full rounded-xl object-cover"
+              className="mb-4 aspect-video w-full rounded-xl object-cover"
             />
           ) : null}
 
-          <h1 className="mt-4 text-2xl font-bold">{product.name}</h1>
-          <p className="text-muted mt-1">
-            {product.duration_min}분 · {product.price.toLocaleString()}원
-            {product.max_people ? ` · 최대 ${product.max_people}명` : ""}
-          </p>
+          <div className="border-border bg-surface rounded-xl border p-5">
+            <p className="text-muted">
+              {product.price.toLocaleString()}원
+              {product.max_people ? ` · 최대 ${product.max_people}명` : ""}
+            </p>
 
-          {product.description ? (
-            <div className="mt-6">
-              <RichText>{product.description}</RichText>
-            </div>
-          ) : null}
+            {product.description ? (
+              <div className="mt-6">
+                <RichText>{product.description}</RichText>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="min-w-0">
-          <p className="text-muted text-xs">
-            {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
-          </p>
-
           <BookingFlow
             productId={product.id}
             month={month}

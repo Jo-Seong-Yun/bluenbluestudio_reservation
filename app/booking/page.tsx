@@ -10,7 +10,7 @@ export default async function BookingPage() {
   const supabase = await createClient();
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, slug, summary, price, duration_min, cover_image")
+    .select("id, name, slug, summary, price, cover_image")
     .eq("is_published", true)
     .order("sort_order")
     .order("created_at");
@@ -53,8 +53,7 @@ export default async function BookingPage() {
                     </p>
                   ) : null}
                   <p className="text-muted mt-1 text-sm">
-                    {product.duration_min}분 · {product.price.toLocaleString()}
-                    원
+                    {product.price.toLocaleString()}원
                   </p>
                 </div>
               </Link>
