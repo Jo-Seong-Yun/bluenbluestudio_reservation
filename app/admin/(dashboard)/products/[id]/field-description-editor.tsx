@@ -66,7 +66,13 @@ export function FieldDescriptionEditor({
 
   return (
     <div>
-      <div className="border-border bg-surface-subtle flex items-center gap-1 rounded-t-lg border p-1.5">
+      {/* 배경을 bg-surface-subtle(회색)로 두면 바로 위 "답변 종류
+          (바꿀 수 없습니다)" 잠금 표시 박스와 색이 똑같아져, 이 에디터
+          자체가 잠긴 것처럼 보였다 — 실제로는 항상 수정 가능하다.
+          border만 주고 배경은 입력칸과 같은 bg-surface로 맞춰
+          "잠긴 박스"와 뚜렷이 다르게, 명백히 조작 가능한 툴바로 보이게
+          한다. */}
+      <div className="border-border bg-surface flex items-center gap-1 rounded-t-lg border p-1.5">
         <ToolbarButton
           active={editorState?.bold}
           title="굵게"
@@ -105,7 +111,9 @@ function ToolbarButton({
       onClick={onClick}
       title={title}
       className={`flex h-6 w-6 items-center justify-center rounded ${
-        active ? "bg-brand text-brand-foreground" : "text-muted hover:bg-surface"
+        active
+          ? "bg-brand text-brand-foreground"
+          : "text-foreground hover:bg-surface-subtle"
       }`}
     >
       {children}
