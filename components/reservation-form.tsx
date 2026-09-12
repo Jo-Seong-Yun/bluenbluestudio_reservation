@@ -209,6 +209,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hint={descriptionHint(field)}
         labelClassName={FIELD_LABEL_CLASS}
         hintClassName={FIELD_HINT_CLASS}
+        hintPosition="before"
       >
         <input
           name={name}
@@ -228,6 +229,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hint={descriptionHint(field)}
         labelClassName={FIELD_LABEL_CLASS}
         hintClassName={FIELD_HINT_CLASS}
+        hintPosition="before"
       >
         <input
           name={name}
@@ -252,6 +254,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         )}
         labelClassName={FIELD_LABEL_CLASS}
         hintClassName={FIELD_HINT_CLASS}
+        hintPosition="before"
       >
         <input
           name={name}
@@ -272,6 +275,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hint={descriptionHint(field)}
         labelClassName={FIELD_LABEL_CLASS}
         hintClassName={FIELD_HINT_CLASS}
+        hintPosition="before"
       >
         <div className="flex gap-4">
           <label className={OPTION_LABEL_CLASS}>
@@ -309,6 +313,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hint={descriptionHint(field)}
         labelClassName={FIELD_LABEL_CLASS}
         hintClassName={FIELD_HINT_CLASS}
+        hintPosition="before"
       >
         <textarea
           name={name}
@@ -329,6 +334,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hint={descriptionHint(field)}
         labelClassName={FIELD_LABEL_CLASS}
         hintClassName={FIELD_HINT_CLASS}
+        hintPosition="before"
       >
         <div className="space-y-2">
           {options.map((option) => (
@@ -355,6 +361,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hint={descriptionHint(field)}
         labelClassName={FIELD_LABEL_CLASS}
         hintClassName={FIELD_HINT_CLASS}
+        hintPosition="before"
       >
         <div className="space-y-2">
           {options.map((option) => (
@@ -400,6 +407,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       hint={descriptionHint(field)}
       labelClassName={FIELD_LABEL_CLASS}
       hintClassName={FIELD_HINT_CLASS}
+      hintPosition="before"
     >
       <input
         name={name}
@@ -425,6 +433,7 @@ function BirthDateInput({ field, name }: { field: CustomField; name: string }) {
       hint={descriptionHint(field, "8자리 숫자로 입력해 주십시오. 예: 19990101")}
       labelClassName={FIELD_LABEL_CLASS}
       hintClassName={FIELD_HINT_CLASS}
+      hintPosition="before"
     >
       <input
         name={name}
