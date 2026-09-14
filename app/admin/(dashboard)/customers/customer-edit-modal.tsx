@@ -13,9 +13,9 @@ import type { CustomerSummary } from "@/lib/customers";
 const initialState: UpdateCustomerState = { status: "idle" };
 
 /**
- * 고객 인적사항 수기 수정 모달. 연락처(phone)는 예약 기록과 이 손님을
- * 이어주는 식별자라 여기서 바꾸지 않는다 — 바꾸면 그 뒤로 들어오는
- * 예약이 새 손님으로 갈라져 잡힌다.
+ * 고객 인적사항 수기 수정 모달. 연락처를 포함해 전부 고칠 수 있다 —
+ * 연락처를 바꾸면 서버 액션(updateCustomer)이 그 손님의 기존 예약
+ * 기록도 함께 새 번호로 옮겨, 방문 이력이 끊기지 않게 한다.
  */
 export function CustomerEditModal({ customer }: { customer: CustomerSummary }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -66,13 +66,20 @@ export function CustomerEditModal({ customer }: { customer: CustomerSummary }) {
         </div>
 
         <form action={action} className="space-y-4 p-5">
-          <input type="hidden" name="phone" value={customer.phone} />
+          <input type="hidden" name="originalPhone" value={customer.phone} />
 
           <div>
-            <span className="mb-1.5 block text-sm font-medium">연락처</span>
-            <p className="border-border bg-surface-subtle text-muted rounded-lg border px-3 py-2 text-sm">
-              {customer.phone} (바꿀 수 없습니다)
-            </p>
+            <label className="mb-1.5 block text-sm font-medium" htmlFor="phone">
+              연락처 <span className="text-red-600 dark:text-red-400">*</span>
+            </label>
+            <input
+              id="phone"
+              name="phone"
+              required
+              inputMode="numeric"
+              defaultValue={customer.phone}
+              className={inputClass}
+            />
           </div>
 
           <div>

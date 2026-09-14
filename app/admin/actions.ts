@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/supabase/auth";
 import { productSchema, toSlug } from "@/lib/validation/product";
 import {
   manualReservationSchema,
+  phoneField,
   rescheduleReservationSchema,
 } from "@/lib/validation/reservation";
 import { addDays, diffDays, kstToInstant, type DateString } from "@/lib/time";
@@ -1576,12 +1577,15 @@ export async function backfillGoogleSheets(
 }
 
 /**
- * 고객DB 화면에서 손님 인적사항을 수기로 고친다.
+ * 고객DB 화면에서 손님 인적사항을 수기로 고친다. 연락처도 포함해
+ * 전부 고칠 수 있다.
  *
- * 연락처(phone)는 예약 기록과 이 손님을 이어주는 식별자라 여기서
- * 바꾸지 않는다 — 바꾸면 그 뒤로 들어오는 예약(옛 번호로 신청)이
- * 새 손님으로 갈라져 잡힌다. 이름·성별·생년월일·이메일만 고칠 수
- * 있다.
+ * 연락처는 예약 기록과 이 손님을 이어주는 식별자라, 바꿀 땐 그 손님의
+ * 기존 예약들(reservations.customer_phone)도 함께 새 번호로 옮긴다 —
+ * 안 옮기면 예약은 옛 번호에 남고 손님만 새 번호로 떨어져 나가
+ * "방문 0회"인 새 손님처럼 보인다. 새 번호가 이미 다른 손님이 쓰는
+ * 번호면(unique 제약) 거절한다 — 두 손님을 하나로 합치는 건 이
+ * 기능의 범위가 아니다.
  */
 export type UpdateCustomerState =
   | { status: "idle" }
@@ -1594,12 +1598,21 @@ export async function updateCustomer(
 ): Promise<UpdateCustomerState> {
   await requireAdmin();
 
-  const phone = String(formData.get("phone") ?? "");
+  const originalPhone = String(formData.get("originalPhone") ?? "");
   const name = String(formData.get("name") ?? "").trim();
-  if (!phone) return { status: "error", error: "잘못된 요청입니다." };
+  if (!originalPhone) return { status: "error", error: "잘못된 요청입니다." };
   if (!name) {
     return { status: "error", error: "이름을 입력해 주시기 바랍니다." };
   }
+
+  const parsedPhone = phoneField.safeParse(formData.get("phone"));
+  if (!parsedPhone.success) {
+    return {
+      status: "error",
+      error: parsedPhone.error.issues[0]?.message ?? "연락처를 확인해 주시기 바랍니다.",
+    };
+  }
+  const phone = parsedPhone.data;
 
   const rawGender = String(formData.get("gender") ?? "");
   const gender = rawGender === "male" || rawGender === "female" ? rawGender : null;
@@ -1607,14 +1620,41 @@ export async function updateCustomer(
   const email = String(formData.get("email") ?? "").trim() || null;
 
   const supabase = await createClient();
+
+  if (phone !== originalPhone) {
+    const { data: conflict } = await supabase
+      .from("customers")
+      .select("phone")
+      .eq("phone", phone)
+      .maybeSingle();
+    if (conflict) {
+      return {
+        status: "error",
+        error: "이미 다른 고객이 사용 중인 연락처입니다.",
+      };
+    }
+
+    const { error: reservationsError } = await supabase
+      .from("reservations")
+      .update({ customer_phone: phone })
+      .eq("customer_phone", originalPhone);
+    if (reservationsError) {
+      return {
+        status: "error",
+        error: `예약 기록을 옮기지 못했습니다: ${reservationsError.message}`,
+      };
+    }
+  }
+
   const { error } = await supabase
     .from("customers")
-    .update({ name, gender, birth_date: birthDate, email })
-    .eq("phone", phone);
+    .update({ phone, name, gender, birth_date: birthDate, email })
+    .eq("phone", originalPhone);
   if (error) {
     return { status: "error", error: `저장하지 못했습니다: ${error.message}` };
   }
 
   revalidatePath("/admin/customers");
+  revalidatePath("/admin/reservations");
   return { status: "success" };
 }
