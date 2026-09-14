@@ -27,6 +27,7 @@ import {
   type EmailTemplatePurpose,
 } from "@/lib/notifications/email-templates-shared";
 import {
+  backfillAllToSheet,
   markReservationDeletedInSheet,
   syncCustomerToSheet,
   syncReservationToSheet,
@@ -1511,4 +1512,31 @@ export async function moveCustomField(formData: FormData) {
   );
 
   revalidateCustomFieldPaths(productId);
+}
+
+/**
+ * 구글 시트 연동을 붙이기 전부터 있던 예약들을 한 번에 소급 반영.
+ * 설정 화면에서 관리자가 명시적으로 누르는 일회성 버튼 — 예약이 바뀔
+ * 때마다 자동으로 도는 syncReservationToSheet 등과 달리, 실패를
+ * 삼키지 않고 화면에 에러 문구를 보여준다.
+ */
+export type BackfillGoogleSheetsState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success"; reservationCount: number; customerCount: number };
+
+export async function backfillGoogleSheets(
+  _prev: BackfillGoogleSheetsState,
+): Promise<BackfillGoogleSheetsState> {
+  await requireAdmin();
+
+  try {
+    const { reservationCount, customerCount } = await backfillAllToSheet();
+    return { status: "success", reservationCount, customerCount };
+  } catch (error) {
+    return {
+      status: "error",
+      error: error instanceof Error ? error.message : "동기화에 실패했습니다.",
+    };
+  }
 }
