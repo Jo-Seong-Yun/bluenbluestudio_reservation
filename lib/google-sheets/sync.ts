@@ -2,7 +2,12 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { kstDateString, kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
-import { summarizeCustomers, type CustomerSummary } from "@/lib/customers";
+import {
+  computeVisitStats,
+  summarizeCustomers,
+  type CustomerSummary,
+} from "@/lib/customers";
+import { backfillNewCustomers } from "@/lib/customers-db";
 import { googleSheetsConfigured } from "./env";
 import {
   appendValues,
@@ -258,15 +263,25 @@ export async function syncCustomerToSheet(phone: string): Promise<void> {
 
   try {
     const supabase = await createClient();
-    const { data: rows } = await supabase
-      .from("reservations")
-      .select(
-        "customer_name, customer_phone, customer_email, gender, birth_date, status, shoot_start, created_at",
-      )
-      .eq("customer_phone", phone);
-    if (!rows || rows.length === 0) return;
+    const [{ data: customerRow }, { data: visitRows }] = await Promise.all([
+      supabase
+        .from("customers")
+        .select("phone, name, gender, birth_date, email")
+        .eq("phone", phone)
+        .maybeSingle(),
+      supabase
+        .from("reservations")
+        .select("customer_phone, status, shoot_start")
+        .eq("customer_phone", phone),
+    ]);
+    // customers 테이블 행이 아직 없으면(이론상 upsertCustomerFromReservation이
+    // 항상 먼저 실행되므로 거의 없다) 반영할 인적사항이 없어 넘어간다.
+    if (!customerRow) return;
 
-    const [summary] = summarizeCustomers(rows);
+    const [summary] = summarizeCustomers(
+      [customerRow],
+      computeVisitStats(visitRows ?? []),
+    );
     if (!summary) return;
 
     await upsertRow(
@@ -315,6 +330,10 @@ export async function backfillAllToSheet(): Promise<{
     return { reservationCount: 0, customerCount: 0 };
   }
 
+  // customers 테이블에 아직 없는 손님(이 기능을 붙이기 전부터 있던
+  // 예약)을 먼저 채운다 — 이미 있는 손님은 건드리지 않는다.
+  await backfillNewCustomers(reservations);
+
   const { data: products } = await supabase.from("products").select("id, name");
   const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
 
@@ -327,10 +346,14 @@ export async function backfillAllToSheet(): Promise<{
     [RESERVATION_HEADERS, ...reservationRows],
   );
 
+  const { data: customers } = await supabase
+    .from("customers")
+    .select("phone, name, gender, birth_date, email");
   await ensureSheet(CUSTOMER_SHEET);
-  const customerRows = summarizeCustomers(reservations).map(
-    customerSummaryToRow,
-  );
+  const customerRows = summarizeCustomers(
+    customers ?? [],
+    computeVisitStats(reservations),
+  ).map(customerSummaryToRow);
   await updateValues(
     `'${CUSTOMER_SHEET}'!A1:${CUSTOMER_LAST_COLUMN}${customerRows.length + 1}`,
     [CUSTOMER_HEADERS, ...customerRows],

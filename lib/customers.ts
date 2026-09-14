@@ -1,86 +1,139 @@
 import { calculateAge } from "./age";
 import { kstDateString } from "./time";
+import type { Gender } from "./supabase/database.types";
 
-export type CustomerReservationRow = {
-  customer_name: string;
-  customer_phone: string;
-  customer_email: string | null;
-  gender: string | null;
-  birth_date: string | null;
-  status: string;
-  shoot_start: string | null;
-  created_at: string;
-};
+const GENDER_LABEL: Record<Gender, string> = { male: "남성", female: "여성" };
 
-const GENDER_LABEL: Record<string, string> = { male: "남성", female: "여성" };
-
-export type CustomerSummary = {
+export type CustomerRecord = {
   phone: string;
   name: string;
-  age: number | null;
-  gender: string | null;
-  genderLabel: string;
+  gender: Gender | null;
+  birth_date: string | null;
   email: string | null;
-  /** "YYYY-MM-DD" — "완료" 처리된 예약이 하나도 없으면 null. */
+};
+
+export type VisitStats = {
   firstVisit: string | null;
   lastVisit: string | null;
   visitCount: number;
 };
 
+const EMPTY_VISIT_STATS: VisitStats = {
+  firstVisit: null,
+  lastVisit: null,
+  visitCount: 0,
+};
+
+export type ReservationVisitRow = {
+  customer_phone: string;
+  status: string;
+  shoot_start: string | null;
+};
+
 /**
- * 예약 전체를 연락처(고유 식별자) 기준으로 묶어 손님별 요약을 만든다.
+ * 예약 목록에서 손님별 방문 이력을 계산한다.
  *
- * 관리자 고객DB 화면(app/admin/(dashboard)/customers)과 구글 시트
- * 동기화(lib/google-sheets/sync.ts)가 이 로직을 함께 쓴다 — "방문"의
- * 정의(=상태가 완료인 예약)가 두 군데서 갈라지면 같은 손님인데 화면과
- * 시트의 숫자가 서로 달라 보이는 혼란이 생기니, 계산은 여기 한 곳에만
- * 둔다.
+ * 방문 = 상태가 "completed"(촬영 완료)로 표시된 예약만 센다 — 확정만
+ * 되고 아직 안 온 예약이나, 노쇼·취소는 "방문"이 아니다. 손님의
+ * 인적사항(이름·성별 등, customers 테이블)과 달리 이 값은 고정
+ * 저장하지 않고 항상 예약 기록에서 다시 계산한다 — 수기로 고칠
+ * 대상이 아니라 실제 예약 상태를 그대로 반영해야 정확하다.
  */
+export function computeVisitStats(
+  rows: ReservationVisitRow[],
+): Map<string, VisitStats> {
+  const datesByPhone = new Map<string, Date[]>();
+  for (const r of rows) {
+    if (r.status !== "completed" || !r.shoot_start) continue;
+    const list = datesByPhone.get(r.customer_phone) ?? [];
+    list.push(new Date(r.shoot_start));
+    datesByPhone.set(r.customer_phone, list);
+  }
+
+  const result = new Map<string, VisitStats>();
+  for (const [phone, dates] of datesByPhone) {
+    const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime());
+    result.set(phone, {
+      firstVisit: kstDateString(sorted[0]),
+      lastVisit: kstDateString(sorted[sorted.length - 1]),
+      visitCount: sorted.length,
+    });
+  }
+  return result;
+}
+
+export type CustomerSummary = {
+  phone: string;
+  name: string;
+  age: number | null;
+  /** "YYYY-MM-DD" 원본값 — 수기 수정 폼의 date input을 채울 때 쓴다. */
+  birthDate: string | null;
+  gender: Gender | null;
+  genderLabel: string;
+  email: string | null;
+} & VisitStats;
+
+/** customers 테이블 행(인적사항)과 computeVisitStats의 결과(방문 이력)를 합친다. */
 export function summarizeCustomers(
-  rows: CustomerReservationRow[],
+  customers: CustomerRecord[],
+  visitStatsByPhone: Map<string, VisitStats>,
 ): CustomerSummary[] {
-  const byPhone = new Map<string, CustomerReservationRow[]>();
+  return customers.map((c) => ({
+    phone: c.phone,
+    name: c.name,
+    age: c.birth_date ? calculateAge(c.birth_date).manAge : null,
+    birthDate: c.birth_date,
+    gender: c.gender,
+    genderLabel: c.gender ? (GENDER_LABEL[c.gender] ?? c.gender) : "",
+    email: c.email,
+    ...(visitStatsByPhone.get(c.phone) ?? EMPTY_VISIT_STATS),
+  }));
+}
+
+export type IdentitySourceRow = {
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string | null;
+  gender: Gender | null;
+  birth_date: string | null;
+  created_at: string;
+};
+
+export type DerivedIdentity = {
+  name: string;
+  gender: Gender | null;
+  birthDate: string | null;
+  email: string | null;
+};
+
+/**
+ * 예약 기록에서 손님별로 "가장 최근 값, 비어 있으면 과거 값"을 찾아
+ * 인적사항을 추려낸다. customers 테이블에 아직 행이 없는 손님을 처음
+ * 채워 넣을 때(백필)만 쓴다 — 이미 행이 있는 손님은 이걸로 절대
+ * 덮어쓰지 않는다(수기로 고친 값을 보호해야 하므로).
+ */
+export function deriveIdentitiesByPhone(
+  rows: IdentitySourceRow[],
+): Map<string, DerivedIdentity> {
+  const byPhone = new Map<string, IdentitySourceRow[]>();
   for (const r of rows) {
     const list = byPhone.get(r.customer_phone) ?? [];
     list.push(r);
     byPhone.set(r.customer_phone, list);
   }
 
-  const summaries: CustomerSummary[] = [];
+  const result = new Map<string, DerivedIdentity>();
   for (const [phone, group] of byPhone) {
-    // 최신순으로 — 이름·이메일·성별·생년월일은 최근 예약 기준으로
-    // 채우되, 그 건에 값이 비어 있으면(예: 이번엔 이메일을 안 적음)
-    // 과거 예약 중 값이 있는 걸 찾아 채운다.
     const sorted = [...group].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
     const latest = sorted[0];
-    const email = sorted.find((r) => r.customer_email)?.customer_email ?? null;
-    const gender = sorted.find((r) => r.gender)?.gender ?? null;
-    const birthDate = sorted.find((r) => r.birth_date)?.birth_date ?? null;
-
-    // 방문 = 상태가 "completed"(촬영 완료)로 표시된 예약만 센다 —
-    // 확정만 되고 아직 안 온 예약이나, 노쇼·취소는 "방문"이 아니다.
-    const visitDates = sorted
-      .filter((r) => r.status === "completed" && r.shoot_start)
-      .map((r) => new Date(r.shoot_start!))
-      .sort((a, b) => a.getTime() - b.getTime());
-
-    summaries.push({
-      phone,
+    result.set(phone, {
       name: latest.customer_name,
-      age: birthDate ? calculateAge(birthDate).manAge : null,
-      gender,
-      genderLabel: gender ? (GENDER_LABEL[gender] ?? gender) : "",
-      email,
-      firstVisit: visitDates[0] ? kstDateString(visitDates[0]) : null,
-      lastVisit:
-        visitDates.length > 0
-          ? kstDateString(visitDates[visitDates.length - 1])
-          : null,
-      visitCount: visitDates.length,
+      gender: sorted.find((r) => r.gender)?.gender ?? null,
+      birthDate: sorted.find((r) => r.birth_date)?.birth_date ?? null,
+      email: sorted.find((r) => r.customer_email)?.customer_email ?? null,
     });
   }
-
-  return summaries;
+  return result;
 }

@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/supabase/auth";
 import { productSchema, toSlug } from "@/lib/validation/product";
 import {
   manualReservationSchema,
+  phoneField,
   rescheduleReservationSchema,
 } from "@/lib/validation/reservation";
 import { addDays, diffDays, kstToInstant, type DateString } from "@/lib/time";
@@ -32,6 +33,7 @@ import {
   syncCustomerToSheet,
   syncReservationToSheet,
 } from "@/lib/google-sheets/sync";
+import { upsertCustomerFromReservation } from "@/lib/customers-db";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -533,7 +535,7 @@ export async function updateReservationStatus(formData: FormData) {
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, customer_name, customer_phone, customer_email, shoot_start, product_id",
+      "code, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id",
     )
     .eq("id", id)
     .single();
@@ -563,12 +565,19 @@ export async function updateReservationStatus(formData: FormData) {
 
   // 구글 시트 백업(예약 탭 + 고객DB 탭의 방문 집계)은 확정/취소뿐 아니라
   // 완료·노쇼로 바뀔 때도 남겨야 하니, 알림 여부와 무관하게 항상 부른다.
-  after(() =>
-    Promise.all([
+  after(async () => {
+    await upsertCustomerFromReservation({
+      phone: reservation.customer_phone,
+      name: reservation.customer_name,
+      gender: reservation.gender,
+      birthDate: reservation.birth_date,
+      email: reservation.customer_email,
+    });
+    await Promise.all([
       syncReservationToSheet(id),
       syncCustomerToSheet(reservation.customer_phone),
-    ]),
-  );
+    ]);
+  });
 
   // 손님에게 알리는 건 확정/취소로 바뀔 때만(기존 동작 그대로) — 완료·
   // 노쇼는 별도 알림이 없다.
@@ -659,7 +668,9 @@ export async function confirmReservationCandidate(
       confirmed_candidate_rank: rank,
     })
     .eq("id", id)
-    .select("code, customer_name, customer_phone, customer_email, product_id")
+    .select(
+      "code, customer_name, customer_phone, customer_email, gender, birth_date, product_id",
+    )
     .single();
 
   revalidatePath("/admin/reservations");
@@ -681,8 +692,15 @@ export async function confirmReservationCandidate(
     .eq("id", reservation.product_id)
     .single();
 
-  after(() =>
-    Promise.all([
+  after(async () => {
+    await upsertCustomerFromReservation({
+      phone: reservation.customer_phone,
+      name: reservation.customer_name,
+      gender: reservation.gender,
+      birthDate: reservation.birth_date,
+      email: reservation.customer_email,
+    });
+    await Promise.all([
       notifyCustomerConfirmed({
         reservationId: id,
         customerName: reservation.customer_name,
@@ -694,8 +712,8 @@ export async function confirmReservationCandidate(
       }),
       syncReservationToSheet(id),
       syncCustomerToSheet(reservation.customer_phone),
-    ]),
-  );
+    ]);
+  });
 
   return null;
 }
@@ -1038,8 +1056,18 @@ export async function createManualReservation(
       // 이미 통화로 확인하고 사장님이 직접 넣는 예약이라, "새 신청" 알림은
       // 필요 없다 — 확정 안내만 손님에게 보낸다. 응답은 기다리게 하지
       // 않고 after()로 보낸 뒤 바로 성공을 돌려준다.
-      after(() =>
-        Promise.all([
+      after(async () => {
+        // 수기 등록 폼엔 성별·생년월일·이메일 칸이 없어 여기선
+        // 이름·연락처만 채운다(fill-blanks-only라 나머지는 비워도
+        // 기존 값을 안 지운다).
+        await upsertCustomerFromReservation({
+          phone: input.customerPhone,
+          name: input.customerName,
+          gender: null,
+          birthDate: null,
+          email: null,
+        });
+        await Promise.all([
           notifyCustomerConfirmed({
             reservationId: data?.id ?? "",
             customerName: input.customerName,
@@ -1050,8 +1078,8 @@ export async function createManualReservation(
           }),
           syncReservationToSheet(data?.id ?? ""),
           syncCustomerToSheet(input.customerPhone),
-        ]),
-      );
+        ]);
+      });
 
       return { status: "success", code };
     }
@@ -1112,7 +1140,7 @@ export async function rescheduleReservation(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, shoot_start, customer_name, customer_phone, customer_email, product_id",
+      "code, status, shoot_start, customer_name, customer_phone, customer_email, gender, birth_date, product_id",
     )
     .eq("id", input.id)
     .single();
@@ -1162,8 +1190,15 @@ export async function rescheduleReservation(
 
   revalidatePath("/admin/reservations");
 
-  after(() =>
-    Promise.all([
+  after(async () => {
+    await upsertCustomerFromReservation({
+      phone: reservation.customer_phone,
+      name: reservation.customer_name,
+      gender: reservation.gender,
+      birthDate: reservation.birth_date,
+      email: reservation.customer_email,
+    });
+    await Promise.all([
       notifyCustomerRescheduled({
         reservationId: input.id,
         customerName: reservation.customer_name,
@@ -1176,8 +1211,8 @@ export async function rescheduleReservation(
       }),
       syncReservationToSheet(input.id),
       syncCustomerToSheet(reservation.customer_phone),
-    ]),
-  );
+    ]);
+  });
 
   return null;
 }
@@ -1539,4 +1574,87 @@ export async function backfillGoogleSheets(
       error: error instanceof Error ? error.message : "동기화에 실패했습니다.",
     };
   }
+}
+
+/**
+ * 고객DB 화면에서 손님 인적사항을 수기로 고친다. 연락처도 포함해
+ * 전부 고칠 수 있다.
+ *
+ * 연락처는 예약 기록과 이 손님을 이어주는 식별자라, 바꿀 땐 그 손님의
+ * 기존 예약들(reservations.customer_phone)도 함께 새 번호로 옮긴다 —
+ * 안 옮기면 예약은 옛 번호에 남고 손님만 새 번호로 떨어져 나가
+ * "방문 0회"인 새 손님처럼 보인다. 새 번호가 이미 다른 손님이 쓰는
+ * 번호면(unique 제약) 거절한다 — 두 손님을 하나로 합치는 건 이
+ * 기능의 범위가 아니다.
+ */
+export type UpdateCustomerState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success" };
+
+export async function updateCustomer(
+  _prev: UpdateCustomerState,
+  formData: FormData,
+): Promise<UpdateCustomerState> {
+  await requireAdmin();
+
+  const originalPhone = String(formData.get("originalPhone") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!originalPhone) return { status: "error", error: "잘못된 요청입니다." };
+  if (!name) {
+    return { status: "error", error: "이름을 입력해 주시기 바랍니다." };
+  }
+
+  const parsedPhone = phoneField.safeParse(formData.get("phone"));
+  if (!parsedPhone.success) {
+    return {
+      status: "error",
+      error: parsedPhone.error.issues[0]?.message ?? "연락처를 확인해 주시기 바랍니다.",
+    };
+  }
+  const phone = parsedPhone.data;
+
+  const rawGender = String(formData.get("gender") ?? "");
+  const gender = rawGender === "male" || rawGender === "female" ? rawGender : null;
+  const birthDate = String(formData.get("birthDate") ?? "").trim() || null;
+  const email = String(formData.get("email") ?? "").trim() || null;
+
+  const supabase = await createClient();
+
+  if (phone !== originalPhone) {
+    const { data: conflict } = await supabase
+      .from("customers")
+      .select("phone")
+      .eq("phone", phone)
+      .maybeSingle();
+    if (conflict) {
+      return {
+        status: "error",
+        error: "이미 다른 고객이 사용 중인 연락처입니다.",
+      };
+    }
+
+    const { error: reservationsError } = await supabase
+      .from("reservations")
+      .update({ customer_phone: phone })
+      .eq("customer_phone", originalPhone);
+    if (reservationsError) {
+      return {
+        status: "error",
+        error: `예약 기록을 옮기지 못했습니다: ${reservationsError.message}`,
+      };
+    }
+  }
+
+  const { error } = await supabase
+    .from("customers")
+    .update({ phone, name, gender, birth_date: birthDate, email })
+    .eq("phone", originalPhone);
+  if (error) {
+    return { status: "error", error: `저장하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/customers");
+  revalidatePath("/admin/reservations");
+  return { status: "success" };
 }
