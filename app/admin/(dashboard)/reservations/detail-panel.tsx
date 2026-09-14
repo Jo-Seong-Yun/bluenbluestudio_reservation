@@ -13,7 +13,7 @@ import { ConfirmCandidateButtons } from "./confirm-candidate-buttons";
 import { RescheduleForm } from "./reschedule-form";
 import { MoneyField } from "./money-field";
 
-const GENDER_LABEL: Record<string, string> = { male: "남성", female: "여성" };
+const GENDER_LABEL: Record<string, string> = { male: "남", female: "여" };
 
 type ReservationRow = {
   id: string;

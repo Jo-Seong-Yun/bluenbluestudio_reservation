@@ -42,7 +42,7 @@ const STATUS_LABEL: Record<string, string> = {
   no_show: "노쇼",
 };
 
-const GENDER_LABEL: Record<string, string> = { male: "남성", female: "여성" };
+const GENDER_LABEL: Record<string, string> = { male: "남", female: "여" };
 
 const RESERVATION_SHEET = "예약";
 const RESERVATION_HEADERS = [

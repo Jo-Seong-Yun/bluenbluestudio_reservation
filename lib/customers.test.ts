@@ -84,7 +84,7 @@ describe("summarizeCustomers", () => {
     ]);
     const [summary] = summarizeCustomers([record], visitStats);
     expect(summary.name).toBe("김철수");
-    expect(summary.genderLabel).toBe("남성");
+    expect(summary.genderLabel).toBe("남");
     expect(summary.birthDate).toBe("1995-05-05");
     expect(summary.firstVisit).toBe("2026-01-01");
     expect(summary.lastVisit).toBe("2026-06-01");

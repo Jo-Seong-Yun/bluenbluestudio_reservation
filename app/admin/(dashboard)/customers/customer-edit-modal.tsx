@@ -68,20 +68,9 @@ export function CustomerEditModal({ customer }: { customer: CustomerSummary }) {
         <form action={action} className="space-y-4 p-5">
           <input type="hidden" name="originalPhone" value={customer.phone} />
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="phone">
-              연락처 <span className="text-red-600 dark:text-red-400">*</span>
-            </label>
-            <input
-              id="phone"
-              name="phone"
-              required
-              inputMode="numeric"
-              defaultValue={customer.phone}
-              className={inputClass}
-            />
-          </div>
-
+          {/* 아래 필드 순서는 고객DB 목록의 열 순서(고객성명/연령/성별/
+              연락처/메일주소)와 맞춘다 — "연령"은 직접 입력하는 값이
+              아니라 생년월일에서 계산되므로, 그 자리에 생년월일을 둔다. */}
           <div>
             <label className="mb-1.5 block text-sm font-medium" htmlFor="name">
               이름 <span className="text-red-600 dark:text-red-400">*</span>
@@ -97,6 +86,19 @@ export function CustomerEditModal({ customer }: { customer: CustomerSummary }) {
           </div>
 
           <div>
+            <label className="mb-1.5 block text-sm font-medium" htmlFor="birthDate">
+              생년월일
+            </label>
+            <input
+              id="birthDate"
+              name="birthDate"
+              type="date"
+              defaultValue={customer.birthDate ?? ""}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
             <label className="mb-1.5 block text-sm font-medium" htmlFor="gender">
               성별
             </label>
@@ -107,20 +109,21 @@ export function CustomerEditModal({ customer }: { customer: CustomerSummary }) {
               className={inputClass}
             >
               <option value="">선택 안 함</option>
-              <option value="male">남성</option>
-              <option value="female">여성</option>
+              <option value="male">남</option>
+              <option value="female">여</option>
             </select>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="birthDate">
-              생년월일
+            <label className="mb-1.5 block text-sm font-medium" htmlFor="phone">
+              연락처 <span className="text-red-600 dark:text-red-400">*</span>
             </label>
             <input
-              id="birthDate"
-              name="birthDate"
-              type="date"
-              defaultValue={customer.birthDate ?? ""}
+              id="phone"
+              name="phone"
+              required
+              inputMode="numeric"
+              defaultValue={customer.phone}
               className={inputClass}
             />
           </div>
