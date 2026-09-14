@@ -120,7 +120,9 @@ export interface Database {
           memo: string | null;
           admin_memo: string | null;
           cost: number | null;
+          cost_memo: string | null;
           charged_amount: number | null;
+          charged_amount_memo: string | null;
           gender: Gender | null;
           birth_date: string | null; // "YYYY-MM-DD"
           reminded_at: string | null;
