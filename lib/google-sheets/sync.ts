@@ -232,14 +232,57 @@ export async function markReservationDeletedInSheet(
   }
 }
 
+type CustomerHistoryRow = {
+  customer_name: string;
+  customer_email: string | null;
+  gender: string | null;
+  birth_date: string | null;
+  status: string;
+  shoot_start: string | null;
+};
+
+/**
+ * 손님 한 명의 인적사항·방문 이력을 그 손님의 예약 전체로부터 계산한다.
+ * `rows`는 최신순(내림차순)이어야 한다 — 이름·이메일·성별·생년월일은
+ * 최근 예약 기준으로 채우되, 그 건에 값이 비어 있으면(예: 이번엔
+ * 이메일을 안 적음) 과거 예약 중 값이 있는 걸 찾아 채우기 때문이다.
+ *
+ * 방문 = 상태가 "completed"(촬영 완료)로 표시된 예약만 센다 — 확정만
+ * 되고 아직 안 온 예약이나, 노쇼·취소는 "방문"이 아니다.
+ */
+function computeCustomerRow(
+  rows: CustomerHistoryRow[],
+  phone: string,
+): (string | number)[] {
+  const latestName = rows[0].customer_name;
+  const email = rows.find((r) => r.customer_email)?.customer_email ?? "";
+  const gender = rows.find((r) => r.gender)?.gender;
+  const birthDate = rows.find((r) => r.birth_date)?.birth_date;
+
+  const visitDates = rows
+    .filter((r) => r.status === "completed" && r.shoot_start)
+    .map((r) => new Date(r.shoot_start!))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  return [
+    latestName,
+    birthDate ? calculateAge(birthDate).manAge : "",
+    gender ? (GENDER_LABEL[gender] ?? gender) : "",
+    phone,
+    email,
+    visitDates[0] ? kstDateString(visitDates[0]) : "",
+    visitDates.length > 0
+      ? kstDateString(visitDates[visitDates.length - 1])
+      : "",
+    visitDates.length,
+  ];
+}
+
 /**
  * 손님 한 명(연락처 기준)의 인적사항·방문 이력을 다시 계산해 "고객DB"
  * 탭에 반영한다. 그 손님의 예약을 전부 다시 모아 계산하므로(단순히
  * 지금 건 하나만 반영하는 게 아니라), 예약 하나가 취소되거나 삭제돼도
  * 항상 정확한 최신 집계가 된다.
- *
- * 방문 = 상태가 "completed"(촬영 완료)로 표시된 예약만 센다 — 확정만
- * 되고 아직 안 온 예약이나, 노쇼·취소는 "방문"이 아니다.
  */
 export async function syncCustomerToSheet(phone: string): Promise<void> {
   if (!googleSheetsConfigured() || !phone) return;
@@ -253,41 +296,83 @@ export async function syncCustomerToSheet(phone: string): Promise<void> {
       .order("created_at", { ascending: false });
     if (!rows || rows.length === 0) return;
 
-    // 이름·이메일·성별·생년월일은 최근 예약 기준으로 채우되, 그 건에
-    // 값이 비어 있으면(예: 이번엔 이메일을 안 적음) 과거 예약 중 값이
-    // 있는 걸 찾아 채운다.
-    const latestName = rows[0].customer_name;
-    const email = rows.find((r) => r.customer_email)?.customer_email ?? "";
-    const gender = rows.find((r) => r.gender)?.gender;
-    const birthDate = rows.find((r) => r.birth_date)?.birth_date;
-
-    const visitDates = rows
-      .filter((r) => r.status === "completed" && r.shoot_start)
-      .map((r) => new Date(r.shoot_start!))
-      .sort((a, b) => a.getTime() - b.getTime());
-
-    const row = [
-      latestName,
-      birthDate ? calculateAge(birthDate).manAge : "",
-      gender ? (GENDER_LABEL[gender] ?? gender) : "",
-      phone,
-      email,
-      visitDates[0] ? kstDateString(visitDates[0]) : "",
-      visitDates.length > 0
-        ? kstDateString(visitDates[visitDates.length - 1])
-        : "",
-      visitDates.length,
-    ];
-
     await upsertRow(
       CUSTOMER_SHEET,
       CUSTOMER_LAST_COLUMN,
       CUSTOMER_HEADERS,
       CUSTOMER_KEY_COLUMN,
       phone,
-      row,
+      computeCustomerRow(rows, phone),
     );
   } catch (error) {
     console.error("구글 시트 고객DB 동기화 실패:", error);
   }
+}
+
+/**
+ * 이 연동을 붙이기 전부터 있던 예약들을 한 번에 소급 반영한다. 관리자가
+ * 설정 화면에서 명시적으로 누르는 일회성 작업이라(예약이 바뀔 때마다
+ * 자동으로 도는 위 함수들과 다르게), 실패를 삼키지 않고 그대로
+ * throw해서 화면에 에러를 보여준다 — 조용히 실패하면 관리자가 백업이
+ * 됐는지 안 됐는지 알 길이 없다.
+ *
+ * 예약이 많아질 걸 감안해 한 건마다 upsertRow(읽고-쓰기)를 반복하지
+ * 않는다 — 전체를 한 번에 읽어 메모리에서 계산한 뒤, 탭 전체를
+ * 헤더+데이터로 통째로 덮어쓰는 API 호출 한두 번으로 끝낸다(그래야
+ * 예약이 몇 백 건이어도 분당 쓰기 한도에 안 걸리고 빠르다). 덮어쓰기라
+ * 여러 번 눌러도 결과는 항상 같다(멱등).
+ */
+export async function backfillAllToSheet(): Promise<{
+  reservationCount: number;
+  customerCount: number;
+}> {
+  if (!googleSheetsConfigured()) {
+    throw new Error("구글 시트 연동 환경변수가 설정되지 않았습니다.");
+  }
+
+  const supabase = await createClient();
+  const { data: reservations, error } = await supabase
+    .from("reservations")
+    .select(
+      "code, status, shoot_start, shoot_end, customer_name, customer_phone, customer_email, people_count, gender, birth_date, charged_amount, charged_amount_memo, cost, cost_memo, admin_memo, memo, created_at, updated_at, product_id",
+    )
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`예약 목록을 불러오지 못했습니다: ${error.message}`);
+  if (!reservations || reservations.length === 0) {
+    return { reservationCount: 0, customerCount: 0 };
+  }
+
+  const { data: products } = await supabase.from("products").select("id, name");
+  const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
+
+  await ensureSheet(RESERVATION_SHEET);
+  const reservationRows = reservations.map((r) =>
+    buildReservationRow(r, productNameById.get(r.product_id) ?? "(삭제된 상품)"),
+  );
+  await updateValues(
+    `'${RESERVATION_SHEET}'!A1:${RESERVATION_LAST_COLUMN}${reservationRows.length + 1}`,
+    [RESERVATION_HEADERS, ...reservationRows],
+  );
+
+  // 연락처별로 묶는다 — created_at 오름차순으로 가져왔으니, 묶은 뒤
+  // computeCustomerRow가 기대하는 "최신순"이 되도록 각 묶음을 뒤집는다.
+  const byPhone = new Map<string, typeof reservations>();
+  for (const r of reservations) {
+    const list = byPhone.get(r.customer_phone) ?? [];
+    list.push(r);
+    byPhone.set(r.customer_phone, list);
+  }
+  await ensureSheet(CUSTOMER_SHEET);
+  const customerRows = [...byPhone.entries()].map(([phone, rows]) =>
+    computeCustomerRow([...rows].reverse(), phone),
+  );
+  await updateValues(
+    `'${CUSTOMER_SHEET}'!A1:${CUSTOMER_LAST_COLUMN}${customerRows.length + 1}`,
+    [CUSTOMER_HEADERS, ...customerRows],
+  );
+
+  return {
+    reservationCount: reservationRows.length,
+    customerCount: customerRows.length,
+  };
 }
