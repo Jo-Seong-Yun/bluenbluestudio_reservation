@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loadSlotsForDate } from "@/lib/booking/actions";
@@ -57,7 +57,6 @@ export function BookingFlow({
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsPending, startSlotsTransition] = useTransition();
   useReportPending(slotsPending);
-  const timeSectionRef = useRef<HTMLDivElement>(null);
 
   const isFull = candidates.length >= MAX_CANDIDATES;
 
@@ -100,24 +99,6 @@ export function BookingFlow({
       .join(",");
     router.push(`${basePath}/apply?slots=${encodeURIComponent(slotsParam)}`);
   }
-
-  // 넓은 화면에서는 시간 칸이 달력 옆에 있어 굳이 스크롤할 필요가
-  // 없지만, 좁은 화면(달력 아래로 쌓이는 레이아웃)에서는 이 칸이
-  // 화면 아래로 밀려나 있을 수 있어 여기로 내려준다. 슬롯을 아직
-  // 불러오는 중일 때(칸 안이 "불러오는 중…" 한 줄뿐이라 낮다)
-  // 스크롤해버리면 그 순간의 낮은 높이를 기준으로 목표 위치가
-  // 계산되어, 막상 슬롯이 채워지고 나면 화면이 중간에서 멈춰
-  // 버튼들이 아래로 잘려 보인다 — 그래서 로딩이 끝난 뒤에 내린다.
-  useEffect(() => {
-    if (!selectedDate || slotsPending) return;
-    const frame = requestAnimationFrame(() => {
-      timeSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [selectedDate, slotsPending]);
 
   return (
     <div className="mx-auto w-full max-w-5xl">
@@ -201,10 +182,7 @@ export function BookingFlow({
         </div>
 
         <div className="relative min-w-0 w-full">
-          <div
-            ref={timeSectionRef}
-            className="border-border bg-surface min-w-0 rounded-xl border p-5"
-          >
+          <div className="border-border bg-surface min-w-0 rounded-xl border p-5">
             <h2 className="mb-4 font-bold">시간 선택</h2>
             {!selectedDate ? (
               <p className="text-muted text-sm">
