@@ -4,7 +4,6 @@ import {
   saveReservationCost,
   saveReservationChargedAmount,
 } from "@/app/admin/actions";
-import { inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { kstDateString, kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
@@ -12,6 +11,7 @@ import { DeleteReservationButton } from "./delete-reservation-button";
 import { StatusButtons } from "./status-buttons";
 import { ConfirmCandidateButtons } from "./confirm-candidate-buttons";
 import { RescheduleForm } from "./reschedule-form";
+import { MoneyField } from "./money-field";
 
 const GENDER_LABEL: Record<string, string> = { male: "남성", female: "여성" };
 
@@ -28,7 +28,9 @@ type ReservationRow = {
   memo: string | null;
   admin_memo: string | null;
   cost: number | null;
+  cost_memo: string | null;
   charged_amount: number | null;
+  charged_amount_memo: string | null;
   gender: string | null;
   birth_date: string | null;
   productName: string;
@@ -234,66 +236,27 @@ function ReservationDetail({
         </SubmitButton>
       </form>
 
-      <form
+      <MoneyField
+        reservationId={reservation.id}
+        label="실제 지불액"
+        hint="(할인 등으로 정가와 다를 수 있습니다. 매출관리 매출 계산에 사용됩니다)"
+        amountName="chargedAmount"
+        memoName="chargedAmountMemo"
+        initialAmount={reservation.charged_amount}
+        initialMemo={reservation.charged_amount_memo}
         action={saveReservationChargedAmount}
-        className="border-border mt-4 border-t pt-4"
-      >
-        <input type="hidden" name="id" value={reservation.id} />
-        <label
-          className="mb-1.5 block text-sm font-medium"
-          htmlFor="chargedAmount"
-        >
-          실제 지불액{" "}
-          <span className="text-muted font-normal">
-            (할인 등으로 정가와 다를 수 있습니다. 매출관리 매출 계산에 사용됩니다)
-          </span>
-        </label>
-        <div className="flex gap-2">
-          <input
-            id="chargedAmount"
-            name="chargedAmount"
-            type="number"
-            min={0}
-            step={1}
-            inputMode="numeric"
-            placeholder="0"
-            defaultValue={reservation.charged_amount ?? ""}
-            className={inputClass}
-          />
-          <SubmitButton variant="ghost" className="shrink-0">
-            저장
-          </SubmitButton>
-        </div>
-      </form>
+      />
 
-      <form
+      <MoneyField
+        reservationId={reservation.id}
+        label="촬영 원가"
+        hint="(대관료·소품·외주 등, 매출관리 순이익 계산에 사용됩니다)"
+        amountName="cost"
+        memoName="costMemo"
+        initialAmount={reservation.cost}
+        initialMemo={reservation.cost_memo}
         action={saveReservationCost}
-        className="border-border mt-4 border-t pt-4"
-      >
-        <input type="hidden" name="id" value={reservation.id} />
-        <label className="mb-1.5 block text-sm font-medium" htmlFor="cost">
-          촬영 원가{" "}
-          <span className="text-muted font-normal">
-            (대관료·소품·외주 등, 매출관리 순이익 계산에 사용됩니다)
-          </span>
-        </label>
-        <div className="flex gap-2">
-          <input
-            id="cost"
-            name="cost"
-            type="number"
-            min={0}
-            step={1}
-            inputMode="numeric"
-            placeholder="0"
-            defaultValue={reservation.cost ?? ""}
-            className={inputClass}
-          />
-          <SubmitButton variant="ghost" className="shrink-0">
-            저장
-          </SubmitButton>
-        </div>
-      </form>
+      />
 
       {/* 상태 버튼들과 시각적으로 분리해둔다 — 되돌릴 수 없는 동작이라
           실수로 다른 버튼과 헷갈려 누르는 일이 없어야 한다. */}

@@ -709,9 +709,13 @@ export async function saveReservationCost(formData: FormData) {
   const raw = String(formData.get("cost") ?? "").trim();
   const cost = raw === "" ? null : Number(raw);
   if (cost !== null && (!Number.isFinite(cost) || cost < 0)) return;
+  const costMemo = String(formData.get("costMemo") ?? "").trim();
 
   const supabase = await createClient();
-  await supabase.from("reservations").update({ cost }).eq("id", id);
+  await supabase
+    .from("reservations")
+    .update({ cost, cost_memo: costMemo || null })
+    .eq("id", id);
 
   revalidatePath("/admin/reservations");
   revalidatePath("/admin/revenue");
@@ -1277,11 +1281,17 @@ export async function saveReservationChargedAmount(formData: FormData) {
   ) {
     return;
   }
+  const chargedAmountMemo = String(
+    formData.get("chargedAmountMemo") ?? "",
+  ).trim();
 
   const supabase = await createClient();
   await supabase
     .from("reservations")
-    .update({ charged_amount: chargedAmount })
+    .update({
+      charged_amount: chargedAmount,
+      charged_amount_memo: chargedAmountMemo || null,
+    })
     .eq("id", id);
 
   revalidatePath("/admin/reservations");
