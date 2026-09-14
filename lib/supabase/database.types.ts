@@ -128,6 +128,8 @@ export interface Database {
           reminded_at: string | null;
           /** 확정할 때 고른 후보의 rank(1~3). 확정 전엔 null. */
           confirmed_candidate_rank: number | null;
+          /** 구글 캘린더에 만든 이벤트 id. 동기화된 적 없으면 null. */
+          google_calendar_event_id: string | null;
           created_at: string;
           updated_at: string;
         };

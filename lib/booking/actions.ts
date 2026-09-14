@@ -25,6 +25,7 @@ import {
   syncReservationToSheet,
 } from "@/lib/google-sheets/sync";
 import { upsertCustomerFromReservation } from "@/lib/customers-db";
+import { syncReservationToCalendar } from "@/lib/google-calendar/sync";
 
 /**
  * 달력에서 날짜를 고른 순간 그 날의 시간 슬롯을 가져온다.
@@ -211,6 +212,7 @@ export async function createReservation(
           }),
           syncReservationToSheet(reservationId),
           syncCustomerToSheet(special.customerPhone),
+          syncReservationToCalendar(reservationId),
         ]);
       });
 
@@ -351,6 +353,7 @@ export async function cancelReservation(
         }),
         syncReservationToSheet(reservation.id),
         syncCustomerToSheet(reservation.customer_phone),
+        syncReservationToCalendar(reservation.id),
       ]);
     });
   }

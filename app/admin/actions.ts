@@ -35,6 +35,10 @@ import {
   syncReservationToSheet,
 } from "@/lib/google-sheets/sync";
 import { upsertCustomerFromReservation } from "@/lib/customers-db";
+import {
+  deleteReservationFromCalendar,
+  syncReservationToCalendar,
+} from "@/lib/google-calendar/sync";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -577,6 +581,7 @@ export async function updateReservationStatus(formData: FormData) {
     await Promise.all([
       syncReservationToSheet(id),
       syncCustomerToSheet(reservation.customer_phone),
+      syncReservationToCalendar(id),
     ]);
   });
 
@@ -713,6 +718,7 @@ export async function confirmReservationCandidate(
       }),
       syncReservationToSheet(id),
       syncCustomerToSheet(reservation.customer_phone),
+      syncReservationToCalendar(id),
     ]);
   });
 
@@ -817,7 +823,7 @@ export async function deleteReservation(formData: FormData) {
     .from("reservations")
     .delete()
     .eq("id", id)
-    .select("code, customer_phone")
+    .select("code, customer_phone, google_calendar_event_id")
     .maybeSingle();
   if (error) return;
 
@@ -828,6 +834,7 @@ export async function deleteReservation(formData: FormData) {
         markReservationDeletedInSheet(deleted.code),
         // 방문 집계(고객DB)는 삭제된 예약을 뺀 나머지로 다시 계산한다.
         syncCustomerToSheet(deleted.customer_phone),
+        deleteReservationFromCalendar(deleted.google_calendar_event_id),
       ]),
     );
   }
@@ -1079,6 +1086,7 @@ export async function createManualReservation(
           }),
           syncReservationToSheet(data?.id ?? ""),
           syncCustomerToSheet(input.customerPhone),
+          syncReservationToCalendar(data?.id ?? ""),
         ]);
       });
 
@@ -1212,6 +1220,7 @@ export async function rescheduleReservation(
       }),
       syncReservationToSheet(input.id),
       syncCustomerToSheet(reservation.customer_phone),
+      syncReservationToCalendar(input.id),
     ]);
   });
 
