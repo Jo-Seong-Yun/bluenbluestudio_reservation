@@ -2,7 +2,7 @@ import { calculateAge } from "./age";
 import { kstDateString } from "./time";
 import type { Gender } from "./supabase/database.types";
 
-const GENDER_LABEL: Record<Gender, string> = { male: "남성", female: "여성" };
+const GENDER_LABEL: Record<Gender, string> = { male: "남", female: "여" };
 
 export type CustomerRecord = {
   phone: string;
