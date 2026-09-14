@@ -106,7 +106,7 @@ export default async function ProductDetailPage({
           콘텐츠가 트랙 폭 안에서 실제로 줄바꿈되도록 하는 안전장치로
           그대로 둔다. items-start라 어느 한쪽 박스가 더 높아져도 서로
           늘어나지 않고, 각자 자기 칸 맨 위에 그대로 붙어 있는다. */}
-      <div className="mt-3 grid grid-cols-1 gap-10 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
+      <div className="mt-3 grid grid-cols-1 gap-6 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
         <div className="min-w-0">
           {product.cover_image ? (
             // eslint-disable-next-line @next/next/no-img-element

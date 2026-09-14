@@ -57,7 +57,17 @@ export function DetailPanel({
   month: string;
 }) {
   if (selected) {
-    return <ReservationDetail reservation={selected} month={month} />;
+    // key를 예약 id로 못박아 둔다 — 이게 없으면 예약 A에서 입력칸에
+    // (defaultValue로만 초기화되는 uncontrolled input) 값을 만지다가
+    // 예약 B로 넘어가도 React가 같은 컴포넌트 인스턴스를 재사용해
+    // DOM의 값을 그대로 들고 있는다. 화면엔 B를 보고 있지만 입력칸엔
+    // A에서 만지던 숫자가 남아 있고, 그 상태로 "저장"을 누르면
+    // hidden id는 B로 정확히 바뀌어 있어 B에 A의 값이 그대로
+    // 덮어써진다 — key를 주면 예약이 바뀔 때마다 컴포넌트가 통째로
+    // 새로 마운트되어 모든 입력칸이 새 예약의 실제 값으로 다시 초기화된다.
+    return (
+      <ReservationDetail key={selected.id} reservation={selected} month={month} />
+    );
   }
 
   if (selectedDate) {
