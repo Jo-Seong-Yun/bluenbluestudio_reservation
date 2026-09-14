@@ -30,6 +30,7 @@ import {
 import {
   backfillAllToSheet,
   markReservationDeletedInSheet,
+  syncAllCustomersToSheet,
   syncCustomerToSheet,
   syncReservationToSheet,
 } from "@/lib/google-sheets/sync";
@@ -1657,4 +1658,32 @@ export async function updateCustomer(
   revalidatePath("/admin/customers");
   revalidatePath("/admin/reservations");
   return { status: "success" };
+}
+
+/**
+ * 고객DB 화면의 "고객정보 업로드" 버튼. 예약이 바뀔 때마다 자동으로
+ * 도는 동기화와 달리, customers 테이블을 수기로 고친 것만으로는 시트가
+ * 곧바로 바뀌지 않으니(그 손님의 예약이 다시 움직여야 자동 동기화가
+ * 돈다), 관리자가 명시적으로 눌러 지금 값을 "고객DB" 탭에 바로
+ * 반영한다.
+ */
+export type UploadCustomersState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success"; count: number };
+
+export async function uploadCustomersToSheet(
+  _prev: UploadCustomersState,
+): Promise<UploadCustomersState> {
+  await requireAdmin();
+
+  try {
+    const count = await syncAllCustomersToSheet();
+    return { status: "success", count };
+  } catch (error) {
+    return {
+      status: "error",
+      error: error instanceof Error ? error.message : "업로드에 실패했습니다.",
+    };
+  }
 }
