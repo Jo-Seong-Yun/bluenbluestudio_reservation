@@ -311,10 +311,12 @@ function CalendarGrid({
           const isSelected = date === selectedDate;
 
           if (!available) {
+            // 선택 가능한 날짜(아래)와 글자 크기·굵기를 맞춘다 — 전엔
+            // 여기만 text-sm이라 선택 불가능한 날짜가 더 작아 보였다.
             return (
               <div
                 key={date}
-                className={`text-muted aspect-square rounded-md text-sm ${
+                className={`text-muted aspect-square rounded-md text-base font-medium ${
                   inMonth ? "" : "opacity-0"
                 } flex items-center justify-center`}
                 aria-hidden={!inMonth}
@@ -332,12 +334,16 @@ function CalendarGrid({
               {/* clip-path로 히트 영역 자체를 원으로 깎는다 — border-radius만
                   으로는 시각적으로만 둥글 뿐, 네모난 모서리도 여전히 클릭
                   된다. clip-path를 주면 원 밖은 클릭도 호버도 안 먹는다.
-                  원 지름은 h-10(2.5rem)의 1.4배인 h-14(3.5rem). */}
+                  버튼을 h-full w-full로 부모(aspect-square 칸)에 꽉 채운다
+                  — 예전엔 h-14 w-14(56px) 고정이라, 좁은 화면에서 칸 폭이
+                  그보다 작아지면 원이 칸을 넘어 옆줄까지 침범해 잘려
+                  보였다. 부모에 꽉 채우면 화면 폭이 얼마든 칸 크기에
+                  맞춰 항상 딱 맞는 원이 된다. */}
               <button
                 type="button"
                 onClick={() => onSelectDate(date)}
                 style={{ clipPath: "circle(50%)" }}
-                className={`text-foreground flex h-14 w-14 items-center justify-center text-base font-medium transition-colors ${
+                className={`text-foreground flex h-full w-full items-center justify-center text-base font-medium transition-colors ${
                   isSelected
                     ? "bg-neutral-200 dark:bg-neutral-700"
                     : "hover:bg-surface-subtle"
