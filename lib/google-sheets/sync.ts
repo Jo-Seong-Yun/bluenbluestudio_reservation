@@ -11,6 +11,7 @@ import { backfillNewCustomers } from "@/lib/customers-db";
 import { googleSheetsConfigured } from "./env";
 import {
   appendValues,
+  clearValues,
   ensureSheet,
   getValues,
   updateValues,
@@ -315,6 +316,10 @@ async function writeAllCustomersToSheet(): Promise<number> {
   ).map(customerSummaryToRow);
 
   await ensureSheet(CUSTOMER_SHEET);
+  // 새로 쓰기 전에 탭 전체를 비운다 — 안 그러면 이번엔 손님 수가
+  // 줄었거나(예: 통합) 예전에 중복으로 쌓인 행이 새 데이터 아래에
+  // 그대로 남아 중복처럼 보인다.
+  await clearValues(`'${CUSTOMER_SHEET}'!A:Z`);
   await updateValues(
     `'${CUSTOMER_SHEET}'!A1:${CUSTOMER_LAST_COLUMN}${customerRows.length + 1}`,
     [CUSTOMER_HEADERS, ...customerRows],
@@ -367,6 +372,8 @@ export async function backfillAllToSheet(): Promise<{
   const reservationRows = reservations.map((r) =>
     buildReservationRow(r, productNameById.get(r.product_id) ?? "(삭제된 상품)"),
   );
+  // 고객DB 탭과 같은 이유로, 다시 쓰기 전에 탭 전체를 비운다.
+  await clearValues(`'${RESERVATION_SHEET}'!A:Z`);
   await updateValues(
     `'${RESERVATION_SHEET}'!A1:${RESERVATION_LAST_COLUMN}${reservationRows.length + 1}`,
     [RESERVATION_HEADERS, ...reservationRows],
