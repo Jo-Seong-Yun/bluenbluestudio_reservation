@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { kstDateString, kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
+import { summarizeCustomers, type CustomerSummary } from "@/lib/customers";
 import { googleSheetsConfigured } from "./env";
 import {
   appendValues,
@@ -232,49 +233,17 @@ export async function markReservationDeletedInSheet(
   }
 }
 
-type CustomerHistoryRow = {
-  customer_name: string;
-  customer_email: string | null;
-  gender: string | null;
-  birth_date: string | null;
-  status: string;
-  shoot_start: string | null;
-};
-
-/**
- * 손님 한 명의 인적사항·방문 이력을 그 손님의 예약 전체로부터 계산한다.
- * `rows`는 최신순(내림차순)이어야 한다 — 이름·이메일·성별·생년월일은
- * 최근 예약 기준으로 채우되, 그 건에 값이 비어 있으면(예: 이번엔
- * 이메일을 안 적음) 과거 예약 중 값이 있는 걸 찾아 채우기 때문이다.
- *
- * 방문 = 상태가 "completed"(촬영 완료)로 표시된 예약만 센다 — 확정만
- * 되고 아직 안 온 예약이나, 노쇼·취소는 "방문"이 아니다.
- */
-function computeCustomerRow(
-  rows: CustomerHistoryRow[],
-  phone: string,
-): (string | number)[] {
-  const latestName = rows[0].customer_name;
-  const email = rows.find((r) => r.customer_email)?.customer_email ?? "";
-  const gender = rows.find((r) => r.gender)?.gender;
-  const birthDate = rows.find((r) => r.birth_date)?.birth_date;
-
-  const visitDates = rows
-    .filter((r) => r.status === "completed" && r.shoot_start)
-    .map((r) => new Date(r.shoot_start!))
-    .sort((a, b) => a.getTime() - b.getTime());
-
+/** 방문 집계(lib/customers.ts)를 시트의 한 행(문자열 배열)으로 바꾼다. */
+function customerSummaryToRow(summary: CustomerSummary): (string | number)[] {
   return [
-    latestName,
-    birthDate ? calculateAge(birthDate).manAge : "",
-    gender ? (GENDER_LABEL[gender] ?? gender) : "",
-    phone,
-    email,
-    visitDates[0] ? kstDateString(visitDates[0]) : "",
-    visitDates.length > 0
-      ? kstDateString(visitDates[visitDates.length - 1])
-      : "",
-    visitDates.length,
+    summary.name,
+    summary.age ?? "",
+    summary.genderLabel,
+    summary.phone,
+    summary.email ?? "",
+    summary.firstVisit ?? "",
+    summary.lastVisit ?? "",
+    summary.visitCount,
   ];
 }
 
@@ -291,10 +260,14 @@ export async function syncCustomerToSheet(phone: string): Promise<void> {
     const supabase = await createClient();
     const { data: rows } = await supabase
       .from("reservations")
-      .select("customer_name, customer_email, gender, birth_date, status, shoot_start, created_at")
-      .eq("customer_phone", phone)
-      .order("created_at", { ascending: false });
+      .select(
+        "customer_name, customer_phone, customer_email, gender, birth_date, status, shoot_start, created_at",
+      )
+      .eq("customer_phone", phone);
     if (!rows || rows.length === 0) return;
+
+    const [summary] = summarizeCustomers(rows);
+    if (!summary) return;
 
     await upsertRow(
       CUSTOMER_SHEET,
@@ -302,7 +275,7 @@ export async function syncCustomerToSheet(phone: string): Promise<void> {
       CUSTOMER_HEADERS,
       CUSTOMER_KEY_COLUMN,
       phone,
-      computeCustomerRow(rows, phone),
+      customerSummaryToRow(summary),
     );
   } catch (error) {
     console.error("구글 시트 고객DB 동기화 실패:", error);
@@ -354,17 +327,9 @@ export async function backfillAllToSheet(): Promise<{
     [RESERVATION_HEADERS, ...reservationRows],
   );
 
-  // 연락처별로 묶는다 — created_at 오름차순으로 가져왔으니, 묶은 뒤
-  // computeCustomerRow가 기대하는 "최신순"이 되도록 각 묶음을 뒤집는다.
-  const byPhone = new Map<string, typeof reservations>();
-  for (const r of reservations) {
-    const list = byPhone.get(r.customer_phone) ?? [];
-    list.push(r);
-    byPhone.set(r.customer_phone, list);
-  }
   await ensureSheet(CUSTOMER_SHEET);
-  const customerRows = [...byPhone.entries()].map(([phone, rows]) =>
-    computeCustomerRow([...rows].reverse(), phone),
+  const customerRows = summarizeCustomers(reservations).map(
+    customerSummaryToRow,
   );
   await updateValues(
     `'${CUSTOMER_SHEET}'!A1:${CUSTOMER_LAST_COLUMN}${customerRows.length + 1}`,
