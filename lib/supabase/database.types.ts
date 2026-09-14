@@ -216,6 +216,24 @@ export interface Database {
         >;
         Relationships: [];
       };
+      customers: {
+        Row: {
+          id: string;
+          phone: string;
+          name: string;
+          gender: Gender | null;
+          birth_date: string | null; // "YYYY-MM-DD"
+          email: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["customers"]["Row"]> & {
+          phone: string;
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["customers"]["Row"]>;
+        Relationships: [];
+      };
       custom_fields: {
         Row: {
           id: string;

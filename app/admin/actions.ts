@@ -32,6 +32,7 @@ import {
   syncCustomerToSheet,
   syncReservationToSheet,
 } from "@/lib/google-sheets/sync";
+import { upsertCustomerFromReservation } from "@/lib/customers-db";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -533,7 +534,7 @@ export async function updateReservationStatus(formData: FormData) {
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, customer_name, customer_phone, customer_email, shoot_start, product_id",
+      "code, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id",
     )
     .eq("id", id)
     .single();
@@ -563,12 +564,19 @@ export async function updateReservationStatus(formData: FormData) {
 
   // 구글 시트 백업(예약 탭 + 고객DB 탭의 방문 집계)은 확정/취소뿐 아니라
   // 완료·노쇼로 바뀔 때도 남겨야 하니, 알림 여부와 무관하게 항상 부른다.
-  after(() =>
-    Promise.all([
+  after(async () => {
+    await upsertCustomerFromReservation({
+      phone: reservation.customer_phone,
+      name: reservation.customer_name,
+      gender: reservation.gender,
+      birthDate: reservation.birth_date,
+      email: reservation.customer_email,
+    });
+    await Promise.all([
       syncReservationToSheet(id),
       syncCustomerToSheet(reservation.customer_phone),
-    ]),
-  );
+    ]);
+  });
 
   // 손님에게 알리는 건 확정/취소로 바뀔 때만(기존 동작 그대로) — 완료·
   // 노쇼는 별도 알림이 없다.
@@ -659,7 +667,9 @@ export async function confirmReservationCandidate(
       confirmed_candidate_rank: rank,
     })
     .eq("id", id)
-    .select("code, customer_name, customer_phone, customer_email, product_id")
+    .select(
+      "code, customer_name, customer_phone, customer_email, gender, birth_date, product_id",
+    )
     .single();
 
   revalidatePath("/admin/reservations");
@@ -681,8 +691,15 @@ export async function confirmReservationCandidate(
     .eq("id", reservation.product_id)
     .single();
 
-  after(() =>
-    Promise.all([
+  after(async () => {
+    await upsertCustomerFromReservation({
+      phone: reservation.customer_phone,
+      name: reservation.customer_name,
+      gender: reservation.gender,
+      birthDate: reservation.birth_date,
+      email: reservation.customer_email,
+    });
+    await Promise.all([
       notifyCustomerConfirmed({
         reservationId: id,
         customerName: reservation.customer_name,
@@ -694,8 +711,8 @@ export async function confirmReservationCandidate(
       }),
       syncReservationToSheet(id),
       syncCustomerToSheet(reservation.customer_phone),
-    ]),
-  );
+    ]);
+  });
 
   return null;
 }
@@ -1038,8 +1055,18 @@ export async function createManualReservation(
       // 이미 통화로 확인하고 사장님이 직접 넣는 예약이라, "새 신청" 알림은
       // 필요 없다 — 확정 안내만 손님에게 보낸다. 응답은 기다리게 하지
       // 않고 after()로 보낸 뒤 바로 성공을 돌려준다.
-      after(() =>
-        Promise.all([
+      after(async () => {
+        // 수기 등록 폼엔 성별·생년월일·이메일 칸이 없어 여기선
+        // 이름·연락처만 채운다(fill-blanks-only라 나머지는 비워도
+        // 기존 값을 안 지운다).
+        await upsertCustomerFromReservation({
+          phone: input.customerPhone,
+          name: input.customerName,
+          gender: null,
+          birthDate: null,
+          email: null,
+        });
+        await Promise.all([
           notifyCustomerConfirmed({
             reservationId: data?.id ?? "",
             customerName: input.customerName,
@@ -1050,8 +1077,8 @@ export async function createManualReservation(
           }),
           syncReservationToSheet(data?.id ?? ""),
           syncCustomerToSheet(input.customerPhone),
-        ]),
-      );
+        ]);
+      });
 
       return { status: "success", code };
     }
@@ -1112,7 +1139,7 @@ export async function rescheduleReservation(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, shoot_start, customer_name, customer_phone, customer_email, product_id",
+      "code, status, shoot_start, customer_name, customer_phone, customer_email, gender, birth_date, product_id",
     )
     .eq("id", input.id)
     .single();
@@ -1162,8 +1189,15 @@ export async function rescheduleReservation(
 
   revalidatePath("/admin/reservations");
 
-  after(() =>
-    Promise.all([
+  after(async () => {
+    await upsertCustomerFromReservation({
+      phone: reservation.customer_phone,
+      name: reservation.customer_name,
+      gender: reservation.gender,
+      birthDate: reservation.birth_date,
+      email: reservation.customer_email,
+    });
+    await Promise.all([
       notifyCustomerRescheduled({
         reservationId: input.id,
         customerName: reservation.customer_name,
@@ -1176,8 +1210,8 @@ export async function rescheduleReservation(
       }),
       syncReservationToSheet(input.id),
       syncCustomerToSheet(reservation.customer_phone),
-    ]),
-  );
+    ]);
+  });
 
   return null;
 }
@@ -1539,4 +1573,48 @@ export async function backfillGoogleSheets(
       error: error instanceof Error ? error.message : "동기화에 실패했습니다.",
     };
   }
+}
+
+/**
+ * 고객DB 화면에서 손님 인적사항을 수기로 고친다.
+ *
+ * 연락처(phone)는 예약 기록과 이 손님을 이어주는 식별자라 여기서
+ * 바꾸지 않는다 — 바꾸면 그 뒤로 들어오는 예약(옛 번호로 신청)이
+ * 새 손님으로 갈라져 잡힌다. 이름·성별·생년월일·이메일만 고칠 수
+ * 있다.
+ */
+export type UpdateCustomerState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success" };
+
+export async function updateCustomer(
+  _prev: UpdateCustomerState,
+  formData: FormData,
+): Promise<UpdateCustomerState> {
+  await requireAdmin();
+
+  const phone = String(formData.get("phone") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!phone) return { status: "error", error: "잘못된 요청입니다." };
+  if (!name) {
+    return { status: "error", error: "이름을 입력해 주시기 바랍니다." };
+  }
+
+  const rawGender = String(formData.get("gender") ?? "");
+  const gender = rawGender === "male" || rawGender === "female" ? rawGender : null;
+  const birthDate = String(formData.get("birthDate") ?? "").trim() || null;
+  const email = String(formData.get("email") ?? "").trim() || null;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("customers")
+    .update({ name, gender, birth_date: birthDate, email })
+    .eq("phone", phone);
+  if (error) {
+    return { status: "error", error: `저장하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/customers");
+  return { status: "success" };
 }

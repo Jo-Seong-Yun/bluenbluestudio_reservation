@@ -24,6 +24,7 @@ import {
   syncCustomerToSheet,
   syncReservationToSheet,
 } from "@/lib/google-sheets/sync";
+import { upsertCustomerFromReservation } from "@/lib/customers-db";
 
 /**
  * 달력에서 날짜를 고른 순간 그 날의 시간 슬롯을 가져온다.
@@ -186,8 +187,18 @@ export async function createReservation(
       // "예약 신청" 버튼을 누른 뒤 그 발송이 끝날 때까지 기다리게 하면
       // 안 되니, 응답은 먼저 보내고 발송은 after()로 응답 뒤에 진행한다
       // (Vercel이 응답 후에도 이 작업이 끝날 때까지 실행을 유지해준다).
-      after(() =>
-        Promise.all([
+      after(async () => {
+        // 고객DB부터 먼저 채워야, 같이 도는 시트 동기화가 방금 채운
+        // 값을 곧바로 읽을 수 있다(동시에 돌리면 시트 쪽이 더 먼저
+        // 끝나 아직 안 채워진 값을 읽어갈 수 있다).
+        await upsertCustomerFromReservation({
+          phone: special.customerPhone,
+          name: special.customerName,
+          gender: special.gender,
+          birthDate: special.birthDate,
+          email: special.customerEmail,
+        });
+        await Promise.all([
           notifyCustomerRequested({
             ...reservationNotice,
             bankAccount,
@@ -200,8 +211,8 @@ export async function createReservation(
           }),
           syncReservationToSheet(reservationId),
           syncCustomerToSheet(special.customerPhone),
-        ]),
-      );
+        ]);
+      });
 
       return {
         status: "success",
@@ -320,8 +331,15 @@ export async function cancelReservation(
 
   if (reservation.status === "cancelled") {
     const productName = await getProductName(reservation.product_id);
-    after(() =>
-      Promise.all([
+    after(async () => {
+      await upsertCustomerFromReservation({
+        phone: reservation.customer_phone,
+        name: reservation.customer_name,
+        gender: reservation.gender,
+        birthDate: reservation.birth_date,
+        email: reservation.customer_email,
+      });
+      await Promise.all([
         notifyCustomerCancelled({
           reservationId: reservation.id,
           customerName: reservation.customer_name,
@@ -333,8 +351,8 @@ export async function cancelReservation(
         }),
         syncReservationToSheet(reservation.id),
         syncCustomerToSheet(reservation.customer_phone),
-      ]),
-    );
+      ]);
+    });
   }
 
   return {
