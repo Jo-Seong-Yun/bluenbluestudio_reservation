@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { loadCustomerSummaries } from "@/lib/customers-db";
 import { CustomerTable } from "./customer-table";
+import { UploadToSheetButton } from "./upload-to-sheet-button";
 
 export const metadata: Metadata = { title: "고객DB" };
 
@@ -27,11 +28,16 @@ export default async function CustomersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">고객DB</h1>
-      <p className="text-muted mt-1 text-sm">
-        연락처 기준으로 손님을 한 명씩 모았습니다. 방문 횟수는 “촬영
-        완료”로 처리된 예약만 셉니다.
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">고객DB</h1>
+          <p className="text-muted mt-1 text-sm">
+            연락처 기준으로 손님을 한 명씩 모았습니다. 방문 횟수는 “촬영
+            완료”로 처리된 예약만 셉니다.
+          </p>
+        </div>
+        <UploadToSheetButton />
+      </div>
 
       <CustomerTable customers={customers} />
     </div>

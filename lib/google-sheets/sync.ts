@@ -298,6 +298,32 @@ export async function syncCustomerToSheet(phone: string): Promise<void> {
 }
 
 /**
+ * customers 테이블(+ 예약 기록에서 계산한 방문 이력)을 다시 모아
+ * "고객DB" 탭을 통째로 덮어쓴다. backfillAllToSheet와 "고객정보 업로드"
+ * 버튼(syncAllCustomersToSheet)이 함께 쓴다.
+ */
+async function writeAllCustomersToSheet(): Promise<number> {
+  const supabase = await createClient();
+  const [{ data: customers }, { data: visitRows }] = await Promise.all([
+    supabase.from("customers").select("phone, name, gender, birth_date, email"),
+    supabase.from("reservations").select("customer_phone, status, shoot_start"),
+  ]);
+
+  const customerRows = summarizeCustomers(
+    customers ?? [],
+    computeVisitStats(visitRows ?? []),
+  ).map(customerSummaryToRow);
+
+  await ensureSheet(CUSTOMER_SHEET);
+  await updateValues(
+    `'${CUSTOMER_SHEET}'!A1:${CUSTOMER_LAST_COLUMN}${customerRows.length + 1}`,
+    [CUSTOMER_HEADERS, ...customerRows],
+  );
+
+  return customerRows.length;
+}
+
+/**
  * 이 연동을 붙이기 전부터 있던 예약들을 한 번에 소급 반영한다. 관리자가
  * 설정 화면에서 명시적으로 누르는 일회성 작업이라(예약이 바뀔 때마다
  * 자동으로 도는 위 함수들과 다르게), 실패를 삼키지 않고 그대로
@@ -346,21 +372,24 @@ export async function backfillAllToSheet(): Promise<{
     [RESERVATION_HEADERS, ...reservationRows],
   );
 
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("phone, name, gender, birth_date, email");
-  await ensureSheet(CUSTOMER_SHEET);
-  const customerRows = summarizeCustomers(
-    customers ?? [],
-    computeVisitStats(reservations),
-  ).map(customerSummaryToRow);
-  await updateValues(
-    `'${CUSTOMER_SHEET}'!A1:${CUSTOMER_LAST_COLUMN}${customerRows.length + 1}`,
-    [CUSTOMER_HEADERS, ...customerRows],
-  );
+  const customerCount = await writeAllCustomersToSheet();
 
   return {
     reservationCount: reservationRows.length,
-    customerCount: customerRows.length,
+    customerCount,
   };
+}
+
+/**
+ * "고객DB" 화면에서 손님 정보를 수기로 고친 뒤 누르는 "고객정보 업로드"
+ * 버튼. backfillAllToSheet와 달리 "예약" 탭이나 customers 테이블의 새
+ * 손님 채우기는 건드리지 않고, 지금 customers 테이블에 있는 값 그대로를
+ * "고객DB" 탭에 반영한다 — 평소엔 예약이 바뀔 때만 자동으로 동기화되니,
+ * 수기로 고친 값은 이 버튼을 눌러야 시트에 곧바로 반영된다.
+ */
+export async function syncAllCustomersToSheet(): Promise<number> {
+  if (!googleSheetsConfigured()) {
+    throw new Error("구글 시트 연동 환경변수가 설정되지 않았습니다.");
+  }
+  return writeAllCustomersToSheet();
 }
