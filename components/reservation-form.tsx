@@ -22,9 +22,17 @@ import {
  */
 const FIELD_LABEL_CLASS = "text-base font-semibold";
 const FIELD_HINT_CLASS = "text-sm";
-const OPTION_LABEL_CLASS = "flex items-center gap-2 text-base";
+// 라디오/체크박스는 라벨 전체(원·네모 + 글자)가 다 눌리긴 하지만, 기본
+// 크기(13px 안팎)로는 선택 표시 자체가 잘 안 보여 손가락으로 짚기
+// 애매하다 — py-2로 줄 높이도 같이 키워 터치 영역을 넉넉히 한다.
+const OPTION_LABEL_CLASS = "flex items-center gap-2.5 py-2 text-base";
+const OPTION_INPUT_CLASS = "h-5 w-5 shrink-0";
 const FIELD_WRAPPER_CLASS =
   "border-border border-b pb-6 last:border-0 last:pb-0";
+// 기본 버튼 높이(36px)는 관리자 화면 기준이라 모바일에서 엄지로 누르기
+// 빠듯하다 — 예약 흐름의 "신청하기" 버튼(booking-flow.tsx)과 같은
+// 54px로 맞춘다.
+const PRIMARY_CTA_CLASS = "h-[3.375rem] w-full text-base";
 
 /** 문항 상세 설명이 있으면 서식 있는 렌더러로, 없으면 기본 힌트를 보여준다. */
 function descriptionHint(
@@ -125,7 +133,7 @@ export function ReservationForm({
         {notice ? <p className="text-muted mt-4 text-sm">{notice}</p> : null}
 
         <Link href="/booking" className="mt-6 block">
-          <Button type="button" className="w-full">
+          <Button type="button" className={PRIMARY_CTA_CLASS}>
             확인
           </Button>
         </Link>
@@ -175,7 +183,7 @@ export function ReservationForm({
             type="checkbox"
             name="agreePrivacy"
             required
-            className="mt-0.5 h-4 w-4"
+            className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span>
             <span className="text-red-600 dark:text-red-400">* </span>
@@ -188,7 +196,7 @@ export function ReservationForm({
 
         <ErrorText>{state.status === "error" ? state.error : null}</ErrorText>
 
-        <Button type="submit" disabled={pending} className="w-full">
+        <Button type="submit" disabled={pending} className={PRIMARY_CTA_CLASS}>
           {pending ? "접수 중…" : "예약 신청"}
         </Button>
       </form>
@@ -284,6 +292,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
               name={name}
               value="male"
               required={field.required}
+              className={OPTION_INPUT_CLASS}
             />
             남성
           </label>
@@ -293,6 +302,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
               name={name}
               value="female"
               required={field.required}
+              className={OPTION_INPUT_CLASS}
             />
             여성
           </label>
@@ -336,7 +346,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hintClassName={FIELD_HINT_CLASS}
         hintPosition="before"
       >
-        <div className="space-y-2">
+        <div>
           {options.map((option) => (
             <label key={option} className={OPTION_LABEL_CLASS}>
               <input
@@ -344,6 +354,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
                 name={name}
                 value={option}
                 required={field.required}
+                className={OPTION_INPUT_CLASS}
               />
               {option}
             </label>
@@ -363,10 +374,15 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hintClassName={FIELD_HINT_CLASS}
         hintPosition="before"
       >
-        <div className="space-y-2">
+        <div>
           {options.map((option) => (
             <label key={option} className={OPTION_LABEL_CLASS}>
-              <input type="checkbox" name={name} value={option} />
+              <input
+                type="checkbox"
+                name={name}
+                value={option}
+                className={OPTION_INPUT_CLASS}
+              />
               {option}
             </label>
           ))}
@@ -382,7 +398,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
           type="checkbox"
           name={name}
           required={field.required}
-          className="mt-0.5 h-4 w-4"
+          className="mt-0.5 h-5 w-5 shrink-0"
         />
         <span className="font-semibold">
           {field.label}

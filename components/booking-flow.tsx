@@ -145,10 +145,12 @@ export function BookingFlow({
           {/* 지금까지 고른 후보(1~3지망) 목록. 사장님이 이 중 하나를 골라
               확정한다 — 손님도 순서가 그대로 우선순위라는 걸 알 수 있게
               "n지망"을 붙여 보여준다.
-              자리를 항상 {MAX_CANDIDATES}칸 미리 잡아둔다 — 시간을 고를
-              때마다 이 목록만 커지면 아래(신청 버튼)가 매번 밀려
-              내려가 불편하다. 빈 자리는 높이만 차지한 채 안 보이게
-              둬서, 채워지는 동안 화면이 흔들리지 않게 한다. */}
+              lg 이상(달력·시간 칸이 나란히 있고 신청 버튼이 달력 높이의
+              세로 중앙에 고정될 때)에서는 빈 자리도 높이만 차지한 채
+              안 보이게 둬서 달력 박스 높이가, 곧 버튼 위치가 흔들리지
+              않게 한다. 좁은 화면(위아래로 쌓일 때)은 그 이유가
+              없으므로 빈 자리를 아예 렌더링하지 않아, 시간 선택 칸까지
+              괜히 스크롤을 더 하게 만드는 빈 공간을 없앤다. */}
           <ul className="mt-4 space-y-1.5">
             {Array.from(
               { length: MAX_CANDIDATES },
@@ -156,11 +158,11 @@ export function BookingFlow({
             ).map((c, i) => (
               <li
                 key={i}
-                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                className={
                   c
-                    ? "border-brand bg-brand text-brand-foreground"
-                    : "border-transparent invisible"
-                }`}
+                    ? "flex items-center justify-between gap-2 rounded-lg border border-brand bg-brand px-3 py-2 text-sm text-brand-foreground transition-colors"
+                    : "hidden items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2 text-sm invisible transition-colors lg:flex"
+                }
               >
                 <span>
                   <span className="mr-1.5 opacity-80">{i + 1}지망</span>
@@ -368,9 +370,14 @@ function NavLink({
   label: string;
   children: React.ReactNode;
 }) {
+  // 44×44 이상 — 모바일에서 손가락으로 누르기 충분한 최소 터치 영역
+  // (예전엔 px-2 py-1로 30×28 정도밖에 안 돼 옆 글자를 잘못 누르기
+  // 쉬웠다).
+  const sizeClass = "flex h-11 w-11 items-center justify-center rounded-full text-base";
+
   if (disabled) {
     return (
-      <span aria-hidden className="text-muted/30 px-2 py-1 text-sm">
+      <span aria-hidden className={`text-muted/30 ${sizeClass}`}>
         {children}
       </span>
     );
@@ -379,7 +386,7 @@ function NavLink({
     <Link
       href={`${basePath}?month=${month}`}
       aria-label={label}
-      className="hover:bg-surface-subtle rounded px-2 py-1 text-sm"
+      className={`hover:bg-surface-subtle ${sizeClass}`}
     >
       {children}
     </Link>
