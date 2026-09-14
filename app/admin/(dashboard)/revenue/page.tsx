@@ -31,6 +31,18 @@ const STATUS_LABELS: Record<string, string> = {
   no_show: "노쇼",
 };
 
+/**
+ * 수익률 = 순이익 ÷ 원가(지출) × 100. "지출 대비" 수익률이라 매출이
+ * 아니라 원가를 기준으로 나눈다 — 같은 순이익이라도 원가를 적게 쓰고
+ * 냈는지, 많이 쓰고 냈는지를 보여준다. 원가를 아직 안 쓴(0원) 상품은
+ * 나눌 수가 없어 "-"로 표시한다.
+ */
+function formatProfitRate(revenue: number, cost: number) {
+  if (cost === 0) return "-";
+  const rate = ((revenue - cost) / cost) * 100;
+  return `${rate.toFixed(1)}%`;
+}
+
 export default async function RevenuePage({
   searchParams,
 }: PageProps<"/admin/revenue">) {
@@ -190,12 +202,13 @@ export default async function RevenuePage({
               <th className="px-4 py-3 font-medium">매출액</th>
               <th className="px-4 py-3 font-medium">원가</th>
               <th className="px-4 py-3 font-medium">순이익</th>
+              <th className="px-4 py-3 font-medium">수익률</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-muted px-4 py-8 text-center">
+                <td colSpan={6} className="text-muted px-4 py-8 text-center">
                   이 달엔 집계할 예약이 없습니다.
                 </td>
               </tr>
@@ -214,6 +227,7 @@ export default async function RevenuePage({
                   <td className="px-4 py-3 font-medium">
                     {(row.revenue - row.cost).toLocaleString()}원
                   </td>
+                  <td className="px-4 py-3">{formatProfitRate(row.revenue, row.cost)}</td>
                 </tr>
               ))
             )}
@@ -227,6 +241,9 @@ export default async function RevenuePage({
                 <td className="px-4 py-3">{totalCost.toLocaleString()}원</td>
                 <td className="px-4 py-3">
                   {(totalRevenue - totalCost).toLocaleString()}원
+                </td>
+                <td className="px-4 py-3">
+                  {formatProfitRate(totalRevenue, totalCost)}
                 </td>
               </tr>
             </tfoot>
