@@ -63,12 +63,21 @@ export async function getValues(range: string): Promise<string[][]> {
   return data.values ?? [];
 }
 
+// USER_ENTERED(사람이 직접 타이핑한 것처럼 해석)를 쓰면, "01012345678"
+// 같은 순수 숫자 문자열을 구글 시트가 숫자로 오인해 앞자리 0을 지워버릴
+// 수 있다 — 그러면 다음 동기화 때 그 칸을 다시 찾을 때(findRowByValue)
+// 원래 문자열과 더는 일치하지 않아 기존 행을 못 찾고 새 행을 또
+// 추가해버린다(중복 행의 원인). RAW는 우리가 넘긴 값을 그대로,
+// 해석 없이 저장한다 — 문자열은 문자열로, 숫자는(진짜 number 타입으로
+// 넘긴 값은) 숫자로 그대로 들어간다.
+const VALUE_INPUT_OPTION = "RAW";
+
 export async function updateValues(
   range: string,
   values: (string | number)[][],
 ): Promise<void> {
   await sheetsFetch(
-    `/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+    `/values/${encodeURIComponent(range)}?valueInputOption=${VALUE_INPUT_OPTION}`,
     { method: "PUT", body: JSON.stringify({ values }) },
   );
 }
@@ -78,7 +87,17 @@ export async function appendValues(
   values: (string | number)[][],
 ): Promise<void> {
   await sheetsFetch(
-    `/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    `/values/${encodeURIComponent(range)}:append?valueInputOption=${VALUE_INPUT_OPTION}&insertDataOption=INSERT_ROWS`,
     { method: "POST", body: JSON.stringify({ values }) },
   );
+}
+
+/** 지정한 범위의 값을 전부 비운다(서식은 안 건드림). 전체 덮어쓰기 전에
+ * 불러 이전에 남아있던 여분의 행(예: 이번엔 손님이 줄어든 경우)이
+ * 안 지워지고 밑에 그대로 남는 걸 막는다. */
+export async function clearValues(range: string): Promise<void> {
+  await sheetsFetch(`/values/${encodeURIComponent(range)}:clear`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
 }
