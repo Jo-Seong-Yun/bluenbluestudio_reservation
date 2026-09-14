@@ -26,6 +26,11 @@ import {
   EMAIL_TEMPLATE_PURPOSES,
   type EmailTemplatePurpose,
 } from "@/lib/notifications/email-templates-shared";
+import {
+  markReservationDeletedInSheet,
+  syncCustomerToSheet,
+  syncReservationToSheet,
+} from "@/lib/google-sheets/sync";
 
 /**
  * 관리자 화면의 데이터 변경.
@@ -518,21 +523,20 @@ export async function updateReservationStatus(formData: FormData) {
 
   const supabase = await createClient();
 
-  // 손님에게 알릴 상태(확정/취소)로 바뀔 때만, 갱신 전에 필요한 정보를
-  // 미리 읽어둔다 — update 자체는 status 컬럼만 건드리니 갱신 뒤에는
-  // 이 정보가 사라지지 않지만, 어차피 한 번 더 조회할 이유가 없다.
-  // "확정"으로 바꾸려는 경우엔 항상 미리 읽는다 — shoot_start가 있는지
-  // 판단하는 데도 이 값이 필요하다(바로 아래).
-  const notifiable = status === "confirmed" || status === "cancelled";
-  const { data: reservation } = notifiable
-    ? await supabase
-        .from("reservations")
-        .select(
-          "code, customer_name, customer_phone, customer_email, shoot_start, product_id",
-        )
-        .eq("id", id)
-        .single()
-    : { data: null };
+  // 갱신 전에 미리 읽어둔다 — update 자체는 status 컬럼만 건드리니
+  // 갱신 뒤에도 이 정보가 사라지지 않지만, 어차피 한 번 더 조회할
+  // 이유가 없다. "확정"으로 바꾸려는 경우엔 shoot_start가 있는지
+  // 판단하는 데도 이 값이 필요하고(바로 아래), 그 외의 모든 상태
+  // 변경도 구글 시트 고객DB의 방문 집계를 다시 하려면 연락처가
+  // 필요해 항상 읽는다.
+  const { data: reservation } = await supabase
+    .from("reservations")
+    .select(
+      "code, customer_name, customer_phone, customer_email, shoot_start, product_id",
+    )
+    .eq("id", id)
+    .single();
+  if (!reservation) return;
 
   if (status === "confirmed") {
     // 아직 후보만 낸 채 시간이 정해지지 않은 예약(shoot_start가 없음)은
@@ -556,7 +560,19 @@ export async function updateReservationStatus(formData: FormData) {
 
   revalidatePath("/admin/reservations");
 
-  if (reservation) {
+  // 구글 시트 백업(예약 탭 + 고객DB 탭의 방문 집계)은 확정/취소뿐 아니라
+  // 완료·노쇼로 바뀔 때도 남겨야 하니, 알림 여부와 무관하게 항상 부른다.
+  after(() =>
+    Promise.all([
+      syncReservationToSheet(id),
+      syncCustomerToSheet(reservation.customer_phone),
+    ]),
+  );
+
+  // 손님에게 알리는 건 확정/취소로 바뀔 때만(기존 동작 그대로) — 완료·
+  // 노쇼는 별도 알림이 없다.
+  const notifiable = status === "confirmed" || status === "cancelled";
+  if (notifiable) {
     const { data: product } = await supabase
       .from("products")
       .select("name")
@@ -665,15 +681,19 @@ export async function confirmReservationCandidate(
     .single();
 
   after(() =>
-    notifyCustomerConfirmed({
-      reservationId: id,
-      customerName: reservation.customer_name,
-      customerPhone: reservation.customer_phone,
-      customerEmail: reservation.customer_email,
-      productName: product?.name ?? "촬영",
-      shootStart: new Date(candidate.shoot_start),
-      code: reservation.code,
-    }),
+    Promise.all([
+      notifyCustomerConfirmed({
+        reservationId: id,
+        customerName: reservation.customer_name,
+        customerPhone: reservation.customer_phone,
+        customerEmail: reservation.customer_email,
+        productName: product?.name ?? "촬영",
+        shootStart: new Date(candidate.shoot_start),
+        code: reservation.code,
+      }),
+      syncReservationToSheet(id),
+      syncCustomerToSheet(reservation.customer_phone),
+    ]),
   );
 
   return null;
@@ -693,6 +713,7 @@ export async function saveAdminMemo(formData: FormData) {
     .eq("id", id);
 
   revalidatePath("/admin/reservations");
+  after(() => syncReservationToSheet(id));
 }
 
 /**
@@ -719,6 +740,7 @@ export async function saveReservationCost(formData: FormData) {
 
   revalidatePath("/admin/reservations");
   revalidatePath("/admin/revenue");
+  after(() => syncReservationToSheet(id));
 }
 
 /** 촬영과 무관한 월별 고정비(임대료, 장비, 마케팅 등) 한 항목 추가. */
@@ -771,10 +793,24 @@ export async function deleteReservation(formData: FormData) {
   const date = String(formData.get("date") ?? "");
 
   const supabase = await createClient();
-  const { error } = await supabase.from("reservations").delete().eq("id", id);
+  const { data: deleted, error } = await supabase
+    .from("reservations")
+    .delete()
+    .eq("id", id)
+    .select("code, customer_phone")
+    .maybeSingle();
   if (error) return;
 
   revalidatePath("/admin/reservations");
+  if (deleted) {
+    after(() =>
+      Promise.all([
+        markReservationDeletedInSheet(deleted.code),
+        // 방문 집계(고객DB)는 삭제된 예약을 뺀 나머지로 다시 계산한다.
+        syncCustomerToSheet(deleted.customer_phone),
+      ]),
+    );
+  }
 
   const params = new URLSearchParams();
   if (month) params.set("month", month);
@@ -1002,14 +1038,18 @@ export async function createManualReservation(
       // 필요 없다 — 확정 안내만 손님에게 보낸다. 응답은 기다리게 하지
       // 않고 after()로 보낸 뒤 바로 성공을 돌려준다.
       after(() =>
-        notifyCustomerConfirmed({
-          reservationId: data?.id ?? "",
-          customerName: input.customerName,
-          customerPhone: input.customerPhone,
-          productName: product.name,
-          shootStart,
-          code,
-        }),
+        Promise.all([
+          notifyCustomerConfirmed({
+            reservationId: data?.id ?? "",
+            customerName: input.customerName,
+            customerPhone: input.customerPhone,
+            productName: product.name,
+            shootStart,
+            code,
+          }),
+          syncReservationToSheet(data?.id ?? ""),
+          syncCustomerToSheet(input.customerPhone),
+        ]),
       );
 
       return { status: "success", code };
@@ -1122,16 +1162,20 @@ export async function rescheduleReservation(
   revalidatePath("/admin/reservations");
 
   after(() =>
-    notifyCustomerRescheduled({
-      reservationId: input.id,
-      customerName: reservation.customer_name,
-      customerPhone: reservation.customer_phone,
-      customerEmail: reservation.customer_email,
-      productName: product.name,
-      oldShootStart,
-      newShootStart,
-      code: reservation.code,
-    }),
+    Promise.all([
+      notifyCustomerRescheduled({
+        reservationId: input.id,
+        customerName: reservation.customer_name,
+        customerPhone: reservation.customer_phone,
+        customerEmail: reservation.customer_email,
+        productName: product.name,
+        oldShootStart,
+        newShootStart,
+        code: reservation.code,
+      }),
+      syncReservationToSheet(input.id),
+      syncCustomerToSheet(reservation.customer_phone),
+    ]),
   );
 
   return null;
@@ -1296,6 +1340,7 @@ export async function saveReservationChargedAmount(formData: FormData) {
 
   revalidatePath("/admin/reservations");
   revalidatePath("/admin/revenue");
+  after(() => syncReservationToSheet(id));
 }
 
 /**

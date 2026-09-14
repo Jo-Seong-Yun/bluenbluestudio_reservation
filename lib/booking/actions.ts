@@ -20,6 +20,10 @@ import {
   extractReservationFormData,
   loadActiveCustomFields,
 } from "@/lib/booking/custom-fields";
+import {
+  syncCustomerToSheet,
+  syncReservationToSheet,
+} from "@/lib/google-sheets/sync";
 
 /**
  * 달력에서 날짜를 고른 순간 그 날의 시간 슬롯을 가져온다.
@@ -194,6 +198,8 @@ export async function createReservation(
             adminPhone: settingsRow?.admin_notify_phone ?? null,
             adminEmail: settingsRow?.admin_notify_email ?? null,
           }),
+          syncReservationToSheet(reservationId),
+          syncCustomerToSheet(special.customerPhone),
         ]),
       );
 
@@ -315,15 +321,19 @@ export async function cancelReservation(
   if (reservation.status === "cancelled") {
     const productName = await getProductName(reservation.product_id);
     after(() =>
-      notifyCustomerCancelled({
-        reservationId: reservation.id,
-        customerName: reservation.customer_name,
-        customerPhone: reservation.customer_phone,
-        customerEmail: reservation.customer_email,
-        productName,
-        shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
-        code: reservation.code,
-      }),
+      Promise.all([
+        notifyCustomerCancelled({
+          reservationId: reservation.id,
+          customerName: reservation.customer_name,
+          customerPhone: reservation.customer_phone,
+          customerEmail: reservation.customer_email,
+          productName,
+          shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
+          code: reservation.code,
+        }),
+        syncReservationToSheet(reservation.id),
+        syncCustomerToSheet(reservation.customer_phone),
+      ]),
     );
   }
 
