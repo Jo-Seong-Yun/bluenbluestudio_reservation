@@ -2,7 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { ReservationStatus } from "@/lib/supabase/database.types";
 import { googleCalendarColorId } from "@/lib/product-tag-colors";
-import { googleCalendarConfigured } from "./env";
+import { googleCalendarConfigured, googleCalendarId } from "./env";
 import {
   createEvent,
   deleteEvent,
@@ -64,24 +64,38 @@ function buildEvent(
 }
 
 /**
+ * syncOneReservationToCalendar가 실제로 한 일. "던지지 않고 끝났다"만
+ * 성공으로 치면 내부에서 조용히 건너뛴 경우까지 성공으로 잘못 세게
+ * 되므로("반영했다"는데 캘린더엔 없는 상황), 무슨 일이 있었는지를
+ * 호출하는 쪽이 정확히 구분할 수 있게 결과를 돌려준다.
+ */
+type SyncOutcome =
+  | { kind: "created_or_updated"; eventId: string }
+  | { kind: "removed" }
+  | { kind: "skipped"; reason: string };
+
+/**
  * syncReservationToCalendar의 실제 동작. 자동 동기화 지점에서 쓰는
  * 공개 함수는 이걸 try/catch로 감싸 절대 던지지 않게 하고, 아래
- * backfillAllToCalendar는 이 버전을 직접 불러 건별 실패를 알 수 있게
- * 한다(건 하나가 실패해도 나머지는 계속 진행하되, 몇 건이 실패했는지
- * 세어 화면에 보여준다).
+ * backfillAllToCalendar는 이 버전을 직접 불러 건별 결과를 정확히 센다.
  */
 async function syncOneReservationToCalendar(
   reservationId: string,
-): Promise<void> {
+): Promise<SyncOutcome> {
   const supabase = await createClient();
-  const { data: reservation } = await supabase
+  const { data: reservation, error: fetchError } = await supabase
     .from("reservations")
     .select(
       "code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, google_calendar_event_id, product_id",
     )
     .eq("id", reservationId)
     .maybeSingle();
-  if (!reservation) return;
+  if (fetchError) {
+    throw new Error(`예약을 불러오지 못했습니다: ${fetchError.message}`);
+  }
+  if (!reservation) {
+    return { kind: "skipped", reason: "예약을 찾을 수 없음" };
+  }
 
   if (
     !CONFIRMED_STATUSES.has(reservation.status) ||
@@ -94,8 +108,12 @@ async function syncOneReservationToCalendar(
         .from("reservations")
         .update({ google_calendar_event_id: null })
         .eq("id", reservationId);
+      return { kind: "removed" };
     }
-    return;
+    return {
+      kind: "skipped",
+      reason: `대상 상태 아님(status=${reservation.status}, shoot_start=${reservation.shoot_start ?? "null"})`,
+    };
   }
 
   const { data: product } = await supabase
@@ -113,7 +131,10 @@ async function syncOneReservationToCalendar(
   if (reservation.google_calendar_event_id) {
     try {
       await updateEvent(reservation.google_calendar_event_id, event);
-      return;
+      return {
+        kind: "created_or_updated",
+        eventId: reservation.google_calendar_event_id,
+      };
     } catch {
       // 캘린더에서 이벤트가 이미 지워진 경우(관리자가 구글 캘린더
       // 앱에서 직접 지운 경우 등) — 새로 만든다.
@@ -121,10 +142,24 @@ async function syncOneReservationToCalendar(
   }
 
   const eventId = await createEvent(event);
-  await supabase
+  const { error: updateError } = await supabase
     .from("reservations")
     .update({ google_calendar_event_id: eventId })
     .eq("id", reservationId);
+  if (updateError) {
+    // 캘린더엔 이미 만들어졌는데 DB에 id를 못 남기면, 다음 동기화 때
+    // 이 이벤트를 다시 못 찾아 중복으로 하나 더 만들게 된다 — 조용히
+    // 넘기지 않고 알린다.
+    console.error(
+      `구글 캘린더 이벤트(${eventId})는 만들었지만 예약(${reservationId})에 id 저장 실패:`,
+      updateError.message,
+    );
+  }
+  console.log(
+    `구글 캘린더 이벤트 생성: reservation=${reservationId} eventId=${eventId} calendarId=${googleCalendarId()}`,
+  );
+
+  return { kind: "created_or_updated", eventId };
 }
 
 /**
@@ -154,10 +189,17 @@ export async function syncReservationToCalendar(
  * 눌러도 안전하다). 설정 화면에서 관리자가 명시적으로 누르는 일회성
  * 작업이라 전체 조회 실패는 그대로 throw하지만, 건별 실패까지 전체를
  * 멈추면 앞서 성공한 수백 건을 다시 반복해야 하니 건별로는 계속
- * 진행하고 실패 수만 세어 돌려준다.
+ * 진행한다.
+ *
+ * syncedCount는 실제로 이벤트를 만들거나 갱신한 건수만 센다 — 예외 없이
+ * 끝났다고 전부 성공으로 세면, 내부에서 조용히 건너뛴 경우까지 성공으로
+ * 잘못 보고하게 된다(반영됐다고 뜨는데 캘린더엔 안 보이는 문제의
+ * 원인이었다). skippedCount와 각 건의 사유는 Vercel 함수 로그에
+ * console.error로 남긴다.
  */
 export async function backfillAllToCalendar(): Promise<{
   syncedCount: number;
+  skippedCount: number;
   failedCount: number;
 }> {
   if (!googleCalendarConfigured()) {
@@ -173,20 +215,30 @@ export async function backfillAllToCalendar(): Promise<{
     .not("shoot_end", "is", null);
   if (error) throw new Error(`예약 목록을 불러오지 못했습니다: ${error.message}`);
   if (!reservations || reservations.length === 0) {
-    return { syncedCount: 0, failedCount: 0 };
+    return { syncedCount: 0, skippedCount: 0, failedCount: 0 };
   }
 
+  let syncedCount = 0;
+  let skippedCount = 0;
   let failedCount = 0;
   for (const { id } of reservations) {
     try {
-      await syncOneReservationToCalendar(id);
+      const outcome = await syncOneReservationToCalendar(id);
+      if (outcome.kind === "created_or_updated") {
+        syncedCount++;
+      } else {
+        skippedCount++;
+        if (outcome.kind === "skipped") {
+          console.error(`구글 캘린더 소급 반영 건너뜀: reservation=${id} 사유=${outcome.reason}`);
+        }
+      }
     } catch (err) {
       failedCount++;
       console.error("구글 캘린더 소급 반영 실패:", id, err);
     }
   }
 
-  return { syncedCount: reservations.length - failedCount, failedCount };
+  return { syncedCount, skippedCount, failedCount };
 }
 
 /**
