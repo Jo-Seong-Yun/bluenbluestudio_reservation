@@ -1,69 +1,93 @@
 /**
- * 상품 태그 색상 팔레트. 자유 색상이 아니라 여기 10개 중 하나만 고른다
- * — DB의 체크 제약(20260909000400_product_tag_color.sql)과 key 목록이
- * 항상 같아야 한다. 부드러운 톤을 쓰려고 각 색의 300 단계(점)와
- * 500/25 투명도(칸 배경, 스케줄 캘린더용)를 쓴다.
+ * 상품 태그 색상 팔레트. 자유 색상이 아니라 여기 11개 중 하나만 고른다
+ * — DB의 체크 제약(20260909000400_product_tag_color.sql +
+ * 20260923000100_product_tag_color_google.sql)과 key 목록이 항상 같아야
+ * 한다.
+ *
+ * 구글 캘린더 이벤트는 임의의 색을 못 넣고 구글이 정해둔 11가지
+ * colorId 중 하나만 고를 수 있어(lib/google-calendar/calendar-api.ts),
+ * 예약을 캘린더에 동기화할 때 상품 태그 색을 최대한 가깝게 매핑해야
+ * 했다. 그 변환·근사 과정 자체를 없애려고, 사이트의 색상 후보를 처음부터
+ * 구글 캘린더의 11색과 정확히 같게(같은 hex, 같은 순서) 잡았다 — 그래서
+ * key가 그대로 구글 colorId 1~11에 1:1로 대응한다.
  */
 export const PRODUCT_TAG_COLORS = [
   {
-    key: "rose",
-    label: "로즈",
-    dot: "bg-rose-300",
-    cell: "bg-rose-500/25 text-rose-800 dark:text-rose-300",
+    key: "lavender",
+    label: "라벤더",
+    hex: "#7986cb",
+    dot: "bg-[#7986cb]",
+    cell: "bg-[#7986cb]/25 text-[#434a70] dark:text-[#c3c9e8]",
   },
   {
-    key: "orange",
-    label: "오렌지",
-    dot: "bg-orange-300",
-    cell: "bg-orange-500/25 text-orange-800 dark:text-orange-300",
+    key: "sage",
+    label: "세이지",
+    hex: "#33b679",
+    dot: "bg-[#33b679]",
+    cell: "bg-[#33b679]/25 text-[#1c6443] dark:text-[#a3dec3]",
   },
   {
-    key: "amber",
-    label: "앰버",
-    dot: "bg-amber-300",
-    cell: "bg-amber-500/25 text-amber-800 dark:text-amber-300",
+    key: "grape",
+    label: "포도",
+    hex: "#8e24aa",
+    dot: "bg-[#8e24aa]",
+    cell: "bg-[#8e24aa]/25 text-[#4e145e] dark:text-[#cc9cd9]",
   },
   {
-    key: "lime",
-    label: "라임",
-    dot: "bg-lime-300",
-    cell: "bg-lime-500/25 text-lime-800 dark:text-lime-300",
+    key: "flamingo",
+    label: "플라밍고",
+    hex: "#e67c73",
+    dot: "bg-[#e67c73]",
+    cell: "bg-[#e67c73]/25 text-[#7f443f] dark:text-[#f4c4c0]",
   },
   {
-    key: "emerald",
-    label: "에메랄드",
-    dot: "bg-emerald-300",
-    cell: "bg-emerald-500/25 text-emerald-800 dark:text-emerald-300",
+    key: "banana",
+    label: "바나나",
+    hex: "#f6c026",
+    dot: "bg-[#f6c026]",
+    cell: "bg-[#f6c026]/25 text-[#876a15] dark:text-[#fbe39d]",
   },
   {
-    key: "teal",
-    label: "틸",
-    dot: "bg-teal-300",
-    cell: "bg-teal-500/25 text-teal-800 dark:text-teal-300",
+    key: "tangerine",
+    label: "귤",
+    hex: "#f5511d",
+    dot: "bg-[#f5511d]",
+    cell: "bg-[#f5511d]/25 text-[#872d10] dark:text-[#fbb199]",
   },
   {
-    key: "sky",
-    label: "스카이",
-    dot: "bg-sky-300",
-    cell: "bg-sky-500/25 text-sky-800 dark:text-sky-300",
+    key: "peacock",
+    label: "공작",
+    hex: "#039be5",
+    dot: "bg-[#039be5]",
+    cell: "bg-[#039be5]/25 text-[#02557e] dark:text-[#8ed2f3]",
   },
   {
-    key: "indigo",
-    label: "인디고",
-    dot: "bg-indigo-300",
-    cell: "bg-indigo-500/25 text-indigo-800 dark:text-indigo-300",
+    key: "graphite",
+    label: "흑연",
+    hex: "#616161",
+    dot: "bg-[#616161]",
+    cell: "bg-[#616161]/25 text-[#353535] dark:text-[#b8b8b8]",
   },
   {
-    key: "violet",
-    label: "바이올렛",
-    dot: "bg-violet-300",
-    cell: "bg-violet-500/25 text-violet-800 dark:text-violet-300",
+    key: "blueberry",
+    label: "블루베리",
+    hex: "#3f51b5",
+    dot: "bg-[#3f51b5]",
+    cell: "bg-[#3f51b5]/25 text-[#232d64] dark:text-[#a9b1de]",
   },
   {
-    key: "pink",
-    label: "핑크",
-    dot: "bg-pink-300",
-    cell: "bg-pink-500/25 text-pink-800 dark:text-pink-300",
+    key: "basil",
+    label: "바질",
+    hex: "#0b8043",
+    dot: "bg-[#0b8043]",
+    cell: "bg-[#0b8043]/25 text-[#064625] dark:text-[#91c6aa]",
+  },
+  {
+    key: "tomato",
+    label: "토마토",
+    hex: "#d60000",
+    dot: "bg-[#d60000]",
+    cell: "bg-[#d60000]/25 text-[#760000] dark:text-[#ed8c8c]",
   },
 ] as const;
 
@@ -93,25 +117,11 @@ export function tagColorCellClass(
   return CELL_BY_KEY[key] ?? null;
 }
 
-/**
- * 구글 캘린더 이벤트에는 임의의 색을 못 넣는다 — colorId로 구글이 정해둔
- * 11가지 중 하나만 고를 수 있다(라벤더/세이지/포도/플라밍고/바나나/
- * 귤/공작/흑연/블루베리/바질/토마토). 우리 10개 태그 색과 최대한
- * 색상 계열이 가깝게(빨강 계열은 빨강 계열로, 파랑은 파랑으로) 하나씩
- * 짝지었다 — 회색인 "흑연"은 우리 팔레트에 어울리는 게 없어 안 쓴다.
- */
-const GOOGLE_CALENDAR_COLOR_ID: Record<string, string> = {
-  rose: "11", // Tomato
-  pink: "4", // Flamingo
-  orange: "6", // Tangerine
-  amber: "5", // Banana
-  lime: "2", // Sage
-  emerald: "10", // Basil
-  teal: "7", // Peacock
-  sky: "1", // Lavender
-  indigo: "9", // Blueberry
-  violet: "3", // Grape
-};
+/** 팔레트 key → 구글 캘린더 colorId(1~11). 팔레트를 구글 색과 똑같이
+ *  잡아뒀기 때문에 이름 그대로 순서를 매긴 1:1 대응이다. */
+const GOOGLE_CALENDAR_COLOR_ID: Record<string, string> = Object.fromEntries(
+  PRODUCT_TAG_COLORS.map((color, index) => [color.key, String(index + 1)]),
+);
 
 /** 상품 태그 색에 대응하는 구글 캘린더 colorId. 없으면 undefined(구글 기본색). */
 export function googleCalendarColorId(

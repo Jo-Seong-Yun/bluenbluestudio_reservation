@@ -51,8 +51,9 @@ function buildEvent(
     start: reservation.shoot_start,
     end: reservation.shoot_end,
     // 관리자 화면에서 상품마다 고른 태그 색을 구글 캘린더 색으로도
-    // 그대로 맞춘다(lib/product-tag-colors.ts) — 구글 캘린더는 정해진
-    // 11색 중에서만 고를 수 있어 가장 가까운 색으로 매핑한다.
+    // 그대로 맞춘다(lib/product-tag-colors.ts) — 팔레트 자체를 구글
+    // 캘린더의 11색과 똑같이 잡아뒀기 때문에 근사가 아니라 정확히 같은
+    // 색으로 매핑된다.
     colorId: googleCalendarColorId(productTagColor),
   };
 }
