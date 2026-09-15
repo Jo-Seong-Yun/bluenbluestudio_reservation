@@ -170,9 +170,9 @@ export default async function ReservationsPage({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex items-start justify-between gap-4">
         <h1 className="text-2xl font-bold">예약관리</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <UploadToSheetButton />
           <ManualReservationButton products={allProducts ?? []} />
         </div>
