@@ -1596,7 +1596,12 @@ export async function backfillGoogleSheets(
 export type BackfillGoogleCalendarState =
   | { status: "idle" }
   | { status: "error"; error: string }
-  | { status: "success"; syncedCount: number; failedCount: number };
+  | {
+      status: "success";
+      syncedCount: number;
+      skippedCount: number;
+      failedCount: number;
+    };
 
 export async function backfillGoogleCalendar(
   _prev: BackfillGoogleCalendarState,
@@ -1604,8 +1609,9 @@ export async function backfillGoogleCalendar(
   await requireAdmin();
 
   try {
-    const { syncedCount, failedCount } = await backfillAllToCalendar();
-    return { status: "success", syncedCount, failedCount };
+    const { syncedCount, skippedCount, failedCount } =
+      await backfillAllToCalendar();
+    return { status: "success", syncedCount, skippedCount, failedCount };
   } catch (error) {
     return {
       status: "error",

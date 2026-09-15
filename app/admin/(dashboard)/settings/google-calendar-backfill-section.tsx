@@ -33,11 +33,13 @@ export function GoogleCalendarBackfillSection() {
       </form>
       {state.status === "success" ? (
         <p className="mt-2 text-sm text-green-700 dark:text-green-400">
-          예약 {state.syncedCount}건을 캘린더에 반영했습니다
-          {state.failedCount > 0
-            ? ` (${state.failedCount}건 실패 — 잠시 후 다시 눌러보시기 바랍니다)`
+          예약 {state.syncedCount}건을 캘린더에 반영했습니다.
+          {state.skippedCount > 0
+            ? ` ${state.skippedCount}건은 대상이 아니라 건너뛰었습니다(자세한 사유는 서버 로그 참고).`
             : ""}
-          .
+          {state.failedCount > 0
+            ? ` ${state.failedCount}건은 실패했습니다 — 잠시 후 다시 눌러보시기 바랍니다.`
+            : ""}
         </p>
       ) : null}
       {state.status === "error" ? (
