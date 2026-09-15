@@ -92,3 +92,31 @@ export function tagColorCellClass(
   if (!key) return null;
   return CELL_BY_KEY[key] ?? null;
 }
+
+/**
+ * 구글 캘린더 이벤트에는 임의의 색을 못 넣는다 — colorId로 구글이 정해둔
+ * 11가지 중 하나만 고를 수 있다(라벤더/세이지/포도/플라밍고/바나나/
+ * 귤/공작/흑연/블루베리/바질/토마토). 우리 10개 태그 색과 최대한
+ * 색상 계열이 가깝게(빨강 계열은 빨강 계열로, 파랑은 파랑으로) 하나씩
+ * 짝지었다 — 회색인 "흑연"은 우리 팔레트에 어울리는 게 없어 안 쓴다.
+ */
+const GOOGLE_CALENDAR_COLOR_ID: Record<string, string> = {
+  rose: "11", // Tomato
+  pink: "4", // Flamingo
+  orange: "6", // Tangerine
+  amber: "5", // Banana
+  lime: "2", // Sage
+  emerald: "10", // Basil
+  teal: "7", // Peacock
+  sky: "1", // Lavender
+  indigo: "9", // Blueberry
+  violet: "3", // Grape
+};
+
+/** 상품 태그 색에 대응하는 구글 캘린더 colorId. 없으면 undefined(구글 기본색). */
+export function googleCalendarColorId(
+  key: string | null | undefined,
+): string | undefined {
+  if (!key) return undefined;
+  return GOOGLE_CALENDAR_COLOR_ID[key];
+}

@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { googleCalendarColorId } from "@/lib/product-tag-colors";
 import { googleCalendarConfigured } from "./env";
 import {
   createEvent,
@@ -34,6 +35,7 @@ function buildEvent(
     shoot_end: string;
   },
   productName: string,
+  productTagColor: string | null,
 ): CalendarEventInput {
   const lines = [
     `연락처: ${reservation.customer_phone}`,
@@ -48,6 +50,10 @@ function buildEvent(
     description: lines.join("\n"),
     start: reservation.shoot_start,
     end: reservation.shoot_end,
+    // 관리자 화면에서 상품마다 고른 태그 색을 구글 캘린더 색으로도
+    // 그대로 맞춘다(lib/product-tag-colors.ts) — 구글 캘린더는 정해진
+    // 11색 중에서만 고를 수 있어 가장 가까운 색으로 매핑한다.
+    colorId: googleCalendarColorId(productTagColor),
   };
 }
 
@@ -90,13 +96,14 @@ export async function syncReservationToCalendar(
 
     const { data: product } = await supabase
       .from("products")
-      .select("name")
+      .select("name, tag_color")
       .eq("id", reservation.product_id)
       .maybeSingle();
 
     const event = buildEvent(
       { ...reservation, shoot_start: reservation.shoot_start, shoot_end: reservation.shoot_end },
       product?.name ?? "촬영",
+      product?.tag_color ?? null,
     );
 
     if (reservation.google_calendar_event_id) {

@@ -9,6 +9,8 @@ export type CalendarEventInput = {
   description: string;
   start: string; // ISO 8601
   end: string; // ISO 8601
+  /** 구글이 정해둔 11가지 중 하나(1~11). 없으면 구글 기본색. */
+  colorId?: string;
 };
 
 function toEventBody(event: CalendarEventInput) {
@@ -17,6 +19,7 @@ function toEventBody(event: CalendarEventInput) {
     description: event.description,
     start: { dateTime: event.start, timeZone: "Asia/Seoul" },
     end: { dateTime: event.end, timeZone: "Asia/Seoul" },
+    colorId: event.colorId,
   };
 }
 
