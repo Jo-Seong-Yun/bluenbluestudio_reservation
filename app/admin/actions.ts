@@ -31,11 +31,13 @@ import {
   backfillAllToSheet,
   markReservationDeletedInSheet,
   syncAllCustomersToSheet,
+  syncAllReservationsToSheet,
   syncCustomerToSheet,
   syncReservationToSheet,
 } from "@/lib/google-sheets/sync";
 import { upsertCustomerFromReservation } from "@/lib/customers-db";
 import {
+  backfillAllToCalendar,
   deleteReservationFromCalendar,
   syncReservationToCalendar,
 } from "@/lib/google-calendar/sync";
@@ -1587,6 +1589,32 @@ export async function backfillGoogleSheets(
 }
 
 /**
+ * 구글 캘린더 연동을 붙이기 전부터 있던(또는 그 사이 일시적으로 실패한)
+ * 예약들을 한 번에 소급 반영. 설정 화면에서 관리자가 명시적으로 누르는
+ * 일회성 버튼이다.
+ */
+export type BackfillGoogleCalendarState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success"; syncedCount: number; failedCount: number };
+
+export async function backfillGoogleCalendar(
+  _prev: BackfillGoogleCalendarState,
+): Promise<BackfillGoogleCalendarState> {
+  await requireAdmin();
+
+  try {
+    const { syncedCount, failedCount } = await backfillAllToCalendar();
+    return { status: "success", syncedCount, failedCount };
+  } catch (error) {
+    return {
+      status: "error",
+      error: error instanceof Error ? error.message : "동기화에 실패했습니다.",
+    };
+  }
+}
+
+/**
  * 고객DB 화면에서 손님 인적사항을 수기로 고친다. 연락처도 포함해
  * 전부 고칠 수 있다.
  *
@@ -1688,6 +1716,32 @@ export async function uploadCustomersToSheet(
 
   try {
     const count = await syncAllCustomersToSheet();
+    return { status: "success", count };
+  } catch (error) {
+    return {
+      status: "error",
+      error: error instanceof Error ? error.message : "업로드에 실패했습니다.",
+    };
+  }
+}
+
+/**
+ * 예약관리 화면의 "예약정보 업로드" 버튼. 예약은 바뀔 때마다 자동으로
+ * 시트에 반영되지만, 시트를 손으로 건드렸거나 꼬였다 싶을 때 지금 DB
+ * 상태 그대로 "예약" 탭을 통째로 다시 맞추는 수동 새로고침이다.
+ */
+export type UploadReservationsState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success"; count: number };
+
+export async function uploadReservationsToSheet(
+  _prev: UploadReservationsState,
+): Promise<UploadReservationsState> {
+  await requireAdmin();
+
+  try {
+    const count = await syncAllReservationsToSheet();
     return { status: "success", count };
   } catch (error) {
     return {

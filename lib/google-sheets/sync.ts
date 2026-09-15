@@ -299,6 +299,30 @@ export async function syncCustomerToSheet(phone: string): Promise<void> {
 }
 
 /**
+ * 넘겨받은 예약 목록으로 "예약" 탭을 통째로 덮어쓴다. backfillAllToSheet와
+ * "예약정보 업로드" 버튼(syncAllReservationsToSheet)이 함께 쓴다 —
+ * 예약 목록을 어떻게 모았는지는 호출하는 쪽 책임이라 여기선 그냥 쓰기만
+ * 한다.
+ */
+async function writeReservationsToSheet(
+  reservations: (ReservationForSheet & { product_id: string })[],
+  productNameById: Map<string, string>,
+): Promise<number> {
+  await ensureSheet(RESERVATION_SHEET);
+  const reservationRows = reservations.map((r) =>
+    buildReservationRow(r, productNameById.get(r.product_id) ?? "(삭제된 상품)"),
+  );
+  // 다시 쓰기 전에 탭 전체를 비운다 — 안 그러면 삭제된 예약이나 예전에
+  // 중복으로 쌓인 행이 새 데이터 아래에 그대로 남는다.
+  await clearValues(`'${RESERVATION_SHEET}'!A:Z`);
+  await updateValues(
+    `'${RESERVATION_SHEET}'!A1:${RESERVATION_LAST_COLUMN}${reservationRows.length + 1}`,
+    [RESERVATION_HEADERS, ...reservationRows],
+  );
+  return reservationRows.length;
+}
+
+/**
  * customers 테이블(+ 예약 기록에서 계산한 방문 이력)을 다시 모아
  * "고객DB" 탭을 통째로 덮어쓴다. backfillAllToSheet와 "고객정보 업로드"
  * 버튼(syncAllCustomersToSheet)이 함께 쓴다.
@@ -368,23 +392,44 @@ export async function backfillAllToSheet(): Promise<{
   const { data: products } = await supabase.from("products").select("id, name");
   const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
 
-  await ensureSheet(RESERVATION_SHEET);
-  const reservationRows = reservations.map((r) =>
-    buildReservationRow(r, productNameById.get(r.product_id) ?? "(삭제된 상품)"),
+  const reservationCount = await writeReservationsToSheet(
+    reservations,
+    productNameById,
   );
-  // 고객DB 탭과 같은 이유로, 다시 쓰기 전에 탭 전체를 비운다.
-  await clearValues(`'${RESERVATION_SHEET}'!A:Z`);
-  await updateValues(
-    `'${RESERVATION_SHEET}'!A1:${RESERVATION_LAST_COLUMN}${reservationRows.length + 1}`,
-    [RESERVATION_HEADERS, ...reservationRows],
-  );
-
   const customerCount = await writeAllCustomersToSheet();
 
   return {
-    reservationCount: reservationRows.length,
+    reservationCount,
     customerCount,
   };
+}
+
+/**
+ * 예약관리 화면의 "예약정보 업로드" 버튼. 예약이 바뀔 때마다 자동으로
+ * 시트에 반영되지만("예약" 탭도 건별 upsert로), 시트를 손으로 건드렸거나
+ * 꼬였다 싶을 때 DB에 있는 지금 상태 그대로 "예약" 탭을 통째로 다시
+ * 맞출 수 있게 하는 수동 새로고침이다. backfillAllToSheet와 달리
+ * customers 테이블 채우기나 "고객DB" 탭은 건드리지 않는다.
+ */
+export async function syncAllReservationsToSheet(): Promise<number> {
+  if (!googleSheetsConfigured()) {
+    throw new Error("구글 시트 연동 환경변수가 설정되지 않았습니다.");
+  }
+
+  const supabase = await createClient();
+  const { data: reservations, error } = await supabase
+    .from("reservations")
+    .select(
+      "code, status, shoot_start, shoot_end, customer_name, customer_phone, customer_email, people_count, gender, birth_date, charged_amount, charged_amount_memo, cost, cost_memo, admin_memo, memo, created_at, updated_at, product_id",
+    )
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`예약 목록을 불러오지 못했습니다: ${error.message}`);
+  if (!reservations || reservations.length === 0) return 0;
+
+  const { data: products } = await supabase.from("products").select("id, name");
+  const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
+
+  return writeReservationsToSheet(reservations, productNameById);
 }
 
 /**

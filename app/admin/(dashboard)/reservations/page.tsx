@@ -13,6 +13,7 @@ import {
 } from "@/components/admin-calendar";
 import { DetailPanel } from "./detail-panel";
 import { ManualReservationButton } from "./manual-reservation-button";
+import { UploadToSheetButton } from "./upload-to-sheet-button";
 import type { DateString } from "@/lib/time";
 
 export const metadata: Metadata = { title: "예약관리" };
@@ -169,9 +170,12 @@ export default async function ReservationsPage({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">예약관리</h1>
-        <ManualReservationButton products={allProducts ?? []} />
+        <div className="flex items-center gap-3">
+          <UploadToSheetButton />
+          <ManualReservationButton products={allProducts ?? []} />
+        </div>
       </div>
 
       {pendingList.length > 0 ? (

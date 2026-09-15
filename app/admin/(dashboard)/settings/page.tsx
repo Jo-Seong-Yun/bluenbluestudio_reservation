@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SettingsForm } from "./settings-form";
 import { EmailTemplatesSection } from "./email-templates-section";
 import { GoogleSheetsBackfillSection } from "./google-sheets-backfill-section";
+import { GoogleCalendarBackfillSection } from "./google-calendar-backfill-section";
 import {
   DEFAULT_EMAIL_TEMPLATES,
   EMAIL_TEMPLATE_PURPOSES,
@@ -74,6 +75,7 @@ export default async function SettingsPage() {
 
       <div className="mt-10 max-w-xl">
         <GoogleSheetsBackfillSection />
+        <GoogleCalendarBackfillSection />
       </div>
     </div>
   );
