@@ -8,7 +8,7 @@ export default function Home() {
         {SITE.nameEn}
       </p>
 
-      <h1 className="mt-3 text-4xl leading-tight font-bold sm:text-5xl">
+      <h1 className="gradient-text mt-3 text-4xl leading-tight font-black tracking-tight sm:text-6xl">
         {SITE.name}
       </h1>
 

@@ -1,38 +1,30 @@
 @import "tailwindcss";
 
+/* dark: 유틸리티가 시스템 설정과 무관하게 항상 적용되게 한다 — 사이트
+   전체를 Aura풍 다크 톤 하나로 통일했으므로, 기존에 여기저기 남아있는
+   dark:xxx 클래스들도 이제 조건 없이 항상 켜져야 라이트/다크가 섞여
+   보이는 일이 없다. app/layout.tsx의 <html>에 "dark" 클래스를 고정으로
+   준다. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ---------------------------------------------------------------
-   푸르른 스튜디오 디자인 토큰
+   푸르른 스튜디오 디자인 토큰 — Aura풍 다크 시네마틱 톤
    색은 여기서만 정의하고, 화면에서는 의미 이름(brand, muted 등)만 쓴다.
+   라이트 모드는 없다 — 처음부터 다크 하나로 디자인했다.
    --------------------------------------------------------------- */
 
 :root {
-  --background: #f6f9fc;
-  --surface: #ffffff;
-  --surface-subtle: #eef3f9;
-  --foreground: #0b1b2b;
-  --muted: #5a6b7d;
-  --border: #dbe4ee;
+  --background: #0c0c0c;
+  --surface: #131313;
+  --surface-subtle: #1c1c1c;
+  --foreground: #ffffff;
+  --muted: #9a9a9a;
+  --border: rgba(255, 255, 255, 0.12);
 
-  --brand: #1f47d6; /* 깊은 파랑 — 주요 동작 */
-  --brand-hover: #1a3ab0;
+  --brand: #3d81e3; /* Aura 블루 — 주요 동작 */
+  --brand-hover: #5a97ea;
   --brand-foreground: #ffffff;
-  --accent: #4d9fd6; /* 밝은 파랑 — 강조 */
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #080f16;
-    --surface: #1a2b3d;
-    --surface-subtle: #29415b;
-    --foreground: #e8eef5;
-    --muted: #93a5b8;
-    --border: #456587;
-
-    --brand: #5a86ff;
-    --brand-hover: #7b9eff;
-    --brand-foreground: #08111c;
-    --accent: #6fb6e8;
-  }
+  --accent: #00d2ff; /* 밝은 시안 — 강조·그라데이션 */
 }
 
 @theme inline {
@@ -55,6 +47,10 @@ body {
   color: var(--foreground);
 }
 
+::selection {
+  background: color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
 /* 한글은 단어 중간에서 끊기지 않게 */
 :lang(ko) {
   word-break: keep-all;
@@ -69,4 +65,28 @@ dialog[open] {
   left: 50%;
   margin: 0;
   transform: translate(-50%, -50%);
+}
+
+/* Aura풍 liquid-glass 표면 — 배경 위에 살짝 뜬 듯한 카드. 포인트가 되는
+   자리(홈 히어로, 대시보드 요약 카드 등)에만 골라서 쓴다 — 모든 카드에
+   쓰면 오히려 밋밋해진다. */
+.liquid-glass {
+  position: relative;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 그라데이션 헤드라인 텍스트 — 히어로 같은 포인트 한두 곳에만 쓴다. */
+.gradient-text {
+  background-image: linear-gradient(
+    100deg,
+    var(--foreground) 0%,
+    var(--accent) 45%,
+    var(--brand) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
