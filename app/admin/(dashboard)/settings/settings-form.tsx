@@ -27,6 +27,20 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
 
   return (
     <form action={action} className="max-w-xl space-y-8">
+      {/* 저장 버튼을 맨 위로 — 폼이 길어서 다 고치고 나면 맨 아래까지
+          스크롤해야 저장 버튼이 나오는 게 불편하다는 피드백을 반영했다. */}
+      <div className="border-border flex flex-wrap items-center gap-3 border-b pb-6">
+        <Button type="submit" disabled={pending}>
+          {pending ? "저장 중…" : "저장"}
+        </Button>
+        {state?.success ? (
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">
+            저장했습니다.
+          </p>
+        ) : null}
+        <ErrorText>{state?.error ?? null}</ErrorText>
+      </div>
+
       <section className="space-y-4">
         <h2 className="font-bold">예약 규칙</h2>
 
@@ -175,17 +189,6 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
           </Field>
         </div>
       </section>
-
-      <ErrorText>{state?.error ?? null}</ErrorText>
-      {state?.success ? (
-        <p className="text-sm text-emerald-700 dark:text-emerald-400">
-          저장했습니다.
-        </p>
-      ) : null}
-
-      <Button type="submit" disabled={pending}>
-        {pending ? "저장 중…" : "저장"}
-      </Button>
     </form>
   );
 }
