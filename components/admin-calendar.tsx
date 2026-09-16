@@ -90,7 +90,7 @@ export function AdminCalendar({
           return (
             <div
               key={date}
-              className={`border-border min-h-[64px] rounded-lg border p-1 text-left align-top ${
+              className={`border-border min-h-[150px] rounded-lg border p-1 text-left align-top ${
                 inMonth ? "bg-surface" : "bg-surface-subtle/50"
               } ${isSelectedDay ? "border-brand ring-brand/30 ring-2" : ""}`}
             >
