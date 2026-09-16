@@ -108,10 +108,26 @@ export default async function ProductDetailPage({
       <div className="mt-3 grid grid-cols-1 gap-6 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
         <div className="min-w-0">
           <div className="border-border bg-surface rounded-xl border p-5">
-            <p className="text-muted">
-              {product.price.toLocaleString()}원
-              {product.max_people ? ` · 최대 ${product.max_people}명` : ""}
-            </p>
+            <div className="text-muted flex flex-wrap items-center gap-x-2 gap-y-1">
+              {product.sale_price != null ? (
+                <>
+                  <span className="text-xs line-through">
+                    {product.price.toLocaleString()}원
+                  </span>
+                  <span className="bg-brand/10 text-brand rounded-md px-1 py-0.5 text-xs font-bold">
+                    {Math.round((1 - product.sale_price / product.price) * 100)}%
+                  </span>
+                  <span className="text-foreground text-xl font-extrabold">
+                    {product.sale_price.toLocaleString()}원
+                  </span>
+                </>
+              ) : (
+                <span>{product.price.toLocaleString()}원</span>
+              )}
+              {product.max_people ? (
+                <span>· 최대 {product.max_people}명</span>
+              ) : null}
+            </div>
 
             {product.description ? (
               <div className="mt-6">

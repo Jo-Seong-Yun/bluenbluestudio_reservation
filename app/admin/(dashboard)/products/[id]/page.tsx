@@ -44,6 +44,7 @@ export default async function EditProductPage({
           durationMin: product.duration_min,
           bufferAfterMin: product.buffer_after_min,
           price: product.price,
+          salePrice: product.sale_price,
           maxPeople: product.max_people,
           summary: product.summary ?? "",
           description: product.description ?? "",

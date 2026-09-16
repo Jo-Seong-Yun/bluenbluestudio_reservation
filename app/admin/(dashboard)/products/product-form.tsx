@@ -13,6 +13,7 @@ export type ProductFormValues = {
   durationMin: number;
   bufferAfterMin: number;
   price: number;
+  salePrice: number | null;
   maxPeople: number | null;
   summary: string;
   description: string;
@@ -101,6 +102,20 @@ export function ProductForm({
             />
           </Field>
         </div>
+
+        <Field
+          label="할인가 (원, 선택)"
+          hint="정가보다 낮은 값을 입력하면 예약 화면에 할인가로 표시됩니다. 비워두면 정가만 보입니다."
+        >
+          <input
+            name="salePrice"
+            type="number"
+            min={0}
+            step={1000}
+            defaultValue={initial.salePrice ?? ""}
+            className={inputClass}
+          />
+        </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="최대 인원" hint="비워두면 제한 없음">
