@@ -77,7 +77,7 @@ export default async function ProductDetailPage({
     // 다시 계산돼(주변 요소 크기·줄바꿈까지 실제로 줄어든다) — 그냥
     // 시각적으로 작아 보이기만 하는 게 아니라 화면에 실제로 더 많은
     // 내용이 들어온다.
-    <main className="mx-auto w-full max-w-[100rem] px-6 py-12 [zoom:85%]">
+    <main className="mx-auto w-full max-w-[100rem] px-6 py-12 [zoom:90%]">
       <Link href="/booking" className="text-muted text-sm hover:underline">
         ← 상품 목록
       </Link>
