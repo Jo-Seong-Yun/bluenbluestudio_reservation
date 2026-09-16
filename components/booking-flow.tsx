@@ -101,7 +101,12 @@ export function BookingFlow({
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    // mx-auto로 가운데 정렬하면, 이 칸이 상품 상세 페이지의 바깥 grid
+    // (app/booking/[slug]/page.tsx)에서 받는 폭이 max-w-5xl보다 넓을 때
+    // 왼쪽에 남는 여백만큼 설명 카드와의 간격이 달력↔시간선택 칸 사이
+    // 간격(gap-6)보다 더 벌어져 보였다. 왼쪽 정렬로 바꿔 그 간격이
+    // 항상 바깥 grid의 gap-6과 똑같이 맞도록 한다.
+    <div className="w-full max-w-5xl">
       {/* 시간 선택 칸을 달력 아래가 아니라 옆에 둔다 — 아래에 두면
           시간을 고를 때마다, 또는 날짜를 바꿀 때마다 그 칸 높이가
           바뀌면서 화면 전체가 위아래로 움직였다. 옆에 두면 이 칸
