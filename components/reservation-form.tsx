@@ -18,7 +18,7 @@ import {
 /**
  * 손님용 신청서는 관리자 화면보다 훨씬 큰 글자로 보여준다 — 문항을
  * 놓치거나 실수로 건너뛰지 않도록, 라벨/보조설명 크기를 키우고
- * 문항 사이는 구분선으로 나눈다(아래 FIELD_WRAPPER_CLASS).
+ * 문항마다 독립된 카드로 나눈다(아래 FIELD_WRAPPER_CLASS).
  */
 const FIELD_LABEL_CLASS = "text-base font-semibold";
 const FIELD_HINT_CLASS = "text-sm";
@@ -27,8 +27,7 @@ const FIELD_HINT_CLASS = "text-sm";
 // 애매하다 — py-2로 줄 높이도 같이 키워 터치 영역을 넉넉히 한다.
 const OPTION_LABEL_CLASS = "flex items-center gap-2.5 py-2 text-base";
 const OPTION_INPUT_CLASS = "h-5 w-5 shrink-0";
-const FIELD_WRAPPER_CLASS =
-  "border-border border-b pb-6 last:border-0 last:pb-0";
+const FIELD_WRAPPER_CLASS = "border-border bg-surface rounded-xl border p-4";
 // 기본 버튼 높이(36px)는 관리자 화면 기준이라 모바일에서 엄지로 누르기
 // 빠듯하다 — 예약 흐름의 "신청하기" 버튼(booking-flow.tsx)과 같은
 // 54px로 맞춘다.
@@ -91,6 +90,27 @@ export function ReservationForm({
   );
   const [state, action, pending] = useActionState(boundAction, initialState);
   useReportPending(pending);
+
+  // 한 줄짜리 텍스트 입력(이름/연락처/이메일/생년월일/단답형)에서 Enter를
+  // 치면, 기본 동작인 "폼 즉시 제출" 대신 바로 다음 문항 칸으로
+  // 이동해서 커서를 놓는다 — 문항을 한 번에 하나씩 빠르게 채워나갈 수
+  // 있게 하기 위해서다. 여러 개를 고를 수 있는 체크박스(multi_choice)는
+  // Enter 한 번에 넘어가버리면 나머지를 못 고르니 손대지 않고, 서술형
+  // (textarea)은 Enter가 줄바꿈이어야 하므로 애초에 대상에서 뺀다.
+  function handleFieldKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.type !== "text" && target.type !== "tel" && target.type !== "email") return;
+
+    const currentBlock = target.closest("[data-field-block]");
+    const nextBlock = currentBlock?.nextElementSibling;
+    if (!(nextBlock instanceof HTMLElement)) return; // 마지막 문항이면 기본 제출 동작에 맡긴다.
+
+    e.preventDefault();
+    nextBlock.querySelector<HTMLElement>("input, textarea")?.focus();
+    nextBlock.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   if (state.status === "success") {
     return (
@@ -180,7 +200,7 @@ export function ReservationForm({
         ))}
       </ul>
 
-      <form action={action} className="mt-6 space-y-6">
+      <form action={action} onKeyDown={handleFieldKeyDown} className="mt-6 space-y-6">
         {candidates.map((c, i) => (
           <div key={i}>
             <input type="hidden" name="candidateDate" value={c.date} />
@@ -188,11 +208,13 @@ export function ReservationForm({
           </div>
         ))}
 
-        {customFields.map((field) => (
-          <div key={field.id} className={FIELD_WRAPPER_CLASS}>
-            <ReservationFieldInput field={field} />
-          </div>
-        ))}
+        <div className="space-y-3">
+          {customFields.map((field) => (
+            <div key={field.id} data-field-block className={FIELD_WRAPPER_CLASS}>
+              <ReservationFieldInput field={field} />
+            </div>
+          ))}
+        </div>
 
         <label className="flex items-start gap-2 text-sm">
           <input
