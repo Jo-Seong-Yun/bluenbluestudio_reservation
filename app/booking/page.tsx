@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { publicImageUrl } from "@/lib/images";
 import { SITE } from "@/lib/site";
-import { tagColorCellClass, tagColorDotClass } from "@/lib/product-tag-colors";
+import { tagColorDotClass } from "@/lib/product-tag-colors";
 
 export const metadata: Metadata = { title: "예약하기" };
 
@@ -42,48 +42,43 @@ export default async function BookingPage() {
             // 관리자 화면에서 상품마다 고른 태그 색을(상품관리·스케줄
             // 캘린더와 같은 팔레트) 여기서도 그대로 써서, 손님이 색만
             // 보고도 어떤 상품들끼리 같은 계열인지 자연스럽게 구분되게
-            // 한다 — 색이 없는 상품은 그냥 기본 카드로 보인다.
-            const cellClass = tagColorCellClass(product.tag_color);
+            // 한다. 카드 전체를 물들이면 산만해 보여서, 왼쪽 끝에 얇은
+            // 색 띠만 붙인다(라벨 태그 같은 느낌) — 색이 없는 상품은
+            // 띠 없이 그냥 기본 카드로 보인다.
             const dotClass = tagColorDotClass(product.tag_color);
             return (
               <li key={product.id}>
                 <Link
                   href={`/booking/${product.slug}`}
-                  className={`flex items-center gap-4 rounded-xl border p-4 transition-colors ${
-                    cellClass
-                      ? `${cellClass} border-transparent hover:opacity-90`
-                      : "border-border bg-surface hover:border-brand"
-                  }`}
+                  className="border-border bg-surface hover:border-brand flex items-stretch overflow-hidden rounded-xl border transition-colors"
                 >
-                  {showThumbnails ? (
-                    product.cover_image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={publicImageUrl(product.cover_image)}
-                        alt=""
-                        className="h-20 w-20 shrink-0 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="bg-surface-subtle h-20 w-20 shrink-0 rounded-lg" />
-                    )
+                  {dotClass ? (
+                    <span className={`w-1.5 shrink-0 ${dotClass}`} />
                   ) : null}
-                  <div className="min-w-0 flex-1">
-                    <h2 className="flex items-center gap-1.5 font-bold">
-                      {dotClass ? (
-                        <span
-                          className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`}
+                  <div className="flex min-w-0 flex-1 items-center gap-4 p-4">
+                    {showThumbnails ? (
+                      product.cover_image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={publicImageUrl(product.cover_image)}
+                          alt=""
+                          className="h-20 w-20 shrink-0 rounded-lg object-cover"
                         />
-                      ) : null}
-                      {product.name}
-                    </h2>
-                    {product.summary ? (
-                      <p className="text-muted mt-0.5 line-clamp-2 text-sm">
-                        {product.summary}
-                      </p>
+                      ) : (
+                        <div className="bg-surface-subtle h-20 w-20 shrink-0 rounded-lg" />
+                      )
                     ) : null}
-                    <p className="text-muted mt-1 text-sm">
-                      {product.price.toLocaleString()}원
-                    </p>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-bold">{product.name}</h2>
+                      {product.summary ? (
+                        <p className="text-muted mt-0.5 line-clamp-2 text-sm">
+                          {product.summary}
+                        </p>
+                      ) : null}
+                      <p className="text-muted mt-1 text-sm">
+                        {product.price.toLocaleString()}원
+                      </p>
+                    </div>
                   </div>
                 </Link>
               </li>

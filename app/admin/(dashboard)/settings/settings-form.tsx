@@ -27,18 +27,23 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
 
   return (
     <form action={action} className="max-w-xl space-y-8">
-      {/* 저장 버튼을 맨 위로 — 폼이 길어서 다 고치고 나면 맨 아래까지
-          스크롤해야 저장 버튼이 나오는 게 불편하다는 피드백을 반영했다. */}
-      <div className="border-border flex flex-wrap items-center gap-3 border-b pb-6">
-        <Button type="submit" disabled={pending}>
-          {pending ? "저장 중…" : "저장"}
-        </Button>
-        {state?.success ? (
-          <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            저장했습니다.
-          </p>
-        ) : null}
-        <ErrorText>{state?.error ?? null}</ErrorText>
+      {/* 저장 버튼을 타이틀 옆에 두고, 이 줄만 스크롤해도 화면에 그대로
+          남아 있게 한다 — 관리자 헤더(app/admin/(dashboard)/layout.tsx)
+          바로 아래(top-16)에 붙여, 폼이 아무리 길어도 저장 버튼을 다시
+          찾아 스크롤할 필요가 없다. */}
+      <div className="bg-background border-border sticky top-16 z-10 -mx-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b px-4 py-4 sm:-mx-[8.5%] sm:px-[8.5%]">
+        <h1 className="text-2xl font-bold">예약 설정</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={pending}>
+            {pending ? "저장 중…" : "저장"}
+          </Button>
+          {state?.success ? (
+            <p className="text-sm text-emerald-700 dark:text-emerald-400">
+              저장했습니다.
+            </p>
+          ) : null}
+          <ErrorText>{state?.error ?? null}</ErrorText>
+        </div>
       </div>
 
       <section className="space-y-4">
