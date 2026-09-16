@@ -12,7 +12,7 @@ export default async function BookingPage() {
   const [{ data: products }, { data: settings }] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, slug, summary, price, cover_image, tag_color")
+      .select("id, name, slug, summary, price, sale_price, cover_image, tag_color")
       .eq("is_published", true)
       .order("sort_order")
       .order("created_at"),
@@ -83,9 +83,34 @@ export default async function BookingPage() {
                       ) : null}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5 pl-2 text-right">
-                      <p className="text-lg font-bold whitespace-nowrap">
-                        {product.price.toLocaleString()}원
-                      </p>
+                      {/* 할인가가 있으면(관리자가 정가보다 낮은 값을
+                          따로 넣은 경우만) 정가를 작게 취소선으로,
+                          할인율 배지를 옆에 붙이고, 할인가를 더 크고
+                          진하게 강조한다 — 색은 브랜드색 한 가지만
+                          더해서 튀지 않게 한다(할인가 자체 글자는
+                          색 없이 굵기·크기로만 강조, Airbnb류). */}
+                      {product.sale_price != null ? (
+                        <>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted text-xs line-through">
+                              {product.price.toLocaleString()}원
+                            </span>
+                            <span className="bg-brand/10 text-brand rounded-md px-1 py-0.5 text-xs font-bold">
+                              {Math.round(
+                                (1 - product.sale_price / product.price) * 100,
+                              )}
+                              %
+                            </span>
+                          </div>
+                          <p className="text-foreground text-xl font-extrabold whitespace-nowrap">
+                            {product.sale_price.toLocaleString()}원
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-lg font-bold whitespace-nowrap">
+                          {product.price.toLocaleString()}원
+                        </p>
+                      )}
                       <span className="text-brand group-hover:gap-1.5 inline-flex items-center gap-1 text-sm font-medium whitespace-nowrap transition-[gap]">
                         예약하기
                         <span aria-hidden>→</span>

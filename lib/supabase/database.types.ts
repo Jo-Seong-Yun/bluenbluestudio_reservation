@@ -36,6 +36,7 @@ export interface Database {
           duration_min: number;
           buffer_after_min: number;
           price: number;
+          sale_price: number | null;
           summary: string | null;
           description: string | null;
           cover_image: string | null;

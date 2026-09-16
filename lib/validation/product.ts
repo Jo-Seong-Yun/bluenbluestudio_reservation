@@ -27,12 +27,21 @@ export const productSchema = z.object({
     .min(0, "정리 시간은 0분 이상이어야 합니다.")
     .max(240),
   price: z.coerce.number().int().min(0, "가격은 0원 이상이어야 합니다."),
+  salePrice: z
+    .union([
+      z.literal(""),
+      z.coerce.number().int().min(0, "할인가는 0원 이상이어야 합니다."),
+    ])
+    .transform((value) => (value === "" ? null : value)),
   maxPeople: z
     .union([z.literal(""), z.coerce.number().int().min(1).max(100)])
     .transform((value) => (value === "" ? null : value)),
   summary: z.string().trim().max(200).optional().default(""),
   description: z.string().max(20_000).optional().default(""),
   isPublished: z.coerce.boolean(),
+}).refine((data) => data.salePrice === null || data.salePrice < data.price, {
+  message: "할인가는 정가보다 낮아야 합니다.",
+  path: ["salePrice"],
 });
 
 export type ProductInput = z.infer<typeof productSchema>;

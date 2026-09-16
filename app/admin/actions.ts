@@ -206,6 +206,7 @@ export async function discardDraftProduct(formData: FormData) {
     product.duration_min === 60 &&
     product.buffer_after_min === 0 &&
     product.price === 0 &&
+    product.sale_price === null &&
     product.is_published === false &&
     !product.summary &&
     !product.description &&
@@ -250,6 +251,7 @@ export async function saveProduct(
     durationMin: formData.get("durationMin"),
     bufferAfterMin: formData.get("bufferAfterMin"),
     price: formData.get("price"),
+    salePrice: formData.get("salePrice"),
     maxPeople: formData.get("maxPeople"),
     summary: formData.get("summary"),
     description: formData.get("description"),
@@ -282,6 +284,7 @@ export async function saveProduct(
     duration_min: input.durationMin,
     buffer_after_min: input.bufferAfterMin,
     price: input.price,
+    sale_price: input.salePrice,
     max_people: input.maxPeople,
     summary: input.summary || null,
     description: input.description || null,
@@ -445,6 +448,7 @@ export async function duplicateProduct(formData: FormData) {
         duration_min: source.duration_min,
         buffer_after_min: source.buffer_after_min,
         price: source.price,
+        sale_price: source.sale_price,
         max_people: source.max_people,
         summary: source.summary,
         description: source.description,
