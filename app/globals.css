@@ -108,3 +108,60 @@ dialog[open] {
   color: transparent;
   -webkit-text-fill-color: transparent;
 }
+
+/* 히어로 뒤에 은은하게 까는 방사형 광원. 요소에 position:relative가
+   있어야 하고, 광원 자체는 ::before로 그 뒤에 깐다(내용 위에 안 덮임). */
+.radial-glow {
+  position: relative;
+  isolation: isolate;
+}
+.radial-glow::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 140%;
+  z-index: -1;
+  background: radial-gradient(
+    600px circle at 20% 0%,
+    color-mix(in srgb, var(--brand) 18%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* 히어로 요소들이 순서대로 살짝 아래에서 떠오르며 나타나는 등장 효과.
+   지연 시간은 앞에서부터 0.1초씩 늘려 붙인다. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-up {
+  opacity: 0;
+  animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-fade-up-1 {
+  animation-delay: 0.1s;
+}
+.animate-fade-up-2 {
+  animation-delay: 0.2s;
+}
+.animate-fade-up-3 {
+  animation-delay: 0.35s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-up-1,
+  .animate-fade-up-2,
+  .animate-fade-up-3 {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
