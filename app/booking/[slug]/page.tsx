@@ -6,6 +6,7 @@ import { loadAvailableDates } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { RichText } from "@/components/rich-text";
 import { BookingFlow } from "@/components/booking-flow";
+import { Button } from "@/components/ui";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
 
 export async function generateMetadata({
@@ -81,11 +82,10 @@ export default async function ProductDetailPage({
     // 세로로 쌓이는 좁은 레이아웃이라 더 줄이면 달력 날짜 버튼 같은
     // 터치 영역만 작아지고 얻는 게 없다.
     <main className="mx-auto w-full max-w-[100rem] px-4 py-12 sm:px-6 lg:[zoom:90%]">
-      <Link
-        href="/booking"
-        className="text-muted text-boost text-sm hover:underline"
-      >
-        ← 상품 목록
+      <Link href="/booking">
+        <Button type="button" variant="ghost" className="text-boost">
+          ← 상품 목록
+        </Button>
       </Link>
 
       {/* 제목과 예약 가능 기간은 그리드 바깥, 맨 위 한 줄에 같이 둔다 —
