@@ -1254,6 +1254,7 @@ export async function saveSettings(
   const adminNotifyEmail = String(
     formData.get("adminNotifyEmail") ?? "",
   ).trim();
+  const showProductThumbnails = formData.get("showProductThumbnails") === "on";
 
   if (
     !Number.isInteger(slotIntervalMin) ||
@@ -1291,6 +1292,7 @@ export async function saveSettings(
       notice: notice || null,
       admin_notify_phone: adminNotifyPhone || null,
       admin_notify_email: adminNotifyEmail || null,
+      show_product_thumbnails: showProductThumbnails,
     })
     .eq("id", 1);
 

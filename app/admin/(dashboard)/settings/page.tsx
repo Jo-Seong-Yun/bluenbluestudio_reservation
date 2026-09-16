@@ -22,7 +22,7 @@ export default async function SettingsPage() {
     supabase
       .from("settings")
       .select(
-        "slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, admin_notify_phone, admin_notify_email",
+        "slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, admin_notify_phone, admin_notify_email, show_product_thumbnails",
       )
       .eq("id", 1)
       .single(),
@@ -66,6 +66,7 @@ export default async function SettingsPage() {
           notice: settings.notice ?? "",
           adminNotifyPhone: settings.admin_notify_phone ?? "",
           adminNotifyEmail: settings.admin_notify_email ?? "",
+          showProductThumbnails: settings.show_product_thumbnails,
         }}
       />
 

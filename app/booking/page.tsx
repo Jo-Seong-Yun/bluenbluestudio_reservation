@@ -8,12 +8,20 @@ export const metadata: Metadata = { title: "예약하기" };
 
 export default async function BookingPage() {
   const supabase = await createClient();
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, name, slug, summary, price, cover_image")
-    .eq("is_published", true)
-    .order("sort_order")
-    .order("created_at");
+  const [{ data: products }, { data: settings }] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, slug, summary, price, cover_image")
+      .eq("is_published", true)
+      .order("sort_order")
+      .order("created_at"),
+    supabase
+      .from("settings")
+      .select("show_product_thumbnails")
+      .eq("id", 1)
+      .single(),
+  ]);
+  const showThumbnails = settings?.show_product_thumbnails ?? true;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12">
@@ -35,16 +43,18 @@ export default async function BookingPage() {
                 href={`/booking/${product.slug}`}
                 className="border-border bg-surface hover:border-brand flex items-center gap-4 rounded-xl border p-4 transition-colors"
               >
-                {product.cover_image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={publicImageUrl(product.cover_image)}
-                    alt=""
-                    className="h-20 w-20 shrink-0 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="bg-surface-subtle h-20 w-20 shrink-0 rounded-lg" />
-                )}
+                {showThumbnails ? (
+                  product.cover_image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={publicImageUrl(product.cover_image)}
+                      alt=""
+                      className="h-20 w-20 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="bg-surface-subtle h-20 w-20 shrink-0 rounded-lg" />
+                  )
+                ) : null}
                 <div className="min-w-0 flex-1">
                   <h2 className="font-bold">{product.name}</h2>
                   {product.summary ? (

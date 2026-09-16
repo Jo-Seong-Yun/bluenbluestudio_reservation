@@ -192,6 +192,7 @@ export interface Database {
           notice: string | null;
           admin_notify_phone: string | null;
           admin_notify_email: string | null;
+          show_product_thumbnails: boolean;
           updated_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["settings"]["Row"]>;
