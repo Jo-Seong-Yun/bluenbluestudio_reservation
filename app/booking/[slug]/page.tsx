@@ -144,7 +144,7 @@ export default async function ProductDetailPage({
             </div>
 
             {product.description ? (
-              <div className="text-boost mt-6">
+              <div className="text-boost mt-6 text-sm sm:text-base">
                 <RichText>{product.description}</RichText>
               </div>
             ) : null}

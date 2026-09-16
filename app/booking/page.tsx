@@ -77,7 +77,7 @@ export default async function BookingPage() {
                       )
                     ) : null}
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-base font-bold sm:text-lg">
+                      <h2 className="text-lg font-bold sm:text-xl">
                         {product.name}
                       </h2>
                       {product.summary ? (

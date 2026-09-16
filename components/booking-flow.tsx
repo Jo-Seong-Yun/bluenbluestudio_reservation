@@ -123,8 +123,8 @@ export function BookingFlow({
           영향을 주지 않는다. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[36rem_minmax(0,1fr)] lg:items-stretch">
         <div className="border-border bg-surface min-w-0 w-full rounded-xl border p-3 sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-boost font-bold">희망 시간 고르기</h2>
+          <div className="mb-1.5 flex items-center justify-between">
+            <h2 className="text-boost text-lg font-bold">희망 시간 고르기</h2>
             <span className="text-muted text-boost text-xs">
               {candidates.length}/{MAX_CANDIDATES}개 선택
             </span>
@@ -330,7 +330,7 @@ function CalendarGrid({
             return (
               <div
                 key={date}
-                className={`text-muted aspect-square rounded-md text-base font-medium ${
+                className={`text-muted-faint aspect-square rounded-md text-base font-medium ${
                   inMonth ? "" : "opacity-0"
                 } flex items-center justify-center`}
                 aria-hidden={!inMonth}
