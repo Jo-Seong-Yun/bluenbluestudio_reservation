@@ -93,7 +93,7 @@ export function AdminCalendar({
           return (
             <div
               key={date}
-              className={`border-border relative min-h-[150px] rounded-lg border p-1 text-left align-top ${
+              className={`border-border relative aspect-square rounded-lg border p-1 text-left align-top ${
                 inMonth ? "bg-surface" : "bg-surface-subtle/50"
               } ${isSelectedDay ? "border-brand ring-brand/30 ring-2" : ""}`}
             >
