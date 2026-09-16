@@ -34,7 +34,15 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
       <div className="bg-background border-border sticky top-16 z-10 -mx-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b px-4 py-4 sm:-mx-[8.5%] sm:px-[8.5%]">
         <h1 className="text-2xl font-bold">예약 설정</h1>
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={pending}>
+          {/* text-2xl 타이틀의 줄 높이(32px)를 기준으로, 버튼 높이를
+              그 90%(1.8rem=28.8px)로 맞추고 세로 중앙에 나란히 둔다 —
+              기본 버튼(py-2 기준 36px)은 타이틀보다 더 커서 같이
+              두면 비율이 안 맞았다. */}
+          <Button
+            type="submit"
+            disabled={pending}
+            className="!h-[1.8rem] !py-0"
+          >
             {pending ? "저장 중…" : "저장"}
           </Button>
           {state?.success ? (
