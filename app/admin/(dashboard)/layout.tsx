@@ -32,7 +32,7 @@ export default async function AdminLayout({
   return (
     <PendingOverlayProvider>
       <div className="flex min-h-dvh flex-col">
-        <header className="border-border bg-surface sticky top-0 z-30 border-b">
+        <header className="border-border bg-surface/80 sticky top-0 z-30 border-b backdrop-blur-md">
           <div className="flex w-full items-center gap-4 px-4 py-3 sm:gap-6 sm:px-[8.5%]">
             <Link
               href="/admin/products"

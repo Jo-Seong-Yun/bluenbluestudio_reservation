@@ -51,7 +51,7 @@ function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <div className="border-border bg-surface flex aspect-square flex-col rounded-xl border p-4">
+    <div className="border-border bg-surface hover:border-brand/40 flex aspect-square flex-col rounded-xl border p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
       <div className="flex items-center justify-between gap-2">
         {isPublished ? (
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
