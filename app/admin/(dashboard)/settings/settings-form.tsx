@@ -18,6 +18,8 @@ export type SettingsFormValues = {
   showProductThumbnails: boolean;
 };
 
+const FORM_ID = "settings-form";
+
 export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
   const [state, action, pending] = useActionState<
     SettingsActionState,
@@ -26,11 +28,20 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
   useReportPending(pending);
 
   return (
-    <form action={action} className="max-w-xl space-y-8">
+    <>
       {/* 저장 버튼을 타이틀 옆에 두고, 이 줄만 스크롤해도 화면에 그대로
           남아 있게 한다 — 관리자 헤더(app/admin/(dashboard)/layout.tsx)
-          바로 아래(top-16)에 붙여, 폼이 아무리 길어도 저장 버튼을 다시
-          찾아 스크롤할 필요가 없다. */}
+          바로 아래(top-16)에 붙여, 페이지가 아무리 길어도 저장 버튼을
+          다시 찾아 스크롤할 필요가 없다.
+          <form> 안에 넣지 않고 밖으로 뺀 이유: sticky는 자신을 담은
+          가장 가까운 블록(여기서는 원래 <form>)의 높이를 벗어나면 더는
+          안 붙는다 — 그 안에 있을 때는 이메일 문구 설정 같은 아래쪽
+          섹션(페이지에서 <form>과 형제인 요소들)으로 스크롤하면 폼이
+          거기서 끝나버려 타이틀 줄이 사라졌다. 폼 바깥, 페이지 전체를
+          감싸는 부모 밑에 두면 페이지 끝까지 계속 붙어 있는다. 대신
+          저장 버튼은 DOM상 폼 밖에 있어도 form={FORM_ID}로 그 폼을
+          그대로 제출한다(상품 수정 화면의 "손님에게 공개" 토글과 같은
+          방식). */}
       <div className="bg-background border-border sticky top-16 z-10 -mx-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b px-4 py-4 sm:-mx-[8.5%] sm:px-[8.5%]">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold">예약 설정</h1>
@@ -41,6 +52,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
               더 커서 같이 두면 비율이 안 맞았다. */}
           <Button
             type="submit"
+            form={FORM_ID}
             disabled={pending}
             className="!h-[1.8rem] shrink-0 self-center !py-0"
           >
@@ -57,154 +69,156 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
         </div>
       </div>
 
-      <section className="space-y-4">
-        <h2 className="font-bold">예약 규칙</h2>
+      <form id={FORM_ID} action={action} className="max-w-xl space-y-8">
+        <section className="space-y-4">
+          <h2 className="font-bold">예약 규칙</h2>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label="슬롯 간격 (분)"
-            hint="시간 선택 화면에 몇 분 단위로 보여줄지."
-          >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="슬롯 간격 (분)"
+              hint="시간 선택 화면에 몇 분 단위로 보여줄지."
+            >
+              <input
+                name="slotIntervalMin"
+                type="number"
+                min={5}
+                step={5}
+                defaultValue={initial.slotIntervalMin}
+                required
+                className={inputClass}
+              />
+            </Field>
+
+            <Field
+              label="최소 며칠 전 예약"
+              hint="1이면 당일 예약 불가, 내일부터 가능."
+            >
+              <input
+                name="minLeadDays"
+                type="number"
+                min={0}
+                defaultValue={initial.minLeadDays}
+                required
+                className={inputClass}
+              />
+            </Field>
+
+            <Field
+              label="몇 일 뒤까지 열어둘지"
+              hint="예: 60이면 두 달 뒤까지 예약 가능."
+            >
+              <input
+                name="maxAdvanceDays"
+                type="number"
+                min={1}
+                defaultValue={initial.maxAdvanceDays}
+                required
+                className={inputClass}
+              />
+            </Field>
+
+            <Field
+              label="손님 자가 취소 기한 (시간)"
+              hint="촬영 시작 이 시간 전까지만 손님이 직접 취소 가능."
+            >
+              <input
+                name="cancelDeadlineHours"
+                type="number"
+                min={0}
+                defaultValue={initial.cancelDeadlineHours}
+                required
+                className={inputClass}
+              />
+            </Field>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="font-bold">손님에게 보여줄 문구</h2>
+
+          <Field label="입금 계좌" hint="예약 완료 화면에 안내됩니다.">
             <input
-              name="slotIntervalMin"
-              type="number"
-              min={5}
-              step={5}
-              defaultValue={initial.slotIntervalMin}
-              required
+              name="bankAccount"
+              defaultValue={initial.bankAccount}
+              placeholder="국민은행 000-0000-0000 (예금주)"
               className={inputClass}
             />
           </Field>
 
           <Field
-            label="최소 며칠 전 예약"
-            hint="1이면 당일 예약 불가, 내일부터 가능."
+            label="예약 공지"
+            hint="예약 완료 화면에 계좌 안내와 함께 표시됩니다."
           >
-            <input
-              name="minLeadDays"
-              type="number"
-              min={0}
-              defaultValue={initial.minLeadDays}
-              required
+            <textarea
+              name="notice"
+              rows={3}
+              defaultValue={initial.notice}
+              placeholder="예약 후 24시간 안에 입금이 확인되지 않으면 자동 취소됩니다."
               className={inputClass}
             />
           </Field>
 
-          <Field
-            label="몇 일 뒤까지 열어둘지"
-            hint="예: 60이면 두 달 뒤까지 예약 가능."
-          >
-            <input
-              name="maxAdvanceDays"
-              type="number"
-              min={1}
-              defaultValue={initial.maxAdvanceDays}
-              required
+          <Field label="스튜디오 소개" hint="랜딩 페이지에 마크다운으로 표시됩니다.">
+            <textarea
+              name="studioIntro"
+              rows={5}
+              defaultValue={initial.studioIntro}
               className={inputClass}
             />
           </Field>
+        </section>
 
-          <Field
-            label="손님 자가 취소 기한 (시간)"
-            hint="촬영 시작 이 시간 전까지만 손님이 직접 취소 가능."
-          >
-            <input
-              name="cancelDeadlineHours"
-              type="number"
-              min={0}
-              defaultValue={initial.cancelDeadlineHours}
-              required
-              className={inputClass}
-            />
-          </Field>
-        </div>
-      </section>
+        <section className="space-y-4">
+          <h2 className="font-bold">상품 목록 화면</h2>
 
-      <section className="space-y-4">
-        <h2 className="font-bold">손님에게 보여줄 문구</h2>
+          <label className="inline-flex cursor-pointer items-center gap-2">
+            <span className="relative inline-block h-6 w-11 shrink-0">
+              <input
+                type="checkbox"
+                name="showProductThumbnails"
+                defaultChecked={initial.showProductThumbnails}
+                className="peer sr-only"
+              />
+              <span className="bg-surface-subtle border-border peer-checked:bg-brand peer-checked:border-brand absolute inset-0 rounded-full border transition-colors" />
+              <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
+            </span>
+            <span className="text-sm font-medium">썸네일 표시</span>
+          </label>
+          <p className="text-muted -mt-3 text-xs">
+            예약하기(/booking) 상품 목록에서 각 상품 옆에 대표 이미지 썸네일을
+            보여줄지 정합니다. 꺼두면 이미지 없이 상품명·설명·가격만 보입니다.
+          </p>
+        </section>
 
-        <Field label="입금 계좌" hint="예약 완료 화면에 안내됩니다.">
-          <input
-            name="bankAccount"
-            defaultValue={initial.bankAccount}
-            placeholder="국민은행 000-0000-0000 (예금주)"
-            className={inputClass}
-          />
-        </Field>
+        <section className="space-y-4">
+          <h2 className="font-bold">알림 받을 연락처</h2>
+          <p className="text-muted -mt-2 text-xs">
+            새 예약 신청이 들어오면 즉시 알려 드립니다. 둘 다 비워두면 사장님
+            알림은 보내지 않고, 손님에게만 접수·확정·취소·리마인드가 발송됩니다.
+          </p>
 
-        <Field
-          label="예약 공지"
-          hint="예약 완료 화면에 계좌 안내와 함께 표시됩니다."
-        >
-          <textarea
-            name="notice"
-            rows={3}
-            defaultValue={initial.notice}
-            placeholder="예약 후 24시간 안에 입금이 확인되지 않으면 자동 취소됩니다."
-            className={inputClass}
-          />
-        </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="전화번호 (SMS)" hint="숫자만, 010으로 시작.">
+              <input
+                name="adminNotifyPhone"
+                defaultValue={initial.adminNotifyPhone}
+                placeholder="01012345678"
+                className={inputClass}
+              />
+            </Field>
 
-        <Field label="스튜디오 소개" hint="랜딩 페이지에 마크다운으로 표시됩니다.">
-          <textarea
-            name="studioIntro"
-            rows={5}
-            defaultValue={initial.studioIntro}
-            className={inputClass}
-          />
-        </Field>
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="font-bold">상품 목록 화면</h2>
-
-        <label className="inline-flex cursor-pointer items-center gap-2">
-          <span className="relative inline-block h-6 w-11 shrink-0">
-            <input
-              type="checkbox"
-              name="showProductThumbnails"
-              defaultChecked={initial.showProductThumbnails}
-              className="peer sr-only"
-            />
-            <span className="bg-surface-subtle border-border peer-checked:bg-brand peer-checked:border-brand absolute inset-0 rounded-full border transition-colors" />
-            <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
-          </span>
-          <span className="text-sm font-medium">썸네일 표시</span>
-        </label>
-        <p className="text-muted -mt-3 text-xs">
-          예약하기(/booking) 상품 목록에서 각 상품 옆에 대표 이미지 썸네일을
-          보여줄지 정합니다. 꺼두면 이미지 없이 상품명·설명·가격만 보입니다.
-        </p>
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="font-bold">알림 받을 연락처</h2>
-        <p className="text-muted -mt-2 text-xs">
-          새 예약 신청이 들어오면 즉시 알려 드립니다. 둘 다 비워두면 사장님
-          알림은 보내지 않고, 손님에게만 접수·확정·취소·리마인드가 발송됩니다.
-        </p>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="전화번호 (SMS)" hint="숫자만, 010으로 시작.">
-            <input
-              name="adminNotifyPhone"
-              defaultValue={initial.adminNotifyPhone}
-              placeholder="01012345678"
-              className={inputClass}
-            />
-          </Field>
-
-          <Field label="이메일">
-            <input
-              name="adminNotifyEmail"
-              type="email"
-              defaultValue={initial.adminNotifyEmail}
-              placeholder="owner@example.com"
-              className={inputClass}
-            />
-          </Field>
-        </div>
-      </section>
-    </form>
+            <Field label="이메일">
+              <input
+                name="adminNotifyEmail"
+                type="email"
+                defaultValue={initial.adminNotifyEmail}
+                placeholder="owner@example.com"
+                className={inputClass}
+              />
+            </Field>
+          </div>
+        </section>
+      </form>
+    </>
   );
 }
