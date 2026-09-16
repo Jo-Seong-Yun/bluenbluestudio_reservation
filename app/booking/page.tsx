@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { publicImageUrl } from "@/lib/images";
 import { SITE } from "@/lib/site";
 import { tagColorDotClass } from "@/lib/product-tag-colors";
+import { Button } from "@/components/ui";
 
 export const metadata: Metadata = { title: "예약하기" };
 
@@ -132,11 +133,10 @@ export default async function BookingPage() {
       )}
 
       <div className="mt-12 text-center">
-        <Link
-          href="/booking/lookup"
-          className="text-muted text-xs hover:underline sm:text-sm"
-        >
-          이미 예약하셨습니까? 예약 조회 →
+        <Link href="/booking/lookup" className="inline-block">
+          <Button type="button" variant="ghost">
+            이미 예약하셨습니까? 예약 조회 →
+          </Button>
         </Link>
       </div>
     </main>

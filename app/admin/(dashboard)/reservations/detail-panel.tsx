@@ -12,6 +12,7 @@ import { StatusButtons } from "./status-buttons";
 import { ConfirmCandidateButtons } from "./confirm-candidate-buttons";
 import { RescheduleForm } from "./reschedule-form";
 import { MoneyField } from "./money-field";
+import { Button } from "@/components/ui";
 
 const GENDER_LABEL: Record<string, string> = { male: "남", female: "여" };
 
@@ -131,9 +132,10 @@ function ReservationDetail({
             ? `/admin/reservations?month=${month}&date=${date}`
             : `/admin/reservations?month=${month}`
         }
-        className="text-muted text-xs hover:underline"
       >
-        ← {date ? `${date} 목록` : "예약관리"}
+        <Button type="button" variant="ghost" className="text-xs">
+          ← {date ? `${date} 목록` : "예약관리"}
+        </Button>
       </Link>
 
       <p className="mt-2 font-mono text-sm">{reservation.code}</p>

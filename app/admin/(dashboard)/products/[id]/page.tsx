@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProductEditorPanel } from "./product-editor-panel";
 import { CustomFieldsSection } from "./custom-fields-section";
+import { Button } from "@/components/ui";
 
 export const metadata: Metadata = { title: "상품 수정" };
 
@@ -29,11 +30,10 @@ export default async function EditProductPage({
 
   return (
     <div>
-      <Link
-        href="/admin/products"
-        className="text-muted mb-2 inline-block text-sm hover:underline"
-      >
-        ← 상품관리
+      <Link href="/admin/products" className="mb-2 inline-block">
+        <Button type="button" variant="ghost">
+          ← 상품관리
+        </Button>
       </Link>
 
       <ProductEditorPanel

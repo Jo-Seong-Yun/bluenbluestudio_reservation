@@ -7,6 +7,7 @@ import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { kstToday, diffDays, type DateString } from "@/lib/time";
 import { ReservationForm } from "@/components/reservation-form";
 import { loadActiveCustomFields } from "@/lib/booking/custom-fields";
+import { Button } from "@/components/ui";
 
 export const metadata: Metadata = { title: "신청 내용 작성" };
 
@@ -111,19 +112,20 @@ export default async function ApplyPage({
   if (candidates.length < 3) {
     return (
       <main className="mx-auto w-full max-w-xl px-6 py-12">
-        <Link href={backHref} className="text-muted text-sm hover:underline">
-          ← 날짜·시간 다시 고르기
+        <Link href={backHref}>
+          <Button type="button" variant="ghost">
+            ← 날짜·시간 다시 고르기
+          </Button>
         </Link>
         <div className="border-border bg-surface mt-8 rounded-xl border p-6 text-center">
           <p className="text-muted">
             고르신 시간을 더는 예약할 수 없게 되었습니다. 이미 다른 분이
             예약했거나, 예약 가능한 시간이 아닙니다.
           </p>
-          <Link
-            href={backHref}
-            className="text-brand mt-3 inline-block text-sm hover:underline"
-          >
-            다시 고르기
+          <Link href={backHref} className="mt-3 inline-block">
+            <Button type="button" variant="ghost">
+              다시 고르기
+            </Button>
           </Link>
         </div>
       </main>

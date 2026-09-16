@@ -174,11 +174,10 @@ export function ReservationForm({
           </Button>
         </Link>
 
-        <Link
-          href="/booking/lookup"
-          className="text-brand mt-3 inline-block text-sm hover:underline"
-        >
-          예약 조회하러 가기 →
+        <Link href="/booking/lookup" className="mt-3 block">
+          <Button type="button" variant="ghost" className="w-full">
+            예약 조회하러 가기 →
+          </Button>
         </Link>
       </div>
     );
@@ -186,8 +185,10 @@ export function ReservationForm({
 
   return (
     <div className="border-border bg-surface mt-8 rounded-xl border p-5">
-      <Link href={backHref} className="text-muted text-sm hover:underline">
-        ← 날짜·시간 다시 고르기
+      <Link href={backHref}>
+        <Button type="button" variant="ghost">
+          ← 날짜·시간 다시 고르기
+        </Button>
       </Link>
 
       <h1 className="mt-2 text-xl font-bold">신청 내용 작성</h1>
