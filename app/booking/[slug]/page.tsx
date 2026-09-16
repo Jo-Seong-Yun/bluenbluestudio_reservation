@@ -77,8 +77,11 @@ export default async function ProductDetailPage({
     // 다시 계산돼(주변 요소 크기·줄바꿈까지 실제로 줄어든다) — 그냥
     // 시각적으로 작아 보이기만 하는 게 아니라 화면에 실제로 더 많은
     // 내용이 들어온다.
-    <main className="mx-auto w-full max-w-[100rem] px-6 py-12 [zoom:85%]">
-      <Link href="/booking" className="text-muted text-sm hover:underline">
+    <main className="mx-auto w-full max-w-[100rem] px-6 py-12 [zoom:90%]">
+      <Link
+        href="/booking"
+        className="text-muted text-boost text-sm hover:underline"
+      >
         ← 상품 목록
       </Link>
 
@@ -89,8 +92,8 @@ export default async function ProductDetailPage({
           남겨야, 세 박스(설명/달력/시간 선택)가 각자의 칸 맨 위에서
           시작해 상단이 그대로 맞는다. */}
       <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-2xl font-bold">{product.name}</h1>
-        <p className="text-muted text-xs">
+        <h1 className="text-boost text-2xl font-bold">{product.name}</h1>
+        <p className="text-muted text-boost text-xs">
           {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
         </p>
       </div>
@@ -115,26 +118,30 @@ export default async function ProductDetailPage({
             <div className="text-muted flex flex-wrap items-center gap-x-2 gap-y-1">
               {product.sale_price != null ? (
                 <>
-                  <span className="text-xs line-through">
+                  <span className="text-boost text-xs line-through">
                     {product.price.toLocaleString()}원
                   </span>
-                  <span className="bg-brand/10 text-brand rounded-md px-1 py-0.5 text-xs font-bold">
+                  <span className="bg-brand/10 text-brand text-boost rounded-md px-1 py-0.5 text-xs font-bold">
                     {Math.round((1 - product.sale_price / product.price) * 100)}%
                   </span>
-                  <span className="text-foreground text-xl font-extrabold">
+                  <span className="text-foreground text-boost text-xl font-extrabold">
                     {product.sale_price.toLocaleString()}원
                   </span>
                 </>
               ) : (
-                <span>{product.price.toLocaleString()}원</span>
+                <span className="text-boost">
+                  {product.price.toLocaleString()}원
+                </span>
               )}
               {product.max_people ? (
-                <span>· 최대 {product.max_people}명</span>
+                <span className="text-boost">
+                  · 최대 {product.max_people}명
+                </span>
               ) : null}
             </div>
 
             {product.description ? (
-              <div className="mt-6">
+              <div className="text-boost mt-6">
                 <RichText>{product.description}</RichText>
               </div>
             ) : null}

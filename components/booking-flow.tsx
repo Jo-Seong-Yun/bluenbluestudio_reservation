@@ -124,12 +124,12 @@ export function BookingFlow({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[36rem_minmax(0,1fr)] lg:items-stretch">
         <div className="border-border bg-surface min-w-0 w-full rounded-xl border p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-bold">희망 시간 고르기</h2>
-            <span className="text-muted text-xs">
+            <h2 className="text-boost font-bold">희망 시간 고르기</h2>
+            <span className="text-muted text-boost text-xs">
               {candidates.length}/{MAX_CANDIDATES}개 선택
             </span>
           </div>
-          <p className="text-muted mb-3 text-xs">
+          <p className="text-muted text-boost mb-3 text-xs">
             희망 시간을 {MAX_CANDIDATES}개 모두 선택해 주시면, 그중 하나로
             예약을 확정해 드립니다.
           </p>
@@ -169,7 +169,7 @@ export function BookingFlow({
                     : "hidden items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2 text-sm invisible transition-colors lg:flex"
                 }
               >
-                <span>
+                <span className="text-boost">
                   <span className="mr-1.5 opacity-80">{i + 1}지망</span>
                   {c ? formatCandidate(c) : " "}
                 </span>
@@ -190,15 +190,15 @@ export function BookingFlow({
 
         <div className="relative min-w-0 w-full">
           <div className="border-border bg-surface min-w-0 rounded-xl border p-5">
-            <h2 className="mb-4 font-bold">시간 선택</h2>
+            <h2 className="text-boost mb-4 font-bold">시간 선택</h2>
             {!selectedDate ? (
-              <p className="text-muted text-sm">
+              <p className="text-muted text-boost text-sm">
                 달력에서 날짜를 먼저 선택해 주시기 바랍니다.
               </p>
             ) : slotsPending ? (
-              <p className="text-muted text-sm">불러오는 중…</p>
+              <p className="text-muted text-boost text-sm">불러오는 중…</p>
             ) : slots.length === 0 ? (
-              <p className="text-muted text-sm">
+              <p className="text-muted text-boost text-sm">
                 이 날짜는 예약할 수 있는 시간이 없습니다.
               </p>
             ) : (
@@ -294,7 +294,7 @@ function CalendarGrid({
         >
           ←
         </NavLink>
-        <p className="font-bold">
+        <p className="text-boost font-bold">
           {year}년 {m}월
         </p>
         <NavLink
@@ -366,7 +366,7 @@ function CalendarGrid({
         })}
       </div>
 
-      <p className="text-muted mt-3 text-xs">
+      <p className="text-muted text-boost mt-3 text-xs">
         색이 있는 날짜만 예약할 수 있습니다.
       </p>
     </div>
