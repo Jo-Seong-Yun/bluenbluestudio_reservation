@@ -62,7 +62,7 @@ export function ProductForm({
           />
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="촬영 시간 (분)" hint="예약 한 칸의 길이입니다.">
             <input
               name="durationMin"
@@ -89,7 +89,11 @@ export function ProductForm({
               className={inputClass}
             />
           </Field>
+        </div>
 
+        {/* 가격 관련 두 필드는 서로 짝이라 나란히 묶어 둔다 — 떨어져
+            있으면 할인가가 정가와 무관한 값처럼 보였다. */}
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="가격 (원)">
             <input
               name="price"
@@ -101,21 +105,21 @@ export function ProductForm({
               className={inputClass}
             />
           </Field>
-        </div>
 
-        <Field
-          label="할인가 (원, 선택)"
-          hint="정가보다 낮은 값을 입력하면 예약 화면에 할인가로 표시됩니다. 비워두면 정가만 보입니다."
-        >
-          <input
-            name="salePrice"
-            type="number"
-            min={0}
-            step={1000}
-            defaultValue={initial.salePrice ?? ""}
-            className={inputClass}
-          />
-        </Field>
+          <Field
+            label="할인가 (원, 선택)"
+            hint="정가보다 낮은 값을 입력하면 예약 화면에 할인가로 표시됩니다. 비워두면 정가만 보입니다."
+          >
+            <input
+              name="salePrice"
+              type="number"
+              min={0}
+              step={1000}
+              defaultValue={initial.salePrice ?? ""}
+              className={inputClass}
+            />
+          </Field>
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="최대 인원" hint="비워두면 제한 없음">
