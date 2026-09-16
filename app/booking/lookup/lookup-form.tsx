@@ -159,16 +159,17 @@ export function LookupForm() {
           })}
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => {
             setList(null);
             setSelectedCode(null);
           }}
-          className="text-muted mt-8 text-sm hover:underline"
+          className="mt-8"
         >
           ← 다른 번호로 다시 조회
-        </button>
+        </Button>
       </div>
     );
   }
@@ -206,8 +207,10 @@ export function LookupForm() {
 function Header() {
   return (
     <>
-      <Link href="/booking" className="text-muted text-sm hover:underline">
-        ← 상품 목록
+      <Link href="/booking">
+        <Button type="button" variant="ghost">
+          ← 상품 목록
+        </Button>
       </Link>
       <h1 className="mt-2 text-2xl font-bold">예약 조회</h1>
       <p className="text-muted mt-2 text-sm">
