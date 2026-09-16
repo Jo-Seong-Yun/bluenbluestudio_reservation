@@ -37,7 +37,7 @@ export default async function BookingPage() {
           현재 예약 가능한 상품이 없습니다. 곧 준비하겠습니다.
         </p>
       ) : (
-        <ul className="mt-8 space-y-3">
+        <ul className="mt-8 space-y-4">
           {products.map((product) => {
             // 관리자 화면에서 상품마다 고른 태그 색을(상품관리·스케줄
             // 캘린더와 같은 팔레트) 여기서도 그대로 써서, 손님이 색만
@@ -48,9 +48,15 @@ export default async function BookingPage() {
             const dotClass = tagColorDotClass(product.tag_color);
             return (
               <li key={product.id}>
+                {/* 예전엔 행 전체가 링크라는 게 잘 안 드러나서 "누르면
+                    되는 건가?" 싶었다는 피드백을 반영해, 오른쪽에
+                    가격과 "예약하기 →" 문구를 명확한 행동 유도 요소로
+                    따로 둔다(hover 시 화살표가 살짝 밀리며 반응).
+                    카드 자체도 hover 시 살짝 떠오르며 그림자가 생겨
+                    눌러볼 수 있는 요소라는 걸 몸으로 느끼게 한다. */}
                 <Link
                   href={`/booking/${product.slug}`}
-                  className="border-border bg-surface hover:border-brand flex items-stretch overflow-hidden rounded-xl border transition-colors"
+                  className="border-border bg-surface hover:border-brand group flex items-stretch overflow-hidden rounded-xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   {dotClass ? (
                     <span className={`w-1.5 shrink-0 ${dotClass}`} />
@@ -69,15 +75,21 @@ export default async function BookingPage() {
                       )
                     ) : null}
                     <div className="min-w-0 flex-1">
-                      <h2 className="font-bold">{product.name}</h2>
+                      <h2 className="text-lg font-bold">{product.name}</h2>
                       {product.summary ? (
                         <p className="text-muted mt-0.5 line-clamp-2 text-sm">
                           {product.summary}
                         </p>
                       ) : null}
-                      <p className="text-muted mt-1 text-sm">
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5 pl-2 text-right">
+                      <p className="text-lg font-bold whitespace-nowrap">
                         {product.price.toLocaleString()}원
                       </p>
+                      <span className="text-brand group-hover:gap-1.5 inline-flex items-center gap-1 text-sm font-medium whitespace-nowrap transition-[gap]">
+                        예약하기
+                        <span aria-hidden>→</span>
+                      </span>
                     </div>
                   </div>
                 </Link>
