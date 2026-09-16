@@ -26,11 +26,13 @@ export default async function BookingPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12">
-      <p className="text-accent text-sm font-medium tracking-widest uppercase">
+      <p className="text-accent text-xs font-medium tracking-widest uppercase sm:text-sm">
         {SITE.nameEn}
       </p>
-      <h1 className="mt-2 text-3xl font-bold">촬영 상품 선택</h1>
-      <p className="text-muted mt-2">원하시는 촬영을 골라 주시기 바랍니다.</p>
+      <h1 className="mt-2 text-2xl font-bold sm:text-3xl">촬영 상품 선택</h1>
+      <p className="text-muted mt-2 text-sm sm:text-base">
+        원하시는 촬영을 골라 주시기 바랍니다.
+      </p>
 
       {!products || products.length === 0 ? (
         <p className="text-muted mt-12 text-center">
@@ -75,9 +77,11 @@ export default async function BookingPage() {
                       )
                     ) : null}
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-lg font-bold">{product.name}</h2>
+                      <h2 className="text-base font-bold sm:text-lg">
+                        {product.name}
+                      </h2>
                       {product.summary ? (
-                        <p className="text-muted mt-0.5 line-clamp-2 text-sm">
+                        <p className="text-muted mt-0.5 line-clamp-2 text-xs sm:text-sm">
                           {product.summary}
                         </p>
                       ) : null}
@@ -110,11 +114,11 @@ export default async function BookingPage() {
                             %
                           </span>
                         </div>
-                        <p className="text-foreground text-xl font-extrabold whitespace-nowrap">
+                        <p className="text-foreground text-lg font-extrabold whitespace-nowrap sm:text-xl">
                           {(product.sale_price ?? product.price).toLocaleString()}원
                         </p>
                       </div>
-                      <span className="text-brand group-hover:gap-1.5 inline-flex items-center gap-1 text-sm font-medium whitespace-nowrap transition-[gap]">
+                      <span className="text-brand group-hover:gap-1.5 inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap transition-[gap] sm:text-sm">
                         예약하기
                         <span aria-hidden>→</span>
                       </span>
@@ -130,7 +134,7 @@ export default async function BookingPage() {
       <div className="mt-12 text-center">
         <Link
           href="/booking/lookup"
-          className="text-muted text-sm hover:underline"
+          className="text-muted text-xs hover:underline sm:text-sm"
         >
           이미 예약하셨습니까? 예약 조회 →
         </Link>
