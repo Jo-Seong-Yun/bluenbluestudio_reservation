@@ -7,7 +7,7 @@ import type { ComponentProps } from "react";
 
 export const inputClass =
   "border-border bg-surface w-full rounded-lg border px-3 py-2 text-base " +
-  "outline-none focus:border-brand focus:ring-brand/30 focus:ring-2";
+  "outline-none transition-shadow focus:border-brand focus:ring-brand/30 focus:ring-2";
 
 export function Field({
   label,
@@ -74,7 +74,7 @@ export function Button({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${styles} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 ${styles} ${className}`}
     />
   );
 }

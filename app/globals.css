@@ -155,11 +155,63 @@ dialog[open] {
   animation-delay: 0.35s;
 }
 
+/* 시간 슬롯 등 짧게 새로 나타나는 목록에 쓰는, fade-up보다 더 짧고
+   가벼운 등장 효과 — 날짜를 바꿀 때마다 반복되므로 과하지 않게. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out;
+}
+
+/* 조건이 다 갖춰져 눌러도 되는 버튼임을 은은하게 알려주는 숨쉬는
+   그림자 — 예약 신청 흐름에서 "이제 누르면 된다"는 순간에만 쓴다. */
+@keyframes pulse-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--brand) 0%, transparent);
+  }
+}
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+/* 예약 신청 완료 화면의 체크 배지가 살짝 튕기며 나타나는 효과. */
+@keyframes check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.animate-check-pop {
+  animation: check-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-fade-up-1,
   .animate-fade-up-2,
-  .animate-fade-up-3 {
+  .animate-fade-up-3,
+  .animate-fade-in,
+  .animate-pulse-ring,
+  .animate-check-pop {
     animation: none;
     opacity: 1;
     transform: none;
