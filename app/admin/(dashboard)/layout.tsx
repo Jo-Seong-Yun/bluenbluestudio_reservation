@@ -32,8 +32,12 @@ export default async function AdminLayout({
   return (
     <PendingOverlayProvider>
       <div className="flex min-h-dvh flex-col">
-        <header className="border-border bg-surface/80 sticky top-0 z-30 border-b backdrop-blur-md">
-          <div className="flex w-full items-center gap-4 px-4 py-3 sm:gap-6 sm:px-[8.5%]">
+        {/* 높이를 h-16(64px)으로 고정한다 — 글자 줄바꿈 등으로 실제
+            높이가 미묘하게 달라지면, 이 아래에서 스크롤 시 헤더 바로
+            밑에 붙는 페이지별 sticky 타이틀 줄(예: 예약 설정 화면의
+            저장 버튼 줄, top-16)과 높이가 안 맞아 틈이 생긴다. */}
+        <header className="border-border bg-surface/80 sticky top-0 z-30 h-16 border-b backdrop-blur-md">
+          <div className="flex h-full w-full items-center gap-4 px-4 sm:gap-6 sm:px-[8.5%]">
             <Link
               href="/admin/products"
               className="flex shrink-0 flex-col items-center leading-tight font-bold tracking-[0.3px]"
