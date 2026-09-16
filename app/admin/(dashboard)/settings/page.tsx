@@ -54,7 +54,6 @@ export default async function SettingsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">예약 설정</h1>
       <SettingsForm
         initial={{
           slotIntervalMin: settings.slot_interval_min,
