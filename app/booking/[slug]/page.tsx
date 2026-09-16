@@ -6,7 +6,6 @@ import { loadAvailableDates } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { RichText } from "@/components/rich-text";
 import { BookingFlow } from "@/components/booking-flow";
-import { publicImageUrl } from "@/lib/images";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
 
 export async function generateMetadata({
@@ -108,15 +107,6 @@ export default async function ProductDetailPage({
           늘어나지 않고, 각자 자기 칸 맨 위에 그대로 붙어 있는다. */}
       <div className="mt-3 grid grid-cols-1 gap-6 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
         <div className="min-w-0">
-          {product.cover_image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={publicImageUrl(product.cover_image)}
-              alt=""
-              className="mb-4 aspect-video w-full rounded-xl object-cover"
-            />
-          ) : null}
-
           <div className="border-border bg-surface rounded-xl border p-5">
             <p className="text-muted">
               {product.price.toLocaleString()}원
