@@ -27,12 +27,6 @@ export default function Home() {
           예약하기
         </Link>
       </div>
-
-      <div className="border-border mt-16 border-t pt-8">
-        <p className="text-muted text-sm">
-
-        </p>
-      </div>
     </main>
   );
 }

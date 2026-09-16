@@ -76,8 +76,11 @@ export default async function ProductDetailPage({
     // zoom을 쓰면 transform:scale과 달리 레이아웃 자체가 그 비율로
     // 다시 계산돼(주변 요소 크기·줄바꿈까지 실제로 줄어든다) — 그냥
     // 시각적으로 작아 보이기만 하는 게 아니라 화면에 실제로 더 많은
-    // 내용이 들어온다.
-    <main className="mx-auto w-full max-w-[100rem] px-6 py-12 [zoom:90%]">
+    // 내용이 들어온다. "화면이 너무 확대되어 보인다"는 건 넓은
+    // 데스크톱 화면 얘기였으므로 lg 이상에서만 줄인다 — 모바일은 이미
+    // 세로로 쌓이는 좁은 레이아웃이라 더 줄이면 달력 날짜 버튼 같은
+    // 터치 영역만 작아지고 얻는 게 없다.
+    <main className="mx-auto w-full max-w-[100rem] px-4 py-12 sm:px-6 lg:[zoom:90%]">
       <Link
         href="/booking"
         className="text-muted text-boost text-sm hover:underline"
@@ -114,7 +117,7 @@ export default async function ProductDetailPage({
           늘어나지 않고, 각자 자기 칸 맨 위에 그대로 붙어 있는다. */}
       <div className="mt-3 grid grid-cols-1 gap-6 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
         <div className="min-w-0">
-          <div className="border-border bg-surface rounded-xl border p-5">
+          <div className="border-border bg-surface rounded-xl border p-3 sm:p-5">
             <div className="text-muted flex flex-wrap items-center gap-x-2 gap-y-1">
               {product.sale_price != null ? (
                 <>

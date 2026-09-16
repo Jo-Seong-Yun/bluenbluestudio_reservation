@@ -122,7 +122,7 @@ export function BookingFlow({
           위치(맨 위)에 그대로 있고 내용이 몇 줄이든 버튼 위치엔
           영향을 주지 않는다. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[36rem_minmax(0,1fr)] lg:items-stretch">
-        <div className="border-border bg-surface min-w-0 w-full rounded-xl border p-5">
+        <div className="border-border bg-surface min-w-0 w-full rounded-xl border p-3 sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-boost font-bold">희망 시간 고르기</h2>
             <span className="text-muted text-boost text-xs">
@@ -161,35 +161,39 @@ export function BookingFlow({
               { length: MAX_CANDIDATES },
               (_, i) => candidates[i],
             ).map((c, i) => (
-              <li
-                key={i}
-                className={
-                  c
-                    ? "flex items-center justify-between gap-2 rounded-lg border border-brand bg-brand px-3 py-2 text-sm text-brand-foreground transition-colors"
-                    : "hidden items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2 text-sm invisible transition-colors lg:flex"
-                }
-              >
-                <span className="text-boost">
-                  <span className="mr-1.5 opacity-80">{i + 1}지망</span>
-                  {c ? formatCandidate(c) : " "}
-                </span>
+              <li key={i}>
                 {c ? (
+                  // 삭제 버튼(✕)만 누를 수 있으면 모바일에서 손가락으로
+                  // 짚기엔 너무 작다 — 칩 전체를 버튼으로 만들어 어디를
+                  // 눌러도 그 후보가 빠지게 한다.
                   <button
                     type="button"
                     onClick={() => removeCandidate(i)}
-                    aria-label={`${i + 1}지망 삭제`}
-                    className="text-brand-foreground/80 hover:text-brand-foreground px-1"
+                    aria-label={`${i + 1}지망 ${formatCandidate(c)} 삭제`}
+                    className="border-brand bg-brand text-brand-foreground flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
                   >
-                    ✕
+                    <span className="text-boost">
+                      <span className="mr-1.5 opacity-80">{i + 1}지망</span>
+                      {formatCandidate(c)}
+                    </span>
+                    <span className="text-brand-foreground/80" aria-hidden>
+                      ✕
+                    </span>
                   </button>
-                ) : null}
+                ) : (
+                  <div className="hidden items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2 text-sm invisible transition-colors lg:flex">
+                    <span className="text-boost">
+                      <span className="mr-1.5 opacity-80">{i + 1}지망</span>{" "}
+                    </span>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
         </div>
 
         <div className="relative min-w-0 w-full">
-          <div className="border-border bg-surface min-w-0 rounded-xl border p-5">
+          <div className="border-border bg-surface min-w-0 rounded-xl border p-3 sm:p-5">
             <h2 className="text-boost mb-4 font-bold">시간 선택</h2>
             {!selectedDate ? (
               <p className="text-muted text-boost text-sm">
@@ -307,7 +311,7 @@ function CalendarGrid({
         </NavLink>
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5 text-center">
+      <div className="grid grid-cols-7 gap-1 text-center sm:gap-1.5">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="text-muted py-1 text-xs font-medium">
             {label}
