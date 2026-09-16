@@ -90,7 +90,10 @@ export default async function BookingPage() {
                           더해서 튀지 않게 한다(할인가 자체 글자는
                           색 없이 굵기·크기로만 강조, Airbnb류). */}
                       {product.sale_price != null ? (
-                        <>
+                        // 취소선+배지 줄과 할인가 줄은 한 덩어리로 읽혀야
+                        // 하므로, 그 둘만 따로 묶어 gap을 0으로 좁힌다 —
+                        // 바깥(예약하기 문구와의 간격)은 그대로 gap-1.5.
+                        <div className="flex flex-col items-end gap-0">
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted text-xs line-through">
                               {product.price.toLocaleString()}원
@@ -105,7 +108,7 @@ export default async function BookingPage() {
                           <p className="text-foreground text-xl font-extrabold whitespace-nowrap">
                             {product.sale_price.toLocaleString()}원
                           </p>
-                        </>
+                        </div>
                       ) : (
                         <p className="text-lg font-bold whitespace-nowrap">
                           {product.price.toLocaleString()}원
