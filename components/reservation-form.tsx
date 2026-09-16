@@ -94,8 +94,24 @@ export function ReservationForm({
 
   if (state.status === "success") {
     return (
-      <div className="border-border bg-surface mt-8 rounded-xl border p-6">
-        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+      <div className="border-border bg-surface animate-fade-up mt-8 rounded-xl border p-6">
+        <div className="animate-check-pop flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950">
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            className="h-4 w-4 text-emerald-700 dark:text-emerald-400"
+            aria-hidden
+          >
+            <path
+              d="M4 10.5l3.5 3.5L16 5.5"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
           예약 신청이 접수되었습니다
         </p>
         <p className="mt-3 text-2xl font-bold tracking-wide">{state.code}</p>

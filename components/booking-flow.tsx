@@ -197,7 +197,12 @@ export function BookingFlow({
                 이 날짜는 예약할 수 있는 시간이 없습니다.
               </p>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              // key={selectedDate}로 날짜를 바꿀 때마다 이 칸 전체를 새로
+              // 마운트시켜, 슬롯이 매번 살짝 떠오르며 나타나게 한다.
+              <div
+                key={selectedDate}
+                className="animate-fade-in grid grid-cols-3 gap-2"
+              >
                 {slots.map((time) => {
                   const alreadyPicked = candidates.some(
                     (c) => c.date === selectedDate && c.time === time,
@@ -208,7 +213,7 @@ export function BookingFlow({
                       type="button"
                       disabled={!alreadyPicked && isFull}
                       onClick={() => toggleCandidate(time)}
-                      className={`rounded-lg border py-2 text-center text-sm transition-colors ${
+                      className={`active:scale-95 rounded-lg border py-2 text-center text-sm transition-[color,background-color,border-color,transform] disabled:active:scale-100 ${
                         alreadyPicked
                           ? "border-brand bg-brand text-brand-foreground"
                           : "border-border bg-surface hover:border-brand hover:bg-brand hover:text-brand-foreground disabled:cursor-not-allowed disabled:opacity-50"
@@ -235,7 +240,7 @@ export function BookingFlow({
               type="button"
               disabled={!isFull}
               onClick={goToApply}
-              className="h-[3.375rem] w-full text-base"
+              className={`h-[3.375rem] w-full text-base ${isFull ? "animate-pulse-ring" : ""}`}
             >
               {isFull
                 ? `이 ${MAX_CANDIDATES}개 시간으로 신청하기`
@@ -343,7 +348,7 @@ function CalendarGrid({
                 type="button"
                 onClick={() => onSelectDate(date)}
                 style={{ clipPath: "circle(50%)" }}
-                className={`text-foreground flex h-full w-full items-center justify-center text-base font-medium transition-colors ${
+                className={`text-foreground active:scale-90 flex h-full w-full items-center justify-center text-base font-medium transition-[background-color,transform] ${
                   isSelected
                     ? "bg-neutral-200 dark:bg-neutral-700"
                     : "hover:bg-surface-subtle"
