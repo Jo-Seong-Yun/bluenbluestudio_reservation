@@ -15,6 +15,7 @@ export type SettingsFormValues = {
   notice: string;
   adminNotifyPhone: string;
   adminNotifyEmail: string;
+  showProductThumbnails: boolean;
 };
 
 export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
@@ -122,6 +123,28 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
             className={inputClass}
           />
         </Field>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-bold">상품 목록 화면</h2>
+
+        <label className="inline-flex cursor-pointer items-center gap-2">
+          <span className="relative inline-block h-6 w-11 shrink-0">
+            <input
+              type="checkbox"
+              name="showProductThumbnails"
+              defaultChecked={initial.showProductThumbnails}
+              className="peer sr-only"
+            />
+            <span className="bg-surface-subtle border-border peer-checked:bg-brand peer-checked:border-brand absolute inset-0 rounded-full border transition-colors" />
+            <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
+          </span>
+          <span className="text-sm font-medium">썸네일 표시</span>
+        </label>
+        <p className="text-muted -mt-3 text-xs">
+          예약하기(/booking) 상품 목록에서 각 상품 옆에 대표 이미지 썸네일을
+          보여줄지 정합니다. 꺼두면 이미지 없이 상품명·설명·가격만 보입니다.
+        </p>
       </section>
 
       <section className="space-y-4">
