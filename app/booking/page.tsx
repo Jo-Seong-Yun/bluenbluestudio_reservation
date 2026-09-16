@@ -83,37 +83,37 @@ export default async function BookingPage() {
                       ) : null}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5 pl-2 text-right">
-                      {/* 할인가가 있으면(관리자가 정가보다 낮은 값을
-                          따로 넣은 경우만) 정가를 작게 취소선으로,
-                          할인율 배지를 옆에 붙이고, 할인가를 더 크고
-                          진하게 강조한다 — 색은 브랜드색 한 가지만
-                          더해서 튀지 않게 한다(할인가 자체 글자는
-                          색 없이 굵기·크기로만 강조, Airbnb류). */}
-                      {product.sale_price != null ? (
-                        // 취소선+배지 줄과 할인가 줄은 한 덩어리로 읽혀야
-                        // 하므로, 그 둘만 따로 묶어 gap을 0으로 좁힌다 —
-                        // 바깥(예약하기 문구와의 간격)은 그대로 gap-1.5.
-                        <div className="flex flex-col items-end gap-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-muted text-xs line-through">
-                              {product.price.toLocaleString()}원
-                            </span>
-                            <span className="bg-brand/10 text-brand rounded-md px-1 py-0.5 text-xs font-bold">
-                              {Math.round(
-                                (1 - product.sale_price / product.price) * 100,
-                              )}
-                              %
-                            </span>
-                          </div>
-                          <p className="text-foreground text-xl font-extrabold whitespace-nowrap">
-                            {product.sale_price.toLocaleString()}원
-                          </p>
+                      {/* 할인가가 있는 카드와 없는 카드의 블럭 높이가
+                          서로 달라 목록이 들쭉날쭉해 보였다 — 할인
+                          유무와 무관하게 항상 "취소선+배지 줄 / 가격
+                          줄" 두 줄 구조를 그대로 두고, 할인가가 없을
+                          때는 위 줄을 invisible로만 숨겨 자리(높이)는
+                          그대로 차지하게 한다. 그래서 모든 카드가 할인
+                          카드 기준 높이로 고정된다. */}
+                      <div className="flex flex-col items-end gap-0">
+                        <div
+                          className={`flex items-center gap-1.5 ${
+                            product.sale_price == null ? "invisible" : ""
+                          }`}
+                          aria-hidden={product.sale_price == null}
+                        >
+                          <span className="text-muted text-xs line-through">
+                            {product.price.toLocaleString()}원
+                          </span>
+                          <span className="bg-brand/10 text-brand rounded-md px-1 py-0.5 text-xs font-bold">
+                            {product.sale_price != null
+                              ? Math.round(
+                                  (1 - product.sale_price / product.price) *
+                                    100,
+                                )
+                              : 0}
+                            %
+                          </span>
                         </div>
-                      ) : (
-                        <p className="text-lg font-bold whitespace-nowrap">
-                          {product.price.toLocaleString()}원
+                        <p className="text-foreground text-xl font-extrabold whitespace-nowrap">
+                          {(product.sale_price ?? product.price).toLocaleString()}원
                         </p>
-                      )}
+                      </div>
                       <span className="text-brand group-hover:gap-1.5 inline-flex items-center gap-1 text-sm font-medium whitespace-nowrap transition-[gap]">
                         예약하기
                         <span aria-hidden>→</span>
