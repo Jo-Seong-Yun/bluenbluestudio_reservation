@@ -58,7 +58,7 @@ export function AdminCalendar({
         >
           ←
         </Link>
-        <p className="font-bold">
+        <p className="text-lg font-bold">
           {year}년 {m}월
         </p>
         <Link
@@ -72,7 +72,7 @@ export function AdminCalendar({
 
       <div className="grid grid-cols-7 gap-1 text-center">
         {WEEKDAY_LABELS.map((label) => (
-          <div key={label} className="text-muted py-1 text-xs font-medium">
+          <div key={label} className="text-muted py-1 text-sm font-medium">
             {label}
           </div>
         ))}
@@ -85,18 +85,26 @@ export function AdminCalendar({
           const isSelectedDay = date === selectedDate;
 
           // 칸 전체를 링크로 감싸면 칩마다 다른 목적지로 보내는 개별
-          // 링크와 중첩돼(<a> 안에 <a>) 잘못된 HTML이 된다. 그래서 칸은
-          // div로 두고, 날짜 숫자와 칩 각각을 별도 링크로 둔다.
+          // 링크와 중첩돼(<a> 안에 <a>) 잘못된 HTML이 된다. 그래서 칸
+          // 배경 전체를 덮는 "스트레치드 링크"를 따로 깔아 날짜 칸
+          // 자체를 누를 수 있게 하고, 칩들은 그 위에 z-10으로 얹어
+          // 각자 다른 목적지로 보낸다(칩을 누르면 칩이, 빈 자리를
+          // 누르면 그 날짜 목록이 열린다).
           return (
             <div
               key={date}
-              className={`border-border min-h-[150px] rounded-lg border p-1 text-left align-top ${
+              className={`border-border relative min-h-[150px] rounded-lg border p-1 text-left align-top ${
                 inMonth ? "bg-surface" : "bg-surface-subtle/50"
               } ${isSelectedDay ? "border-brand ring-brand/30 ring-2" : ""}`}
             >
               <Link
                 href={`/admin/reservations?month=${month}&date=${date}`}
-                className={`hover:text-brand block text-xs font-medium ${
+                aria-label={`${date} 목록`}
+                className="hover:bg-surface-subtle absolute inset-0 rounded-lg transition-colors"
+              />
+
+              <span
+                className={`relative block text-sm font-medium ${
                   !inMonth
                     ? "text-muted/40"
                     : isSunday
@@ -105,9 +113,9 @@ export function AdminCalendar({
                 }`}
               >
                 {day}
-              </Link>
+              </span>
 
-              <div className="mt-1 space-y-0.5">
+              <div className="relative mt-1 space-y-0.5">
                 {items.slice(0, MAX_CHIPS).map((item) => {
                   const isSelected = item.id === selectedId;
                   const tagClass = tagColorCellClass(item.tagColor);
@@ -115,7 +123,7 @@ export function AdminCalendar({
                     <Link
                       key={item.id}
                       href={`/admin/reservations?month=${month}&date=${date}&id=${item.id}`}
-                      className={`block truncate rounded px-1 py-0.5 text-[10px] leading-tight transition-colors ${
+                      className={`relative z-10 block truncate rounded px-1 py-0.5 text-xs leading-tight transition-colors ${
                         isSelected
                           ? "bg-brand text-brand-foreground"
                           : (tagClass ?? "bg-surface-subtle hover:bg-brand/20")
@@ -131,7 +139,7 @@ export function AdminCalendar({
                 {items.length > MAX_CHIPS ? (
                   <Link
                     href={`/admin/reservations?month=${month}&date=${date}`}
-                    className="text-muted hover:text-brand block text-[10px]"
+                    className="text-muted hover:text-brand relative z-10 block text-xs"
                   >
                     +{items.length - MAX_CHIPS}건 더
                   </Link>
