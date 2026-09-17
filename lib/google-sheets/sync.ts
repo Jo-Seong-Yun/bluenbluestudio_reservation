@@ -267,7 +267,7 @@ export async function syncCustomerToSheet(phone: string): Promise<void> {
     const [{ data: customerRow }, { data: visitRows }] = await Promise.all([
       supabase
         .from("customers")
-        .select("phone, name, gender, birth_date, email")
+        .select("phone, name, gender, birth_date, email, created_at")
         .eq("phone", phone)
         .maybeSingle(),
       supabase
@@ -330,7 +330,9 @@ async function writeReservationsToSheet(
 async function writeAllCustomersToSheet(): Promise<number> {
   const supabase = await createClient();
   const [{ data: customers }, { data: visitRows }] = await Promise.all([
-    supabase.from("customers").select("phone, name, gender, birth_date, email"),
+    supabase
+      .from("customers")
+      .select("phone, name, gender, birth_date, email, created_at"),
     supabase.from("reservations").select("customer_phone, status, shoot_start"),
   ]);
 
