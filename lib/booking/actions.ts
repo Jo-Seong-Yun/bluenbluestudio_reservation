@@ -427,3 +427,20 @@ export async function lookupReservationsByPhone(
     })),
   };
 }
+
+/**
+ * 상품별 "링크 진입 횟수" 통계용 조회 기록. 상품 상세 페이지가 서버에서
+ * 렌더링될 때가 아니라, 그 화면이 브라우저에 실제로 뜬 시점에(클라이언트
+ * 컴포넌트가 마운트될 때) 호출한다 — 이 라우트는 동적 렌더링 대상인데,
+ * 상품 목록 페이지에 있는 로딩 경계(app/booking/loading.tsx) 때문에
+ * 목록의 링크가 뷰포트에 들어오는 순간 "로딩 화면까지만" 미리 가져가고
+ * 실제 내용(과 그 안의 부수효과)은 클릭한 뒤에야 스트리밍되는 경우가
+ * 있다. 서버 컴포넌트 쪽에서 기록하면 이런 타이밍에 따라 언제 찍히는지
+ * (또는 찍히긴 하는지) 애매해지므로, 상품 목록에서 클릭해 들어오든 공유된
+ * 링크로 바로 들어오든 상관없이 "화면이 실제로 떴다"는 확실한 신호인
+ * 마운트 시점에 클라이언트에서 직접 부른다.
+ */
+export async function logProductView(productId: string) {
+  const supabase = await createClient();
+  await supabase.from("product_views").insert({ product_id: productId });
+}
