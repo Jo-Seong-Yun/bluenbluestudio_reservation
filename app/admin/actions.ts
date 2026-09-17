@@ -1660,6 +1660,45 @@ export async function updateCustomer(
 }
 
 /**
+ * 고객DB 화면에서 선택한 손님(들)의 인적사항을 완전히 지운다. 나중에
+ * 개인정보 보관기간이 지난 손님을 파기할 때 쓸 자리다 — 지금은 관리자가
+ * 목록에서 체크박스로 고른 손님들을 한 번에 지우는 용도로만 쓰인다.
+ *
+ * customers 행만 지운다. reservations에는 손님 인적사항이 예약 시점의
+ * 스냅샷으로 따로 저장돼 있어(customer_name/phone/email 등) 고객DB
+ * 행을 지워도 예약 기록 자체는 그대로 남는다 — 이 기능의 범위는
+ * "고객DB"이지 지난 예약 이력 파기가 아니다.
+ */
+export type DeleteCustomersState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success"; count: number };
+
+export async function deleteCustomers(
+  _prev: DeleteCustomersState,
+  formData: FormData,
+): Promise<DeleteCustomersState> {
+  await requireAdmin();
+
+  const phones = formData
+    .getAll("phones")
+    .map((v) => String(v))
+    .filter(Boolean);
+  if (phones.length === 0) {
+    return { status: "error", error: "삭제할 고객을 선택해 주시기 바랍니다." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("customers").delete().in("phone", phones);
+  if (error) {
+    return { status: "error", error: `삭제하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/customers");
+  return { status: "success", count: phones.length };
+}
+
+/**
  * 고객DB 화면의 "고객정보 업로드" 버튼. 예약이 바뀔 때마다 자동으로
  * 도는 동기화와 달리, customers 테이블을 수기로 고친 것만으로는 시트가
  * 곧바로 바뀌지 않으니(그 손님의 예약이 다시 움직여야 자동 동기화가

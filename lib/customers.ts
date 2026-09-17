@@ -1,5 +1,5 @@
 import { calculateAge } from "./age";
-import { kstDateString } from "./time";
+import { diffDays, kstDateString, kstToday, type DateString } from "./time";
 import type { Gender } from "./supabase/database.types";
 
 const GENDER_LABEL: Record<Gender, string> = { male: "남", female: "여" };
@@ -10,6 +10,8 @@ export type CustomerRecord = {
   gender: Gender | null;
   birth_date: string | null;
   email: string | null;
+  /** 이 손님의 고객DB 행이 처음 만들어진 시각(=개인정보 최초 수집 시점). */
+  created_at: string;
 };
 
 export type VisitStats = {
@@ -71,12 +73,22 @@ export type CustomerSummary = {
   gender: Gender | null;
   genderLabel: string;
   email: string | null;
+  /** 개인정보가 처음 수집된 시점(ISO). 나중에 보관기간에 따라 파기할 때
+   * 기준이 된다. */
+  collectedAt: string;
+  /** collectedAt으로부터 오늘까지 경과한 일수. */
+  daysSinceCollected: number;
 } & VisitStats;
 
-/** customers 테이블 행(인적사항)과 computeVisitStats의 결과(방문 이력)를 합친다. */
+/**
+ * customers 테이블 행(인적사항)과 computeVisitStats의 결과(방문 이력)를
+ * 합친다. today를 인자로 받아 "경과 일수" 계산을 순수 함수로 유지한다
+ * (테스트에서 고정된 기준일을 넣을 수 있게).
+ */
 export function summarizeCustomers(
   customers: CustomerRecord[],
   visitStatsByPhone: Map<string, VisitStats>,
+  today: DateString = kstToday(),
 ): CustomerSummary[] {
   return customers.map((c) => ({
     phone: c.phone,
@@ -86,6 +98,8 @@ export function summarizeCustomers(
     gender: c.gender,
     genderLabel: c.gender ? (GENDER_LABEL[c.gender] ?? c.gender) : "",
     email: c.email,
+    collectedAt: c.created_at,
+    daysSinceCollected: diffDays(kstDateString(new Date(c.created_at)), today),
     ...(visitStatsByPhone.get(c.phone) ?? EMPTY_VISIT_STATS),
   }));
 }

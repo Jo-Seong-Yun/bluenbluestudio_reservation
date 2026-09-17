@@ -76,6 +76,7 @@ describe("summarizeCustomers", () => {
     gender: "male",
     birth_date: "1995-05-05",
     email: "chulsoo@example.com",
+    created_at: "2026-01-01T00:00:00Z",
   };
 
   it("customers 행과 방문 집계를 합친다", () => {
@@ -113,6 +114,12 @@ describe("summarizeCustomers", () => {
     );
     expect(summary.age).toBeNull();
     expect(summary.birthDate).toBeNull();
+  });
+
+  it("최초 수집 시점과 경과 일수를 계산한다", () => {
+    const [summary] = summarizeCustomers([record], new Map(), "2026-01-31");
+    expect(summary.collectedAt).toBe("2026-01-01T00:00:00Z");
+    expect(summary.daysSinceCollected).toBe(30);
   });
 });
 
