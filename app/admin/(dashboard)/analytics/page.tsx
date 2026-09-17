@@ -4,6 +4,7 @@ import {
   type ActivityLogEntry,
 } from "@/lib/product-analytics";
 import { kstDateString, kstTimeString } from "@/lib/time";
+import { ResetAnalyticsButton } from "./reset-analytics-button";
 
 export const metadata: Metadata = { title: "통계" };
 
@@ -36,7 +37,10 @@ export default async function AnalyticsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">통계</h1>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">통계</h1>
+        <ResetAnalyticsButton />
+      </div>
 
       {/* 상품 목록 진입 → 상품 상세(설명) 진입 → 실제 예약, 3단계 유입
           퍼널. 목록 진입은 특정 상품에 딸린 숫자가 아니라 사이트

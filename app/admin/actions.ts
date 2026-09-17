@@ -1751,3 +1751,35 @@ export async function uploadReservationsToSheet(
     };
   }
 }
+
+/**
+ * 통계 화면(/admin/analytics)의 "통계 리셋" 버튼. 그동안 쌓인 조회
+ * 기록(booking_list_views/product_views)을 전부 지워 0부터 다시
+ * 센다 — 테스트 트래픽이 섞였거나, 새 기간부터 다시 집계하고 싶을 때
+ * 쓴다. 실제 예약(reservations)은 통계용 기록이 아니라 진짜 업무
+ * 기록이라 여기서 건드리지 않는다.
+ */
+export type ResetAnalyticsState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success" };
+
+export async function resetAnalytics(
+  _prev: ResetAnalyticsState,
+): Promise<ResetAnalyticsState> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const [{ error: listError }, { error: productError }] = await Promise.all([
+    supabase.from("booking_list_views").delete().not("id", "is", null),
+    supabase.from("product_views").delete().not("id", "is", null),
+  ]);
+
+  const error = listError ?? productError;
+  if (error) {
+    return { status: "error", error: `리셋하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/analytics");
+  return { status: "success" };
+}
