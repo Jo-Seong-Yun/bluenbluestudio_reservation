@@ -5,6 +5,7 @@ import { publicImageUrl } from "@/lib/images";
 import { SITE } from "@/lib/site";
 import { tagColorDotClass } from "@/lib/product-tag-colors";
 import { Button } from "@/components/ui";
+import { BookingListViewTracker } from "./booking-list-view-tracker";
 
 export const metadata: Metadata = { title: "예약하기" };
 
@@ -27,6 +28,8 @@ export default async function BookingPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12">
+      <BookingListViewTracker />
+
       <p className="text-accent text-xs font-medium tracking-widest uppercase sm:text-sm">
         {SITE.nameEn}
       </p>

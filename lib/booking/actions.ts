@@ -444,3 +444,13 @@ export async function logProductView(productId: string) {
   const supabase = await createClient();
   await supabase.from("product_views").insert({ product_id: productId });
 }
+
+/**
+ * "상품 목록 진입 수 → 상품 상세 진입 수 → 실제 예약 수" 퍼널의 첫 단계용
+ * 기록. logProductView와 같은 이유로(로딩 경계 때문에 서버 렌더링 시점이
+ * 애매하다) 목록 화면이 브라우저에 실제로 뜬 시점에 클라이언트에서 부른다.
+ */
+export async function logBookingListView() {
+  const supabase = await createClient();
+  await supabase.from("booking_list_views").insert({});
+}
