@@ -88,7 +88,7 @@ export default async function ProductDetailPage({
         </Button>
       </Link>
 
-      {/* 왼쪽엔 타이틀 박스 + 상세 내용 박스(세로로 쌓임), 오른쪽엔
+      {/* 왼쪽엔 타이틀·가격 + 상세 내용을 한 박스 안에 담고, 오른쪽엔
           달력·시간 선택. 좁은 화면에서는 전체가 위아래로 쌓인다(제목→
           설명→예약 흐름 순서로 읽히도록). 예약 흐름 쪽(BookingFlow)이
           달력 + 그 옆 시간 선택 칸을 나란히 두려면 꽤 넓은 폭이
@@ -104,50 +104,58 @@ export default async function ProductDetailPage({
           어느 한쪽 칼럼이 더 높아져도 서로 늘어나지 않고, 각자 자기
           칸 맨 위에서 시작해 상단이 그대로 맞는다. */}
       <div className="mt-6 grid grid-cols-1 gap-6 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
-        <div className="min-w-0 space-y-6">
-          {/* 타이틀 박스: 제목·예약 가능 기간·가격/인원처럼 상품을 한눈에
-              요약하는 정보만 모아둔다. */}
-          <div className="border-border bg-surface rounded-xl border p-3 sm:p-5">
-            <h1 className="text-boost text-2xl font-bold">{product.name}</h1>
-            <p className="text-muted text-boost mt-1 text-xs">
-              {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
-            </p>
-            <div className="text-muted mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-              {product.sale_price != null ? (
-                <>
-                  <span className="text-boost text-xs line-through">
+        <div className="min-w-0">
+          {/* 박스를 둘로 쪼개지 않고 하나로 두되, 안에서 제목/가격 영역과
+              상세 내용 영역을 얇은 구분선(border-t)으로만 나눈다 —
+              "박스 안에 또 박스"가 겹치는 느낌 없이 자연스럽게 이어진다. */}
+          <div className="border-border bg-surface rounded-xl border">
+            <div className="p-3 sm:p-5">
+              <h1 className="text-boost text-2xl font-bold">{product.name}</h1>
+              <p className="text-muted text-boost mt-1 text-xs">
+                {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
+              </p>
+              <div className="mt-3 flex flex-wrap items-end gap-x-2 gap-y-1">
+                {product.sale_price != null ? (
+                  <div className="flex flex-col gap-0">
+                    {/* 정가·할인율은 할인가 위에 작게, 행간을 좁혀서
+                        (gap-0) 할인가 한 덩어리처럼 보이게 한다. */}
+                    <div className="text-muted flex items-center gap-1.5">
+                      <span className="text-boost text-xs line-through">
+                        {product.price.toLocaleString()}원
+                      </span>
+                      <span className="bg-brand/10 text-brand text-boost rounded-md px-1 py-0.5 text-xs font-bold">
+                        {Math.round(
+                          (1 - product.sale_price / product.price) * 100,
+                        )}
+                        %
+                      </span>
+                    </div>
+                    <span className="text-foreground text-boost text-xl font-extrabold">
+                      {product.sale_price.toLocaleString()}원
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-boost">
                     {product.price.toLocaleString()}원
                   </span>
-                  <span className="bg-brand/10 text-brand text-boost rounded-md px-1 py-0.5 text-xs font-bold">
-                    {Math.round((1 - product.sale_price / product.price) * 100)}%
+                )}
+                {product.max_people ? (
+                  <span className="text-muted text-boost">
+                    · 최대 {product.max_people}명
                   </span>
-                  <span className="text-foreground text-boost text-xl font-extrabold">
-                    {product.sale_price.toLocaleString()}원
-                  </span>
-                </>
-              ) : (
-                <span className="text-boost">
-                  {product.price.toLocaleString()}원
-                </span>
-              )}
-              {product.max_people ? (
-                <span className="text-boost">
-                  · 최대 {product.max_people}명
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          {/* 상세 내용 박스: 타이틀 박스와 분리해서, 긴 설명 글이
-              늘어나도 위쪽 요약 정보(가격 등)의 자리는 흔들리지 않는다. */}
-          {product.description ? (
-            <div className="border-border bg-surface rounded-xl border p-3 sm:p-5">
-              <h2 className="text-boost font-bold">상세 내용</h2>
-              <div className="text-boost mt-3 text-sm sm:text-base">
-                <RichText>{product.description}</RichText>
+                ) : null}
               </div>
             </div>
-          ) : null}
+
+            {product.description ? (
+              <div className="border-border border-t p-3 sm:p-5">
+                <h2 className="text-boost font-bold">상세 내용</h2>
+                <div className="text-boost mt-3 text-sm sm:text-base">
+                  <RichText>{product.description}</RichText>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="min-w-0">
