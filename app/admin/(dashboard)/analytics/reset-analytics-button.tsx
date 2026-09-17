@@ -12,10 +12,11 @@ const CONFIRM_WORD = "리셋";
 const initialState: ResetAnalyticsState = { status: "idle" };
 
 /**
- * 통계 화면 전체를 0부터 다시 세게 만드는 버튼. 고객DB 선택 삭제와
- * 같은 2단계 확인(예/아니오 → "리셋" 직접 입력)을 쓴다 — 그동안 쌓인
- * 조회 기록을 전부 지우는 되돌릴 수 없는 작업이라서다. 실제 예약
- * 건수(신청수)는 통계용 기록이 아니라 지워지지 않는다.
+ * 통계 화면 전체를 0부터 다시 세게 만드는 버튼. 조회 기록 자체는
+ * 지우지 않는다(상세 로그에서 계속 볼 수 있다) — 지금 시점을 기록해
+ * 두고 집계만 그 이후 것으로 다시 센다. 그래도 한 번 누르면 지금까지의
+ * 누적 집계 화면은 다시 못 돌아오니, 고객DB 선택 삭제와 같은 2단계
+ * 확인(예/아니오 → "리셋" 직접 입력)을 그대로 쓴다.
  */
 export function ResetAnalyticsButton() {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -54,9 +55,10 @@ export function ResetAnalyticsButton() {
           <>
             <p className="font-bold">정말 리셋하시겠습니까?</p>
             <p className="text-muted mt-2 text-sm">
-              상품 목록 진입·상품 상세 진입 조회 기록이 전부 지워지고
-              0부터 다시 집계됩니다. 되돌릴 수 없습니다. 실제 예약(신청수)
-              기록은 지워지지 않습니다.
+              지금 이 시점부터 상품 목록 진입·상품 상세 진입·실제 예약
+              집계가 0부터 다시 시작됩니다. 조회 기록 자체는 지워지지
+              않아 상세 로그에서 계속 볼 수 있지만, 누적 집계 화면은
+              되돌릴 수 없습니다.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={close}>

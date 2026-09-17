@@ -14,12 +14,14 @@ const ACTIVITY_KIND_LABEL: Record<ActivityLogEntry["kind"], string> = {
   list_view: "상품 목록 진입",
   product_view: "상품 상세 진입",
   reservation: "실제 예약",
+  reset: "통계 리셋",
 };
 
 const ACTIVITY_KIND_DOT: Record<ActivityLogEntry["kind"], string> = {
   list_view: "bg-muted",
   product_view: "bg-brand",
   reservation: "bg-emerald-500",
+  reset: "bg-amber-500",
 };
 
 export default async function AnalyticsPage() {
@@ -173,7 +175,9 @@ export default async function AnalyticsPage() {
         상품 상세 진입(조회수)은 손님이 상품 상세 페이지를 열 때마다
         기록됩니다(같은 사람이 여러 번 봐도 각각 셉니다). 실제 예약(신청수)은
         실제로 접수된 예약 신청 건수입니다. 상세 로그는 최근 발생한 순으로
-        최대 100건까지 보여줍니다.
+        최대 100건까지 보여줍니다. &quot;통계 리셋&quot;을 누르면 위 숫자들은
+        그 시점부터 다시 집계되지만, 조회 기록 자체는 지워지지 않아 상세
+        로그에서는 리셋 이전 기록도 계속 보입니다.
       </p>
     </div>
   );

@@ -21,8 +21,8 @@ export type ActivityLogEntry = {
   id: string;
   /** ISO 문자열. */
   occurredAt: string;
-  kind: "list_view" | "product_view" | "reservation";
-  /** 목록 진입은 특정 상품이 없어 null. */
+  kind: "list_view" | "product_view" | "reservation" | "reset";
+  /** 목록 진입·리셋은 특정 상품이 없어 null. */
   productName: string | null;
 };
 
@@ -30,9 +30,10 @@ export type ProductAnalytics = {
   rows: ProductAnalyticsRow[];
   /** 최근 trendDays일, 전 상품 합계(사이트 전체 동향용). 날짜 오름차순. */
   daily: DailyAnalyticsPoint[];
-  /** 상품 목록(예약하기 첫 화면) 진입 수 — 누적 전체. */
+  /** 상품 목록(예약하기 첫 화면) 진입 수 — 마지막 리셋 이후(없으면 전체) 누적. */
   listViews: number;
-  /** 최근 발생 순(내림차순)으로 최근 ACTIVITY_LOG_LIMIT건. */
+  /** 최근 발생 순(내림차순)으로 최근 ACTIVITY_LOG_LIMIT건. 리셋과 무관하게
+   * 항상 전체 기록을 보여준다(리셋 시점 자체도 한 줄로 섞여 나온다). */
   recentActivity: ActivityLogEntry[];
 };
 
@@ -45,6 +46,11 @@ const ACTIVITY_LOG_LIMIT = 100;
  * 하나 규모라) 많지 않아, DB에서 GROUP BY로 집계하는 대신 필요한
  * 컬럼만 뽑아 와서 여기서 직접 센다 — 나중에 행이 아주 많아지면 그때
  * DB 집계 함수로 옮기면 된다.
+ *
+ * "통계 리셋"은 행을 지우지 않고 settings.analytics_reset_at에 시점만
+ * 남긴다(상세 로그를 보존하려고 — resetAnalytics 참고) — 그래서 집계용
+ * 쿼리들은 그 시점 이후 것만 세도록 조건을 하나 더 건다. 상세 로그
+ * (recentActivity)만은 이 조건을 안 걸어 리셋 이전 기록도 계속 보인다.
  */
 export async function loadProductAnalytics(
   trendDays = 14,
@@ -53,6 +59,27 @@ export async function loadProductAnalytics(
   const since = addDays(kstToday(), -(trendDays - 1));
   const sinceInstant = `${since}T00:00:00+09:00`;
 
+  const { data: settingsRow } = await supabase
+    .from("settings")
+    .select("analytics_reset_at")
+    .eq("id", 1)
+    .single();
+  const resetAt = settingsRow?.analytics_reset_at ?? null;
+
+  // 동향 그래프의 하한은 "최근 N일 시작"과 "마지막 리셋 시점" 중 더
+  // 늦은 쪽 — 리셋이 그 안에 있으면 리셋 이전 날짜는 0으로 보인다.
+  const trendSinceInstant =
+    resetAt && resetAt > sinceInstant ? resetAt : sinceInstant;
+
+  const viewRowsQuery = supabase
+    .from("product_views")
+    .select("product_id, viewed_at")
+    .gte("viewed_at", trendSinceInstant);
+  const reservationRowsQuery = supabase
+    .from("reservations")
+    .select("product_id, created_at")
+    .gte("created_at", trendSinceInstant);
+
   const [{ data: products }, { data: viewRows }, { data: reservationRows }] =
     await Promise.all([
       supabase
@@ -60,20 +87,30 @@ export async function loadProductAnalytics(
         .select("id, name")
         .order("sort_order")
         .order("created_at"),
-      supabase
-        .from("product_views")
-        .select("product_id, viewed_at")
-        .gte("viewed_at", sinceInstant),
-      supabase
-        .from("reservations")
-        .select("product_id, created_at")
-        .gte("created_at", sinceInstant),
+      viewRowsQuery,
+      reservationRowsQuery,
     ]);
 
-  // 상품별 전체 조회수·신청수는 위 최근 N일 범위와 별개로(all-time)
-  // 한 번 더 센다 — 표에는 "지금까지 누적" 기준을 보여주고, 동향
-  // 그래프만 최근 N일로 좁힌다. 목록 진입 수는 상품별로 쪼갤 수 없는
-  // (특정 상품에 딸린 게 아닌) 숫자라 전체 개수만 센다.
+  // 상품별 전체 조회수·신청수는 위 동향 범위와 별개로, "마지막 리셋
+  // 이후(없으면 전체 기간)" 누적을 다시 센다 — 표에는 이 누적 기준을
+  // 보여주고, 동향 그래프만 최근 N일로 좁힌다. 목록 진입 수는 상품별로
+  // 쪼갤 수 없는(특정 상품에 딸린 게 아닌) 숫자라 전체 개수만 센다.
+  let allViewRowsQuery = supabase.from("product_views").select("product_id");
+  let allReservationRowsQuery = supabase
+    .from("reservations")
+    .select("product_id");
+  let listViewCountQuery = supabase
+    .from("booking_list_views")
+    .select("*", { count: "exact", head: true });
+  if (resetAt) {
+    allViewRowsQuery = allViewRowsQuery.gte("viewed_at", resetAt);
+    allReservationRowsQuery = allReservationRowsQuery.gte(
+      "created_at",
+      resetAt,
+    );
+    listViewCountQuery = listViewCountQuery.gte("viewed_at", resetAt);
+  }
+
   const [
     { data: allViewRows },
     { data: allReservationRows },
@@ -82,9 +119,9 @@ export async function loadProductAnalytics(
     { data: recentProductViews },
     { data: recentReservations },
   ] = await Promise.all([
-    supabase.from("product_views").select("product_id"),
-    supabase.from("reservations").select("product_id"),
-    supabase.from("booking_list_views").select("*", { count: "exact", head: true }),
+    allViewRowsQuery,
+    allReservationRowsQuery,
+    listViewCountQuery,
     supabase
       .from("booking_list_views")
       .select("id, viewed_at")
@@ -173,6 +210,19 @@ export async function loadProductAnalytics(
       kind: "reservation" as const,
       productName: productNameById.get(row.product_id) ?? null,
     })),
+    // 리셋 자체도 로그에서 사라지면 안 되니(로그는 남겨두는 게 이
+    // 기능의 요점이다) 한 줄로 끼워 넣는다 — 집계가 이 지점부터
+    // 다시 시작됐다는 걸 로그만 보고도 알 수 있다.
+    ...(resetAt
+      ? [
+          {
+            id: "reset",
+            occurredAt: resetAt,
+            kind: "reset" as const,
+            productName: null,
+          },
+        ]
+      : []),
   ]
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     .slice(0, ACTIVITY_LOG_LIMIT);

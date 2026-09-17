@@ -1753,11 +1753,13 @@ export async function uploadReservationsToSheet(
 }
 
 /**
- * 통계 화면(/admin/analytics)의 "통계 리셋" 버튼. 그동안 쌓인 조회
- * 기록(booking_list_views/product_views)을 전부 지워 0부터 다시
- * 센다 — 테스트 트래픽이 섞였거나, 새 기간부터 다시 집계하고 싶을 때
- * 쓴다. 실제 예약(reservations)은 통계용 기록이 아니라 진짜 업무
- * 기록이라 여기서 건드리지 않는다.
+ * 통계 화면(/admin/analytics)의 "통계 리셋" 버튼. 조회 기록
+ * (booking_list_views/product_views) 행 자체는 지우지 않는다 —
+ * 상세 로그에서 언제 조회가 있었는지 계속 볼 수 있어야 하기 때문이다.
+ * 대신 지금 시점을 settings.analytics_reset_at에 기록해 두고,
+ * 퍼널·동향·상품별 집계는 이 시점 이후 기록만 세도록 한다(0부터 다시
+ * 세는 효과는 그대로 내면서 로그는 남긴다). 실제 예약(reservations)은
+ * 진짜 업무 기록이라 이 리셋과 무관하게 항상 전체를 그대로 보여준다.
  */
 export type ResetAnalyticsState =
   | { status: "idle" }
@@ -1770,12 +1772,11 @@ export async function resetAnalytics(
   await requireAdmin();
 
   const supabase = await createClient();
-  const [{ error: listError }, { error: productError }] = await Promise.all([
-    supabase.from("booking_list_views").delete().not("id", "is", null),
-    supabase.from("product_views").delete().not("id", "is", null),
-  ]);
+  const { error } = await supabase
+    .from("settings")
+    .update({ analytics_reset_at: new Date().toISOString() })
+    .eq("id", 1);
 
-  const error = listError ?? productError;
   if (error) {
     return { status: "error", error: `리셋하지 못했습니다: ${error.message}` };
   }
