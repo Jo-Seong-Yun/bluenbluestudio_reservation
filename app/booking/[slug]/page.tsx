@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { loadAvailableDates } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
@@ -9,6 +8,7 @@ import { RichText } from "@/components/rich-text";
 import { BookingFlow } from "@/components/booking-flow";
 import { Button } from "@/components/ui";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
+import { ProductViewTracker } from "./product-view-tracker";
 
 export async function generateMetadata({
   params,
@@ -48,13 +48,6 @@ export default async function ProductDetailPage({
 
   if (!product) notFound();
 
-  // 상품별 "링크 진입 횟수" 통계용 조회 기록. 응답을 막지 않도록 after()로
-  // 응답이 나간 뒤에 기록하고, 실패해도(네트워크 문제 등) 페이지 자체에는
-  // 영향을 주지 않는다 — 통계 한 줄이 안 남는 게 손님 화면 오류보다 낫다.
-  after(async () => {
-    await supabase.from("product_views").insert({ product_id: product.id });
-  });
-
   const availabilitySettings: AvailabilitySettings = {
     slotIntervalMin: settings?.slot_interval_min ?? 60,
     minLeadDays: settings?.min_lead_days ?? 1,
@@ -90,6 +83,8 @@ export default async function ProductDetailPage({
     // 세로로 쌓이는 좁은 레이아웃이라 더 줄이면 달력 날짜 버튼 같은
     // 터치 영역만 작아지고 얻는 게 없다.
     <main className="mx-auto w-full max-w-[100rem] px-4 py-12 sm:px-6 lg:[zoom:90%]">
+      <ProductViewTracker productId={product.id} />
+
       <Link href="/booking">
         <Button type="button" variant="ghost" className="text-boost">
           ← 상품 목록
