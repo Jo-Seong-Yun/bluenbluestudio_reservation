@@ -24,25 +24,36 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
 export function TimeSelect({
   name,
   defaultValue,
+  value,
+  onChange,
   className,
 }: {
-  name: string;
+  name?: string;
   defaultValue?: string;
+  /** value+onChange를 주면 제어 컴포넌트로 동작한다(예: 변경 즉시 저장하는 화면). */
+  value?: string;
+  onChange?: (value: string) => void;
   className?: string;
 }) {
+  const current = value ?? defaultValue;
   // 기존 값이 30분 단위가 아니면(예전에 직접 입력해 둔 값) 목록에
   // 없다고 조용히 첫 옵션으로 바뀌어버리지 않도록, 그 값도 옵션에
   // 끼워 넣는다.
   const options =
-    defaultValue && !TIME_OPTIONS.some((opt) => opt.value === defaultValue)
+    current && !TIME_OPTIONS.some((opt) => opt.value === current)
       ? [
           ...TIME_OPTIONS,
-          { value: defaultValue, label: formatTimeLabel(defaultValue) },
+          { value: current, label: formatTimeLabel(current) },
         ].sort((a, b) => a.value.localeCompare(b.value))
       : TIME_OPTIONS;
 
+  const controlledProps =
+    value !== undefined
+      ? { value, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => onChange?.(e.target.value) }
+      : { defaultValue };
+
   return (
-    <select name={name} defaultValue={defaultValue} className={className}>
+    <select name={name} className={className} {...controlledProps}>
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
           {opt.label}
