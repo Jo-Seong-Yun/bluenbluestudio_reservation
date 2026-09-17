@@ -14,6 +14,10 @@ import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 // 내용이 없어 브라우저가 0px로 접어버려, 손님 화면에서는 분명히
 // 띄어 썼던 줄 간격이 사라져 보였다. 빈 <p>에만 최소 높이를 줘서
 // 빈 줄도 한 줄만큼의 자리를 그대로 차지하게 한다.
+//
+// 양쪽 정렬(justify) 문단이 보기 흉하게 벌어지는 문제는 app/globals.css의
+// word-break: keep-all 규칙 쪽에서 함께 처리한다(양쪽 정렬 요소에서만
+// 그 규칙을 풀어준다) — 자세한 이유는 거기 주석 참고.
 const proseClass =
   "[&_a]:text-brand space-y-3 leading-relaxed break-words [&_a]:underline " +
   "[&_h2]:mt-6 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:mt-4 [&_h3]:font-bold " +
