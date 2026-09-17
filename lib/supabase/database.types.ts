@@ -70,6 +70,19 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["product_views"]["Row"]>;
         Relationships: [];
       };
+      booking_list_views: {
+        Row: {
+          id: string;
+          viewed_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["booking_list_views"]["Row"]
+        >;
+        Update: Partial<
+          Database["public"]["Tables"]["booking_list_views"]["Row"]
+        >;
+        Relationships: [];
+      };
       weekly_hours: {
         Row: {
           id: string;

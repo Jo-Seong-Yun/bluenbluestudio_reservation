@@ -1,39 +1,53 @@
 import type { Metadata } from "next";
-import { loadProductAnalytics } from "@/lib/product-analytics";
+import {
+  loadProductAnalytics,
+  type ActivityLogEntry,
+} from "@/lib/product-analytics";
+import { kstDateString, kstTimeString } from "@/lib/time";
 
 export const metadata: Metadata = { title: "통계" };
 
 const TREND_DAYS = 14;
 
+const ACTIVITY_KIND_LABEL: Record<ActivityLogEntry["kind"], string> = {
+  list_view: "상품 목록 진입",
+  product_view: "상품 상세 진입",
+  reservation: "실제 예약",
+};
+
+const ACTIVITY_KIND_DOT: Record<ActivityLogEntry["kind"], string> = {
+  list_view: "bg-muted",
+  product_view: "bg-brand",
+  reservation: "bg-emerald-500",
+};
+
 export default async function AnalyticsPage() {
-  const { rows, daily } = await loadProductAnalytics(TREND_DAYS);
+  const { rows, daily, listViews, recentActivity } =
+    await loadProductAnalytics(TREND_DAYS);
 
   const sortedRows = [...rows].sort((a, b) => b.views - a.views);
   const totalViews = rows.reduce((sum, r) => sum + r.views, 0);
   const totalApplications = rows.reduce((sum, r) => sum + r.applications, 0);
   const maxDaily = Math.max(1, ...daily.map((d) => Math.max(d.views, d.applications)));
 
+  const listToDetailRate = listViews > 0 ? (totalViews / listViews) * 100 : null;
+  const detailToApplicationRate =
+    totalViews > 0 ? (totalApplications / totalViews) * 100 : null;
+
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">통계</h1>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-xs">전체 조회수</p>
-          <p className="mt-1 text-2xl font-bold">{totalViews.toLocaleString()}</p>
-        </div>
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-xs">전체 신청수</p>
-          <p className="mt-1 text-2xl font-bold">{totalApplications.toLocaleString()}</p>
-        </div>
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-xs">전체 전환율</p>
-          <p className="mt-1 text-2xl font-bold">
-            {totalViews > 0
-              ? `${((totalApplications / totalViews) * 100).toFixed(1)}%`
-              : "-"}
-          </p>
-        </div>
+      {/* 상품 목록 진입 → 상품 상세(설명) 진입 → 실제 예약, 3단계 유입
+          퍼널. 목록 진입은 특정 상품에 딸린 숫자가 아니라 사이트
+          전체(모든 상품 링크가 걸린 그 한 화면) 기준이라 상품별 표에는
+          안 넣고 여기 요약에서만 보여준다. */}
+      <div className="border-border bg-surface flex flex-wrap items-stretch gap-3 rounded-xl border p-4 sm:flex-nowrap">
+        <FunnelStep label="상품 목록 진입" value={listViews} />
+        <FunnelArrow rate={listToDetailRate} />
+        <FunnelStep label="상품 상세 진입" value={totalViews} />
+        <FunnelArrow rate={detailToApplicationRate} />
+        <FunnelStep label="실제 예약" value={totalApplications} highlight />
       </div>
 
       <section className="border-border bg-surface mt-6 rounded-xl border p-4">
@@ -112,11 +126,85 @@ export default async function AnalyticsPage() {
         </table>
       </section>
 
+      {/* 집계된 숫자 말고 "언제" 발생했는지 하나하나 보고 싶을 때 쓰는
+          상세 로그. 세 종류(목록 진입/상품 상세 진입/실제 예약)를 발생
+          시간순으로 섞어서 최근 것부터 보여준다. 화면 밖으로 무한정
+          늘어나지 않게 목록 자체를 스크롤 영역으로 둔다. */}
+      <section className="border-border bg-surface mt-6 rounded-xl border p-4">
+        <h2 className="mb-4 font-bold">상세 로그</h2>
+
+        {recentActivity.length === 0 ? (
+          <p className="text-muted py-4 text-center text-sm">
+            아직 쌓인 기록이 없습니다.
+          </p>
+        ) : (
+          <ul className="max-h-[420px] overflow-y-auto">
+            {recentActivity.map((entry) => (
+              <li
+                key={`${entry.kind}-${entry.id}`}
+                className="border-border flex items-center gap-3 border-b py-2 text-sm last:border-0"
+              >
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${ACTIVITY_KIND_DOT[entry.kind]}`}
+                  aria-hidden
+                />
+                <span className="text-muted w-36 shrink-0 font-mono text-xs">
+                  {kstDateString(new Date(entry.occurredAt))}{" "}
+                  {kstTimeString(new Date(entry.occurredAt))}
+                </span>
+                <span className="w-28 shrink-0">
+                  {ACTIVITY_KIND_LABEL[entry.kind]}
+                </span>
+                <span className="text-muted truncate">
+                  {entry.productName ?? "-"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <p className="text-muted mt-3 text-xs">
-        조회수는 손님이 상품 상세 페이지를 열 때마다 기록됩니다(같은 사람이
-        여러 번 봐도 각각 셉니다). 신청수는 실제로 접수된 예약 신청
-        건수입니다.
+        상품 목록 진입은 예약하기 첫 화면(상품을 고르는 화면)을 열 때마다,
+        상품 상세 진입(조회수)은 손님이 상품 상세 페이지를 열 때마다
+        기록됩니다(같은 사람이 여러 번 봐도 각각 셉니다). 실제 예약(신청수)은
+        실제로 접수된 예약 신청 건수입니다. 상세 로그는 최근 발생한 순으로
+        최대 100건까지 보여줍니다.
       </p>
+    </div>
+  );
+}
+
+function FunnelStep({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: number;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-1 px-2 py-1 text-center">
+      <p className="text-muted text-xs">{label}</p>
+      <p
+        className={`text-2xl font-bold ${highlight ? "text-brand" : ""}`}
+      >
+        {value.toLocaleString()}
+      </p>
+    </div>
+  );
+}
+
+function FunnelArrow({ rate }: { rate: number | null }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-0.5 px-1">
+      <span className="text-muted" aria-hidden>
+        →
+      </span>
+      <span className="text-muted text-[11px] whitespace-nowrap">
+        {rate === null ? "-" : `${rate.toFixed(1)}%`}
+      </span>
     </div>
   );
 }
