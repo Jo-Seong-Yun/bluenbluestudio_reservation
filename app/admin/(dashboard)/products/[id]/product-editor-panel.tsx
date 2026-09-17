@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { saveProduct, type ActionState } from "@/app/admin/actions";
 import { ProductForm, type ProductFormValues } from "../product-form";
 import { DescriptionEditor } from "./description-editor";
@@ -22,7 +22,7 @@ const FORM_ID = "product-form";
  */
 export function ProductEditorPanel({
   initial,
-  description,
+  description: initialDescription,
   children,
 }: {
   initial: ProductFormValues;
@@ -35,6 +35,28 @@ export function ProductEditorPanel({
     null,
   );
   useReportPending(pending);
+
+  const [description, setDescription] = useState(initialDescription);
+
+  // Ctrl+S / Cmd+S로 어디서든 저장할 수 있게 한다. 브라우저 기본
+  // 동작(페이지 저장 대화상자)은 막고, 대신 기본정보 폼을 제출한다
+  // — 상세 설명은 이미 description 상태로 그 폼의 숨은 입력에 실려 있다.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const isSaveShortcut =
+        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
+      if (!isSaveShortcut) return;
+
+      event.preventDefault();
+      const form = document.getElementById(FORM_ID);
+      if (form instanceof HTMLFormElement) {
+        form.requestSubmit();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <div>
@@ -73,7 +95,7 @@ export function ProductEditorPanel({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0">
           <ProductForm
-            initial={initial}
+            initial={{ ...initial, description }}
             formId={FORM_ID}
             action={action}
             state={state}
@@ -81,7 +103,7 @@ export function ProductEditorPanel({
         </div>
 
         <div className="min-w-0">
-          <DescriptionEditor productId={initial.id!} initial={description} />
+          <DescriptionEditor initial={initialDescription} onChange={setDescription} />
         </div>
 
         <div className="min-w-0">{children}</div>

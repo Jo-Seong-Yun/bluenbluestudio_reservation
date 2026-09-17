@@ -287,7 +287,7 @@ export async function saveProduct(
     sale_price: input.salePrice,
     max_people: input.maxPeople,
     summary: input.summary || null,
-    description: input.description || null,
+    description: input.description ? sanitizeDescriptionHtml(input.description) : null,
     cover_image: coverImage,
     gallery,
     is_published: input.isPublished,
@@ -320,58 +320,8 @@ export async function saveProduct(
   }
 
   revalidatePath("/admin/products");
-  redirect("/admin/products");
-}
-
-/**
- * 상품 상세 설명만 따로 저장. 상품 기본정보 폼(saveProduct)과는 별도
- * 액션이다 — 상세 설명 에디터는 같은 페이지 안에서 슬라이드로 열리는
- * 패널일 뿐 다른 폼이라, 저장 후에도 그 패널에 그대로 남아 있어야
- * 하니 saveProduct처럼 목록으로 redirect하지 않고 성공 여부만 돌려준다.
- */
-export type ProductDescriptionState = {
-  error?: string;
-  success?: boolean;
-} | null;
-
-export async function saveProductDescription(
-  _prev: ProductDescriptionState,
-  formData: FormData,
-): Promise<ProductDescriptionState> {
-  await requireAdmin();
-
-  const id = String(formData.get("id") ?? "");
-  if (!id) return { error: "상품을 찾을 수 없습니다." };
-
-  const rawDescription = String(formData.get("description") ?? "");
-  if (rawDescription.length > 20_000) {
-    return { error: "설명이 너무 깁니다." };
-  }
-  const description = sanitizeDescriptionHtml(rawDescription);
-
-  const supabase = await createClient();
-  const { data: product } = await supabase
-    .from("products")
-    .select("slug")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (!product) return { error: "상품을 찾을 수 없습니다." };
-
-  const { error } = await supabase
-    .from("products")
-    .update({ description: description || null })
-    .eq("id", id);
-
-  if (error) {
-    return { error: `저장하지 못했습니다: ${error.message}` };
-  }
-
-  revalidatePath("/admin/products");
-  revalidatePath(`/admin/products/${id}`);
   revalidatePath("/booking/[slug]", "page");
-
-  return { success: true };
+  redirect("/admin/products");
 }
 
 export async function togglePublished(formData: FormData) {

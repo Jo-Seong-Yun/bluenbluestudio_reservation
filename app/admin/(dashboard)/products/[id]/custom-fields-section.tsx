@@ -72,7 +72,7 @@ export function CustomFieldsSection({
         <FieldModal productId={productId} />
       </div>
 
-      <div className="border-border bg-surface rounded-xl border">
+      <div className="border-border bg-surface max-h-[600px] overflow-y-auto rounded-xl border">
         {optimisticFields.length === 0 ? (
           <p className="text-muted p-6 text-center text-sm">
             아직 문항이 없습니다. &quot;질문 추가&quot;를 눌러 신청서에 넣을

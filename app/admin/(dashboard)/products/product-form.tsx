@@ -38,8 +38,34 @@ export function ProductForm({
   const [coverImage, setCoverImage] = useState(initial.coverImage);
   const [gallery, setGallery] = useState(initial.gallery);
 
+  // Enter를 치면 이 폼의 기본 동작(즉시 제출)이 아니라 다음 입력칸으로
+  // 넘어가게 한다 — 저장은 "저장" 버튼이나 Ctrl+S로만 일어나는 별개의
+  // 동작이어야 한다. 이 폼은 문항마다 감싸는 블록이 없으니(신청서
+  // 폼과 달리) 폼 전체에서 보이는 입력칸을 순서대로 훑어 다음 칸을 찾는다.
+  function handleFieldKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.type !== "text" && target.type !== "number") return;
+
+    e.preventDefault();
+
+    const fields = Array.from(
+      e.currentTarget.querySelectorAll<HTMLInputElement>(
+        "input:not([type=hidden])",
+      ),
+    );
+    const next = fields[fields.indexOf(target) + 1];
+    next?.focus();
+  }
+
   return (
-    <form id={formId} action={action} className="space-y-8">
+    <form
+      id={formId}
+      action={action}
+      onKeyDown={handleFieldKeyDown}
+      className="space-y-8"
+    >
       {initial.id ? <input type="hidden" name="id" value={initial.id} /> : null}
 
       <section className="space-y-4">
@@ -181,9 +207,10 @@ export function ProductForm({
         </Field>
       </section>
 
-      {/* 상세 설명은 이 폼에서 다루지 않는다(옆 칸의 에디터가 따로
-          저장한다). 이 hidden input은 이 폼을 제출할 때 그 값을
-          지우지 않고 그대로 실어 보내기 위한 것이다. */}
+      {/* 상세 설명은 옆 칸의 에디터(DescriptionEditor)에서 편집하지만,
+          저장은 여기 없이 이 폼 하나로 같이 한다. 부모(ProductEditorPanel)가
+          에디터의 onChange로 받은 최신 HTML을 initial.description으로
+          내려주므로, 이 hidden input은 항상 최신 값을 싣고 있다. */}
       <input type="hidden" name="description" value={initial.description} />
 
       <section className="space-y-4">

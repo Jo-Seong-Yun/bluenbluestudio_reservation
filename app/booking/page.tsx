@@ -81,8 +81,11 @@ export default async function BookingPage() {
                       <h2 className="text-lg font-bold sm:text-xl">
                         {product.name}
                       </h2>
+                      {/* 작은 설명 텍스트만 박스 왼쪽 기준 60% 지점에서
+                          줄바꿈되게 너비를 묶는다 — 제목은 그대로 두고
+                          싶다는 요청. */}
                       {product.summary ? (
-                        <p className="text-muted mt-0.5 line-clamp-2 text-xs sm:text-sm">
+                        <p className="text-muted mt-0.5 line-clamp-2 max-w-[60%] text-xs sm:text-sm">
                           {product.summary}
                         </p>
                       ) : null}

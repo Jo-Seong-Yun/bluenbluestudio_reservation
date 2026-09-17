@@ -10,6 +10,7 @@ import sanitizeHtml from "sanitize-html";
  */
 const ALLOWED_COLOR =
   /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$|^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/;
+const ALLOWED_ALIGN = /^(?:left|center|right|justify)$/;
 
 export function sanitizeDescriptionHtml(html: string): string {
   return sanitizeHtml(html, {
@@ -36,9 +37,15 @@ export function sanitizeDescriptionHtml(html: string): string {
       a: ["href", "target", "rel"],
       img: ["src", "alt", "width"],
       span: ["style"],
+      p: ["style"],
+      h2: ["style"],
+      h3: ["style"],
     },
     allowedStyles: {
       span: { color: [ALLOWED_COLOR] },
+      p: { "text-align": [ALLOWED_ALIGN] },
+      h2: { "text-align": [ALLOWED_ALIGN] },
+      h3: { "text-align": [ALLOWED_ALIGN] },
     },
     allowedSchemes: ["http", "https"],
     transformTags: {
