@@ -1,13 +1,18 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
+import TextAlign from "@tiptap/extension-text-align";
 import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
   Bold,
   Eraser,
   Heading2,
@@ -16,12 +21,7 @@ import {
   Link2,
   List,
 } from "lucide-react";
-import {
-  saveProductDescription,
-  type ProductDescriptionState,
-} from "@/app/admin/actions";
-import { Button, ErrorText } from "@/components/ui";
-import { useReportPending } from "@/components/pending-overlay";
+import { ErrorText } from "@/components/ui";
 import { ResizableImage } from "@/components/tiptap/resizable-image";
 import { publicImageUrl } from "@/lib/images";
 import { uploadProductImage } from "@/lib/storage-upload";
@@ -39,23 +39,24 @@ const editorContentClass =
  * — 글자색이나 이미지처럼 마크다운으로는 표현할 수 없는 서식을 쓰려면
  * HTML이 필요하다. 손님 화면(components/rich-text.tsx)에서 저장 전과
  * 똑같이 한 번 더 정화(sanitize)해서 보여준다.
+ *
+ * 이 에디터 자체는 저장 버튼이 없다 — 예전엔 여기서 따로 저장했는데,
+ * 상품 기본정보 폼의 "저장"과 서로 다른 폼이라 기본정보만 저장하고
+ * 나가면 방금 고친 설명이 반영 안 되는 문제가 있었다. 지금은 바뀐
+ * HTML을 onChange로 위(ProductEditorPanel)에 그대로 올려보내고,
+ * 그쪽이 기본정보 폼의 숨은 입력값으로 실어서 한 번에 같이 저장한다.
  */
 export function DescriptionEditor({
-  productId,
   initial,
+  onChange,
   onClose,
 }: {
-  productId: string;
   initial: string;
+  /** 바뀐 HTML을 매번 올려보낸다(상품 기본정보 폼에 같이 실어 저장하기 위해). */
+  onChange: (html: string) => void;
   /** 있으면 헤더에 닫기(×) 버튼이 뜬다. 상시 노출되는 화면에서는 안 준다. */
   onClose?: () => void;
 }) {
-  const [state, action, pending] = useActionState<
-    ProductDescriptionState,
-    FormData
-  >(saveProductDescription, null);
-  useReportPending(pending);
-  const [description, setDescription] = useState(initial);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,12 +69,13 @@ export function DescriptionEditor({
       }),
       TextStyle,
       Color,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       ResizableImage,
     ],
     content: initial,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
-      setDescription(editor.getHTML());
+      onChange(editor.getHTML());
     },
     editorProps: {
       attributes: { class: editorContentClass },
@@ -89,6 +91,7 @@ export function DescriptionEditor({
       bulletList: ctx.editor?.isActive("bulletList") ?? false,
       link: ctx.editor?.isActive("link") ?? false,
       color: ctx.editor?.getAttributes("textStyle").color ?? "",
+      align: ctx.editor?.getAttributes("paragraph").textAlign ?? "left",
     }),
   });
 
@@ -203,110 +206,125 @@ export function DescriptionEditor({
         ) : null}
       </div>
 
-      <form action={action} className="space-y-4">
-        <input type="hidden" name="id" value={productId} />
-        <input type="hidden" name="description" value={description} />
+      <div>
+        <div className="flex flex-wrap items-center gap-1 rounded-t-lg bg-neutral-900 p-2">
+          <ToolbarButton
+            active={editorState?.heading}
+            title="제목"
+            onClick={() =>
+              editor?.chain().focus().toggleHeading({ level: 2 }).run()
+            }
+          >
+            <Heading2 size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editorState?.bold}
+            title="굵게"
+            onClick={() => editor?.chain().focus().toggleBold().run()}
+          >
+            <Bold size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editorState?.italic}
+            title="기울임"
+            onClick={() => editor?.chain().focus().toggleItalic().run()}
+          >
+            <Italic size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editorState?.bulletList}
+            title="목록"
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}
+          >
+            <List size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editorState?.link}
+            title="링크"
+            onClick={toggleLink}
+          >
+            <Link2 size={16} />
+          </ToolbarButton>
 
-        <div>
-          <div className="flex flex-wrap items-center gap-1 rounded-t-lg bg-neutral-900 p-2">
-            <ToolbarButton
-              active={editorState?.heading}
-              title="제목"
-              onClick={() =>
-                editor?.chain().focus().toggleHeading({ level: 2 }).run()
-              }
-            >
-              <Heading2 size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editorState?.bold}
-              title="굵게"
-              onClick={() => editor?.chain().focus().toggleBold().run()}
-            >
-              <Bold size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editorState?.italic}
-              title="기울임"
-              onClick={() => editor?.chain().focus().toggleItalic().run()}
-            >
-              <Italic size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editorState?.bulletList}
-              title="목록"
-              onClick={() => editor?.chain().focus().toggleBulletList().run()}
-            >
-              <List size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editorState?.link}
-              title="링크"
-              onClick={toggleLink}
-            >
-              <Link2 size={16} />
-            </ToolbarButton>
+          <div className="mx-1 h-5 w-px bg-white/15" />
 
-            <div className="mx-1 h-5 w-px bg-white/15" />
+          <ToolbarButton
+            active={editorState?.align === "left"}
+            title="왼쪽 정렬"
+            onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+          >
+            <AlignLeft size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editorState?.align === "center"}
+            title="가운데 정렬"
+            onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+          >
+            <AlignCenter size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editorState?.align === "right"}
+            title="오른쪽 정렬"
+            onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+          >
+            <AlignRight size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editorState?.align === "justify"}
+            title="양쪽 정렬"
+            onClick={() => editor?.chain().focus().setTextAlign("justify").run()}
+          >
+            <AlignJustify size={16} />
+          </ToolbarButton>
 
-            <label
-              title="글자색"
-              className="relative flex h-7 w-7 cursor-pointer items-center justify-center rounded hover:bg-white/10"
-            >
-              <span
-                className="h-4 w-4 rounded-full border border-white/40"
-                style={{ backgroundColor: editorState?.color || "#ffffff" }}
-              />
-              <input
-                type="color"
-                value={editorState?.color || "#ffffff"}
-                onChange={(event) =>
-                  editor?.chain().focus().setColor(event.target.value).run()
-                }
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              />
-            </label>
-            <ToolbarButton
-              title="글자색 지우기"
-              onClick={() => editor?.chain().focus().unsetColor().run()}
-            >
-              <Eraser size={16} />
-            </ToolbarButton>
+          <div className="mx-1 h-5 w-px bg-white/15" />
 
-            <div className="mx-1 h-5 w-px bg-white/15" />
-
-            <ToolbarButton
-              title="사진 삽입"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <ImageIcon size={16} />
-            </ToolbarButton>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => {
-                pickImage(event.target.files);
-                event.target.value = "";
-              }}
+          <label
+            title="글자색"
+            className="relative flex h-7 w-7 cursor-pointer items-center justify-center rounded hover:bg-white/10"
+          >
+            <span
+              className="h-4 w-4 rounded-full border border-white/40"
+              style={{ backgroundColor: editorState?.color || "#ffffff" }}
             />
-          </div>
-          <EditorContent editor={editor} />
-          <ErrorText>{uploadError}</ErrorText>
+            <input
+              type="color"
+              value={editorState?.color || "#ffffff"}
+              onChange={(event) =>
+                editor?.chain().focus().setColor(event.target.value).run()
+              }
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </label>
+          <ToolbarButton
+            title="글자색 지우기"
+            onClick={() => editor?.chain().focus().unsetColor().run()}
+          >
+            <Eraser size={16} />
+          </ToolbarButton>
+
+          <div className="mx-1 h-5 w-px bg-white/15" />
+
+          <ToolbarButton
+            title="사진 삽입"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImageIcon size={16} />
+          </ToolbarButton>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              pickImage(event.target.files);
+              event.target.value = "";
+            }}
+          />
         </div>
-
-        <ErrorText>{state?.error}</ErrorText>
-        {state?.success ? (
-          <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            저장했습니다.
-          </p>
-        ) : null}
-
-        <Button type="submit" disabled={pending}>
-          {pending ? "저장 중…" : "저장"}
-        </Button>
-      </form>
+        <EditorContent editor={editor} />
+        <ErrorText>{uploadError}</ErrorText>
+      </div>
     </div>
   );
 }
