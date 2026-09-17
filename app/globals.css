@@ -59,17 +59,18 @@
   --font-sans: var(--font-noto-sans-kr), system-ui, sans-serif;
 }
 
-/* html/body에 overflow-x:hidden을 걸면(예전엔 그렇게 했었다) 명시
-   안 한 overflow-y가 "auto"로 강제 승격돼(CSS 스펙: 한쪽 축만
-   visible이 아니면 나머지 축도 visible→auto로 바뀐다), body/html이
-   자기만의 스크롤 컨테이너가 돼버린다 — 그 순간 관리자 헤더의
-   position:sticky가 더는 뷰포트 기준으로 붙지 않고 스크롤을 따라
-   같이 올라가버렸다. 그래서 body/html은 건드리지 않고, 문제의
-   원인인 .radial-glow(아래)에만 overflow-x:hidden을 스코프한다. */
-
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* 스크롤은 그대로 되지만, 스크롤바 자체는 안 보이게 한다. */
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* 구형 Edge */
+}
+html::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
 }
 
 ::selection {
@@ -109,45 +110,6 @@ dialog[open] {
   }
 }
 
-/* 그라데이션 헤드라인 텍스트 — 히어로 같은 포인트 한두 곳에만 쓴다. */
-.gradient-text {
-  background-image: linear-gradient(
-    100deg,
-    var(--foreground) 0%,
-    var(--accent) 45%,
-    var(--brand) 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-}
-
-/* 히어로 뒤에 은은하게 까는 방사형 광원. 요소에 position:relative가
-   있어야 하고, 광원 자체는 ::before로 그 뒤에 깐다(내용 위에 안 덮임).
-   ::before가 음수 inset으로 이 요소 밖까지 살짝 번지는데, 그걸 여기서
-   막지 않으면 모바일 브라우저가 그 여백을 보이게 하려고 레이아웃
-   뷰포트 자체를 넓혀버린다(글자·버튼이 전체적으로 작아 보임) — body나
-   html 전체에 걸면 관리자 헤더의 sticky가 깨지므로, 광원을 쓰는 이
-   요소 안에만 가둔다. */
-.radial-glow {
-  position: relative;
-  isolation: isolate;
-  overflow-x: hidden;
-}
-.radial-glow::before {
-  content: "";
-  position: absolute;
-  inset: -20% -10% auto -10%;
-  height: 140%;
-  z-index: -1;
-  background: radial-gradient(
-    600px circle at 20% 0%,
-    color-mix(in srgb, var(--brand) 18%, transparent),
-    transparent 70%
-  );
-  pointer-events: none;
-}
 
 /* 히어로 요소들이 순서대로 살짝 아래에서 떠오르며 나타나는 등장 효과.
    지연 시간은 앞에서부터 0.1초씩 늘려 붙인다. */

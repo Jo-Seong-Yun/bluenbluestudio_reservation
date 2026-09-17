@@ -3,7 +3,7 @@ import { SITE } from "@/lib/site";
 
 export default function Home() {
   return (
-    <main className="radial-glow mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 py-20">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 py-20">
       <div className="animate-fade-up flex items-center gap-2">
         <span className="bg-accent h-1.5 w-1.5 shrink-0 rounded-full" />
         <p className="text-accent text-sm font-medium tracking-widest uppercase">
@@ -11,7 +11,7 @@ export default function Home() {
         </p>
       </div>
 
-      <h1 className="gradient-text animate-fade-up animate-fade-up-1 mt-3 text-4xl leading-tight font-black tracking-tight sm:text-6xl">
+      <h1 className="animate-fade-up animate-fade-up-1 mt-3 text-4xl leading-tight font-black tracking-tight sm:text-6xl">
         {SITE.name}
       </h1>
 
