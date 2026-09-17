@@ -56,6 +56,20 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["products"]["Row"]>;
         Relationships: [];
       };
+      product_views: {
+        Row: {
+          id: string;
+          product_id: string;
+          viewed_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["product_views"]["Row"]
+        > & {
+          product_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["product_views"]["Row"]>;
+        Relationships: [];
+      };
       weekly_hours: {
         Row: {
           id: string;
