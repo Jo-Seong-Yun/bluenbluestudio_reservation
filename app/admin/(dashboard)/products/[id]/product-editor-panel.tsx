@@ -7,6 +7,7 @@ import { DescriptionEditor } from "./description-editor";
 import { Button } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
 import { UnsavedGuard } from "./unsaved-guard";
+import { ProductLinkCopy } from "./product-link-copy";
 
 const FORM_ID = "product-form";
 
@@ -40,7 +41,12 @@ export function ProductEditorPanel({
       <UnsavedGuard productId={initial.id!} formId={FORM_ID} />
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">{initial.name}</h1>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold">{initial.name}</h1>
+          <div className="mt-2">
+            <ProductLinkCopy slug={initial.slug} />
+          </div>
+        </div>
 
         <div className="flex items-center gap-4">
           <label className="inline-flex cursor-pointer items-center gap-2">

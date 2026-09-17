@@ -10,11 +10,7 @@ import {
   type Interval,
 } from "@/lib/availability/range";
 import { addDays, kstToday, kstToInstant, weekdayOf } from "@/lib/time";
-import {
-  saveWeeklyHours,
-  saveDateOverrideRange,
-  removeDateOverride,
-} from "@/app/admin/actions";
+import { saveDateOverrideRange, removeDateOverride } from "@/app/admin/actions";
 import { Button, Field, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { TimeSelect } from "@/components/time-select";
@@ -23,6 +19,7 @@ import {
   type CellState,
   type DayColumn,
 } from "@/components/week-grid";
+import { WeeklyHoursEditor } from "./weekly-hours-editor";
 
 export const metadata: Metadata = { title: "스케줄관리" };
 
@@ -231,47 +228,24 @@ export default async function SchedulePage({
           &quot;날짜 단위 휴무/특별 운영시간&quot;을 사용해 주십시오.
         </p>
 
-        <div className="mt-4 space-y-2">
-          {WEEKDAY_LABELS.map((label, weekday) => {
+        <WeeklyHoursEditor
+          initial={WEEKDAY_LABELS.map((label, weekday) => {
             const row = weeklyHoursByWeekday.get(weekday);
-            const color =
-              weekday === 0
-                ? "text-red-600 dark:text-red-400"
-                : weekday === 6
-                  ? "text-brand"
-                  : "";
-            return (
-              <form
-                key={weekday}
-                action={saveWeeklyHours}
-                className="flex flex-wrap items-center gap-2"
-              >
-                <input type="hidden" name="weekday" value={weekday} />
-                <span className={`w-6 shrink-0 text-sm font-medium ${color}`}>
-                  {label}
-                </span>
-                <label className="flex shrink-0 items-center gap-1.5 text-xs">
-                  <input type="checkbox" name="closed" defaultChecked={!row} />
-                  휴무
-                </label>
-                <TimeSelect
-                  name="openTime"
-                  defaultValue={row?.open_time?.slice(0, 5) ?? "09:00"}
-                  className={`${inputClass} !w-32 shrink-0 py-1 text-sm`}
-                />
-                <span className="text-muted text-xs">~</span>
-                <TimeSelect
-                  name="closeTime"
-                  defaultValue={row?.close_time?.slice(0, 5) ?? "18:00"}
-                  className={`${inputClass} !w-32 shrink-0 py-1 text-sm`}
-                />
-                <SubmitButton variant="ghost" className="py-1 text-xs">
-                  저장
-                </SubmitButton>
-              </form>
-            );
+            return {
+              weekday,
+              label,
+              color:
+                weekday === 0
+                  ? "text-red-600 dark:text-red-400"
+                  : weekday === 6
+                    ? "text-brand"
+                    : "",
+              closed: !row,
+              openTime: row?.open_time?.slice(0, 5) ?? "09:00",
+              closeTime: row?.close_time?.slice(0, 5) ?? "18:00",
+            };
           })}
-        </div>
+        />
       </section>
 
       <section className="border-border bg-surface mb-6 rounded-xl border p-4">
