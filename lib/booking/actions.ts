@@ -442,7 +442,13 @@ export async function lookupReservationsByPhone(
  */
 export async function logProductView(productId: string) {
   const supabase = await createClient();
-  await supabase.from("product_views").insert({ product_id: productId });
+  const { error } = await supabase
+    .from("product_views")
+    .insert({ product_id: productId });
+  // 손님 화면에는 절대 영향을 주면 안 되니 던지지 않는다 — 대신 서버
+  // 로그에는 남겨서, 마이그레이션 누락 같은 문제가 생기면(테이블이나
+  // RLS 정책이 없어 계속 조용히 실패하면) 눈치챌 수 있게 한다.
+  if (error) console.error("상품 조회 기록 실패:", error.message);
 }
 
 /**
@@ -452,5 +458,6 @@ export async function logProductView(productId: string) {
  */
 export async function logBookingListView() {
   const supabase = await createClient();
-  await supabase.from("booking_list_views").insert({});
+  const { error } = await supabase.from("booking_list_views").insert({});
+  if (error) console.error("상품 목록 조회 기록 실패:", error.message);
 }
