@@ -206,40 +206,6 @@ export function ReservationForm({
         ))}
       </ul>
 
-      {hasPricedFields ? (
-        // 유료 옵션(체크박스)이 아래 문항 어딘가에 있는 상품에서만
-        // 보여준다. 스크롤해도 계속 보이게 sticky로 둬서, 맨 아래
-        // 옵션까지 체크한 뒤에도 총액이 얼마인지 다시 위로 올라오지
-        // 않고 바로 확인할 수 있다.
-        <div className="border-brand/30 bg-brand/5 sticky top-4 z-10 mt-4 rounded-xl border p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">예상 금액</span>
-            <span className="text-xl font-bold">
-              {estimatedTotal.toLocaleString()}원
-            </span>
-          </div>
-          {pricedItems.length > 0 ? (
-            <ul className="text-muted mt-2 space-y-0.5 border-t border-inherit pt-2 text-xs">
-              <li className="flex justify-between">
-                <span>기본 요금</span>
-                <span>{basePrice.toLocaleString()}원</span>
-              </li>
-              {pricedItems.map((item, i) => (
-                <li key={i} className="flex justify-between">
-                  <span>{item.label}</span>
-                  <span>+{item.price.toLocaleString()}원</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted mt-1 text-xs">
-              기본 요금입니다. 아래에서 유료 옵션을 고르시면 합계가 바로
-              반영됩니다.
-            </p>
-          )}
-        </div>
-      ) : null}
-
       <form
         ref={formRef}
         action={action}
@@ -287,7 +253,44 @@ export function ReservationForm({
         <Button type="submit" disabled={pending} className={PRIMARY_CTA_CLASS}>
           {pending ? "접수 중…" : "예약 신청"}
         </Button>
+
+        {/* 아래 고정 바에 가려지지 않게 미리 자리를 비워둔다 — 바 높이가
+            내용(옵션 몇 개를 골랐는지)에 따라 달라지니 넉넉히 잡는다. */}
+        {hasPricedFields ? <div aria-hidden className="h-48" /> : null}
       </form>
+
+      {hasPricedFields ? (
+        // 유료 옵션(체크박스)이 아래 문항 어딘가에 있는 상품에서만
+        // 보여준다. 화면 맨 아래 불투명한 바로 고정해서, 스크롤 중인
+        // 문항 위를 반투명하게 덮어 글자가 겹쳐 보이는 일 없이, 바
+        // 아래쪽에서 늘 총액을 확인할 수 있게 한다.
+        <div className="border-border bg-surface fixed inset-x-0 bottom-0 z-20 border-t shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+          <div className="mx-auto w-full max-w-xl px-6 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">예상 금액</span>
+              <span className="text-xl font-bold">
+                {estimatedTotal.toLocaleString()}원
+              </span>
+            </div>
+            {pricedItems.length > 0 ? (
+              <ul className="text-muted mt-2 max-h-24 space-y-0.5 overflow-y-auto border-t border-inherit pt-2 text-xs">
+                <li className="flex justify-between">
+                  <span>기본 요금</span>
+                  <span>{basePrice.toLocaleString()}원</span>
+                </li>
+                {pricedItems.map((item, i) => (
+                  <li key={i} className="flex justify-between">
+                    <span>{item.label}</span>
+                    <span>+{item.price.toLocaleString()}원</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted mt-1 text-xs">기본 요금</p>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
