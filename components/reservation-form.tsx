@@ -66,6 +66,8 @@ export function ReservationForm({
   backHref,
   bankAccount,
   notice,
+  successHeading,
+  successMessage,
   customFields,
 }: {
   productId: string;
@@ -77,6 +79,9 @@ export function ReservationForm({
   backHref: string;
   bankAccount: string | null;
   notice: string | null;
+  /** 신청 완료 화면의 제목/설명(관리자 설정에서 고친다). */
+  successHeading: string;
+  successMessage: string;
   customFields: CustomField[];
 }) {
   const boundAction = createReservation.bind(
@@ -132,13 +137,10 @@ export function ReservationForm({
           </svg>
         </div>
         <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-          예약 신청이 접수되었습니다
+          {successHeading}
         </p>
         <p className="mt-3 text-2xl font-bold tracking-wide">{state.code}</p>
-        <p className="text-muted mt-1 text-sm">
-          예약 내역은 입력하신 연락처로 조회할 수 있으며, 아래 계좌로 예약금을
-          입금하시면 신청하신 희망 시간 중 하나로 예약이 확정됩니다.
-        </p>
+        <p className="text-muted mt-1 text-sm">{successMessage}</p>
 
         <dl className="mt-4 space-y-1 text-sm">
           <div className="flex gap-2">

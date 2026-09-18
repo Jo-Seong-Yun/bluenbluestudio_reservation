@@ -13,6 +13,8 @@ export type SettingsFormValues = {
   bankAccount: string;
   studioIntro: string;
   notice: string;
+  reservationSuccessHeading: string;
+  reservationSuccessMessage: string;
   adminNotifyPhone: string;
   adminNotifyEmail: string;
   showProductThumbnails: boolean;
@@ -133,10 +135,36 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
           </div>
         </section>
 
+        {/* 예약 신청 완료 화면(손님이 신청서를 제출한 직후 보는 화면)에
+            들어가는 문구를 한 섹션에 모아둔다 — 위 두 개(제목·설명)는
+            코드에 고정돼 있던 문구였고, 나머지(계좌·공지)는 원래도
+            수정 가능했지만 다른 섹션에 흩어져 있었다. */}
         <section className="space-y-4">
-          <h2 className="font-bold">손님에게 보여줄 문구</h2>
+          <h2 className="font-bold">예약 완료 화면 문구</h2>
+          <p className="text-muted -mt-2 text-xs">
+            손님이 예약 신청을 제출하면 바로 이어서 보이는 화면입니다.
+          </p>
 
-          <Field label="입금 계좌" hint="예약 완료 화면에 안내됩니다.">
+          <Field label="완료 제목">
+            <input
+              name="reservationSuccessHeading"
+              required
+              defaultValue={initial.reservationSuccessHeading}
+              className={inputClass}
+            />
+          </Field>
+
+          <Field label="완료 설명">
+            <textarea
+              name="reservationSuccessMessage"
+              rows={3}
+              required
+              defaultValue={initial.reservationSuccessMessage}
+              className={inputClass}
+            />
+          </Field>
+
+          <Field label="입금 계좌">
             <input
               name="bankAccount"
               defaultValue={initial.bankAccount}
@@ -145,10 +173,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
             />
           </Field>
 
-          <Field
-            label="예약 공지"
-            hint="예약 완료 화면에 계좌 안내와 함께 표시됩니다."
-          >
+          <Field label="예약 공지" hint="계좌 안내 아래에 함께 표시됩니다.">
             <textarea
               name="notice"
               rows={3}
@@ -157,6 +182,10 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
               className={inputClass}
             />
           </Field>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="font-bold">홈 화면 문구</h2>
 
           <Field label="스튜디오 소개" hint="랜딩 페이지에 마크다운으로 표시됩니다.">
             <textarea

@@ -14,6 +14,12 @@ export const metadata: Metadata = { title: "신청 내용 작성" };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SLOT_RE = /^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})$/;
 
+// settings 조회가 어떤 이유로든 비어 있을 때만 쓰는 예비값 — 정상적인
+// 경우엔 항상 DB 값(마이그레이션이 넣어둔 기본값 또는 관리자가 고친 값)을 쓴다.
+const FALLBACK_SUCCESS_HEADING = "예약 신청이 접수되었습니다";
+const FALLBACK_SUCCESS_MESSAGE =
+  "예약 내역은 입력하신 연락처로 조회할 수 있으며, 아래 계좌로 예약금을 입금하시면 신청하신 희망 시간 중 하나로 예약이 확정됩니다.";
+
 /**
  * `slots` 쿼리 파라미터("2026-09-12_10-00,2026-09-13_14-00")를 후보
  * 목록으로 푼다. 형식이 어긋난 조각은 조용히 버린다 — 주소를 직접
@@ -56,7 +62,7 @@ export default async function ApplyPage({
     supabase
       .from("settings")
       .select(
-        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice",
+        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice, reservation_success_heading, reservation_success_message",
       )
       .eq("id", 1)
       .single(),
@@ -143,6 +149,12 @@ export default async function ApplyPage({
         backHref={backHref}
         bankAccount={settings?.bank_account ?? null}
         notice={settings?.notice ?? null}
+        successHeading={
+          settings?.reservation_success_heading ?? FALLBACK_SUCCESS_HEADING
+        }
+        successMessage={
+          settings?.reservation_success_message ?? FALLBACK_SUCCESS_MESSAGE
+        }
         customFields={customFields}
       />
     </main>

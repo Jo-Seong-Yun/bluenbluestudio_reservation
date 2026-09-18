@@ -218,6 +218,9 @@ export interface Database {
           bank_account: string | null;
           studio_intro: string | null;
           notice: string | null;
+          /** 예약 신청 완료 화면의 제목/설명 문구. */
+          reservation_success_heading: string;
+          reservation_success_message: string;
           admin_notify_phone: string | null;
           admin_notify_email: string | null;
           show_product_thumbnails: boolean;
