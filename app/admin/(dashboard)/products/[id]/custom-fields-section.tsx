@@ -6,6 +6,7 @@ import { moveCustomField } from "@/app/admin/actions";
 import { FieldDescription } from "@/components/field-description";
 import { DeleteFieldButton } from "./delete-field-button";
 import { FieldModal } from "./field-modal";
+import { ImportFieldsButton } from "./import-fields-button";
 import {
   FIELD_TYPE_LABELS,
   LOCKED_FIELD_TYPES,
@@ -29,9 +30,11 @@ type MoveTarget = { id: string; direction: "up" | "down" };
 export function CustomFieldsSection({
   productId,
   fields,
+  otherProducts,
 }: {
   productId: string;
   fields: CustomField[];
+  otherProducts: { id: string; name: string }[];
 }) {
   const [, startTransition] = useTransition();
   const [optimisticFields, applyMove] = useOptimistic(
@@ -69,7 +72,13 @@ export function CustomFieldsSection({
             영향이 없습니다.
           </p>
         </div>
-        <FieldModal productId={productId} />
+        <div className="flex shrink-0 items-center gap-2">
+          <ImportFieldsButton
+            productId={productId}
+            otherProducts={otherProducts}
+          />
+          <FieldModal productId={productId} />
+        </div>
       </div>
 
       <div className="border-border bg-surface max-h-[600px] overflow-y-auto rounded-xl border">
@@ -167,18 +176,26 @@ function FieldPreview({ field }: { field: CustomField }) {
   if (field.type === "single_choice" || field.type === "multi_choice") {
     return (
       <div className="space-y-1">
-        {options.map((option) => (
-          <label
-            key={option}
-            className="text-muted flex items-center gap-1.5 text-sm"
-          >
-            <input
-              type={field.type === "single_choice" ? "radio" : "checkbox"}
-              disabled
-            />
-            {option}
-          </label>
-        ))}
+        {options.map((option, index) => {
+          const price = field.option_prices?.[index];
+          return (
+            <label
+              key={option}
+              className="text-muted flex items-center gap-1.5 text-sm"
+            >
+              <input
+                type={field.type === "single_choice" ? "radio" : "checkbox"}
+                disabled
+              />
+              {option}
+              {price ? (
+                <span className="text-brand text-xs font-medium">
+                  (+{price.toLocaleString()}원)
+                </span>
+              ) : null}
+            </label>
+          );
+        })}
       </div>
     );
   }

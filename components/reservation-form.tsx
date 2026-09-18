@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   createReservation,
@@ -12,6 +12,7 @@ import { calculateAge, parseBirthDate8 } from "@/lib/age";
 import { FieldDescription } from "@/components/field-description";
 import {
   fieldFormName,
+  selectedPricedOptions,
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
 
@@ -62,6 +63,7 @@ export function ReservationForm({
   productName,
   durationMin,
   bufferAfterMin,
+  basePrice,
   candidates,
   backHref,
   bankAccount,
@@ -74,6 +76,8 @@ export function ReservationForm({
   productName: string;
   durationMin: number;
   bufferAfterMin: number;
+  /** 상품 기본가(할인가가 있으면 할인가) — 예상 금액 계산의 출발점. */
+  basePrice: number;
   /** 정확히 3개, 1지망부터 순서대로. */
   candidates: { date: string; time: string }[];
   backHref: string;
@@ -90,11 +94,51 @@ export function ReservationForm({
     productName,
     durationMin,
     bufferAfterMin,
+    basePrice,
     bankAccount,
     notice,
   );
   const [state, action, pending] = useActionState(boundAction, initialState);
   useReportPending(pending);
+
+  // 유료 옵션이 하나도 없는 상품(대부분)은 이 박스를 아예 안 보여준다
+  // — 매번 기본가만 덩그러니 보여주는 건 정보가 아니라 잡음이다.
+  const hasPricedFields = customFields.some(
+    (field) => field.option_prices && field.option_prices.length > 0,
+  );
+  const formRef = useRef<HTMLFormElement>(null);
+  const [pricedItems, setPricedItems] = useState<
+    { fieldId: string; label: string; price: number }[]
+  >([]);
+
+  // 체크박스/라디오를 전부 controlled로 바꾸는 건 이 화면 전체를 다시
+  // 짜는 큰 변경이라, 대신 변경이 있을 때마다 DOM에서 지금 체크된 값을
+  // 직접 읽어 다시 계산한다 — onChange 하나로 모든 옵션을 델리게이션해서
+  // 듣는다(handleFieldKeyDown과 같은 방식).
+  function recomputeEstimate() {
+    if (!formRef.current || !hasPricedFields) return;
+    const form = formRef.current;
+    const selected = new Map<string, string[]>();
+    for (const field of customFields) {
+      if (!field.option_prices) continue;
+      const name = fieldFormName(field.id);
+      const inputs = form.querySelectorAll<HTMLInputElement>(
+        `input[name="${CSS.escape(name)}"]:checked`,
+      );
+      selected.set(field.id, Array.from(inputs).map((el) => el.value));
+    }
+    setPricedItems(selectedPricedOptions(customFields, selected));
+  }
+
+  // 마운트 시점에도 한 번 계산한다 — 브라우저가 뒤로가기로 체크 상태를
+  // 그대로 복원해 주는 경우(bfcache) 초기 렌더에는 아직 반영이 안 돼서다.
+  useEffect(() => {
+    recomputeEstimate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const addonTotal = pricedItems.reduce((sum, item) => sum + item.price, 0);
+  const estimatedTotal = basePrice + addonTotal;
 
   // 한 줄짜리 텍스트 입력(이름/연락처/이메일/생년월일/단답형)에서 Enter를
   // 치면, 기본 동작인 "폼 즉시 제출" 대신 바로 다음 문항 칸으로
@@ -203,7 +247,47 @@ export function ReservationForm({
         ))}
       </ul>
 
-      <form action={action} onKeyDown={handleFieldKeyDown} className="mt-6 space-y-6">
+      {hasPricedFields ? (
+        // 유료 옵션(체크박스)이 아래 문항 어딘가에 있는 상품에서만
+        // 보여준다. 스크롤해도 계속 보이게 sticky로 둬서, 맨 아래
+        // 옵션까지 체크한 뒤에도 총액이 얼마인지 다시 위로 올라오지
+        // 않고 바로 확인할 수 있다.
+        <div className="border-brand/30 bg-brand/5 sticky top-4 z-10 mt-4 rounded-xl border p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">예상 금액</span>
+            <span className="text-xl font-bold">
+              {estimatedTotal.toLocaleString()}원
+            </span>
+          </div>
+          {pricedItems.length > 0 ? (
+            <ul className="text-muted mt-2 space-y-0.5 border-t border-inherit pt-2 text-xs">
+              <li className="flex justify-between">
+                <span>기본 요금</span>
+                <span>{basePrice.toLocaleString()}원</span>
+              </li>
+              {pricedItems.map((item, i) => (
+                <li key={i} className="flex justify-between">
+                  <span>{item.label}</span>
+                  <span>+{item.price.toLocaleString()}원</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted mt-1 text-xs">
+              기본 요금입니다. 아래에서 유료 옵션을 고르시면 합계가 바로
+              반영됩니다.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      <form
+        ref={formRef}
+        action={action}
+        onKeyDown={handleFieldKeyDown}
+        onChange={recomputeEstimate}
+        className="mt-6 space-y-6"
+      >
         {candidates.map((c, i) => (
           <div key={i}>
             <input type="hidden" name="candidateDate" value={c.date} />

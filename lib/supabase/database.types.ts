@@ -151,6 +151,8 @@ export interface Database {
           cost_memo: string | null;
           charged_amount: number | null;
           charged_amount_memo: string | null;
+          /** 신청 시점에 계산한 예상 금액(기본가+유료 옵션) 스냅샷. */
+          estimated_amount: number | null;
           gender: Gender | null;
           birth_date: string | null; // "YYYY-MM-DD"
           reminded_at: string | null;
@@ -278,6 +280,9 @@ export interface Database {
           label: string;
           type: CustomFieldType;
           options: string[] | null; // single_choice/multi_choice 보기 목록
+          /** options[i]의 가격(원). 전부 null이거나 배열 자체가 null이면
+           * 가격 없는(예전과 같은) 옵션이다. */
+          option_prices: number[] | null;
           description: string | null;
           required: boolean;
           active: boolean;

@@ -61,3 +61,76 @@ export const FIELD_TYPE_LABELS: Record<string, string> = {
 export function fieldFormName(fieldId: string): string {
   return `custom_${fieldId}`;
 }
+
+/**
+ * "유료 옵션" 계산에 필요한 조각들. 신청서 화면(손님, 실시간 예상
+ * 금액)과 서버 액션(제출 시점의 확정 금액) 둘 다 이 함수들로 계산해
+ * 같은 값을 낸다 — 손님이 보는 숫자와 실제 저장되는 숫자가 어긋나면
+ * 안 되기 때문이다.
+ */
+
+/** field.options[i]에 매겨진 가격. 가격 없는 문항/옵션이면 0. */
+export function priceForOption(field: CustomField, optionLabel: string): number {
+  if (!field.option_prices) return 0;
+  const index = (field.options ?? []).indexOf(optionLabel);
+  if (index === -1) return 0;
+  return field.option_prices[index] ?? 0;
+}
+
+export type PricedSelection = { fieldId: string; label: string; price: number };
+
+/**
+ * 문항 목록과 "문항 id → 그 문항에서 고른 옵션 라벨들" 맵을 받아,
+ * 가격이 매겨진 것만 골라낸다(가격 0원인 옵션은 목록에 안 보여줘도
+ * 손님이 헷갈리지 않는다). 총액은 이 결과의 price를 더하면 된다.
+ */
+export function selectedPricedOptions(
+  fields: CustomField[],
+  selectedLabelsByFieldId: Map<string, string[]>,
+): PricedSelection[] {
+  const items: PricedSelection[] = [];
+  for (const field of fields) {
+    if (!field.option_prices) continue;
+    const selected = selectedLabelsByFieldId.get(field.id) ?? [];
+    for (const label of selected) {
+      const price = priceForOption(field, label);
+      if (price !== 0) items.push({ fieldId: field.id, label, price });
+    }
+  }
+  return items;
+}
+
+/**
+ * single_choice/multi_choice 답변(신청서 제출 데이터, 서버에서 뽑은
+ * CustomFieldAnswer 형태와 같은 모양)을 "문항 id → 고른 라벨들" 맵으로
+ * 되돌린다. multi_choice는 JSON 배열 문자열로 저장돼 있어 한 번 더
+ * 풀어야 한다(lib/booking/custom-fields.ts의 extractReservationFormData
+ * 참고 — 저장 형식을 거기와 맞춘다).
+ */
+export function selectedLabelsFromAnswers(
+  fields: CustomField[],
+  answers: { fieldId: string; value: string }[],
+): Map<string, string[]> {
+  const fieldById = new Map(fields.map((f) => [f.id, f]));
+  const result = new Map<string, string[]>();
+
+  for (const answer of answers) {
+    const field = fieldById.get(answer.fieldId);
+    if (!field) continue;
+
+    if (field.type === "multi_choice") {
+      try {
+        const parsed = JSON.parse(answer.value);
+        if (Array.isArray(parsed)) {
+          result.set(field.id, parsed.map(String));
+        }
+      } catch {
+        // 저장된 값이 JSON이 아니면(있을 수 없지만) 무시한다.
+      }
+    } else if (field.type === "single_choice") {
+      result.set(field.id, [answer.value]);
+    }
+  }
+
+  return result;
+}

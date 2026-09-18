@@ -32,6 +32,7 @@ type ReservationRow = {
   cost_memo: string | null;
   charged_amount: number | null;
   charged_amount_memo: string | null;
+  estimated_amount: number | null;
   gender: string | null;
   birth_date: string | null;
   productName: string;
@@ -237,6 +238,16 @@ function ReservationDetail({
           메모 저장
         </SubmitButton>
       </form>
+
+      {reservation.estimated_amount != null ? (
+        <p className="text-muted border-border mt-4 border-t pt-4 text-sm">
+          신청 시점 예상 금액{" "}
+          <span className="text-foreground font-medium">
+            {reservation.estimated_amount.toLocaleString()}원
+          </span>{" "}
+          <span className="text-xs">(기본가 + 손님이 고른 유료 옵션)</span>
+        </p>
+      ) : null}
 
       <MoneyField
         reservationId={reservation.id}

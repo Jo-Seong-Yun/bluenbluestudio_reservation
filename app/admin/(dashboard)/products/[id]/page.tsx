@@ -15,16 +15,22 @@ export default async function EditProductPage({
 
   const { id } = await params;
   const supabase = await createClient();
-  const [{ data: product }, { data: customFields }] = await Promise.all([
-    supabase.from("products").select("*").eq("id", id).maybeSingle(),
-    supabase
-      .from("custom_fields")
-      .select(
-        "id, product_id, label, type, options, description, required, active, sort_order, created_at",
-      )
-      .eq("product_id", id)
-      .order("sort_order"),
-  ]);
+  const [{ data: product }, { data: customFields }, { data: allProducts }] =
+    await Promise.all([
+      supabase.from("products").select("*").eq("id", id).maybeSingle(),
+      supabase
+        .from("custom_fields")
+        .select(
+          "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
+        )
+        .eq("product_id", id)
+        .order("sort_order"),
+      supabase
+        .from("products")
+        .select("id, name")
+        .neq("id", id)
+        .order("sort_order"),
+    ]);
 
   if (!product) notFound();
 
@@ -58,6 +64,7 @@ export default async function EditProductPage({
         <CustomFieldsSection
           productId={product.id}
           fields={customFields ?? []}
+          otherProducts={allProducts ?? []}
         />
       </ProductEditorPanel>
     </div>

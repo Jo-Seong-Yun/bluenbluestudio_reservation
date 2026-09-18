@@ -32,6 +32,16 @@ export function FieldModal({
   const [options, setOptions] = useState<string[]>(
     field?.options && field.options.length > 0 ? field.options : [""],
   );
+  // 가격은 문자열로 들고 있는다(빈 칸 = 가격 없음을 그대로 표현할 수
+  // 있게 — number면 빈 칸과 0을 구분할 방법이 없다).
+  const [optionPrices, setOptionPrices] = useState<string[]>(
+    field?.options && field.options.length > 0
+      ? field.options.map((_, i) => {
+          const price = field.option_prices?.[i];
+          return price ? String(price) : "";
+        })
+      : [""],
+  );
   // "질문 추가" 모달은 하나를 등록한 뒤 다이얼로그를 닫지 않고 그대로
   // 다시 열 수 있다 — 그때 상세설명 에디터(FieldDescriptionEditor)가
   // 이전에 타이핑한 내용을 그대로 들고 있지 않도록, 열 때마다 이
@@ -43,6 +53,14 @@ export function FieldModal({
     setType(field?.type ?? "short_text");
     setOptions(
       field?.options && field.options.length > 0 ? field.options : [""],
+    );
+    setOptionPrices(
+      field?.options && field.options.length > 0
+        ? field.options.map((_, i) => {
+            const price = field.option_prices?.[i];
+            return price ? String(price) : "";
+          })
+        : [""],
     );
     setEditorEpoch((n) => n + 1);
     dialogRef.current?.showModal();
@@ -56,12 +74,18 @@ export function FieldModal({
     setOptions((prev) => prev.map((opt, i) => (i === index ? value : opt)));
   }
 
+  function updateOptionPrice(index: number, value: string) {
+    setOptionPrices((prev) => prev.map((p, i) => (i === index ? value : p)));
+  }
+
   function addOption() {
     setOptions((prev) => [...prev, ""]);
+    setOptionPrices((prev) => [...prev, ""]);
   }
 
   function removeOption(index: number) {
     setOptions((prev) => prev.filter((_, i) => i !== index));
+    setOptionPrices((prev) => prev.filter((_, i) => i !== index));
   }
 
   return (
@@ -186,7 +210,12 @@ export function FieldModal({
 
           {NEEDS_OPTIONS.has(type) ? (
             <div>
-              <span className="mb-1.5 block text-sm font-medium">보기</span>
+              <span className="mb-1.5 block text-sm font-medium">
+                보기{" "}
+                <span className="text-muted font-normal">
+                  (가격을 넣으면 유료 옵션이 됩니다. 비워두면 무료)
+                </span>
+              </span>
               <div className="space-y-2">
                 {options.map((option, index) => (
                   <div key={index} className="flex items-center gap-2">
@@ -198,8 +227,28 @@ export function FieldModal({
                       value={option}
                       onChange={(e) => updateOption(index, e.target.value)}
                       placeholder={`옵션 ${index + 1}`}
-                      className={inputClass}
+                      className={`${inputClass} min-w-0`}
                     />
+                    {/* inputClass 자체가 w-full이라, 이 칸에 폭을 좁히려고
+                        w-24를 같이 주면 둘 다 유틸리티 클래스라 어느 게
+                        이기는지 클래스 문자열 순서가 아니라 Tailwind가
+                        생성한 스타일시트 순서로 정해진다 — 실제로 w-full이
+                        이겨서 이 칸이 넓어지고 옆 칸(라벨)이 찌그러지는
+                        문제가 있었다. 폭을 별도 래퍼에 주고 input 자신은
+                        그 안에서 그냥 w-full(=래퍼 폭 전체)이 되게 하면
+                        이 충돌 자체가 안 생긴다. */}
+                    <div className="w-24 shrink-0">
+                      <input
+                        name="optionPrice"
+                        type="number"
+                        min={0}
+                        step={1000}
+                        value={optionPrices[index] ?? ""}
+                        onChange={(e) => updateOptionPrice(index, e.target.value)}
+                        placeholder="가격"
+                        className={inputClass}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeOption(index)}

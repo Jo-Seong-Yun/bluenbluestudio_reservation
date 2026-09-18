@@ -22,7 +22,10 @@ import {
 } from "@/lib/notifications/notify";
 import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 import { PRODUCT_TAG_COLORS } from "@/lib/product-tag-colors";
-import { LOCKED_FIELD_TYPES } from "@/lib/booking/custom-fields-shared";
+import {
+  LOCKED_FIELD_TYPES,
+  SPECIAL_FIELD_TYPES,
+} from "@/lib/booking/custom-fields-shared";
 import {
   EMAIL_TEMPLATE_PURPOSES,
   type EmailTemplatePurpose,
@@ -1404,10 +1407,24 @@ function parseCustomFieldForm(formData: FormData) {
   const descriptionText = description.replace(/<[^>]*>/g, "").trim();
   const required = formData.get("required") === "on";
   const active = formData.get("active") === "on";
-  const options = formData
-    .getAll("option")
-    .map((value) => String(value).trim())
-    .filter((value) => value.length > 0);
+  // option/optionPrice는 화면에서 같은 인덱스끼리 짝지어 보낸다(옵션
+  // 한 줄 = 라벨 칸 + 가격 칸). 빈 라벨 행을 걸러낼 때 가격도 같이
+  // 걸러내야 짝이 안 어긋난다 — 그래서 먼저 묶은 뒤에 거른다.
+  const rawOptions = formData.getAll("option").map((v) => String(v).trim());
+  const rawOptionPrices = formData
+    .getAll("optionPrice")
+    .map((v) => String(v).trim());
+  const optionPairs = rawOptions
+    .map((label, i) => ({ label, price: rawOptionPrices[i] ?? "" }))
+    .filter((pair) => pair.label.length > 0);
+  const options = optionPairs.map((pair) => pair.label);
+  // 가격 칸을 하나도 안 건드렸으면(전부 빈 칸) 이 문항엔 가격이 없는
+  // 거다 — option_prices를 null로 둬서 예전과 똑같이 동작한다. 하나라도
+  // 채웠으면 나머지 빈 칸은 0원으로 채워 전체 배열을 만든다.
+  const hasAnyOptionPrice = optionPairs.some((pair) => pair.price !== "");
+  const optionPrices = hasAnyOptionPrice
+    ? optionPairs.map((pair) => Math.max(0, Math.round(Number(pair.price) || 0)))
+    : null;
 
   if (!productId || !label) return null;
   if (
@@ -1423,6 +1440,7 @@ function parseCustomFieldForm(formData: FormData) {
     label,
     type: type as (typeof CUSTOM_FIELD_TYPES)[number],
     options: needsOptions ? options : null,
+    option_prices: needsOptions ? optionPrices : null,
     description: descriptionText ? description : null,
     required,
     active,
@@ -1529,6 +1547,60 @@ export async function moveCustomField(formData: FormData) {
   );
 
   revalidateCustomFieldPaths(productId);
+}
+
+/**
+ * 비슷한 상품을 새로 만들 때마다 "추가옵션" 같은 문항을 손으로 다시
+ * 만들지 않아도 되게, 다른 상품의 문항을 그대로 복사해 지금 상품
+ * 끝에 이어 붙인다.
+ *
+ * 이름·연락처·이메일·성별·생년월일(SPECIAL_FIELD_TYPES)은 상품을 만들
+ * 때마다 이미 하나씩 자동으로 생겨 있으므로(DEFAULT_CUSTOM_FIELDS)
+ * 복사 대상에서 뺀다 — 안 그러면 "이름" 문항이 두 개가 된다. 비활성
+ * 문항도 안 가져온다(보이지 않던 걸 굳이 옮길 이유가 없다).
+ */
+export async function importCustomFieldsFromProduct(formData: FormData) {
+  await requireAdmin();
+
+  const targetProductId = String(formData.get("targetProductId") ?? "");
+  const sourceProductId = String(formData.get("sourceProductId") ?? "");
+  if (!targetProductId || !sourceProductId || targetProductId === sourceProductId) {
+    return;
+  }
+
+  const supabase = await createClient();
+  const [{ data: sourceFields }, { data: existing }] = await Promise.all([
+    supabase
+      .from("custom_fields")
+      .select(
+        "label, type, options, option_prices, description, required",
+      )
+      .eq("product_id", sourceProductId)
+      .eq("active", true)
+      .not("type", "in", `(${SPECIAL_FIELD_TYPES.join(",")})`)
+      .order("sort_order"),
+    supabase
+      .from("custom_fields")
+      .select("sort_order")
+      .eq("product_id", targetProductId)
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (!sourceFields || sourceFields.length === 0) return;
+
+  let nextOrder = (existing?.sort_order ?? -1) + 1;
+  await supabase.from("custom_fields").insert(
+    sourceFields.map((field) => ({
+      ...field,
+      product_id: targetProductId,
+      active: true,
+      sort_order: nextOrder++,
+    })),
+  );
+
+  revalidateCustomFieldPaths(targetProductId);
 }
 
 /**
