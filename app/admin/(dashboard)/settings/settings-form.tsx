@@ -197,7 +197,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
                 rows={3}
                 value={notice}
                 onChange={(e) => setNotice(e.target.value)}
-                placeholder="예약 후 24시간 안에 입금이 확인되지 않으면 자동 취소됩니다."
+                placeholder="예약 확정 후 24시간 안에 입금이 확인되지 않으면 자동 취소됩니다."
                 className={inputClass}
               />
             </Field>
