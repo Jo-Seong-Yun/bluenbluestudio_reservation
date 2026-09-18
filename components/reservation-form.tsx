@@ -10,6 +10,7 @@ import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
 import { calculateAge, parseBirthDate8 } from "@/lib/age";
 import { FieldDescription } from "@/components/field-description";
+import { ReservationSuccessCard } from "@/components/reservation-success-card";
 import {
   fieldFormName,
   selectedPricedOptions,
@@ -41,7 +42,9 @@ function descriptionHint(
 ): React.ReactNode {
   return field.description ? (
     <FieldDescription html={field.description} />
-  ) : fallback;
+  ) : (
+    fallback
+  );
 }
 
 const initialState: ReservationActionState = { status: "idle" };
@@ -125,7 +128,10 @@ export function ReservationForm({
       const inputs = form.querySelectorAll<HTMLInputElement>(
         `input[name="${CSS.escape(name)}"]:checked`,
       );
-      selected.set(field.id, Array.from(inputs).map((el) => el.value));
+      selected.set(
+        field.id,
+        Array.from(inputs).map((el) => el.value),
+      );
     }
     setPricedItems(selectedPricedOptions(customFields, selected));
   }
@@ -150,7 +156,12 @@ export function ReservationForm({
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     const target = e.target;
     if (!(target instanceof HTMLInputElement)) return;
-    if (target.type !== "text" && target.type !== "tel" && target.type !== "email") return;
+    if (
+      target.type !== "text" &&
+      target.type !== "tel" &&
+      target.type !== "email"
+    )
+      return;
 
     const currentBlock = target.closest("[data-field-block]");
     const nextBlock = currentBlock?.nextElementSibling;
@@ -163,68 +174,16 @@ export function ReservationForm({
 
   if (state.status === "success") {
     return (
-      <div className="border-border bg-surface animate-fade-up mt-8 rounded-xl border p-6">
-        <div className="animate-check-pop flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950">
-          <svg
-            viewBox="0 0 20 20"
-            fill="none"
-            className="h-4 w-4 text-emerald-700 dark:text-emerald-400"
-            aria-hidden
-          >
-            <path
-              d="M4 10.5l3.5 3.5L16 5.5"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-          {successHeading}
-        </p>
-        <p className="mt-3 text-2xl font-bold tracking-wide">{state.code}</p>
-        <p className="text-muted mt-1 text-sm">{successMessage}</p>
-
-        <dl className="mt-4 space-y-1 text-sm">
-          <div className="flex gap-2">
-            <dt className="text-muted w-16 shrink-0">상품</dt>
-            <dd>{productName}</dd>
-          </div>
-          <div className="flex gap-2">
-            <dt className="text-muted w-16 shrink-0">희망시간</dt>
-            <dd>
-              <ul className="space-y-0.5">
-                {state.candidates.map((c, i) => (
-                  <li key={i}>
-                    {i + 1}지망 · {c.dateLabel} {c.timeLabel}
-                  </li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        </dl>
-
-        {bankAccount ? (
-          <div className="border-border bg-surface-subtle mt-4 rounded-lg border p-3 text-sm">
-            <p className="font-medium">입금 계좌</p>
-            <p className="text-muted mt-0.5">{bankAccount}</p>
-          </div>
-        ) : null}
-
-        {notice ? <p className="text-muted mt-4 text-sm">{notice}</p> : null}
-
-        <Link href="/booking" className="mt-6 block">
-          <Button type="button" className={PRIMARY_CTA_CLASS}>
-            확인
-          </Button>
-        </Link>
-
-        <Link href="/booking/lookup" className="mt-3 block">
-          <Button type="button" variant="ghost" className="w-full">
-            예약 조회하러 가기 →
-          </Button>
-        </Link>
+      <div className="mt-8">
+        <ReservationSuccessCard
+          successHeading={successHeading}
+          successMessage={successMessage}
+          code={state.code}
+          productName={productName}
+          candidates={state.candidates}
+          bankAccount={bankAccount}
+          notice={notice}
+        />
       </div>
     );
   }
@@ -297,7 +256,11 @@ export function ReservationForm({
 
         <div className="space-y-3">
           {customFields.map((field) => (
-            <div key={field.id} data-field-block className={FIELD_WRAPPER_CLASS}>
+            <div
+              key={field.id}
+              data-field-block
+              className={FIELD_WRAPPER_CLASS}
+            >
               <ReservationFieldInput field={field} />
             </div>
           ))}
@@ -571,7 +534,10 @@ function BirthDateInput({ field, name }: { field: CustomField; name: string }) {
     <Field
       label={field.label}
       required={field.required}
-      hint={descriptionHint(field, "8자리 숫자로 입력해 주십시오. 예: 19990101")}
+      hint={descriptionHint(
+        field,
+        "8자리 숫자로 입력해 주십시오. 예: 19990101",
+      )}
       labelClassName={FIELD_LABEL_CLASS}
       hintClassName={FIELD_HINT_CLASS}
       hintPosition="before"

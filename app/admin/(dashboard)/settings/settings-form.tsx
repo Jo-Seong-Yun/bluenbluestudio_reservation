@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { saveSettings, type SettingsActionState } from "@/app/admin/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
+import { ReservationSuccessPreview } from "./reservation-success-preview";
 
 export type SettingsFormValues = {
   slotIntervalMin: number;
@@ -28,6 +29,19 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
     FormData
   >(saveSettings, null);
   useReportPending(pending);
+
+  // "예약 완료 화면 문구" 섹션의 네 칸만 컨트롤드로 둔다(나머지는 여전히
+  // defaultValue로만 충분하다) — 오른쪽 미리보기가 타이핑하는 대로 바로
+  // 반영되려면 이 값들을 상태로 들고 있어야 한다. name은 그대로 둬서
+  // 폼 제출(action)은 지금까지와 똑같이 동작한다.
+  const [reservationSuccessHeading, setReservationSuccessHeading] = useState(
+    initial.reservationSuccessHeading,
+  );
+  const [reservationSuccessMessage, setReservationSuccessMessage] = useState(
+    initial.reservationSuccessMessage,
+  );
+  const [bankAccount, setBankAccount] = useState(initial.bankAccount);
+  const [notice, setNotice] = useState(initial.notice);
 
   return (
     <>
@@ -71,183 +85,206 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
         </div>
       </div>
 
-      <form id={FORM_ID} action={action} className="max-w-xl space-y-8">
-        <section className="space-y-4">
-          <h2 className="font-bold">예약 규칙</h2>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <form id={FORM_ID} action={action} className="max-w-xl space-y-8">
+          <section className="space-y-4">
+            <h2 className="font-bold">예약 규칙</h2>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="슬롯 간격 (분)"
-              hint="시간 선택 화면에 몇 분 단위로 보여줄지."
-            >
-              <input
-                name="slotIntervalMin"
-                type="number"
-                min={5}
-                step={5}
-                defaultValue={initial.slotIntervalMin}
-                required
-                className={inputClass}
-              />
-            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="슬롯 간격 (분)"
+                hint="시간 선택 화면에 몇 분 단위로 보여줄지."
+              >
+                <input
+                  name="slotIntervalMin"
+                  type="number"
+                  min={5}
+                  step={5}
+                  defaultValue={initial.slotIntervalMin}
+                  required
+                  className={inputClass}
+                />
+              </Field>
 
-            <Field
-              label="최소 며칠 전 예약"
-              hint="1이면 당일 예약 불가, 내일부터 가능."
-            >
-              <input
-                name="minLeadDays"
-                type="number"
-                min={0}
-                defaultValue={initial.minLeadDays}
-                required
-                className={inputClass}
-              />
-            </Field>
+              <Field
+                label="최소 며칠 전 예약"
+                hint="1이면 당일 예약 불가, 내일부터 가능."
+              >
+                <input
+                  name="minLeadDays"
+                  type="number"
+                  min={0}
+                  defaultValue={initial.minLeadDays}
+                  required
+                  className={inputClass}
+                />
+              </Field>
 
-            <Field
-              label="몇 일 뒤까지 열어둘지"
-              hint="예: 60이면 두 달 뒤까지 예약 가능."
-            >
-              <input
-                name="maxAdvanceDays"
-                type="number"
-                min={1}
-                defaultValue={initial.maxAdvanceDays}
-                required
-                className={inputClass}
-              />
-            </Field>
+              <Field
+                label="몇 일 뒤까지 열어둘지"
+                hint="예: 60이면 두 달 뒤까지 예약 가능."
+              >
+                <input
+                  name="maxAdvanceDays"
+                  type="number"
+                  min={1}
+                  defaultValue={initial.maxAdvanceDays}
+                  required
+                  className={inputClass}
+                />
+              </Field>
 
-            <Field
-              label="손님 자가 취소 기한 (시간)"
-              hint="촬영 시작 이 시간 전까지만 손님이 직접 취소 가능."
-            >
-              <input
-                name="cancelDeadlineHours"
-                type="number"
-                min={0}
-                defaultValue={initial.cancelDeadlineHours}
-                required
-                className={inputClass}
-              />
-            </Field>
-          </div>
-        </section>
+              <Field
+                label="손님 자가 취소 기한 (시간)"
+                hint="촬영 시작 이 시간 전까지만 손님이 직접 취소 가능."
+              >
+                <input
+                  name="cancelDeadlineHours"
+                  type="number"
+                  min={0}
+                  defaultValue={initial.cancelDeadlineHours}
+                  required
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+          </section>
 
-        {/* 예약 신청 완료 화면(손님이 신청서를 제출한 직후 보는 화면)에
+          {/* 예약 신청 완료 화면(손님이 신청서를 제출한 직후 보는 화면)에
             들어가는 문구를 한 섹션에 모아둔다 — 위 두 개(제목·설명)는
             코드에 고정돼 있던 문구였고, 나머지(계좌·공지)는 원래도
             수정 가능했지만 다른 섹션에 흩어져 있었다. */}
-        <section className="space-y-4">
-          <h2 className="font-bold">예약 완료 화면 문구</h2>
-          <p className="text-muted -mt-2 text-xs">
-            손님이 예약 신청을 제출하면 바로 이어서 보이는 화면입니다.
-          </p>
+          <section className="space-y-4">
+            <h2 className="font-bold">예약 완료 화면 문구</h2>
+            <p className="text-muted -mt-2 text-xs">
+              손님이 예약 신청을 제출하면 바로 이어서 보이는 화면입니다.
+            </p>
 
-          <Field label="완료 제목">
-            <input
-              name="reservationSuccessHeading"
-              required
-              defaultValue={initial.reservationSuccessHeading}
-              className={inputClass}
-            />
-          </Field>
-
-          <Field label="완료 설명">
-            <textarea
-              name="reservationSuccessMessage"
-              rows={3}
-              required
-              defaultValue={initial.reservationSuccessMessage}
-              className={inputClass}
-            />
-          </Field>
-
-          <Field label="입금 계좌">
-            <input
-              name="bankAccount"
-              defaultValue={initial.bankAccount}
-              placeholder="국민은행 000-0000-0000 (예금주)"
-              className={inputClass}
-            />
-          </Field>
-
-          <Field label="예약 공지" hint="계좌 안내 아래에 함께 표시됩니다.">
-            <textarea
-              name="notice"
-              rows={3}
-              defaultValue={initial.notice}
-              placeholder="예약 후 24시간 안에 입금이 확인되지 않으면 자동 취소됩니다."
-              className={inputClass}
-            />
-          </Field>
-        </section>
-
-        <section className="space-y-4">
-          <h2 className="font-bold">홈 화면 문구</h2>
-
-          <Field label="스튜디오 소개" hint="랜딩 페이지에 마크다운으로 표시됩니다.">
-            <textarea
-              name="studioIntro"
-              rows={5}
-              defaultValue={initial.studioIntro}
-              className={inputClass}
-            />
-          </Field>
-        </section>
-
-        <section className="space-y-4">
-          <h2 className="font-bold">상품 목록 화면</h2>
-
-          <label className="inline-flex cursor-pointer items-center gap-2">
-            <span className="relative inline-block h-6 w-11 shrink-0">
+            <Field label="완료 제목">
               <input
-                type="checkbox"
-                name="showProductThumbnails"
-                defaultChecked={initial.showProductThumbnails}
-                className="peer sr-only"
-              />
-              <span className="bg-surface-subtle border-border peer-checked:bg-brand peer-checked:border-brand absolute inset-0 rounded-full border transition-colors" />
-              <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
-            </span>
-            <span className="text-sm font-medium">썸네일 표시</span>
-          </label>
-          <p className="text-muted -mt-3 text-xs">
-            예약하기(/booking) 상품 목록에서 각 상품 옆에 대표 이미지 썸네일을
-            보여줄지 정합니다. 꺼두면 이미지 없이 상품명·설명·가격만 보입니다.
-          </p>
-        </section>
-
-        <section className="space-y-4">
-          <h2 className="font-bold">알림 받을 연락처</h2>
-          <p className="text-muted -mt-2 text-xs">
-            새 예약 신청이 들어오면 즉시 알려 드립니다. 둘 다 비워두면 사장님
-            알림은 보내지 않고, 손님에게만 접수·확정·취소·리마인드가 발송됩니다.
-          </p>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="전화번호 (SMS)" hint="숫자만, 010으로 시작.">
-              <input
-                name="adminNotifyPhone"
-                defaultValue={initial.adminNotifyPhone}
-                placeholder="01012345678"
+                name="reservationSuccessHeading"
+                required
+                value={reservationSuccessHeading}
+                onChange={(e) => setReservationSuccessHeading(e.target.value)}
                 className={inputClass}
               />
             </Field>
 
-            <Field label="이메일">
-              <input
-                name="adminNotifyEmail"
-                type="email"
-                defaultValue={initial.adminNotifyEmail}
-                placeholder="owner@example.com"
+            <Field label="완료 설명">
+              <textarea
+                name="reservationSuccessMessage"
+                rows={3}
+                required
+                value={reservationSuccessMessage}
+                onChange={(e) => setReservationSuccessMessage(e.target.value)}
                 className={inputClass}
               />
             </Field>
-          </div>
-        </section>
-      </form>
+
+            <Field label="입금 계좌">
+              <input
+                name="bankAccount"
+                value={bankAccount}
+                onChange={(e) => setBankAccount(e.target.value)}
+                placeholder="국민은행 000-0000-0000 (예금주)"
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="예약 공지" hint="계좌 안내 아래에 함께 표시됩니다.">
+              <textarea
+                name="notice"
+                rows={3}
+                value={notice}
+                onChange={(e) => setNotice(e.target.value)}
+                placeholder="예약 후 24시간 안에 입금이 확인되지 않으면 자동 취소됩니다."
+                className={inputClass}
+              />
+            </Field>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="font-bold">홈 화면 문구</h2>
+
+            <Field
+              label="스튜디오 소개"
+              hint="랜딩 페이지에 마크다운으로 표시됩니다."
+            >
+              <textarea
+                name="studioIntro"
+                rows={5}
+                defaultValue={initial.studioIntro}
+                className={inputClass}
+              />
+            </Field>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="font-bold">상품 목록 화면</h2>
+
+            <label className="inline-flex cursor-pointer items-center gap-2">
+              <span className="relative inline-block h-6 w-11 shrink-0">
+                <input
+                  type="checkbox"
+                  name="showProductThumbnails"
+                  defaultChecked={initial.showProductThumbnails}
+                  className="peer sr-only"
+                />
+                <span className="bg-surface-subtle border-border peer-checked:bg-brand peer-checked:border-brand absolute inset-0 rounded-full border transition-colors" />
+                <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
+              </span>
+              <span className="text-sm font-medium">썸네일 표시</span>
+            </label>
+            <p className="text-muted -mt-3 text-xs">
+              예약하기(/booking) 상품 목록에서 각 상품 옆에 대표 이미지 썸네일을
+              보여줄지 정합니다. 꺼두면 이미지 없이 상품명·설명·가격만 보입니다.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="font-bold">알림 받을 연락처</h2>
+            <p className="text-muted -mt-2 text-xs">
+              새 예약 신청이 들어오면 즉시 알려 드립니다. 둘 다 비워두면 사장님
+              알림은 보내지 않고, 손님에게만 접수·확정·취소·리마인드가
+              발송됩니다.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="전화번호 (SMS)" hint="숫자만, 010으로 시작.">
+                <input
+                  name="adminNotifyPhone"
+                  defaultValue={initial.adminNotifyPhone}
+                  placeholder="01012345678"
+                  className={inputClass}
+                />
+              </Field>
+
+              <Field label="이메일">
+                <input
+                  name="adminNotifyEmail"
+                  type="email"
+                  defaultValue={initial.adminNotifyEmail}
+                  placeholder="owner@example.com"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+          </section>
+        </form>
+
+        {/* 위쪽 sticky 타이틀 줄(top-16)만큼 더 내려서 겹치지 않게 한다.
+          lg 미만에서는 폼 아래로 자연스럽게 떨어져 쌓인다(sticky는
+          lg부터만 건다 — 좁은 화면에서 계속 붙어 있으면 오히려
+          입력칸을 가린다). */}
+        <aside className="lg:sticky lg:top-36">
+          <ReservationSuccessPreview
+            successHeading={reservationSuccessHeading}
+            successMessage={reservationSuccessMessage}
+            bankAccount={bankAccount}
+            notice={notice}
+          />
+        </aside>
+      </div>
     </>
   );
 }
