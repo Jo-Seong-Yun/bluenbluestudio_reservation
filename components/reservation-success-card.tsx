@@ -1,7 +1,35 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui";
 
 const PRIMARY_CTA_CLASS = "h-[3.375rem] w-full text-base";
+
+/** 계좌번호를 눌러서 바로 복사 — 모바일로 예약하는 손님이 은행 앱으로 바로 넘어가 붙여넣기만 하면 되게 한다. */
+function CopyBankAccountButton({ bankAccount }: { bankAccount: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(bankAccount);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // 클립보드 API를 쓸 수 없는 환경(구형 브라우저 등) — 조용히 무시.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="border-border text-foreground shrink-0 rounded-md border px-2 py-1 text-xs font-medium active:scale-95"
+    >
+      {copied ? "복사됨" : "복사"}
+    </button>
+  );
+}
 
 /**
  * 예약 신청 완료 화면. 손님용 신청서(reservation-form.tsx)와 관리자
@@ -84,7 +112,10 @@ export function ReservationSuccessCard({
 
       {bankAccount ? (
         <div className="border-border bg-surface-subtle mt-4 rounded-lg border p-3 text-sm">
-          <p className="font-medium">입금 계좌</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-medium">입금 계좌</p>
+            <CopyBankAccountButton bankAccount={bankAccount} />
+          </div>
           <p className="text-muted mt-0.5">{bankAccount}</p>
         </div>
       ) : null}
