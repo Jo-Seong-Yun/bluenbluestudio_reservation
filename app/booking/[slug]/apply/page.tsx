@@ -55,7 +55,7 @@ export default async function ApplyPage({
   const [{ data: product }, { data: settings }] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, slug, duration_min, buffer_after_min")
+      .select("id, name, slug, duration_min, buffer_after_min, price, sale_price")
       .eq("slug", slug)
       .eq("is_published", true)
       .maybeSingle(),
@@ -145,6 +145,7 @@ export default async function ApplyPage({
         productName={product.name}
         durationMin={product.duration_min}
         bufferAfterMin={product.buffer_after_min}
+        basePrice={product.sale_price ?? product.price}
         candidates={candidates}
         backHref={backHref}
         bankAccount={settings?.bank_account ?? null}

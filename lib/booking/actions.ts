@@ -21,6 +21,10 @@ import {
   loadActiveCustomFields,
 } from "@/lib/booking/custom-fields";
 import {
+  selectedLabelsFromAnswers,
+  selectedPricedOptions,
+} from "@/lib/booking/custom-fields-shared";
+import {
   syncCustomerToSheet,
   syncReservationToSheet,
 } from "@/lib/google-sheets/sync";
@@ -77,6 +81,7 @@ export async function createReservation(
   productName: string,
   durationMin: number,
   bufferAfterMin: number,
+  basePrice: number,
   bankAccount: string | null,
   notice: string | null,
   _prev: ReservationActionState,
@@ -109,6 +114,17 @@ export async function createReservation(
     return { status: "error", error: extracted.error };
   }
   const { special, answers: customAnswers } = extracted;
+
+  // 신청 시점의 "예상 금액" 스냅샷. 손님이 화면에서 본 금액과 똑같이
+  // 나와야 하므로, 손님 화면이 쓰는 것과 같은 계산 함수(custom-fields-
+  // shared.ts)로 서버에서 다시 계산한다 — 클라이언트가 보낸 값을 그냥
+  // 믿지 않는다(조작 방지 + 어차피 그사이 가격이 바뀌었을 수도 있다).
+  const selectedLabels = selectedLabelsFromAnswers(customFields, customAnswers);
+  const addonTotal = selectedPricedOptions(customFields, selectedLabels).reduce(
+    (sum, item) => sum + item.price,
+    0,
+  );
+  const estimatedAmount = basePrice + addonTotal;
 
   // 후보마다 다시 계산해서, 지금도 정말 예약 가능한 시간인지 확인한다.
   // 날짜가 다를 수 있어 후보별로 loadAvailableSlots를 따로 부른다.
@@ -167,6 +183,11 @@ export async function createReservation(
           })),
         );
       }
+
+      await supabase
+        .from("reservations")
+        .update({ estimated_amount: estimatedAmount })
+        .eq("id", reservationId);
 
       const reservationNotice = {
         reservationId,

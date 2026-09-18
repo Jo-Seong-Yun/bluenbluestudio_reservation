@@ -25,7 +25,7 @@ export async function loadActiveCustomFields(
   const { data } = await supabase
     .from("custom_fields")
     .select(
-      "id, product_id, label, type, options, description, required, active, sort_order, created_at",
+      "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
     )
     .eq("product_id", productId)
     .eq("active", true)
