@@ -58,5 +58,5 @@ insert into blocks (period, reason) values
 update settings set
   bank_account = '카카오뱅크 000-0000-0000 (예금주: 조성윤)',
   studio_intro = '사진과 영상을 담는 푸르른 스튜디오입니다.',
-  notice = '예약 후 24시간 이내 입금이 확인되지 않으면 예약이 자동 취소될 수 있습니다.'
+  notice = '예약 확정 후 24시간 이내 입금이 확인되지 않으면 예약이 자동 취소될 수 있습니다.'
 where id = 1;
