@@ -11,6 +11,7 @@ import { DeleteReservationButton } from "./delete-reservation-button";
 import { StatusButtons } from "./status-buttons";
 import { ConfirmCandidateButtons } from "./confirm-candidate-buttons";
 import { RescheduleForm } from "./reschedule-form";
+import { RecordSheetButton } from "./record-sheet-button";
 import { MoneyField } from "./money-field";
 import { Button } from "@/components/ui";
 
@@ -70,7 +71,11 @@ export function DetailPanel({
     // 덮어써진다 — key를 주면 예약이 바뀔 때마다 컴포넌트가 통째로
     // 새로 마운트되어 모든 입력칸이 새 예약의 실제 값으로 다시 초기화된다.
     return (
-      <ReservationDetail key={selected.id} reservation={selected} month={month} />
+      <ReservationDetail
+        key={selected.id}
+        reservation={selected}
+        month={month}
+      />
     );
   }
 
@@ -90,7 +95,8 @@ export function DetailPanel({
                 >
                   <span>
                     {/* 이 목록은 캘린더 날짜 칸에서 온 것이라 항상 shoot_start가 있다. */}
-                    {kstTimeString(new Date(r.shoot_start!))} · {r.customer_name}
+                    {kstTimeString(new Date(r.shoot_start!))} ·{" "}
+                    {r.customer_name}
                   </span>
                   <span className="text-muted text-xs">
                     {STATUS_LABEL[r.status] ?? r.status}
@@ -121,7 +127,9 @@ function ReservationDetail({
   // 후보(1~3지망)만 낸 채 아직 확정 전이면 shoot_start가 없다 — 날짜
   // 자체가 안 정해졌으니 "그날 목록으로" 링크도, 시간 표시도 못 한다.
   const isPending = !reservation.shoot_start;
-  const start = reservation.shoot_start ? new Date(reservation.shoot_start) : null;
+  const start = reservation.shoot_start
+    ? new Date(reservation.shoot_start)
+    : null;
   const end = reservation.shoot_end ? new Date(reservation.shoot_end) : null;
   const date = reservation.shoot_start?.slice(0, 10);
 
@@ -146,7 +154,9 @@ function ReservationDetail({
           {kstTimeString(start)} ~ {kstTimeString(end)}
         </p>
       ) : (
-        <p className="text-muted mt-0.5 text-sm">확정 대기 중 — 아래 희망 시간 중 하나를 선택해 주시기 바랍니다.</p>
+        <p className="text-muted mt-0.5 text-sm">
+          확정 대기 중 — 아래 희망 시간 중 하나를 선택해 주시기 바랍니다.
+        </p>
       )}
 
       <dl className="mt-4 space-y-1.5 text-sm">
@@ -221,11 +231,21 @@ function ReservationDetail({
         />
       ) : null}
 
+      {/* 날짜가 확정된 예약만 촬영 기록표를 만들 수 있다 — 아직 후보만
+          낸 상태(isPending)는 촬영일시 자체가 없다. */}
+      {start ? (
+        <div className="border-border mt-4 border-t pt-4">
+          <RecordSheetButton reservationId={reservation.id} />
+        </div>
+      ) : null}
+
       <form action={saveAdminMemo} className="border-border mt-4 border-t pt-4">
         <input type="hidden" name="id" value={reservation.id} />
         <label className="mb-1.5 block text-sm font-medium" htmlFor="adminMemo">
           사장님 메모{" "}
-          <span className="text-muted font-normal">(손님에게 표시되지 않습니다)</span>
+          <span className="text-muted font-normal">
+            (손님에게 표시되지 않습니다)
+          </span>
         </label>
         <textarea
           id="adminMemo"

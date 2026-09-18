@@ -7,42 +7,52 @@ import { z } from "zod";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-export const productSchema = z.object({
-  name: z.string().trim().min(1, "상품 이름을 입력해 주시기 바랍니다.").max(100),
-  slug: z
-    .string()
-    .trim()
-    .max(60)
-    .refine((value) => value === "" || SLUG_PATTERN.test(value), {
-      message: "주소는 영문 소문자, 숫자, 하이픈만 쓸 수 있습니다. 예: profile",
-    }),
-  durationMin: z.coerce
-    .number()
-    .int("분 단위 정수로 입력해 주시기 바랍니다.")
-    .min(10, "촬영 시간은 10분 이상이어야 합니다.")
-    .max(720, "촬영 시간은 12시간을 넘을 수 없습니다."),
-  bufferAfterMin: z.coerce
-    .number()
-    .int()
-    .min(0, "정리 시간은 0분 이상이어야 합니다.")
-    .max(240),
-  price: z.coerce.number().int().min(0, "가격은 0원 이상이어야 합니다."),
-  salePrice: z
-    .union([
-      z.literal(""),
-      z.coerce.number().int().min(0, "할인가는 0원 이상이어야 합니다."),
-    ])
-    .transform((value) => (value === "" ? null : value)),
-  maxPeople: z
-    .union([z.literal(""), z.coerce.number().int().min(1).max(100)])
-    .transform((value) => (value === "" ? null : value)),
-  summary: z.string().trim().max(200).optional().default(""),
-  description: z.string().max(20_000).optional().default(""),
-  isPublished: z.coerce.boolean(),
-}).refine((data) => data.salePrice === null || data.salePrice < data.price, {
-  message: "할인가는 정가보다 낮아야 합니다.",
-  path: ["salePrice"],
-});
+export const productSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "상품 이름을 입력해 주시기 바랍니다.")
+      .max(100),
+    slug: z
+      .string()
+      .trim()
+      .max(60)
+      .refine((value) => value === "" || SLUG_PATTERN.test(value), {
+        message:
+          "주소는 영문 소문자, 숫자, 하이픈만 쓸 수 있습니다. 예: profile",
+      }),
+    durationMin: z.coerce
+      .number()
+      .int("분 단위 정수로 입력해 주시기 바랍니다.")
+      .min(10, "촬영 시간은 10분 이상이어야 합니다.")
+      .max(720, "촬영 시간은 12시간을 넘을 수 없습니다."),
+    bufferAfterMin: z.coerce
+      .number()
+      .int()
+      .min(0, "정리 시간은 0분 이상이어야 합니다.")
+      .max(240),
+    price: z.coerce.number().int().min(0, "가격은 0원 이상이어야 합니다."),
+    salePrice: z
+      .union([
+        z.literal(""),
+        z.coerce.number().int().min(0, "할인가는 0원 이상이어야 합니다."),
+      ])
+      .transform((value) => (value === "" ? null : value)),
+    maxPeople: z
+      .union([z.literal(""), z.coerce.number().int().min(1).max(100)])
+      .transform((value) => (value === "" ? null : value)),
+    summary: z.string().trim().max(200).optional().default(""),
+    description: z.string().max(20_000).optional().default(""),
+    /** 촬영 기록표(lib/record-sheet)의 "완성본 전달예정일" 칸. 손님에게
+     * 묻는 게 아니라 사장님이 상품마다 미리 정해두는 값이다. */
+    deliveryNote: z.string().trim().max(50).optional().default(""),
+    isPublished: z.coerce.boolean(),
+  })
+  .refine((data) => data.salePrice === null || data.salePrice < data.price, {
+    message: "할인가는 정가보다 낮아야 합니다.",
+    path: ["salePrice"],
+  });
 
 export type ProductInput = z.infer<typeof productSchema>;
 

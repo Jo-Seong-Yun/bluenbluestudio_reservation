@@ -63,6 +63,26 @@ export function fieldFormName(fieldId: string): string {
 }
 
 /**
+ * 촬영 기록표(관리자가 예약 정보로 자동 채우는 서명지, lib/record-sheet)가
+ * "신청자(보호자/팀원 등 대표 예약자)" 정보와 SNS 게시 동의를 찾을 때
+ * 쓰는 문항 라벨. DEFAULT_CUSTOM_FIELDS(app/admin/actions.ts)가 상품마다
+ * 만드는 문항의 라벨과 record-sheet의 조회 쪽이 여기 상수 하나를 같이
+ * 써서, 두 곳의 문자열이 따로 놀다 어긋나는 일이 없게 한다. (그래도
+ * 관리자가 문항편집에서 라벨을 직접 고치면 매칭이 끊긴다 — 그땐 그냥
+ * 그 칸만 빈칸으로 나온다.)
+ */
+export const APPLICANT_FIELD_LABELS = {
+  name: "신청자 성명",
+  birthDate: "신청자 생년월일",
+  gender: "신청자 성별",
+  phone: "신청자 연락처",
+  relation: "신청자와의 관계",
+} as const;
+
+export const SNS_CONSENT_FIELD_LABEL =
+  "완성본의 '푸르른 스튜디오' 인스타그램 게시";
+
+/**
  * "유료 옵션" 계산에 필요한 조각들. 신청서 화면(손님, 실시간 예상
  * 금액)과 서버 액션(제출 시점의 확정 금액) 둘 다 이 함수들로 계산해
  * 같은 값을 낸다 — 손님이 보는 숫자와 실제 저장되는 숫자가 어긋나면
@@ -70,7 +90,10 @@ export function fieldFormName(fieldId: string): string {
  */
 
 /** field.options[i]에 매겨진 가격. 가격 없는 문항/옵션이면 0. */
-export function priceForOption(field: CustomField, optionLabel: string): number {
+export function priceForOption(
+  field: CustomField,
+  optionLabel: string,
+): number {
   if (!field.option_prices) return 0;
   const index = (field.options ?? []).indexOf(optionLabel);
   if (index === -1) return 0;

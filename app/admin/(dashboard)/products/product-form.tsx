@@ -17,6 +17,7 @@ export type ProductFormValues = {
   maxPeople: number | null;
   summary: string;
   description: string;
+  deliveryNote: string;
   coverImage: string | null;
   gallery: string[];
   isPublished: boolean;
@@ -79,7 +80,10 @@ export function ProductForm({
           />
         </Field>
 
-        <Field label="한 줄 소개" hint="상품 목록에서 이름 아래 작게 표시됩니다.">
+        <Field
+          label="한 줄 소개"
+          hint="상품 목록에서 이름 아래 작게 표시됩니다."
+        >
           <input
             name="summary"
             defaultValue={initial.summary}
@@ -170,6 +174,18 @@ export function ProductForm({
             />
           </Field>
         </div>
+
+        <Field
+          label="완성본 전달예정일 (선택)"
+          hint="촬영 기록표(예약 상세의 '기록표 생성')에 자동으로 채워집니다. 예: 7일"
+        >
+          <input
+            name="deliveryNote"
+            defaultValue={initial.deliveryNote}
+            placeholder="7일"
+            className={inputClass}
+          />
+        </Field>
 
         <Field label="태그 색상" hint="상품 목록 카드에 작게 표시됩니다.">
           <div className="flex flex-wrap gap-2">
