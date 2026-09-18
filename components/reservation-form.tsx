@@ -273,7 +273,12 @@ export function ReservationForm({
               </span>
             </div>
             {pricedItems.length > 0 ? (
-              <ul className="text-muted mt-2 max-h-24 space-y-0.5 overflow-y-auto border-t border-inherit pt-2 text-xs">
+              // 항목이 늘어날 때마다 박스 자체가 위로 커지면 페이지
+              // 내용을 점점 더 가리게 된다 — max-h(늘어나다 어느
+              // 시점부터 스크롤) 대신 h(고정 높이)로 둬서 항목이
+              // 하나든 여러 개든 박스 높이는 항상 똑같고, 넘치는
+              // 부분만 이 목록 안에서 스크롤된다.
+              <ul className="text-muted mt-2 h-20 space-y-0.5 overflow-y-auto border-t border-inherit pt-2 text-xs">
                 <li className="flex justify-between">
                   <span>기본 요금</span>
                   <span>{basePrice.toLocaleString()}원</span>
