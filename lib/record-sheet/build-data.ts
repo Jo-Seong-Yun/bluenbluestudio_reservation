@@ -33,12 +33,9 @@ export type RecordSheetTags = {
   옵션2금액: string;
   옵션3라벨: string;
   옵션3금액: string;
-  옵션4라벨: string;
-  옵션4금액: string;
   합계: string;
   계좌: string;
   SNS동의: string;
-  서명일: string;
 };
 
 export type RecordSheetResult =
@@ -50,11 +47,6 @@ function formatShootDateTime(instant: Date): string {
   const [y, m, d] = date.split("-");
   const weekday = WEEKDAY_LABELS[weekdayOf(date)];
   return `${y}. ${m}. ${d}. (${weekday}) ${kstTimeString(instant)}`;
-}
-
-function formatSignDate(instant: Date): string {
-  const [y, m, d] = kstDateString(instant).split("-");
-  return `${y}. ${Number(m)}. ${Number(d)}.`;
 }
 
 /** 문항 라벨로 답변 하나를 찾는다 — 관리자가 문항편집에서 라벨을 그대로
@@ -132,20 +124,20 @@ export async function buildRecordSheetData(
   );
   const pricedItems = selectedPricedOptions(fields, selectedLabels);
 
-  // 서식엔 옵션 칸이 4개뿐이다 — 5개 이상 고른 경우 앞 3개는 그대로,
-  // 나머지는 "외 N건"으로 묶어 4번째 칸에 합쳐 보여준다.
+  // 서식엔 옵션 칸이 3개뿐이다 — 4개 이상 고른 경우 앞 2개는 그대로,
+  // 나머지는 "외 N건"으로 묶어 3번째 칸에 합쳐 보여준다.
   const optionRows: { label: string; price: number }[] = [];
-  if (pricedItems.length <= 4) {
+  if (pricedItems.length <= 3) {
     optionRows.push(...pricedItems);
   } else {
-    optionRows.push(...pricedItems.slice(0, 3));
-    const rest = pricedItems.slice(3);
+    optionRows.push(...pricedItems.slice(0, 2));
+    const rest = pricedItems.slice(2);
     optionRows.push({
       label: `외 ${rest.length}건`,
       price: rest.reduce((sum, item) => sum + item.price, 0),
     });
   }
-  while (optionRows.length < 4) optionRows.push({ label: "", price: 0 });
+  while (optionRows.length < 3) optionRows.push({ label: "", price: 0 });
 
   const itemizedTotal =
     basePrice + pricedItems.reduce((sum, item) => sum + item.price, 0);
@@ -178,12 +170,9 @@ export async function buildRecordSheetData(
     옵션2금액: optionRows[1].price ? money(optionRows[1].price) : "",
     옵션3라벨: optionRows[2].label,
     옵션3금액: optionRows[2].price ? money(optionRows[2].price) : "",
-    옵션4라벨: optionRows[3].label,
-    옵션4금액: optionRows[3].price ? money(optionRows[3].price) : "",
     합계: money(finalTotal),
     계좌: settings?.bank_account ?? "",
     SNS동의: answerByLabel(fields, answers, SNS_CONSENT_FIELD_LABEL),
-    서명일: formatSignDate(new Date()),
   };
 
   return {
