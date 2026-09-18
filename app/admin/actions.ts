@@ -23,7 +23,9 @@ import {
 import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 import { PRODUCT_TAG_COLORS } from "@/lib/product-tag-colors";
 import {
+  APPLICANT_FIELD_LABELS,
   LOCKED_FIELD_TYPES,
+  SNS_CONSENT_FIELD_LABEL,
   SPECIAL_FIELD_TYPES,
 } from "@/lib/booking/custom-fields-shared";
 import {
@@ -123,6 +125,46 @@ const DEFAULT_CUSTOM_FIELDS = [
     options: ["남성", "여성"],
   },
   { label: "생년월일", type: "birth_date", required: true, options: null },
+  // 아래 다섯은 촬영 기록표(관리자가 예약 정보로 자동 채우는 서명지,
+  // lib/record-sheet)를 위한 문항이다 — 배우가 미성년자이거나 대표
+  // 예약자가 따로 있을 때만 쓰는 칸이라 필수는 아니다. SNS 동의만
+  // 서명지에 반드시 있어야 하는 항목이라 필수로 둔다.
+  {
+    label: APPLICANT_FIELD_LABELS.name,
+    type: "short_text",
+    required: false,
+    options: null,
+  },
+  {
+    label: APPLICANT_FIELD_LABELS.birthDate,
+    type: "short_text",
+    required: false,
+    options: null,
+  },
+  {
+    label: APPLICANT_FIELD_LABELS.gender,
+    type: "single_choice",
+    required: false,
+    options: ["남성", "여성"],
+  },
+  {
+    label: APPLICANT_FIELD_LABELS.phone,
+    type: "short_text",
+    required: false,
+    options: null,
+  },
+  {
+    label: APPLICANT_FIELD_LABELS.relation,
+    type: "single_choice",
+    required: false,
+    options: ["보호자", "팀원", "기타"],
+  },
+  {
+    label: SNS_CONSENT_FIELD_LABEL,
+    type: "single_choice",
+    required: true,
+    options: ["동의", "비동의"],
+  },
 ] as const;
 
 async function seedDefaultCustomFields(
@@ -258,12 +300,14 @@ export async function saveProduct(
     maxPeople: formData.get("maxPeople"),
     summary: formData.get("summary"),
     description: formData.get("description"),
+    deliveryNote: formData.get("deliveryNote"),
     isPublished: formData.get("isPublished") === "on",
   });
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
+      error:
+        parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -290,7 +334,10 @@ export async function saveProduct(
     sale_price: input.salePrice,
     max_people: input.maxPeople,
     summary: input.summary || null,
-    description: input.description ? sanitizeDescriptionHtml(input.description) : null,
+    description: input.description
+      ? sanitizeDescriptionHtml(input.description)
+      : null,
+    delivery_note: input.deliveryNote || null,
     cover_image: coverImage,
     gallery,
     is_published: input.isPublished,
@@ -303,7 +350,9 @@ export async function saveProduct(
     const { error } = await supabase.from("products").update(row).eq("id", id);
     if (error) {
       if (error.code === "23505") {
-        return { error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있습니다.` };
+        return {
+          error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있습니다.`,
+        };
       }
       return { error: `저장하지 못했습니다: ${error.message}` };
     }
@@ -315,7 +364,9 @@ export async function saveProduct(
       .single();
     if (error) {
       if (error.code === "23505") {
-        return { error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있습니다.` };
+        return {
+          error: `주소 "${row.slug}" 는 이미 다른 상품이 쓰고 있습니다.`,
+        };
       }
       return { error: `저장하지 못했습니다: ${error.message}` };
     }
@@ -957,7 +1008,8 @@ export async function createManualReservation(
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
+      error:
+        parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -1058,7 +1110,8 @@ export async function createManualReservation(
       // EXCLUDE 제약. 위 재확인 이후 그사이에 진짜로 시간이 찬 경우.
       return {
         status: "error",
-        error: "방금 그 시간이 다른 예약으로 찼습니다. 다시 선택해 주시기 바랍니다.",
+        error:
+          "방금 그 시간이 다른 예약으로 찼습니다. 다시 선택해 주시기 바랍니다.",
       };
     }
 
@@ -1098,7 +1151,8 @@ export async function rescheduleReservation(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
+      error:
+        parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -1150,7 +1204,8 @@ export async function rescheduleReservation(
   if (error) {
     if (error.code === "23P01") {
       return {
-        error: "그 시간은 이미 다른 예약과 겹칩니다. 다른 시간을 입력해 주시기 바랍니다.",
+        error:
+          "그 시간은 이미 다른 예약과 겹칩니다. 다른 시간을 입력해 주시기 바랍니다.",
       };
     }
     return { error: `일정을 바꾸지 못했습니다: ${error.message}` };
@@ -1423,7 +1478,9 @@ function parseCustomFieldForm(formData: FormData) {
   // 채웠으면 나머지 빈 칸은 0원으로 채워 전체 배열을 만든다.
   const hasAnyOptionPrice = optionPairs.some((pair) => pair.price !== "");
   const optionPrices = hasAnyOptionPrice
-    ? optionPairs.map((pair) => Math.max(0, Math.round(Number(pair.price) || 0)))
+    ? optionPairs.map((pair) =>
+        Math.max(0, Math.round(Number(pair.price) || 0)),
+      )
     : null;
 
   if (!productId || !label) return null;
@@ -1564,7 +1621,11 @@ export async function importCustomFieldsFromProduct(formData: FormData) {
 
   const targetProductId = String(formData.get("targetProductId") ?? "");
   const sourceProductId = String(formData.get("sourceProductId") ?? "");
-  if (!targetProductId || !sourceProductId || targetProductId === sourceProductId) {
+  if (
+    !targetProductId ||
+    !sourceProductId ||
+    targetProductId === sourceProductId
+  ) {
     return;
   }
 
@@ -1572,9 +1633,7 @@ export async function importCustomFieldsFromProduct(formData: FormData) {
   const [{ data: sourceFields }, { data: existing }] = await Promise.all([
     supabase
       .from("custom_fields")
-      .select(
-        "label, type, options, option_prices, description, required",
-      )
+      .select("label, type, options, option_prices, description, required")
       .eq("product_id", sourceProductId)
       .eq("active", true)
       .not("type", "in", `(${SPECIAL_FIELD_TYPES.join(",")})`)
@@ -1695,13 +1754,16 @@ export async function updateCustomer(
   if (!parsedPhone.success) {
     return {
       status: "error",
-      error: parsedPhone.error.issues[0]?.message ?? "연락처를 확인해 주시기 바랍니다.",
+      error:
+        parsedPhone.error.issues[0]?.message ??
+        "연락처를 확인해 주시기 바랍니다.",
     };
   }
   const phone = parsedPhone.data;
 
   const rawGender = String(formData.get("gender") ?? "");
-  const gender = rawGender === "male" || rawGender === "female" ? rawGender : null;
+  const gender =
+    rawGender === "male" || rawGender === "female" ? rawGender : null;
   const birthDate = String(formData.get("birthDate") ?? "").trim() || null;
   const email = String(formData.get("email") ?? "").trim() || null;
 
@@ -1775,7 +1837,10 @@ export async function deleteCustomers(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("customers").delete().in("phone", phones);
+  const { error } = await supabase
+    .from("customers")
+    .delete()
+    .in("phone", phones);
   if (error) {
     return { status: "error", error: `삭제하지 못했습니다: ${error.message}` };
   }

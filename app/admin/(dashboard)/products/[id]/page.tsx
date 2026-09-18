@@ -54,6 +54,7 @@ export default async function EditProductPage({
           maxPeople: product.max_people,
           summary: product.summary ?? "",
           description: product.description ?? "",
+          deliveryNote: product.delivery_note ?? "",
           coverImage: product.cover_image,
           gallery: product.gallery ?? [],
           isPublished: product.is_published,

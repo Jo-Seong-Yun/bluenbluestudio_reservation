@@ -45,6 +45,8 @@ export interface Database {
           is_published: boolean;
           sort_order: number;
           tag_color: string | null;
+          /** 촬영 기록표의 "완성본 전달예정일" 칸(예: "7일"). */
+          delivery_note: string | null;
           created_at: string;
           updated_at: string;
         };
