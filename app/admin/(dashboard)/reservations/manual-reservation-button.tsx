@@ -130,9 +130,12 @@ function ManualReservationDialogContent({
   const estimatedTotal =
     basePrice + pricedItems.reduce((sum, item) => sum + item.price, 0);
 
-  // custom_fields 중 name/phone은 이미 고정 필드로 입력받으니 뺀다.
+  // 유료 옵션이 있는 선택형 문항만 보여준다 — option_prices에 하나라도
+  // 0이 아닌 값이 있는 single_choice / multi_choice만 해당한다.
   const visibleFields = customFields.filter(
-    (f) => f.type !== "name" && f.type !== "phone",
+    (f) =>
+      (f.type === "single_choice" || f.type === "multi_choice") &&
+      (f.option_prices ?? []).some((p) => p > 0),
   );
 
   if (state.status === "success") {

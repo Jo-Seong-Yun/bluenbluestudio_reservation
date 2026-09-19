@@ -33,6 +33,8 @@ export type RecordSheetTags = {
   옵션2금액: string;
   옵션3라벨: string;
   옵션3금액: string;
+  옵션4라벨: string;
+  옵션4금액: string;
   합계: string;
   계좌: string;
   SNS동의: string;
@@ -134,20 +136,20 @@ export async function buildRecordSheetData(
   );
   const pricedItems = selectedPricedOptions(fields, selectedLabels);
 
-  // 서식엔 옵션 칸이 3개뿐이다 — 4개 이상 고른 경우 앞 2개는 그대로,
-  // 나머지는 "외 N건"으로 묶어 3번째 칸에 합쳐 보여준다.
+  // 서식엔 옵션 칸이 4개다 — 5개 이상 고른 경우 앞 3개는 그대로,
+  // 나머지는 "외 N건"으로 묶어 4번째 칸에 합쳐 보여준다.
   const optionRows: { label: string; price: number }[] = [];
-  if (pricedItems.length <= 3) {
+  if (pricedItems.length <= 4) {
     optionRows.push(...pricedItems);
   } else {
-    optionRows.push(...pricedItems.slice(0, 2));
-    const rest = pricedItems.slice(2);
+    optionRows.push(...pricedItems.slice(0, 3));
+    const rest = pricedItems.slice(3);
     optionRows.push({
       label: `외 ${rest.length}건`,
       price: rest.reduce((sum, item) => sum + item.price, 0),
     });
   }
-  while (optionRows.length < 3) optionRows.push({ label: "", price: 0 });
+  while (optionRows.length < 4) optionRows.push({ label: "", price: 0 });
 
   const itemizedTotal =
     basePrice + pricedItems.reduce((sum, item) => sum + item.price, 0);
@@ -160,10 +162,33 @@ export async function buildRecordSheetData(
   const gender = reservation.gender ?? customer?.gender ?? null;
   const email = reservation.customer_email ?? customer?.email ?? "";
 
+  function genderCheckbox(g: string | null) {
+    if (g === "male") return "☑ 남  ☐ 여";
+    if (g === "female") return "☐ 남  ☑ 여";
+    return "☐ 남  ☐ 여";
+  }
+
+  const snsRaw = answerByLabel(fields, answers, SNS_CONSENT_FIELD_LABEL);
+  function snsCheckbox(v: string) {
+    if (v === "동의") return "☑ 동의   ☐ 비동의";
+    if (v === "비동의") return "☐ 동의   ☑ 비동의";
+    return "☐ 동의   ☐ 비동의";
+  }
+
+  const relationRaw = answerByLabel(fields, answers, APPLICANT_FIELD_LABELS.relation);
+  function relationCheckbox(v: string) {
+    if (v === "보호자") return "☑ 보호자  ☐ 팀원  ☐ 기타";
+    if (v === "팀원") return "☐ 보호자  ☑ 팀원  ☐ 기타";
+    if (!v) return "";
+    return `☐ 보호자  ☐ 팀원  ☑ 기타 (${v})`;
+  }
+
+  const applicantGenderRaw = answerByLabel(fields, answers, APPLICANT_FIELD_LABELS.gender);
+
   const tags: RecordSheetTags = {
     성명: reservation.customer_name,
     생년월일: birthDate,
-    성별: gender ? (GENDER_LABEL[gender] ?? "") : "",
+    성별: genderCheckbox(gender),
     연락처: reservation.customer_phone,
     이메일: email,
     신청자성명: answerByLabel(fields, answers, APPLICANT_FIELD_LABELS.name),
@@ -172,9 +197,9 @@ export async function buildRecordSheetData(
       answers,
       APPLICANT_FIELD_LABELS.birthDate,
     ),
-    신청자성별: answerByLabel(fields, answers, APPLICANT_FIELD_LABELS.gender),
+    신청자성별: genderCheckbox(applicantGenderRaw || null),
     신청자연락처: answerByLabel(fields, answers, APPLICANT_FIELD_LABELS.phone),
-    신청자관계: answerByLabel(fields, answers, APPLICANT_FIELD_LABELS.relation),
+    신청자관계: relationCheckbox(relationRaw),
     촬영일시: formatShootDateTime(new Date(reservation.shoot_start)),
     전달예정일: product.delivery_note ?? "",
     기본가: money(basePrice),
@@ -184,9 +209,11 @@ export async function buildRecordSheetData(
     옵션2금액: optionRows[1].price ? money(optionRows[1].price) : "",
     옵션3라벨: optionRows[2].label,
     옵션3금액: optionRows[2].price ? money(optionRows[2].price) : "",
+    옵션4라벨: optionRows[3].label,
+    옵션4금액: optionRows[3].price ? money(optionRows[3].price) : "",
     합계: money(finalTotal),
     계좌: settings?.bank_account ?? "",
-    SNS동의: answerByLabel(fields, answers, SNS_CONSENT_FIELD_LABEL),
+    SNS동의: snsCheckbox(snsRaw),
   };
 
   return {
