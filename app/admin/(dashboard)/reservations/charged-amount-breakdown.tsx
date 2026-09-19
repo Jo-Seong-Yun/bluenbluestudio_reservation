@@ -8,11 +8,15 @@ import { saveReservationChargedAmount } from "@/app/admin/actions";
 const currency = new Intl.NumberFormat("ko-KR");
 
 type Item = { label: string; amount: number };
+type EditableItem = { label: string; amount: string };
 
 /**
  * "실제 지불액"을 기본가 한 덩어리로 받지 않고, 기본가와 손님이 고른
  * 각 옵션을 줄마다 따로 입력받는다 — 할인이 항목별로 다르게 붙을 수
- * 있어서다(예: 옵션만 무료 증정). 줄들의 합계가 곧 실제 지불액이고,
+ * 있어서다(예: 옵션만 무료 증정). 수기예약은 애초에 유료 옵션을
+ * 신청서 문항으로 안 받았을 수도 있어서, 문항에 없던 항목도 여기서
+ * 직접 줄을 추가해 이름·금액을 자유롭게 넣을 수 있게 한다(문항편집의
+ * 옵션 추가/삭제와 같은 UI 패턴). 줄들의 합계가 곧 실제 지불액이고,
  * 그 합계와 항목 배열을 그대로 저장해 다음에 열었을 때도 항목별로
  * 이어서 고칠 수 있다. 저장된 적 없으면 기본가·신청 시점 예상 옵션
  * 금액으로 초기값을 채운다.
@@ -35,9 +39,8 @@ export function ChargedAmountBreakdown({
       ? initialBreakdown
       : [{ label: "기본가", amount: basePrice }, ...defaultOptionItems];
 
-  const [labels] = useState(initialItems.map((it) => it.label));
-  const [amounts, setAmounts] = useState(
-    initialItems.map((it) => String(it.amount)),
+  const [items, setItems] = useState<EditableItem[]>(
+    initialItems.map((it) => ({ label: it.label, amount: String(it.amount) })),
   );
   const [memo, setMemo] = useState(initialMemo ?? "");
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
@@ -45,11 +48,30 @@ export function ChargedAmountBreakdown({
   const [isPending, startTransition] = useTransition();
   useReportPending(isPending);
 
-  const total = amounts.reduce((sum, a) => sum + (Number(a) || 0), 0);
+  const total = items.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+
+  function handleLabelChange(index: number, value: string) {
+    setItems((prev) =>
+      prev.map((it, i) => (i === index ? { ...it, label: value } : it)),
+    );
+    setJustSaved(false);
+  }
 
   function handleAmountChange(index: number, value: string) {
     const digits = value.replace(/[^0-9]/g, "");
-    setAmounts((prev) => prev.map((a, i) => (i === index ? digits : a)));
+    setItems((prev) =>
+      prev.map((it, i) => (i === index ? { ...it, amount: digits } : it)),
+    );
+    setJustSaved(false);
+  }
+
+  function handleAddItem() {
+    setItems((prev) => [...prev, { label: "", amount: "" }]);
+    setJustSaved(false);
+  }
+
+  function handleRemoveItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
     setJustSaved(false);
   }
 
@@ -59,13 +81,13 @@ export function ChargedAmountBreakdown({
   }
 
   function handleSave() {
-    const items: Item[] = labels.map((label, i) => ({
-      label,
-      amount: Number(amounts[i]) || 0,
+    const payload: Item[] = items.map((it, i) => ({
+      label: it.label.trim() || `항목 ${i + 1}`,
+      amount: Number(it.amount) || 0,
     }));
     const formData = new FormData();
     formData.set("id", reservationId);
-    formData.set("chargedAmountBreakdown", JSON.stringify(items));
+    formData.set("chargedAmountBreakdown", JSON.stringify(payload));
     formData.set("chargedAmountMemo", memo);
     startTransition(async () => {
       await saveReservationChargedAmount(formData);
@@ -84,11 +106,15 @@ export function ChargedAmountBreakdown({
       </label>
 
       <div className="space-y-1.5">
-        {labels.map((label, i) => (
+        {items.map((item, i) => (
           <div key={i} className="flex items-center gap-2">
-            <span className="text-muted w-28 shrink-0 truncate text-sm">
-              {label}
-            </span>
+            <input
+              type="text"
+              value={item.label}
+              placeholder={`항목 ${i + 1}`}
+              onChange={(e) => handleLabelChange(i, e.target.value)}
+              className="border-border bg-surface focus:border-brand focus:ring-brand/30 w-28 min-w-0 shrink-0 rounded-lg border px-2 py-2 text-sm outline-none focus:ring-2"
+            />
             <div className="border-border bg-surface focus-within:border-brand focus-within:ring-brand/30 flex w-full items-center gap-1 rounded-lg border pl-3 focus-within:ring-2">
               <span className="text-muted shrink-0">₩</span>
               <input
@@ -97,9 +123,9 @@ export function ChargedAmountBreakdown({
                 placeholder="0"
                 value={
                   focusedIndex === i
-                    ? amounts[i]
-                    : amounts[i]
-                      ? currency.format(Number(amounts[i]))
+                    ? item.amount
+                    : item.amount
+                      ? currency.format(Number(item.amount))
                       : ""
                 }
                 onChange={(e) => handleAmountChange(i, e.target.value)}
@@ -108,9 +134,26 @@ export function ChargedAmountBreakdown({
                 className="w-full bg-transparent py-2 pr-3 text-base outline-none"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => handleRemoveItem(i)}
+              aria-label="항목 삭제"
+              disabled={items.length <= 1}
+              className="text-muted hover:text-foreground shrink-0 disabled:opacity-25"
+            >
+              ×
+            </button>
           </div>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={handleAddItem}
+        className="text-brand mt-2 text-sm hover:underline"
+      >
+        + 옵션 추가
+      </button>
 
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-sm font-medium">
