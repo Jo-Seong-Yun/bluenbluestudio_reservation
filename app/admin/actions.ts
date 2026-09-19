@@ -1483,10 +1483,12 @@ export async function saveEmailTemplate(
 }
 
 /**
- * 예약별 실제 지불액. 원가(cost)와 같은 화면·같은 방식으로 입력받는다.
- * 할인 이벤트 등으로 예약마다 실제 받는 금액이 다를 수 있어 상품
- * 정가와 별도로 둔다. 빈 값이면 null(=매출 계산에서 0으로 취급)로
- * 되돌린다.
+ * 예약별 실제 지불액. 할인 이벤트 등으로 예약마다 실제 받는 금액이
+ * 다를 수 있어 상품 정가와 별도로 둔다. 기본가/옵션별로 각각 금액을
+ * 수정할 수 있게 항목 배열(chargedAmountBreakdown)로 받고, 그 합계를
+ * charged_amount에 저장한다 — 매출 계산은 지금처럼 charged_amount
+ * 하나만 보면 되고, breakdown은 다음에 열었을 때 항목별로 이어서 고칠
+ * 수 있도록 남겨두는 용도다.
  */
 export async function saveReservationChargedAmount(formData: FormData) {
   await requireAdmin();
@@ -1494,14 +1496,34 @@ export async function saveReservationChargedAmount(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
-  const raw = String(formData.get("chargedAmount") ?? "").trim();
-  const chargedAmount = raw === "" ? null : Number(raw);
-  if (
-    chargedAmount !== null &&
-    (!Number.isFinite(chargedAmount) || chargedAmount < 0)
-  ) {
-    return;
+  const breakdownRaw = String(formData.get("chargedAmountBreakdown") ?? "");
+  let chargedAmountBreakdown: { label: string; amount: number }[] | null =
+    null;
+  if (breakdownRaw) {
+    try {
+      const parsed = JSON.parse(breakdownRaw);
+      if (
+        Array.isArray(parsed) &&
+        parsed.every(
+          (it) =>
+            it &&
+            typeof it.label === "string" &&
+            typeof it.amount === "number" &&
+            Number.isFinite(it.amount) &&
+            it.amount >= 0,
+        )
+      ) {
+        chargedAmountBreakdown = parsed;
+      }
+    } catch {
+      // 형식이 이상하면 breakdown 없이 총액만 저장한다.
+    }
   }
+
+  const chargedAmount = chargedAmountBreakdown
+    ? chargedAmountBreakdown.reduce((sum, it) => sum + it.amount, 0)
+    : null;
+
   const chargedAmountMemo = String(
     formData.get("chargedAmountMemo") ?? "",
   ).trim();
@@ -1512,6 +1534,7 @@ export async function saveReservationChargedAmount(formData: FormData) {
     .update({
       charged_amount: chargedAmount,
       charged_amount_memo: chargedAmountMemo || null,
+      charged_amount_breakdown: chargedAmountBreakdown,
     })
     .eq("id", id);
 

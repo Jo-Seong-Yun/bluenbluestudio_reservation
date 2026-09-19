@@ -1,9 +1,5 @@
 import Link from "next/link";
-import {
-  saveAdminMemo,
-  saveReservationCost,
-  saveReservationChargedAmount,
-} from "@/app/admin/actions";
+import { saveAdminMemo, saveReservationCost } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/submit-button";
 import { kstDateString, kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
@@ -13,6 +9,7 @@ import { ConfirmCandidateButtons } from "./confirm-candidate-buttons";
 import { RescheduleForm } from "./reschedule-form";
 import { RecordSheetButton } from "./record-sheet-button";
 import { MoneyField } from "./money-field";
+import { ChargedAmountBreakdown } from "./charged-amount-breakdown";
 import { Button } from "@/components/ui";
 
 const GENDER_LABEL: Record<string, string> = { male: "남", female: "여" };
@@ -40,6 +37,7 @@ type ReservationRow = {
   customAnswers?: { label: string; value: string; priceNote?: string }[];
   basePrice?: number;
   priceBreakdown?: { label: string; amount: number }[];
+  charged_amount_breakdown?: { label: string; amount: number }[] | null;
   /** shoot_start가 null일 때만 채워진다 — 손님이 낸 희망 시간들. */
   candidates?: { rank: number; shootStart: string; shootEnd: string }[];
 };
@@ -269,37 +267,14 @@ function ReservationDetail({
       </form>
 
       {reservation.basePrice != null ? (
-        <div className="border-border mt-4 space-y-1 border-t pt-4 text-sm">
-          <p className="text-muted text-xs">금액 구성</p>
-          <div className="flex justify-between">
-            <span>기본가</span>
-            <span>{reservation.basePrice.toLocaleString()}원</span>
-          </div>
-          {(reservation.priceBreakdown ?? []).map((item, index) => (
-            <div key={index} className="flex justify-between">
-              <span>{item.label}</span>
-              <span>+{item.amount.toLocaleString()}원</span>
-            </div>
-          ))}
-          {reservation.estimated_amount != null ? (
-            <div className="flex justify-between font-medium">
-              <span>합계</span>
-              <span>{reservation.estimated_amount.toLocaleString()}원</span>
-            </div>
-          ) : null}
-        </div>
+        <ChargedAmountBreakdown
+          reservationId={reservation.id}
+          basePrice={reservation.basePrice}
+          defaultOptionItems={reservation.priceBreakdown ?? []}
+          initialBreakdown={reservation.charged_amount_breakdown ?? null}
+          initialMemo={reservation.charged_amount_memo}
+        />
       ) : null}
-
-      <MoneyField
-        reservationId={reservation.id}
-        label="실제 지불액"
-        hint="(할인 등으로 정가와 다를 수 있습니다. 매출관리 매출 계산에 사용됩니다)"
-        amountName="chargedAmount"
-        memoName="chargedAmountMemo"
-        initialAmount={reservation.charged_amount}
-        initialMemo={reservation.charged_amount_memo}
-        action={saveReservationChargedAmount}
-      />
 
       <MoneyField
         reservationId={reservation.id}

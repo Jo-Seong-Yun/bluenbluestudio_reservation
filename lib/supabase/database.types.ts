@@ -153,6 +153,9 @@ export interface Database {
           cost_memo: string | null;
           charged_amount: number | null;
           charged_amount_memo: string | null;
+          /** 실제 지불액을 기본가/옵션별로 나눈 구성. charged_amount는
+           * 이 배열의 합계다. */
+          charged_amount_breakdown: { label: string; amount: number }[] | null;
           /** 신청 시점에 계산한 예상 금액(기본가+유료 옵션) 스냅샷. */
           estimated_amount: number | null;
           gender: Gender | null;
