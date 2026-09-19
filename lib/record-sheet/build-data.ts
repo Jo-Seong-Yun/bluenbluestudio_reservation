@@ -11,7 +11,7 @@ import {
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
-/** lib/record-sheet/template.docx의 {태그}와 이름을 맞춘 값들. */
+/** 기록표 양식 에디터(RecordSheetRow.tag)가 가리킬 수 있는 고정 값들. */
 export type RecordSheetTags = {
   성명: string;
   생년월일: string;
@@ -40,7 +40,16 @@ export type RecordSheetTags = {
 };
 
 export type RecordSheetResult =
-  | { ok: true; productName: string; code: string; tags: RecordSheetTags }
+  | {
+      ok: true;
+      productName: string;
+      code: string;
+      tags: RecordSheetTags;
+      /** 이 예약에서 실제로 선택된 유료 옵션들(라벨+금액), 4칸 슬롯으로
+       * 묶기 전의 원본 목록. 기록표 에디터에서 특정 옵션 이름을 직접
+       * 골라 넣은 행("option:이름")이 값을 찾을 때 쓴다. */
+      optionItems: { label: string; price: number }[];
+    }
   | { ok: false; error: string };
 
 function formatShootDateTime(instant: Date): string {
@@ -63,9 +72,10 @@ function answerByLabel(
 }
 
 /**
- * 예약 하나의 정보를 촬영 기록표 양식(lib/record-sheet/template.docx)의
- * 병합 필드에 맞춰 채운다. docx 다운로드 라우트와 인쇄 미리보기 페이지가
- * 둘 다 이 함수 하나로 같은 데이터를 얻어써서, 두 화면이 어긋나지 않는다.
+ * 예약 하나의 정보를 촬영 기록표에 쓸 태그 값들로 채운다. 어떤 태그를
+ * 어떤 순서로 보여줄지는 관리자가 편집하는 행 구성(record_sheet_
+ * template, resolve.ts)이 따로 정하고, 이 함수는 그 태그들의 실제
+ * 값만 만든다 — 인쇄 미리보기 페이지가 이 값과 행 구성을 합친다.
  */
 export async function buildRecordSheetData(
   reservationId: string,
@@ -237,5 +247,6 @@ export async function buildRecordSheetData(
     productName: product.name,
     code: reservation.code,
     tags,
+    optionItems: pricedItems,
   };
 }

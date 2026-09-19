@@ -37,6 +37,10 @@ import {
   type EmailTemplatePurpose,
 } from "@/lib/notifications/email-templates-shared";
 import {
+  parseRecordSheetRows,
+  type RecordSheetRow,
+} from "@/lib/record-sheet/schema";
+import {
   backfillAllToSheet,
   markReservationDeletedInSheet,
   syncAllCustomersToSheet,
@@ -2058,4 +2062,63 @@ export async function resetAnalytics(
 
   revalidatePath("/admin/analytics");
   return { status: "success" };
+}
+
+/**
+ * 기록표 양식 에디터(설정 화면)에서 "옵션" 태그 드롭다운에 보여줄
+ * 선택지. 실제로 가격이 매겨진 옵션(문항편집에서 만든 single_choice/
+ * multi_choice의 옵션들, 예: "대본추가")만 모은다 — 상품마다 따로
+ * 관리되지만 기록표 양식은 상품 구분 없이 하나이므로, 전체 상품을
+ * 통틀어 이름이 같은 옵션은 하나로 합친다(Set으로 중복 제거).
+ */
+export async function getPricedOptionLabels(): Promise<string[]> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("custom_fields")
+    .select("options, option_prices")
+    .not("option_prices", "is", null);
+
+  const labels = new Set<string>();
+  for (const row of data ?? []) {
+    const options = row.options ?? [];
+    const prices = row.option_prices ?? [];
+    options.forEach((opt, i) => {
+      if ((prices[i] ?? 0) > 0) labels.add(opt);
+    });
+  }
+  return [...labels].sort();
+}
+
+/**
+ * 기록표 양식(행 구성) 저장. 행 하나하나가 화면에 그대로 나가는
+ * 레이아웃이라, 형식이 깨진 값을 그냥 저장해버리면 다음 인쇄
+ * 미리보기가 통째로 망가진다 — parseRecordSheetRows로 다시 한 번
+ * 검증한 뒤에만 저장한다(클라이언트가 이미 검증했더라도 서버에서
+ * 믿지 않는다).
+ */
+export async function saveRecordSheetTemplate(
+  rows: RecordSheetRow[],
+): Promise<{ error?: string }> {
+  await requireAdmin();
+
+  const validated = parseRecordSheetRows(rows);
+  if (!validated) {
+    return { error: "행 구성이 올바르지 않습니다." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("record_sheet_template")
+    .update({ rows: validated })
+    .eq("id", 1);
+
+  if (error) {
+    return { error: `저장하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/reservations");
+  return {};
 }
