@@ -9,7 +9,7 @@ import { AutoPrint } from "./auto-print";
  */
 export function RecordSheetView({ rows }: { rows: ResolvedRow[] }) {
   return (
-    <div className="record-sheet mx-auto max-w-2xl p-6 print:max-w-none print:p-0">
+    <div className="record-sheet mx-auto max-w-2xl p-6 print:max-w-none print:p-[14mm]">
       <AutoPrint />
 
       <table className="rs-table">
@@ -48,7 +48,11 @@ export function RecordSheetView({ rows }: { rows: ResolvedRow[] }) {
           background: #f2f2f2;
         }
         @media print {
-          @page { size: A4; margin: 14mm; }
+          /* 여백을 0으로 둬야 크롬이 그 자리에 그리는 날짜/제목/URL
+             같은 인쇄 헤더·푸터가 같이 사라진다 — 여백이 있으면 그
+             안에 계속 그려 넣는다. 대신 같은 크기의 여백을 위
+             record-sheet 래퍼의 print:p-[14mm]로 콘텐츠 쪽에서 준다. */
+          @page { size: A4; margin: 0; }
         }
       `}</style>
     </div>
