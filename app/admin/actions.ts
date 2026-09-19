@@ -27,6 +27,10 @@ import {
   LOCKED_FIELD_TYPES,
   SNS_CONSENT_FIELD_LABEL,
   SPECIAL_FIELD_TYPES,
+  fieldFormName,
+  selectedLabelsFromAnswers,
+  selectedPricedOptions,
+  type CustomField,
 } from "@/lib/booking/custom-fields-shared";
 import {
   EMAIL_TEMPLATE_PURPOSES,
@@ -984,6 +988,22 @@ export async function removeDateOverride(formData: FormData) {
  * 된다. 이미 통화로 확인된 예약이라 개인정보 동의 체크박스는 없고,
  * 상태도 확인 대기(requested)가 아니라 바로 확정(confirmed)으로 넣는다.
  */
+/** 상품의 활성 문항 목록을 클라이언트(수기 예약 다이얼로그)에서 불러올 때 쓴다. */
+export async function getProductCustomFields(
+  productId: string,
+): Promise<CustomField[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("custom_fields")
+    .select(
+      "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
+    )
+    .eq("product_id", productId)
+    .eq("active", true)
+    .order("sort_order");
+  return data ?? [];
+}
+
 export type ManualReservationState =
   | { status: "idle" }
   | { status: "error"; error: string }
@@ -1016,15 +1036,86 @@ export async function createManualReservation(
   const input = parsed.data;
   const supabase = await createClient();
 
-  const { data: product } = await supabase
-    .from("products")
-    .select("name, duration_min, buffer_after_min")
-    .eq("id", input.productId)
-    .single();
+  const [{ data: product }, { data: customFieldRows }] = await Promise.all([
+    supabase
+      .from("products")
+      .select("name, price, sale_price, duration_min, buffer_after_min")
+      .eq("id", input.productId)
+      .single(),
+    supabase
+      .from("custom_fields")
+      .select(
+        "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
+      )
+      .eq("product_id", input.productId)
+      .eq("active", true)
+      .order("sort_order"),
+  ]);
 
   if (!product) {
     return { status: "error", error: "상품을 찾을 수 없습니다." };
   }
+
+  const customFields: CustomField[] = customFieldRows ?? [];
+
+  // 커스텀 문항 답변 수집 — name/phone 타입은 이미 위 customerName/Phone 필드로
+  // 처리되었으니 건너뛴다. multi_choice는 복수 체크박스로 들어온다.
+  const customAnswers: { fieldId: string; value: string }[] = [];
+  let extraGender: "male" | "female" | null = null;
+  let extraBirthDate: string | null = null;
+  let extraEmail: string | null = null;
+
+  for (const field of customFields) {
+    if (field.type === "name" || field.type === "phone") continue;
+    const fname = fieldFormName(field.id);
+
+    if (field.type === "gender") {
+      const val = formData.get(fname);
+      if (val === "male" || val === "female") extraGender = val;
+      if (val) customAnswers.push({ fieldId: field.id, value: String(val) });
+      continue;
+    }
+    if (field.type === "birth_date") {
+      const val = String(formData.get(fname) ?? "").trim();
+      if (val) {
+        extraBirthDate = val;
+        customAnswers.push({ fieldId: field.id, value: val });
+      }
+      continue;
+    }
+    if (field.type === "email") {
+      const val = String(formData.get(fname) ?? "").trim();
+      if (val) {
+        extraEmail = val;
+        customAnswers.push({ fieldId: field.id, value: val });
+      }
+      continue;
+    }
+    if (field.type === "multi_choice") {
+      const values = formData.getAll(fname).map(String).filter(Boolean);
+      if (values.length > 0) {
+        customAnswers.push({ fieldId: field.id, value: JSON.stringify(values) });
+      }
+      continue;
+    }
+    if (field.type === "checkbox") {
+      const checked = formData.get(fname) === "on";
+      customAnswers.push({ fieldId: field.id, value: checked ? "true" : "false" });
+      continue;
+    }
+    const val = String(formData.get(fname) ?? "").trim();
+    if (val) customAnswers.push({ fieldId: field.id, value: val });
+  }
+
+  // 예상금액 계산 (기본가 + 유료 옵션)
+  const basePrice = product.sale_price ?? product.price;
+  const selectedLabels = selectedLabelsFromAnswers(
+    customFields,
+    customAnswers.map((a) => ({ fieldId: a.fieldId, value: a.value })),
+  );
+  const pricedItems = selectedPricedOptions(customFields, selectedLabels);
+  const estimatedAmount =
+    basePrice + pricedItems.reduce((sum, item) => sum + item.price, 0);
 
   const stillAvailable = await isReservationTimeAvailable({
     date: input.date,
@@ -1063,41 +1154,51 @@ export async function createManualReservation(
         status: "confirmed",
         customer_name: input.customerName,
         customer_phone: input.customerPhone,
+        customer_email: extraEmail,
+        gender: extraGender,
+        birth_date: extraBirthDate,
         people_count: input.peopleCount,
         memo: input.memo || null,
+        estimated_amount: estimatedAmount,
       })
       .select("id")
       .single();
 
     if (!error) {
+      const reservationId = data?.id ?? "";
+
+      if (customAnswers.length > 0) {
+        await supabase.from("reservation_answers").insert(
+          customAnswers.map((a) => ({
+            reservation_id: reservationId,
+            field_id: a.fieldId,
+            value: a.value,
+          })),
+        );
+      }
+
       revalidatePath("/admin/reservations");
 
-      // 이미 통화로 확인하고 사장님이 직접 넣는 예약이라, "새 신청" 알림은
-      // 필요 없다 — 확정 안내만 손님에게 보낸다. 응답은 기다리게 하지
-      // 않고 after()로 보낸 뒤 바로 성공을 돌려준다.
       after(async () => {
-        // 수기 등록 폼엔 성별·생년월일·이메일 칸이 없어 여기선
-        // 이름·연락처만 채운다(fill-blanks-only라 나머지는 비워도
-        // 기존 값을 안 지운다).
         await upsertCustomerFromReservation({
           phone: input.customerPhone,
           name: input.customerName,
-          gender: null,
-          birthDate: null,
-          email: null,
+          gender: extraGender,
+          birthDate: extraBirthDate,
+          email: extraEmail,
         });
         await Promise.all([
           notifyCustomerConfirmed({
-            reservationId: data?.id ?? "",
+            reservationId,
             customerName: input.customerName,
             customerPhone: input.customerPhone,
             productName: product.name,
             shootStart,
             code,
           }),
-          syncReservationToSheet(data?.id ?? ""),
+          syncReservationToSheet(reservationId),
           syncCustomerToSheet(input.customerPhone),
-          syncReservationToCalendar(data?.id ?? ""),
+          syncReservationToCalendar(reservationId),
         ]);
       });
 

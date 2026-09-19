@@ -37,7 +37,7 @@ type ReservationRow = {
   gender: string | null;
   birth_date: string | null;
   productName: string;
-  customAnswers?: { label: string; value: string }[];
+  customAnswers?: { label: string; value: string; priceNote?: string }[];
   /** shoot_start가 null일 때만 채워진다 — 손님이 낸 희망 시간들. */
   candidates?: { rank: number; shootStart: string; shootEnd: string }[];
 };
@@ -193,7 +193,14 @@ function ReservationDetail({
           {reservation.customAnswers.map((answer, index) => (
             <div key={index} className="text-sm">
               <p className="text-muted text-xs">{answer.label}</p>
-              <p className="whitespace-pre-wrap">{answer.value}</p>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="whitespace-pre-wrap">{answer.value}</p>
+                {answer.priceNote && (
+                  <span className="text-muted shrink-0 text-xs">
+                    {answer.priceNote}
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>

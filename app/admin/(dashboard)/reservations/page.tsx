@@ -51,7 +51,7 @@ export default async function ReservationsPage({
         .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
         .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
         .order("shoot_start"),
-      supabase.from("products").select("id, name, tag_color").order("sort_order"),
+      supabase.from("products").select("id, name, price, sale_price, tag_color").order("sort_order"),
       supabase
         .from("reservations")
         .select(
@@ -128,24 +128,48 @@ export default async function ReservationsPage({
     answerFieldIds.length > 0
       ? await supabase
           .from("custom_fields")
-          .select("id, label, type")
+          .select("id, label, type, options, option_prices")
           .in("id", answerFieldIds)
-      : { data: [] as { id: string; label: string; type: string }[] };
+      : {
+          data: [] as {
+            id: string;
+            label: string;
+            type: string;
+            options: string[] | null;
+            option_prices: number[] | null;
+          }[],
+        };
   const answerFieldById = new Map((answerFields ?? []).map((f) => [f.id, f]));
 
   const customAnswers = (answerRows ?? []).map((answer) => {
     const field = answerFieldById.get(answer.field_id);
     let value = answer.value;
+    let priceNote: string | undefined;
+
     if (field?.type === "multi_choice") {
       try {
-        value = (JSON.parse(answer.value) as string[]).join(", ");
+        const selected = JSON.parse(answer.value) as string[];
+        value = selected.join(", ");
+        if (field.option_prices) {
+          const total = selected.reduce((sum, opt) => {
+            const idx = (field.options ?? []).indexOf(opt);
+            return sum + (idx >= 0 ? (field.option_prices![idx] ?? 0) : 0);
+          }, 0);
+          if (total > 0) priceNote = `₩${total.toLocaleString()}`;
+        }
       } catch {
-        // 저장된 값이 JSON이 아니면(있을 수 없지만) 그냥 원본을 보여준다.
+        // pass
+      }
+    } else if (field?.type === "single_choice") {
+      if (field.option_prices) {
+        const idx = (field.options ?? []).indexOf(answer.value);
+        const price = idx >= 0 ? (field.option_prices[idx] ?? 0) : 0;
+        if (price > 0) priceNote = `₩${price.toLocaleString()}`;
       }
     } else if (field?.type === "checkbox") {
       value = answer.value === "true" ? "예" : "아니오";
     }
-    return { label: field?.label ?? "(삭제된 문항)", value };
+    return { label: field?.label ?? "(삭제된 문항)", value, priceNote };
   });
 
   const selectedWithProduct = selected
