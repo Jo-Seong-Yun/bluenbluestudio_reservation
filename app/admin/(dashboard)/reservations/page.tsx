@@ -141,6 +141,8 @@ export default async function ReservationsPage({
         };
   const answerFieldById = new Map((answerFields ?? []).map((f) => [f.id, f]));
 
+  const priceBreakdown: { label: string; amount: number }[] = [];
+
   const customAnswers = (answerRows ?? []).map((answer) => {
     const field = answerFieldById.get(answer.field_id);
     let value = answer.value;
@@ -151,6 +153,11 @@ export default async function ReservationsPage({
         const selected = JSON.parse(answer.value) as string[];
         value = selected.join(", ");
         if (field.option_prices) {
+          for (const opt of selected) {
+            const idx = (field.options ?? []).indexOf(opt);
+            const price = idx >= 0 ? (field.option_prices[idx] ?? 0) : 0;
+            if (price > 0) priceBreakdown.push({ label: opt, amount: price });
+          }
           const total = selected.reduce((sum, opt) => {
             const idx = (field.options ?? []).indexOf(opt);
             return sum + (idx >= 0 ? (field.option_prices![idx] ?? 0) : 0);
@@ -164,7 +171,10 @@ export default async function ReservationsPage({
       if (field.option_prices) {
         const idx = (field.options ?? []).indexOf(answer.value);
         const price = idx >= 0 ? (field.option_prices[idx] ?? 0) : 0;
-        if (price > 0) priceNote = `₩${price.toLocaleString()}`;
+        if (price > 0) {
+          priceNote = `₩${price.toLocaleString()}`;
+          priceBreakdown.push({ label: answer.value, amount: price });
+        }
       }
     } else if (field?.type === "checkbox") {
       value = answer.value === "true" ? "예" : "아니오";
@@ -172,11 +182,20 @@ export default async function ReservationsPage({
     return { label: field?.label ?? "(삭제된 문항)", value, priceNote };
   });
 
+  const selectedProduct = selected
+    ? (allProducts ?? []).find((p) => p.id === selected.product_id)
+    : undefined;
+  const basePrice = selectedProduct
+    ? (selectedProduct.sale_price ?? selectedProduct.price)
+    : undefined;
+
   const selectedWithProduct = selected
     ? {
         ...selected,
         productName: productNameById.get(selected.product_id) ?? "",
         customAnswers,
+        basePrice,
+        priceBreakdown,
         candidates: (candidateRows ?? []).map((c) => ({
           rank: c.rank,
           shootStart: c.shoot_start,

@@ -38,6 +38,8 @@ type ReservationRow = {
   birth_date: string | null;
   productName: string;
   customAnswers?: { label: string; value: string; priceNote?: string }[];
+  basePrice?: number;
+  priceBreakdown?: { label: string; amount: number }[];
   /** shoot_start가 null일 때만 채워진다 — 손님이 낸 희망 시간들. */
   candidates?: { rank: number; shootStart: string; shootEnd: string }[];
 };
@@ -266,14 +268,26 @@ function ReservationDetail({
         </SubmitButton>
       </form>
 
-      {reservation.estimated_amount != null ? (
-        <p className="text-muted border-border mt-4 border-t pt-4 text-sm">
-          신청 시점 예상 금액{" "}
-          <span className="text-foreground font-medium">
-            {reservation.estimated_amount.toLocaleString()}원
-          </span>{" "}
-          <span className="text-xs">(기본가 + 손님이 고른 유료 옵션)</span>
-        </p>
+      {reservation.basePrice != null ? (
+        <div className="border-border mt-4 space-y-1 border-t pt-4 text-sm">
+          <p className="text-muted text-xs">금액 구성</p>
+          <div className="flex justify-between">
+            <span>기본가</span>
+            <span>{reservation.basePrice.toLocaleString()}원</span>
+          </div>
+          {(reservation.priceBreakdown ?? []).map((item, index) => (
+            <div key={index} className="flex justify-between">
+              <span>{item.label}</span>
+              <span>+{item.amount.toLocaleString()}원</span>
+            </div>
+          ))}
+          {reservation.estimated_amount != null ? (
+            <div className="flex justify-between font-medium">
+              <span>합계</span>
+              <span>{reservation.estimated_amount.toLocaleString()}원</span>
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       <MoneyField
