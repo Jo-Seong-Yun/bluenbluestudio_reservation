@@ -93,6 +93,7 @@ export async function buildRecordSheetData(
     { data: settings },
     { data: customFields },
     { data: answerRows },
+    { data: customer },
   ] = await Promise.all([
     supabase
       .from("products")
@@ -110,6 +111,15 @@ export async function buildRecordSheetData(
       .from("reservation_answers")
       .select("field_id, value")
       .eq("reservation_id", reservationId),
+    // 이 예약 자체엔 성별·생년월일·이메일이 비어 있어도(선택 입력이라
+    // 안 받았을 수 있다), 같은 손님이 예약 이력 전체에서 한 번이라도
+    // 알려준 적 있으면 customers 테이블(고객DB, 전화번호로 손님마다
+    // 하나씩 누적)에 채워져 있을 수 있다 — 있으면 그걸로 보충한다.
+    supabase
+      .from("customers")
+      .select("gender, birth_date, email")
+      .eq("phone", reservation.customer_phone)
+      .maybeSingle(),
   ]);
 
   if (!product) return { ok: false, error: "상품 정보를 찾을 수 없습니다." };
@@ -146,12 +156,16 @@ export async function buildRecordSheetData(
 
   const money = (n: number) => n.toLocaleString();
 
+  const birthDate = reservation.birth_date ?? customer?.birth_date ?? "";
+  const gender = reservation.gender ?? customer?.gender ?? null;
+  const email = reservation.customer_email ?? customer?.email ?? "";
+
   const tags: RecordSheetTags = {
     성명: reservation.customer_name,
-    생년월일: reservation.birth_date ?? "",
-    성별: reservation.gender ? (GENDER_LABEL[reservation.gender] ?? "") : "",
+    생년월일: birthDate,
+    성별: gender ? (GENDER_LABEL[gender] ?? "") : "",
     연락처: reservation.customer_phone,
-    이메일: reservation.customer_email ?? "",
+    이메일: email,
     신청자성명: answerByLabel(fields, answers, APPLICANT_FIELD_LABELS.name),
     신청자생년월일: answerByLabel(
       fields,
