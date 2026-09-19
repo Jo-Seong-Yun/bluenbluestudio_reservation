@@ -10,7 +10,6 @@ import {
 } from "@/lib/booking/custom-fields-shared";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
-const GENDER_LABEL: Record<string, string> = { male: "남", female: "여" };
 
 /** lib/record-sheet/template.docx의 {태그}와 이름을 맞춘 값들. */
 export type RecordSheetTags = {
@@ -76,7 +75,7 @@ export async function buildRecordSheetData(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "id, code, product_id, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, estimated_amount, charged_amount",
+      "id, code, product_id, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, estimated_amount, charged_amount, charged_amount_breakdown",
     )
     .eq("id", reservationId)
     .maybeSingle();
@@ -129,12 +128,29 @@ export async function buildRecordSheetData(
   const fields: CustomField[] = customFields ?? [];
   const answers = answerRows ?? [];
 
-  const basePrice = product.sale_price ?? product.price;
-  const selectedLabels = selectedLabelsFromAnswers(
-    fields,
-    answers.map((a) => ({ fieldId: a.field_id, value: a.value })),
-  );
-  const pricedItems = selectedPricedOptions(fields, selectedLabels);
+  // 관리자가 "실제 지불액"에서 기본가/옵션을 항목별로 직접 저장해둔
+  // 값(charged_amount_breakdown)이 있으면 그걸 그대로 쓴다 — 수기예약
+  // 등으로 신청서 문항과 무관하게 직접 넣은 항목도 있을 수 있어서,
+  // 이게 신청서 답변 기반 예상 금액보다 실제 값에 더 가깝다. 첫 번째
+  // 항목을 기본가로, 나머지를 추가옵션으로 본다(ChargedAmountBreakdown
+  // 컴포넌트가 이 순서로 만든다).
+  const savedBreakdown = reservation.charged_amount_breakdown ?? [];
+  let basePrice: number;
+  let pricedItems: { label: string; price: number }[];
+
+  if (savedBreakdown.length > 0) {
+    basePrice = savedBreakdown[0].amount;
+    pricedItems = savedBreakdown
+      .slice(1)
+      .map((it) => ({ label: it.label, price: it.amount }));
+  } else {
+    basePrice = product.sale_price ?? product.price;
+    const selectedLabels = selectedLabelsFromAnswers(
+      fields,
+      answers.map((a) => ({ fieldId: a.field_id, value: a.value })),
+    );
+    pricedItems = selectedPricedOptions(fields, selectedLabels);
+  }
 
   // 서식엔 옵션 칸이 4개다 — 5개 이상 고른 경우 앞 3개는 그대로,
   // 나머지는 "외 N건"으로 묶어 4번째 칸에 합쳐 보여준다.
