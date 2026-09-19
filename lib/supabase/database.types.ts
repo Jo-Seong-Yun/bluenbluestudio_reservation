@@ -240,6 +240,22 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["settings"]["Row"]>;
         Relationships: [];
       };
+      record_sheet_template: {
+        Row: {
+          id: number;
+          /** RecordSheetRow[](lib/record-sheet/schema.ts)를 그대로
+           * 담은 JSON. 실제 계약은 그 타입이 정한다. */
+          rows: unknown;
+          updated_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["record_sheet_template"]["Row"]
+        >;
+        Update: Partial<
+          Database["public"]["Tables"]["record_sheet_template"]["Row"]
+        >;
+        Relationships: [];
+      };
       monthly_expenses: {
         Row: {
           id: string;

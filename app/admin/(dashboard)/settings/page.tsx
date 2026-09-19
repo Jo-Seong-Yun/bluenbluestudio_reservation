@@ -4,12 +4,15 @@ import { SettingsForm } from "./settings-form";
 import { EmailTemplatesSection } from "./email-templates-section";
 import { GoogleSheetsBackfillSection } from "./google-sheets-backfill-section";
 import { GoogleCalendarBackfillSection } from "./google-calendar-backfill-section";
+import { RecordSheetTemplateSection } from "./record-sheet-template-section";
 import {
   DEFAULT_EMAIL_TEMPLATES,
   EMAIL_TEMPLATE_PURPOSES,
   type EmailTemplate,
   type EmailTemplatePurpose,
 } from "@/lib/notifications/email-templates-shared";
+import { getRecordSheetTemplateRows } from "@/lib/record-sheet/template-store";
+import { getPricedOptionLabels } from "@/app/admin/actions";
 
 export const metadata: Metadata = { title: "예약 설정" };
 // 새로 추가한 이메일 문구 섹션이 캐시된 옛 페이지 때문에 안 보이는 일이
@@ -18,7 +21,12 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const [{ data: settings }, { data: emailTemplateRows }] = await Promise.all([
+  const [
+    { data: settings },
+    { data: emailTemplateRows },
+    recordSheetRows,
+    pricedOptionLabels,
+  ] = await Promise.all([
     supabase
       .from("settings")
       .select(
@@ -30,6 +38,8 @@ export default async function SettingsPage() {
       .from("email_templates")
       .select("purpose, subject, body")
       .in("purpose", EMAIL_TEMPLATE_PURPOSES),
+    getRecordSheetTemplateRows(),
+    getPricedOptionLabels(),
   ]);
 
   if (!settings) {
@@ -73,6 +83,13 @@ export default async function SettingsPage() {
 
       <div className="mt-10 max-w-xl">
         <EmailTemplatesSection initial={emailTemplates} />
+      </div>
+
+      <div className="mt-10 max-w-xl">
+        <RecordSheetTemplateSection
+          initialRows={recordSheetRows}
+          optionLabels={pricedOptionLabels}
+        />
       </div>
 
       <div className="mt-10 max-w-xl">
