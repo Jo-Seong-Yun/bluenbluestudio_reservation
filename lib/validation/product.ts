@@ -47,6 +47,9 @@ export const productSchema = z
     /** 촬영 기록표(lib/record-sheet)의 "완성본 전달예정일" 칸. 손님에게
      * 묻는 게 아니라 사장님이 상품마다 미리 정해두는 값이다. */
     deliveryNote: z.string().trim().max(50).optional().default(""),
+    /** 이 상품 신청서 맨 아래 개인정보 동의 체크박스 문구. 비워두면
+     * 체크박스 자체가 안 뜬다. */
+    privacyConsentText: z.string().trim().max(500).optional().default(""),
     isPublished: z.coerce.boolean(),
   })
   .refine((data) => data.salePrice === null || data.salePrice < data.price, {
