@@ -71,6 +71,7 @@ export function ReservationForm({
   backHref,
   bankAccount,
   notice,
+  privacyConsentText,
   successHeading,
   successMessage,
   customFields,
@@ -86,6 +87,9 @@ export function ReservationForm({
   backHref: string;
   bankAccount: string | null;
   notice: string | null;
+  /** 신청서 맨 아래 개인정보 동의 체크박스 문구(관리자 설정에서
+   * 고친다). null/빈 문자열이면 체크박스 자체를 안 보여준다. */
+  privacyConsentText: string | null;
   /** 신청 완료 화면의 제목/설명(관리자 설정에서 고친다). */
   successHeading: string;
   successMessage: string;
@@ -100,6 +104,7 @@ export function ReservationForm({
     basePrice,
     bankAccount,
     notice,
+    Boolean(privacyConsentText),
   );
   const [state, action, pending] = useActionState(boundAction, initialState);
   useReportPending(pending);
@@ -232,21 +237,22 @@ export function ReservationForm({
           ))}
         </div>
 
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="agreePrivacy"
-            required
-            className="mt-0.5 h-5 w-5 shrink-0"
-          />
-          <span>
-            <span className="text-red-600 dark:text-red-400">* </span>
-            예약 확인을 위해 위 정보를 수집합니다. 촬영일로부터 1년간 보관 후
-            삭제하며, 예약 외 다른 목적으로 쓰지 않습니다.
-            <br />
-            <span className="font-medium">동의합니다.</span>
-          </span>
-        </label>
+        {privacyConsentText ? (
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="agreePrivacy"
+              required
+              className="mt-0.5 h-5 w-5 shrink-0"
+            />
+            <span>
+              <span className="text-red-600 dark:text-red-400">* </span>
+              {privacyConsentText}
+              <br />
+              <span className="font-medium">동의합니다.</span>
+            </span>
+          </label>
+        ) : null}
 
         <ErrorText>{state.status === "error" ? state.error : null}</ErrorText>
 

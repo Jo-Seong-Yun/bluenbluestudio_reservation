@@ -234,6 +234,9 @@ export interface Database {
           /** "통계 리셋" 버튼을 마지막으로 누른 시점. 집계는 이 시점 이후
            * 기록만 센다(로그 자체는 지우지 않는다). 누른 적 없으면 null. */
           analytics_reset_at: string | null;
+          /** 예약 신청서 맨 아래 개인정보 동의 체크박스 문구. null이면
+           * 체크박스 자체를 보여주지 않는다. */
+          privacy_consent_text: string | null;
           updated_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["settings"]["Row"]>;

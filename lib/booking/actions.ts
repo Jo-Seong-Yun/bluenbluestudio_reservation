@@ -84,6 +84,9 @@ export async function createReservation(
   basePrice: number,
   bankAccount: string | null,
   notice: string | null,
+  /** settings.privacy_consent_text가 비어 있지 않으면 true — 그때만
+   * 체크박스가 실제로 떴을 것이므로 그때만 동의 여부를 막는다. */
+  requirePrivacyConsent: boolean,
   _prev: ReservationActionState,
   formData: FormData,
 ): Promise<ReservationActionState> {
@@ -107,6 +110,13 @@ export async function createReservation(
   }
 
   const input = parsed.data;
+
+  if (requirePrivacyConsent && input.agreePrivacy !== "on") {
+    return {
+      status: "error",
+      error: "개인정보 수집·이용에 동의해 주시기 바랍니다.",
+    };
+  }
 
   const customFields = await loadActiveCustomFields(productId);
   const extracted = extractReservationFormData(customFields, formData);

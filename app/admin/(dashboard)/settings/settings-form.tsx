@@ -14,6 +14,7 @@ export type SettingsFormValues = {
   bankAccount: string;
   studioIntro: string;
   notice: string;
+  privacyConsentText: string;
   reservationSuccessHeading: string;
   reservationSuccessMessage: string;
   adminNotifyPhone: string;
@@ -148,6 +149,25 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
                 />
               </Field>
             </div>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="font-bold">개인정보 동의 문구</h2>
+            <p className="text-muted -mt-2 text-xs">
+              신청서 맨 아래에 체크박스와 함께 표시됩니다. 비워두면
+              체크박스 자체가 사라지고, 손님은 동의 없이 신청할 수
+              있습니다.
+            </p>
+
+            <Field label="동의 문구">
+              <textarea
+                name="privacyConsentText"
+                rows={3}
+                defaultValue={initial.privacyConsentText}
+                placeholder="예약 확인을 위해 위 정보를 수집합니다. 촬영일로부터 1년간 보관 후 삭제하며, 예약 외 다른 목적으로 쓰지 않습니다."
+                className={inputClass}
+              />
+            </Field>
           </section>
 
           {/* 예약 신청 완료 화면(손님이 신청서를 제출한 직후 보는 화면)에

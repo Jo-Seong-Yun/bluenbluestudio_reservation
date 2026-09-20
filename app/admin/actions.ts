@@ -1365,6 +1365,9 @@ export async function saveSettings(
   const bankAccount = String(formData.get("bankAccount") ?? "").trim();
   const studioIntro = String(formData.get("studioIntro") ?? "").trim();
   const notice = String(formData.get("notice") ?? "").trim();
+  const privacyConsentText = String(
+    formData.get("privacyConsentText") ?? "",
+  ).trim();
   const reservationSuccessHeading = String(
     formData.get("reservationSuccessHeading") ?? "",
   ).trim();
@@ -1419,6 +1422,7 @@ export async function saveSettings(
       bank_account: bankAccount || null,
       studio_intro: studioIntro || null,
       notice: notice || null,
+      privacy_consent_text: privacyConsentText || null,
       reservation_success_heading: reservationSuccessHeading,
       reservation_success_message: reservationSuccessMessage,
       admin_notify_phone: adminNotifyPhone || null,
