@@ -63,7 +63,7 @@ describe("reservationSchema — 후보(정확히 3지망)·개인정보 동의",
     expect(parsed.success).toBe(false);
   });
 
-  it("동의를 안 하면 실패한다", () => {
+  it("agreePrivacy 없이도 스키마는 통과한다 — 실제 필수 여부는 그 시점 설정(privacy_consent_text)을 보는 createReservation이 판단한다", () => {
     const parsed = reservationSchema.safeParse({
       candidates: [
         { date: "2026-09-10", time: "14:00" },
@@ -71,7 +71,7 @@ describe("reservationSchema — 후보(정확히 3지망)·개인정보 동의",
         { date: "2026-09-12", time: "16:00" },
       ],
     });
-    expect(parsed.success).toBe(false);
+    expect(parsed.success).toBe(true);
   });
 
   it("날짜 형식이 틀리면 실패한다", () => {

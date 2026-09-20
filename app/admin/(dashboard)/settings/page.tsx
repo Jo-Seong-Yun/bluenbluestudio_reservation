@@ -30,7 +30,7 @@ export default async function SettingsPage() {
     supabase
       .from("settings")
       .select(
-        "slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, reservation_success_heading, reservation_success_message, admin_notify_phone, admin_notify_email, show_product_thumbnails",
+        "slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, privacy_consent_text, reservation_success_heading, reservation_success_message, admin_notify_phone, admin_notify_email, show_product_thumbnails",
       )
       .eq("id", 1)
       .single(),
@@ -73,6 +73,7 @@ export default async function SettingsPage() {
           bankAccount: settings.bank_account ?? "",
           studioIntro: settings.studio_intro ?? "",
           notice: settings.notice ?? "",
+          privacyConsentText: settings.privacy_consent_text ?? "",
           reservationSuccessHeading: settings.reservation_success_heading,
           reservationSuccessMessage: settings.reservation_success_message,
           adminNotifyPhone: settings.admin_notify_phone ?? "",

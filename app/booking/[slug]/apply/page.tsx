@@ -62,7 +62,7 @@ export default async function ApplyPage({
     supabase
       .from("settings")
       .select(
-        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice, reservation_success_heading, reservation_success_message",
+        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice, privacy_consent_text, reservation_success_heading, reservation_success_message",
       )
       .eq("id", 1)
       .single(),
@@ -150,6 +150,7 @@ export default async function ApplyPage({
         backHref={backHref}
         bankAccount={settings?.bank_account ?? null}
         notice={settings?.notice ?? null}
+        privacyConsentText={settings?.privacy_consent_text ?? null}
         successHeading={
           settings?.reservation_success_heading ?? FALLBACK_SUCCESS_HEADING
         }
