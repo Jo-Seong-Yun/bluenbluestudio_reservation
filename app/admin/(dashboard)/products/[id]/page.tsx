@@ -55,6 +55,7 @@ export default async function EditProductPage({
           summary: product.summary ?? "",
           description: product.description ?? "",
           deliveryNote: product.delivery_note ?? "",
+          privacyConsentText: product.privacy_consent_text ?? "",
           coverImage: product.cover_image,
           gallery: product.gallery ?? [],
           isPublished: product.is_published,

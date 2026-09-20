@@ -309,6 +309,7 @@ export async function saveProduct(
     summary: formData.get("summary"),
     description: formData.get("description"),
     deliveryNote: formData.get("deliveryNote"),
+    privacyConsentText: formData.get("privacyConsentText"),
     isPublished: formData.get("isPublished") === "on",
   });
 
@@ -346,6 +347,7 @@ export async function saveProduct(
       ? sanitizeDescriptionHtml(input.description)
       : null,
     delivery_note: input.deliveryNote || null,
+    privacy_consent_text: input.privacyConsentText || null,
     cover_image: coverImage,
     gallery,
     is_published: input.isPublished,
@@ -1365,9 +1367,6 @@ export async function saveSettings(
   const bankAccount = String(formData.get("bankAccount") ?? "").trim();
   const studioIntro = String(formData.get("studioIntro") ?? "").trim();
   const notice = String(formData.get("notice") ?? "").trim();
-  const privacyConsentText = String(
-    formData.get("privacyConsentText") ?? "",
-  ).trim();
   const reservationSuccessHeading = String(
     formData.get("reservationSuccessHeading") ?? "",
   ).trim();
@@ -1422,7 +1421,6 @@ export async function saveSettings(
       bank_account: bankAccount || null,
       studio_intro: studioIntro || null,
       notice: notice || null,
-      privacy_consent_text: privacyConsentText || null,
       reservation_success_heading: reservationSuccessHeading,
       reservation_success_message: reservationSuccessMessage,
       admin_notify_phone: adminNotifyPhone || null,
