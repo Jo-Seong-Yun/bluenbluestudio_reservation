@@ -9,15 +9,14 @@ import {
   emailField,
 } from "./reservation";
 
-describe("reservationSchema — 후보(정확히 3지망)·개인정보 동의", () => {
-  it("후보 3개·동의가 있으면 통과한다", () => {
+describe("reservationSchema — 후보(정확히 3지망)", () => {
+  it("후보 3개면 통과한다", () => {
     const parsed = reservationSchema.safeParse({
       candidates: [
         { date: "2026-09-10", time: "14:00" },
         { date: "2026-09-11", time: "10:00" },
         { date: "2026-09-12", time: "16:00" },
       ],
-      agreePrivacy: "on",
     });
     expect(parsed.success).toBe(true);
   });
@@ -25,7 +24,6 @@ describe("reservationSchema — 후보(정확히 3지망)·개인정보 동의",
   it("후보 1개는 실패한다 — 3개를 모두 채워야 한다", () => {
     const parsed = reservationSchema.safeParse({
       candidates: [{ date: "2026-09-10", time: "14:00" }],
-      agreePrivacy: "on",
     });
     expect(parsed.success).toBe(false);
   });
@@ -38,7 +36,6 @@ describe("reservationSchema — 후보(정확히 3지망)·개인정보 동의",
         { date: "2026-09-12", time: "16:00" },
         { date: "2026-09-13", time: "11:00" },
       ],
-      agreePrivacy: "on",
     });
     expect(parsed.success).toBe(false);
   });
@@ -46,7 +43,6 @@ describe("reservationSchema — 후보(정확히 3지망)·개인정보 동의",
   it("후보가 하나도 없으면 실패한다", () => {
     const parsed = reservationSchema.safeParse({
       candidates: [],
-      agreePrivacy: "on",
     });
     expect(parsed.success).toBe(false);
   });
@@ -58,20 +54,8 @@ describe("reservationSchema — 후보(정확히 3지망)·개인정보 동의",
         { date: "2026-09-10", time: "14:00" },
         { date: "2026-09-11", time: "10:00" },
       ],
-      agreePrivacy: "on",
     });
     expect(parsed.success).toBe(false);
-  });
-
-  it("agreePrivacy 없이도 스키마는 통과한다 — 실제 필수 여부는 그 시점 설정(privacy_consent_text)을 보는 createReservation이 판단한다", () => {
-    const parsed = reservationSchema.safeParse({
-      candidates: [
-        { date: "2026-09-10", time: "14:00" },
-        { date: "2026-09-11", time: "10:00" },
-        { date: "2026-09-12", time: "16:00" },
-      ],
-    });
-    expect(parsed.success).toBe(true);
   });
 
   it("날짜 형식이 틀리면 실패한다", () => {
@@ -81,7 +65,6 @@ describe("reservationSchema — 후보(정확히 3지망)·개인정보 동의",
         { date: "2026-09-11", time: "10:00" },
         { date: "2026-09-12", time: "16:00" },
       ],
-      agreePrivacy: "on",
     });
     expect(parsed.success).toBe(false);
   });

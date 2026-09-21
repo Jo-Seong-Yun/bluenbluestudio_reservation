@@ -309,7 +309,6 @@ export async function saveProduct(
     summary: formData.get("summary"),
     description: formData.get("description"),
     deliveryNote: formData.get("deliveryNote"),
-    privacyConsentText: formData.get("privacyConsentText"),
     isPublished: formData.get("isPublished") === "on",
   });
 
@@ -347,7 +346,6 @@ export async function saveProduct(
       ? sanitizeDescriptionHtml(input.description)
       : null,
     delivery_note: input.deliveryNote || null,
-    privacy_consent_text: input.privacyConsentText || null,
     cover_image: coverImage,
     gallery,
     is_published: input.isPublished,

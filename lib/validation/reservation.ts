@@ -86,12 +86,6 @@ export const reservationSchema = z.object({
       },
       { message: "같은 시간을 두 번 이상 선택할 수 없습니다." },
     ),
-  // "on"이면 동의, 없으면 아직 안 한 것 — 여기서 무조건 막지 않는다.
-  // 이 동의 문구 자체를 스튜디오가 설정에서 비워뒀으면(체크박스가
-  // 아예 안 뜬다) 무조건 막아버릴 수 없다. 실제로 필수인지는 그
-  // 시점의 설정을 아는 createReservation(lib/booking/actions.ts)이
-  // 판단한다.
-  agreePrivacy: z.literal("on").nullable().optional(),
 });
 
 export type ReservationInput = z.infer<typeof reservationSchema>;

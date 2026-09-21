@@ -55,9 +55,7 @@ export default async function ApplyPage({
   const [{ data: product }, { data: settings }] = await Promise.all([
     supabase
       .from("products")
-      .select(
-        "id, name, slug, duration_min, buffer_after_min, price, sale_price, privacy_consent_text",
-      )
+      .select("id, name, slug, duration_min, buffer_after_min, price, sale_price")
       .eq("slug", slug)
       .eq("is_published", true)
       .maybeSingle(),
@@ -152,7 +150,6 @@ export default async function ApplyPage({
         backHref={backHref}
         bankAccount={settings?.bank_account ?? null}
         notice={settings?.notice ?? null}
-        privacyConsentText={product.privacy_consent_text ?? null}
         successHeading={
           settings?.reservation_success_heading ?? FALLBACK_SUCCESS_HEADING
         }

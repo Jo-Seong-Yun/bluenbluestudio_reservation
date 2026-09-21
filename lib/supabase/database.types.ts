@@ -47,9 +47,6 @@ export interface Database {
           tag_color: string | null;
           /** 촬영 기록표의 "완성본 전달예정일" 칸(예: "7일"). */
           delivery_note: string | null;
-          /** 이 상품 신청서 맨 아래 개인정보 동의 체크박스 문구. null/빈
-           * 문자열이면 체크박스 자체를 보여주지 않는다. */
-          privacy_consent_text: string | null;
           created_at: string;
           updated_at: string;
         };
