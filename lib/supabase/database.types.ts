@@ -260,8 +260,10 @@ export interface Database {
         Row: {
           id: string;
           month: string; // "YYYY-MM"
+          date: string | null; // "YYYY-MM-DD"
           label: string;
           amount: number;
+          memo: string | null;
           created_at: string;
         };
         Insert: Partial<
