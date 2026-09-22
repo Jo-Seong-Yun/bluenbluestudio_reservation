@@ -64,6 +64,8 @@ export interface Database {
           product_id: string;
           /** 링크에 붙어온 ?ref=... 값(유입경로). 없으면 null. */
           ref: string | null;
+          /** 통계 화면 상세 로그에서 관리자가 남긴 메모. */
+          memo: string | null;
           viewed_at: string;
         };
         Insert: Partial<
@@ -78,6 +80,7 @@ export interface Database {
         Row: {
           id: string;
           ref: string | null;
+          memo: string | null;
           viewed_at: string;
         };
         Insert: Partial<
@@ -93,6 +96,7 @@ export interface Database {
           id: string;
           product_id: string;
           ref: string | null;
+          memo: string | null;
           viewed_at: string;
         };
         Insert: Partial<
