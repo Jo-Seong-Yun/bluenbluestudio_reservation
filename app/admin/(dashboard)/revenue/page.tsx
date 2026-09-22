@@ -6,6 +6,7 @@ import type { ReservationStatus } from "@/lib/supabase/database.types";
 import { inputClass } from "@/components/ui";
 import { SubmitButton, PendingSubmit } from "@/components/submit-button";
 import { addMonthlyExpense, deleteMonthlyExpense } from "@/app/admin/actions";
+import { AmountInput } from "./amount-input";
 
 export const metadata: Metadata = { title: "매출관리" };
 
@@ -323,17 +324,9 @@ export default async function RevenuePage({
               className={inputClass}
             />
           </label>
-          <label className="w-32">
+          <label className="w-36">
             <span className="text-muted mb-1 block text-xs">금액</span>
-            <input
-              name="amount"
-              type="number"
-              min={0}
-              step={1}
-              inputMode="numeric"
-              required
-              className={inputClass}
-            />
+            <AmountInput />
           </label>
           <label className="flex-1 basis-40">
             <span className="text-muted mb-1 block text-xs">비고 (선택)</span>
