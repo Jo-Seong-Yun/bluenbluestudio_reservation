@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "../supabase/admin";
 import {
   addDays,
+  addMonths,
   diffDays,
   kstToday,
   kstToInstant,
@@ -145,6 +146,40 @@ export async function loadAvailableDates(params: {
   }
 
   return available;
+}
+
+/** 이번 달에 남은 예약 가능한 날짜가 이 개수 이하면 다음 달을 기본으로 보여준다. */
+const REMAINING_DAYS_THRESHOLD = 5;
+
+/**
+ * 예약 화면(BookingFlow 달력)에 처음 들어왔을 때 보여줄 달을 고른다.
+ * 오늘부터 이번 달 말일까지 실제로 예약 가능한 날짜가
+ * REMAINING_DAYS_THRESHOLD일 이하로 얼마 안 남았으면, 이번 달엔 고를 게
+ * 거의 없으니 손님이 매번 다음 달 화살표를 누르게 하는 대신 처음부터
+ * 다음 달을 보여준다. 이미 예약 가능 기간(max_advance_days) 끝에 걸려
+ * 다음 달이 아예 없으면(nextMonth > maxMonth) 이번 달을 그대로 쓴다.
+ */
+export async function pickDefaultBookingMonth(params: {
+  productId: string;
+  today: DateString;
+  maxMonth: string;
+  now?: Date;
+  settings?: AvailabilitySettings;
+}): Promise<string> {
+  const currentMonth = params.today.slice(0, 7);
+  const nextMonth = addMonths(currentMonth, 1);
+  if (nextMonth > params.maxMonth) return currentMonth;
+
+  const monthEnd = addDays(`${nextMonth}-01`, -1);
+  const remaining = await loadAvailableDates({
+    productId: params.productId,
+    from: params.today,
+    to: monthEnd,
+    now: params.now,
+    settings: params.settings,
+  });
+
+  return remaining.size <= REMAINING_DAYS_THRESHOLD ? nextMonth : currentMonth;
 }
 
 type ScheduleContext = {

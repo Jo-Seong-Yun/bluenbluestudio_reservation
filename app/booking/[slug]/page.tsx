@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { loadAvailableDates } from "@/lib/availability/load";
+import {
+  loadAvailableDates,
+  pickDefaultBookingMonth,
+} from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { RichText } from "@/components/rich-text";
 import { BookingFlow } from "@/components/booking-flow";
@@ -64,7 +67,12 @@ export default async function ProductDetailPage({
   const month =
     requestedMonth && requestedMonth >= minMonth && requestedMonth <= maxMonth
       ? requestedMonth
-      : minMonth;
+      : await pickDefaultBookingMonth({
+          productId: product.id,
+          today,
+          maxMonth,
+          settings: availabilitySettings,
+        });
 
   const grid = monthGridDates(month);
   const availableDates = await loadAvailableDates({
