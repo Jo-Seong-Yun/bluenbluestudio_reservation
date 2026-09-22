@@ -3,10 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { addMonths, kstMonthString } from "@/lib/time";
 import type { ReservationStatus } from "@/lib/supabase/database.types";
-import { inputClass } from "@/components/ui";
-import { SubmitButton, PendingSubmit } from "@/components/submit-button";
-import { addMonthlyExpense, deleteMonthlyExpense } from "@/app/admin/actions";
-import { MoneyInput } from "@/components/money-input";
+import { ExpenseSection } from "./expense-section";
 
 export const metadata: Metadata = { title: "매출관리" };
 
@@ -69,7 +66,7 @@ export default async function RevenuePage({
       supabase.from("products").select("id, name").order("sort_order"),
       supabase
         .from("monthly_expenses")
-        .select("id, date, label, amount, memo")
+        .select("id, date, label, amount, memo, kind")
         .eq("month", month)
         .order("date"),
     ]);
@@ -109,13 +106,19 @@ export default async function RevenuePage({
     (r) => r.charged_amount === null,
   ).length;
 
-  const otherExpenses = expenses ?? [];
+  const otherExpenses = (expenses ?? []).filter((e) => e.kind === "other");
+  const fixedExpenses = (expenses ?? []).filter((e) => e.kind === "fixed");
   const totalOtherExpenses = otherExpenses.reduce(
     (sum, e) => sum + e.amount,
     0,
   );
+  const totalFixedExpenses = fixedExpenses.reduce(
+    (sum, e) => sum + e.amount,
+    0,
+  );
 
-  const netProfit = totalRevenue - totalCost - totalOtherExpenses;
+  const netProfit =
+    totalRevenue - totalCost - totalOtherExpenses - totalFixedExpenses;
 
   return (
     <div>
@@ -152,7 +155,7 @@ export default async function RevenuePage({
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="border-border bg-surface rounded-xl border p-4">
           <p className="text-muted text-sm">매출</p>
           <p className="mt-1 text-2xl font-bold">
@@ -178,7 +181,16 @@ export default async function RevenuePage({
             {totalOtherExpenses.toLocaleString()}원
           </p>
           <p className="text-muted mt-1 text-xs">
-            임대료·장비·마케팅 등 {otherExpenses.length}건
+            일회성 지출 {otherExpenses.length}건
+          </p>
+        </div>
+        <div className="border-border bg-surface rounded-xl border p-4">
+          <p className="text-muted text-sm">고정지출</p>
+          <p className="mt-1 text-2xl font-bold">
+            {totalFixedExpenses.toLocaleString()}원
+          </p>
+          <p className="text-muted mt-1 text-xs">
+            임대료·장비·마케팅 등 {fixedExpenses.length}건
           </p>
         </div>
         <div className="border-border bg-surface rounded-xl border p-4">
@@ -190,7 +202,9 @@ export default async function RevenuePage({
           >
             {netProfit.toLocaleString()}원
           </p>
-          <p className="text-muted mt-1 text-xs">매출 − 원가 − 기타지출</p>
+          <p className="text-muted mt-1 text-xs">
+            매출 − 원가 − 기타지출 − 고정지출
+          </p>
         </div>
       </div>
 
@@ -252,89 +266,21 @@ export default async function RevenuePage({
         </table>
       </div>
 
-      <div className="border-border bg-surface mt-6 rounded-xl border p-4">
-        <p className="font-medium">이 달의 기타지출</p>
-        <p className="text-muted mt-0.5 text-sm">
-          촬영 건수와 무관하게 매달 나가는 지출입니다 (임대료, 장비 구매, 마케팅
-          등).
-        </p>
+      <ExpenseSection
+        kind="other"
+        title="이 달의 기타지출"
+        hint="촬영 건수와 무관하게 발생하는 일회성 지출입니다 (소모품, 수선, 잡비 등)."
+        emptyText="아직 등록한 기타지출이 없습니다."
+        expenses={otherExpenses}
+      />
 
-        {otherExpenses.length > 0 ? (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-border text-muted border-b text-left">
-                  <th className="py-2 pr-3 font-medium">일자</th>
-                  <th className="py-2 pr-3 font-medium">항목</th>
-                  <th className="py-2 pr-3 font-medium">금액</th>
-                  <th className="py-2 pr-3 font-medium">비고</th>
-                  <th className="py-2 pr-3 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {otherExpenses.map((expense) => (
-                  <tr
-                    key={expense.id}
-                    className="border-border border-b last:border-0"
-                  >
-                    <td className="py-2 pr-3 whitespace-nowrap">
-                      {expense.date ?? "-"}
-                    </td>
-                    <td className="py-2 pr-3">{expense.label}</td>
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">
-                      {expense.amount.toLocaleString()}원
-                    </td>
-                    <td className="text-muted py-2 pr-3">
-                      {expense.memo ?? ""}
-                    </td>
-                    <td className="py-2 pr-3 text-right">
-                      <form action={deleteMonthlyExpense}>
-                        <input type="hidden" name="id" value={expense.id} />
-                        <PendingSubmit className="text-muted hover:text-foreground text-xs underline">
-                          삭제
-                        </PendingSubmit>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-muted mt-3 text-sm">
-            아직 등록한 기타지출이 없습니다.
-          </p>
-        )}
-
-        <form
-          action={addMonthlyExpense}
-          className="mt-4 flex flex-wrap items-end gap-2"
-        >
-          <label className="w-40">
-            <span className="text-muted mb-1 block text-xs">일자</span>
-            <input name="date" type="date" required className={inputClass} />
-          </label>
-          <label className="flex-1 basis-40">
-            <span className="text-muted mb-1 block text-xs">항목</span>
-            <input
-              name="label"
-              required
-              maxLength={50}
-              placeholder="예: 스튜디오 임대료"
-              className={inputClass}
-            />
-          </label>
-          <label className="w-36">
-            <span className="text-muted mb-1 block text-xs">금액</span>
-            <MoneyInput name="amount" required />
-          </label>
-          <label className="flex-1 basis-40">
-            <span className="text-muted mb-1 block text-xs">비고 (선택)</span>
-            <input name="memo" maxLength={100} className={inputClass} />
-          </label>
-          <SubmitButton variant="ghost">추가</SubmitButton>
-        </form>
-      </div>
+      <ExpenseSection
+        kind="fixed"
+        title="이 달의 고정지출"
+        hint="매달 정기적으로 나가는 지출입니다 (임대료, 구독료, 장비 할부, 마케팅 등)."
+        emptyText="아직 등록한 고정지출이 없습니다."
+        expenses={fixedExpenses}
+      />
     </div>
   );
 }
