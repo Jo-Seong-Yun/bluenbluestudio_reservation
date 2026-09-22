@@ -787,20 +787,27 @@ export async function saveReservationCost(formData: FormData) {
   after(() => syncReservationToSheet(id));
 }
 
-/** 촬영과 무관한 월별 고정비(임대료, 장비, 마케팅 등) 한 항목 추가. */
+/** 촬영과 무관한 월별 기타지출(임대료, 장비, 마케팅 등) 한 항목 추가.
+ * 어느 달 집계에 들어갈지(month)는 입력받은 일자(date)에서 그대로
+ * 뽑아낸다 — 따로 입력받지 않는다. */
 export async function addMonthlyExpense(formData: FormData) {
   await requireAdmin();
 
-  const month = String(formData.get("month") ?? "");
+  const date = String(formData.get("date") ?? "");
   const label = String(formData.get("label") ?? "").trim();
   const amount = Number(formData.get("amount"));
+  const memo = String(formData.get("memo") ?? "").trim();
 
-  if (!/^\d{4}-\d{2}$/.test(month)) return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
   if (!label) return;
   if (!Number.isFinite(amount) || amount < 0) return;
 
+  const month = date.slice(0, 7);
+
   const supabase = await createClient();
-  await supabase.from("monthly_expenses").insert({ month, label, amount });
+  await supabase
+    .from("monthly_expenses")
+    .insert({ month, date, label, amount, memo: memo || null });
 
   revalidatePath("/admin/revenue");
 }

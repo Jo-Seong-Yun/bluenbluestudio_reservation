@@ -68,9 +68,9 @@ export default async function RevenuePage({
       supabase.from("products").select("id, name").order("sort_order"),
       supabase
         .from("monthly_expenses")
-        .select("id, label, amount")
+        .select("id, date, label, amount, memo")
         .eq("month", month)
-        .order("created_at"),
+        .order("date"),
     ]);
 
   const productById = new Map((products ?? []).map((p) => [p.id, p]));
@@ -108,13 +108,13 @@ export default async function RevenuePage({
     (r) => r.charged_amount === null,
   ).length;
 
-  const fixedExpenses = expenses ?? [];
-  const totalFixedExpenses = fixedExpenses.reduce(
+  const otherExpenses = expenses ?? [];
+  const totalOtherExpenses = otherExpenses.reduce(
     (sum, e) => sum + e.amount,
     0,
   );
 
-  const netProfit = totalRevenue - totalCost - totalFixedExpenses;
+  const netProfit = totalRevenue - totalCost - totalOtherExpenses;
 
   return (
     <div>
@@ -172,12 +172,12 @@ export default async function RevenuePage({
           <p className="text-muted mt-1 text-xs">예약별로 입력한 원가 합계</p>
         </div>
         <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-sm">고정비</p>
+          <p className="text-muted text-sm">기타지출</p>
           <p className="mt-1 text-2xl font-bold">
-            {totalFixedExpenses.toLocaleString()}원
+            {totalOtherExpenses.toLocaleString()}원
           </p>
           <p className="text-muted mt-1 text-xs">
-            임대료·장비·마케팅 등 {fixedExpenses.length}건
+            임대료·장비·마케팅 등 {otherExpenses.length}건
           </p>
         </div>
         <div className="border-border bg-surface rounded-xl border p-4">
@@ -189,7 +189,7 @@ export default async function RevenuePage({
           >
             {netProfit.toLocaleString()}원
           </p>
-          <p className="text-muted mt-1 text-xs">매출 − 원가 − 고정비</p>
+          <p className="text-muted mt-1 text-xs">매출 − 원가 − 기타지출</p>
         </div>
       </div>
 
@@ -252,37 +252,56 @@ export default async function RevenuePage({
       </div>
 
       <div className="border-border bg-surface mt-6 rounded-xl border p-4">
-        <p className="font-medium">이 달의 고정비</p>
+        <p className="font-medium">이 달의 기타지출</p>
         <p className="text-muted mt-0.5 text-sm">
           촬영 건수와 무관하게 매달 나가는 지출입니다 (임대료, 장비 구매, 마케팅
           등).
         </p>
 
-        {fixedExpenses.length > 0 ? (
-          <ul className="mt-3 space-y-1">
-            {fixedExpenses.map((expense) => (
-              <li
-                key={expense.id}
-                className="border-border flex items-center justify-between gap-2 border-b py-2 text-sm last:border-0"
-              >
-                <span>{expense.label}</span>
-                <span className="flex items-center gap-3">
-                  <span className="font-medium">
-                    {expense.amount.toLocaleString()}원
-                  </span>
-                  <form action={deleteMonthlyExpense}>
-                    <input type="hidden" name="id" value={expense.id} />
-                    <PendingSubmit className="text-muted hover:text-foreground text-xs underline">
-                      삭제
-                    </PendingSubmit>
-                  </form>
-                </span>
-              </li>
-            ))}
-          </ul>
+        {otherExpenses.length > 0 ? (
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-border text-muted border-b text-left">
+                  <th className="py-2 pr-3 font-medium">일자</th>
+                  <th className="py-2 pr-3 font-medium">항목</th>
+                  <th className="py-2 pr-3 font-medium">금액</th>
+                  <th className="py-2 pr-3 font-medium">비고</th>
+                  <th className="py-2 pr-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {otherExpenses.map((expense) => (
+                  <tr
+                    key={expense.id}
+                    className="border-border border-b last:border-0"
+                  >
+                    <td className="py-2 pr-3 whitespace-nowrap">
+                      {expense.date ?? "-"}
+                    </td>
+                    <td className="py-2 pr-3">{expense.label}</td>
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">
+                      {expense.amount.toLocaleString()}원
+                    </td>
+                    <td className="text-muted py-2 pr-3">
+                      {expense.memo ?? ""}
+                    </td>
+                    <td className="py-2 pr-3 text-right">
+                      <form action={deleteMonthlyExpense}>
+                        <input type="hidden" name="id" value={expense.id} />
+                        <PendingSubmit className="text-muted hover:text-foreground text-xs underline">
+                          삭제
+                        </PendingSubmit>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="text-muted mt-3 text-sm">
-            아직 등록한 고정비가 없습니다.
+            아직 등록한 기타지출이 없습니다.
           </p>
         )}
 
@@ -290,7 +309,10 @@ export default async function RevenuePage({
           action={addMonthlyExpense}
           className="mt-4 flex flex-wrap items-end gap-2"
         >
-          <input type="hidden" name="month" value={month} />
+          <label className="w-40">
+            <span className="text-muted mb-1 block text-xs">일자</span>
+            <input name="date" type="date" required className={inputClass} />
+          </label>
           <label className="flex-1 basis-40">
             <span className="text-muted mb-1 block text-xs">항목</span>
             <input
@@ -312,6 +334,10 @@ export default async function RevenuePage({
               required
               className={inputClass}
             />
+          </label>
+          <label className="flex-1 basis-40">
+            <span className="text-muted mb-1 block text-xs">비고 (선택)</span>
+            <input name="memo" maxLength={100} className={inputClass} />
           </label>
           <SubmitButton variant="ghost">추가</SubmitButton>
         </form>
