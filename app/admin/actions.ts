@@ -787,17 +787,21 @@ export async function saveReservationCost(formData: FormData) {
   after(() => syncReservationToSheet(id));
 }
 
-/** 촬영과 무관한 월별 기타지출(임대료, 장비, 마케팅 등) 한 항목 추가.
- * 어느 달 집계에 들어갈지(month)는 입력받은 일자(date)에서 그대로
- * 뽑아낸다 — 따로 입력받지 않는다. */
+/** 촬영과 무관한 월별 지출(임대료, 장비, 마케팅 등) 한 항목 추가.
+ * "기타지출"(kind="other")과 "고정지출"(kind="fixed")은 구성이
+ * 완전히 같아서 같은 액션 하나로 둘 다 받는다 — 어느 쪽인지는 폼의
+ * 숨은 kind 필드로 구분한다. 어느 달 집계에 들어갈지(month)는
+ * 입력받은 일자(date)에서 그대로 뽑아낸다 — 따로 입력받지 않는다. */
 export async function addMonthlyExpense(formData: FormData) {
   await requireAdmin();
 
+  const kind = String(formData.get("kind") ?? "other");
   const date = String(formData.get("date") ?? "");
   const label = String(formData.get("label") ?? "").trim();
   const amount = Number(formData.get("amount"));
   const memo = String(formData.get("memo") ?? "").trim();
 
+  if (kind !== "other" && kind !== "fixed") return;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
   if (!label) return;
   if (!Number.isFinite(amount) || amount < 0) return;
@@ -807,7 +811,7 @@ export async function addMonthlyExpense(formData: FormData) {
   const supabase = await createClient();
   await supabase
     .from("monthly_expenses")
-    .insert({ month, date, label, amount, memo: memo || null });
+    .insert({ month, date, label, amount, memo: memo || null, kind });
 
   revalidatePath("/admin/revenue");
 }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
+import { MoneyInput } from "@/components/money-input";
 import { useReportPending } from "@/components/pending-overlay";
 import { saveReservationChargedAmount } from "@/app/admin/actions";
 
@@ -43,7 +44,6 @@ export function ChargedAmountBreakdown({
     initialItems.map((it) => ({ label: it.label, amount: String(it.amount) })),
   );
   const [memo, setMemo] = useState(initialMemo ?? "");
-  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
   useReportPending(isPending);
@@ -58,9 +58,8 @@ export function ChargedAmountBreakdown({
   }
 
   function handleAmountChange(index: number, value: string) {
-    const digits = value.replace(/[^0-9]/g, "");
     setItems((prev) =>
-      prev.map((it, i) => (i === index ? { ...it, amount: digits } : it)),
+      prev.map((it, i) => (i === index ? { ...it, amount: value } : it)),
     );
     setJustSaved(false);
   }
@@ -115,25 +114,11 @@ export function ChargedAmountBreakdown({
               onChange={(e) => handleLabelChange(i, e.target.value)}
               className="border-border bg-surface focus:border-brand focus:ring-brand/30 w-28 min-w-0 shrink-0 rounded-lg border px-2 py-2 text-sm outline-none focus:ring-2"
             />
-            <div className="border-border bg-surface focus-within:border-brand focus-within:ring-brand/30 flex w-full items-center gap-1 rounded-lg border pl-3 focus-within:ring-2">
-              <span className="text-muted shrink-0">₩</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="0"
-                value={
-                  focusedIndex === i
-                    ? item.amount
-                    : item.amount
-                      ? currency.format(Number(item.amount))
-                      : ""
-                }
-                onChange={(e) => handleAmountChange(i, e.target.value)}
-                onFocus={() => setFocusedIndex(i)}
-                onBlur={() => setFocusedIndex(null)}
-                className="w-full bg-transparent py-2 pr-3 text-base outline-none"
-              />
-            </div>
+            <MoneyInput
+              value={item.amount}
+              onChange={(v) => handleAmountChange(i, v)}
+              className="w-full"
+            />
             <button
               type="button"
               onClick={() => handleRemoveItem(i)}

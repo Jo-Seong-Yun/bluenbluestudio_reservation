@@ -264,6 +264,8 @@ export interface Database {
           label: string;
           amount: number;
           memo: string | null;
+          /** "other"(기타지출) | "fixed"(고정지출). */
+          kind: string;
           created_at: string;
         };
         Insert: Partial<

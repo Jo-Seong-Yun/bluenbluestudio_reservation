@@ -2,16 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
+import { MoneyInput } from "@/components/money-input";
 import { useReportPending } from "@/components/pending-overlay";
 
-const currency = new Intl.NumberFormat("ko-KR");
-
 /**
- * 지불액/원가처럼 "금액 + 메모"를 한 세트로 입력받는 자리.
- *
- * 입력칸엔 숫자만 넣지만 화면엔 항상 "₩ 20,000"처럼 천단위 구분·통화
- * 기호를 붙여 보여준다 — 그래서 type="number"가 아니라 type="text"로
- * 받아 숫자만 걸러내고, 표시할 땐 toLocaleString으로 다시 포맷한다.
+ * 지불액/원가처럼 "금액 + 메모"를 한 세트로 입력받는 자리. 금액 칸
+ * 자체는 사이트 전체가 공통으로 쓰는 MoneyInput(₩ 접두사 + 실시간
+ * 천단위 콤마)을 그대로 쓴다.
  *
  * 저장 버튼은 누르기 전엔 "저장", 누른 직후엔 "저장됨"으로 바뀌어
  * 지금 화면에 보이는 값이 실제로 반영됐다는 걸 알려준다. 이후 금액이나
@@ -45,14 +42,8 @@ export function MoneyField({
   const [isPending, startTransition] = useTransition();
   useReportPending(isPending);
 
-  // 타이핑 중엔 콤마 없이 숫자만 그대로 보여준다 — 매 글자마다
-  // "1,234"처럼 콤마가 끼어들면 커서 위치가 엉뚱한 곳으로 튀어,
-  // 정작 입력한 숫자와 다른 금액이 들어갈 위험이 있다(금액 입력칸에서
-  // 특히 치명적). 포커스를 벗어날 때만 원화 형식으로 다시 표시한다.
-  const [isFocused, setIsFocused] = useState(false);
-
-  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setAmount(e.target.value.replace(/[^0-9]/g, ""));
+  function handleAmountChange(value: string) {
+    setAmount(value);
     setJustSaved(false);
   }
 
@@ -78,20 +69,12 @@ export function MoneyField({
         {label} <span className="text-muted font-normal">{hint}</span>
       </label>
       <div className="flex gap-2">
-        <div className="border-border bg-surface focus-within:border-brand focus-within:ring-brand/30 flex w-full items-center gap-1 rounded-lg border pl-3 focus-within:ring-2">
-          <span className="text-muted shrink-0">₩</span>
-          <input
-            id={amountName}
-            type="text"
-            inputMode="numeric"
-            placeholder="0"
-            value={isFocused ? amount : amount ? currency.format(Number(amount)) : ""}
-            onChange={handleAmountChange}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            className="w-full bg-transparent py-2 pr-3 text-base outline-none"
-          />
-        </div>
+        <MoneyInput
+          id={amountName}
+          value={amount}
+          onChange={handleAmountChange}
+          className="w-full"
+        />
         <Button
           type="button"
           variant="ghost"
