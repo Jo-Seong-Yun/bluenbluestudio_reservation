@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { addCustomField, updateCustomField } from "@/app/admin/actions";
 import { Button, inputClass } from "@/components/ui";
+import { MoneyInput } from "@/components/money-input";
 import { SubmitButton } from "@/components/submit-button";
 import {
   FIELD_TYPE_LABELS,
@@ -237,16 +238,12 @@ export function FieldModal({
                         문제가 있었다. 폭을 별도 래퍼에 주고 input 자신은
                         그 안에서 그냥 w-full(=래퍼 폭 전체)이 되게 하면
                         이 충돌 자체가 안 생긴다. */}
-                    <div className="w-24 shrink-0">
-                      <input
+                    <div className="w-28 shrink-0">
+                      <MoneyInput
                         name="optionPrice"
-                        type="number"
-                        min={0}
-                        step={1000}
                         value={optionPrices[index] ?? ""}
-                        onChange={(e) => updateOptionPrice(index, e.target.value)}
+                        onChange={(v) => updateOptionPrice(index, v)}
                         placeholder="가격"
-                        className={inputClass}
                       />
                     </div>
                     <button
