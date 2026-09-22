@@ -219,6 +219,15 @@ export default async function AnalyticsPage() {
                 <span className="text-muted min-w-0 flex-1 truncate">
                   {entry.productName ?? "-"}
                 </span>
+                <span className="w-20 shrink-0 truncate text-xs" title={entry.ref ?? undefined}>
+                  {entry.ref ? (
+                    <span className="bg-surface-subtle text-muted rounded px-1.5 py-0.5">
+                      {entry.ref}
+                    </span>
+                  ) : (
+                    <span className="text-muted-faint">-</span>
+                  )}
+                </span>
                 {entry.kind === "reset" ? null : (
                   <ActivityMemo
                     kind={entry.kind}
@@ -241,10 +250,11 @@ export default async function AnalyticsPage() {
         화면을 둘러보신 경우는 통계에 섞이지 않습니다. 상세 로그는 최근
         발생한 순으로 최대 100건까지 보여줍니다. &quot;통계 리셋&quot;을
         누르면 위 숫자들은 그 시점부터 다시 집계되지만, 조회 기록 자체는
-        지워지지 않아 상세 로그에서는 리셋 이전 기록도 계속 보입니다. 각 줄
-        오른쪽의 &quot;메모&quot;를 누르면 그 기록에 메모를 남길 수 있습니다
-        (예약 줄의 메모는 예약 상세의 &quot;사장님 메모&quot;와 같은
-        내용입니다).
+        지워지지 않아 상세 로그에서는 리셋 이전 기록도 계속 보입니다. 상품
+        이름 오른쪽의 회색 칸은 그 기록에 붙어 있던 유입경로(?ref=값)이고,
+        없으면 -로 표시됩니다. 그 옆 &quot;메모&quot;를 누르면 그 기록에
+        메모를 남길 수 있습니다(예약 줄의 메모는 예약 상세의 &quot;사장님
+        메모&quot;와 같은 내용입니다).
       </p>
     </div>
   );

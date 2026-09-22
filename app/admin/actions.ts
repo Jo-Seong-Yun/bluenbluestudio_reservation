@@ -771,31 +771,43 @@ const ACTIVITY_MEMO_TABLE = {
   apply_view: "apply_views",
 } as const;
 
-export async function saveActivityMemo(formData: FormData) {
+export async function saveActivityMemo(
+  formData: FormData,
+): Promise<{ error?: string }> {
   await requireAdmin();
 
   const kind = String(formData.get("kind") ?? "");
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "대상을 찾을 수 없습니다." };
   const memo = String(formData.get("memo") ?? "").trim();
 
   const supabase = await createClient();
 
-  if (kind === "reservation") {
-    await supabase
-      .from("reservations")
-      .update({ admin_memo: memo || null })
-      .eq("id", id);
-  } else if (kind in ACTIVITY_MEMO_TABLE) {
-    await supabase
-      .from(ACTIVITY_MEMO_TABLE[kind as keyof typeof ACTIVITY_MEMO_TABLE])
-      .update({ memo: memo || null })
-      .eq("id", id);
-  } else {
-    return;
+  const result =
+    kind === "reservation"
+      ? await supabase
+          .from("reservations")
+          .update({ admin_memo: memo || null })
+          .eq("id", id)
+      : kind in ACTIVITY_MEMO_TABLE
+        ? await supabase
+            .from(ACTIVITY_MEMO_TABLE[kind as keyof typeof ACTIVITY_MEMO_TABLE])
+            .update({ memo: memo || null })
+            .eq("id", id)
+        : null;
+
+  if (!result) return { error: "알 수 없는 종류입니다." };
+  // RLS가 update를 막고 있으면 에러 없이 그냥 0행이 바뀐 채 조용히
+  // 성공한 것처럼 끝나는 경우가 있어(과거에 이 문제로 메모가 저장 안
+  // 되는 버그가 있었다), result.error를 반드시 확인해 호출한 쪽에
+  // 실패를 알린다.
+  if (result.error) {
+    console.error("상세 로그 메모 저장 실패:", result.error.message);
+    return { error: result.error.message };
   }
 
   revalidatePath("/admin/analytics");
+  return {};
 }
 
 /**

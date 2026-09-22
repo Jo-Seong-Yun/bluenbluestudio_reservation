@@ -26,6 +26,8 @@ export type ActivityLogEntry = {
   productName: string | null;
   /** 관리자가 이 기록에 남긴 메모. 리셋 줄은 실제 행이 아니라 항상 null. */
   memo: string | null;
+  /** 유입경로(?ref=값). 없으면 null(직접 방문). 리셋 줄은 항상 null. */
+  ref: string | null;
 };
 
 /** 유입경로(ref)별 조회·신청 집계 한 줄. */
@@ -150,22 +152,22 @@ export async function loadProductAnalytics(
     applyViewCountQuery,
     supabase
       .from("booking_list_views")
-      .select("id, viewed_at, memo")
+      .select("id, viewed_at, memo, ref")
       .order("viewed_at", { ascending: false })
       .limit(ACTIVITY_LOG_LIMIT),
     supabase
       .from("product_views")
-      .select("id, viewed_at, product_id, memo")
+      .select("id, viewed_at, product_id, memo, ref")
       .order("viewed_at", { ascending: false })
       .limit(ACTIVITY_LOG_LIMIT),
     supabase
       .from("apply_views")
-      .select("id, viewed_at, product_id, memo")
+      .select("id, viewed_at, product_id, memo, ref")
       .order("viewed_at", { ascending: false })
       .limit(ACTIVITY_LOG_LIMIT),
     supabase
       .from("reservations")
-      .select("id, created_at, product_id, admin_memo")
+      .select("id, created_at, product_id, admin_memo, ref")
       .order("created_at", { ascending: false })
       .limit(ACTIVITY_LOG_LIMIT),
   ]);
@@ -261,6 +263,7 @@ export async function loadProductAnalytics(
       kind: "list_view" as const,
       productName: null,
       memo: row.memo,
+      ref: row.ref,
     })),
     ...(recentProductViews ?? []).map((row) => ({
       id: row.id,
@@ -268,6 +271,7 @@ export async function loadProductAnalytics(
       kind: "product_view" as const,
       productName: productNameById.get(row.product_id) ?? null,
       memo: row.memo,
+      ref: row.ref,
     })),
     ...(recentApplyViews ?? []).map((row) => ({
       id: row.id,
@@ -275,6 +279,7 @@ export async function loadProductAnalytics(
       kind: "apply_view" as const,
       productName: productNameById.get(row.product_id) ?? null,
       memo: row.memo,
+      ref: row.ref,
     })),
     ...(recentReservations ?? []).map((row) => ({
       id: row.id,
@@ -284,6 +289,7 @@ export async function loadProductAnalytics(
       // 예약 상세 화면의 "사장님 메모"(admin_memo)와 같은 값 — 예약
       // 상세에서 고친 메모가 여기 로그에도 그대로 보인다.
       memo: row.admin_memo,
+      ref: row.ref,
     })),
     // 리셋 자체도 로그에서 사라지면 안 되니(로그는 남겨두는 게 이
     // 기능의 요점이다) 한 줄로 끼워 넣는다 — 집계가 이 지점부터
@@ -297,6 +303,7 @@ export async function loadProductAnalytics(
             kind: "reset" as const,
             productName: null,
             memo: null,
+            ref: null,
           },
         ]
       : []),
