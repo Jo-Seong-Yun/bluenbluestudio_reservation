@@ -13,6 +13,7 @@ const TREND_DAYS = 14;
 const ACTIVITY_KIND_LABEL: Record<ActivityLogEntry["kind"], string> = {
   list_view: "상품 목록 진입",
   product_view: "상품 상세 진입",
+  apply_view: "신청서 진입",
   reservation: "실제 예약",
   reset: "통계 리셋",
 };
@@ -20,12 +21,13 @@ const ACTIVITY_KIND_LABEL: Record<ActivityLogEntry["kind"], string> = {
 const ACTIVITY_KIND_DOT: Record<ActivityLogEntry["kind"], string> = {
   list_view: "bg-muted",
   product_view: "bg-brand",
+  apply_view: "bg-sky-500",
   reservation: "bg-emerald-500",
   reset: "bg-amber-500",
 };
 
 export default async function AnalyticsPage() {
-  const { rows, daily, listViews, recentActivity } =
+  const { rows, daily, listViews, applyViews, channelBreakdown, recentActivity } =
     await loadProductAnalytics(TREND_DAYS);
 
   const sortedRows = [...rows].sort((a, b) => b.views - a.views);
@@ -34,8 +36,9 @@ export default async function AnalyticsPage() {
   const maxDaily = Math.max(1, ...daily.map((d) => Math.max(d.views, d.applications)));
 
   const listToDetailRate = listViews > 0 ? (totalViews / listViews) * 100 : null;
-  const detailToApplicationRate =
-    totalViews > 0 ? (totalApplications / totalViews) * 100 : null;
+  const detailToApplyRate = totalViews > 0 ? (applyViews / totalViews) * 100 : null;
+  const applyToApplicationRate =
+    applyViews > 0 ? (totalApplications / applyViews) * 100 : null;
 
   return (
     <div>
@@ -44,15 +47,19 @@ export default async function AnalyticsPage() {
         <ResetAnalyticsButton />
       </div>
 
-      {/* 상품 목록 진입 → 상품 상세(설명) 진입 → 실제 예약, 3단계 유입
-          퍼널. 목록 진입은 특정 상품에 딸린 숫자가 아니라 사이트
-          전체(모든 상품 링크가 걸린 그 한 화면) 기준이라 상품별 표에는
-          안 넣고 여기 요약에서만 보여준다. */}
+      {/* 상품 목록 진입 → 상품 상세(설명) 진입 → 신청서 진입 → 실제 예약,
+          4단계 유입 퍼널. "상품 상세 → 신청서" 구간 이탈은 날짜·시간
+          선택 단계에서 빠져나간 것이고, "신청서 → 실제 예약" 구간 이탈은
+          신청서 작성 중 빠져나간 것이라 구분해서 볼 수 있다. 목록·신청서
+          진입은 특정 상품에 딸린 숫자가 아니라 사이트 전체 기준이라
+          상품별 표에는 안 넣고 여기 요약에서만 보여준다. */}
       <div className="border-border bg-surface flex flex-wrap items-stretch gap-3 rounded-xl border p-4 sm:flex-nowrap">
         <FunnelStep label="상품 목록 진입" value={listViews} />
         <FunnelArrow rate={listToDetailRate} />
         <FunnelStep label="상품 상세 진입" value={totalViews} />
-        <FunnelArrow rate={detailToApplicationRate} />
+        <FunnelArrow rate={detailToApplyRate} />
+        <FunnelStep label="신청서 진입" value={applyViews} />
+        <FunnelArrow rate={applyToApplicationRate} />
         <FunnelStep label="실제 예약" value={totalApplications} highlight />
       </div>
 
@@ -132,6 +139,53 @@ export default async function AnalyticsPage() {
         </table>
       </section>
 
+      {/* 손님이 들어온 링크의 ?ref=값(유입경로)별 조회·신청 집계 —
+          인스타그램, 공지 링크 등 병렬로 돌리는 채널을 서로 비교하려는
+          목적. 링크에 ref가 없던 방문은 "(직접 방문)"으로 묶인다. */}
+      <section className="border-border bg-surface mt-6 overflow-x-auto rounded-xl border">
+        <div className="border-border border-b px-4 py-3">
+          <h2 className="font-bold">유입경로별 집계</h2>
+          <p className="text-muted mt-0.5 text-xs">
+            홍보 링크 끝에 ?ref=값을 붙이면(예: ?ref=insta) 그 채널로 들어온
+            조회·신청이 여기 따로 집계됩니다.
+          </p>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-border text-muted border-b text-left">
+              <th className="px-4 py-3 font-medium">유입경로</th>
+              <th className="px-4 py-3 font-medium">조회수</th>
+              <th className="px-4 py-3 font-medium">신청수</th>
+              <th className="px-4 py-3 font-medium">전환율</th>
+            </tr>
+          </thead>
+          <tbody>
+            {channelBreakdown.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="text-muted px-4 py-8 text-center">
+                  아직 쌓인 데이터가 없습니다.
+                </td>
+              </tr>
+            ) : (
+              channelBreakdown.map((row) => (
+                <tr key={row.channel} className="border-border border-t">
+                  <td className="px-4 py-3">{row.channel}</td>
+                  <td className="px-4 py-3">{row.views.toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    {row.applications.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    {row.conversionRate === null
+                      ? "-"
+                      : `${row.conversionRate.toFixed(1)}%`}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </section>
+
       {/* 집계된 숫자 말고 "언제" 발생했는지 하나하나 보고 싶을 때 쓰는
           상세 로그. 세 종류(목록 진입/상품 상세 진입/실제 예약)를 발생
           시간순으로 섞어서 최근 것부터 보여준다. 화면 밖으로 무한정
@@ -172,12 +226,14 @@ export default async function AnalyticsPage() {
 
       <p className="text-muted mt-3 text-xs">
         상품 목록 진입은 예약하기 첫 화면(상품을 고르는 화면)을 열 때마다,
-        상품 상세 진입(조회수)은 손님이 상품 상세 페이지를 열 때마다
+        상품 상세 진입(조회수)은 손님이 상품 상세 페이지를 열 때마다, 신청서
+        진입은 날짜·시간을 고르고 신청서 작성 화면까지 들어올 때마다
         기록됩니다(같은 사람이 여러 번 봐도 각각 셉니다). 실제 예약(신청수)은
-        실제로 접수된 예약 신청 건수입니다. 상세 로그는 최근 발생한 순으로
-        최대 100건까지 보여줍니다. &quot;통계 리셋&quot;을 누르면 위 숫자들은
-        그 시점부터 다시 집계되지만, 조회 기록 자체는 지워지지 않아 상세
-        로그에서는 리셋 이전 기록도 계속 보입니다.
+        실제로 접수된 예약 신청 건수입니다. 성윤님이 로그인한 채로 손님
+        화면을 둘러보신 경우는 통계에 섞이지 않습니다. 상세 로그는 최근
+        발생한 순으로 최대 100건까지 보여줍니다. &quot;통계 리셋&quot;을
+        누르면 위 숫자들은 그 시점부터 다시 집계되지만, 조회 기록 자체는
+        지워지지 않아 상세 로그에서는 리셋 이전 기록도 계속 보입니다.
       </p>
     </div>
   );

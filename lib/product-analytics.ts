@@ -21,9 +21,18 @@ export type ActivityLogEntry = {
   id: string;
   /** ISO 문자열. */
   occurredAt: string;
-  kind: "list_view" | "product_view" | "reservation" | "reset";
+  kind: "list_view" | "product_view" | "apply_view" | "reservation" | "reset";
   /** 목록 진입·리셋은 특정 상품이 없어 null. */
   productName: string | null;
+};
+
+/** 유입경로(ref)별 조회·신청 집계 한 줄. */
+export type ChannelBreakdownRow = {
+  /** ?ref= 값 그대로. 값이 없던 방문은 "(직접 방문)"으로 묶는다. */
+  channel: string;
+  views: number;
+  applications: number;
+  conversionRate: number | null;
 };
 
 export type ProductAnalytics = {
@@ -32,6 +41,12 @@ export type ProductAnalytics = {
   daily: DailyAnalyticsPoint[];
   /** 상품 목록(예약하기 첫 화면) 진입 수 — 마지막 리셋 이후(없으면 전체) 누적. */
   listViews: number;
+  /** 신청서 화면 진입 수 — 마지막 리셋 이후(없으면 전체) 누적. 상품 상세
+   * 진입과 실제 예약 사이의 이탈 지점(날짜·시간 선택 vs 신청서 작성)을
+   * 가른다. */
+  applyViews: number;
+  /** 유입경로(ref)별 조회·신청 집계. 조회수 내림차순. */
+  channelBreakdown: ChannelBreakdownRow[];
   /** 최근 발생 순(내림차순)으로 최근 ACTIVITY_LOG_LIMIT건. 리셋과 무관하게
    * 항상 전체 기록을 보여준다(리셋 시점 자체도 한 줄로 섞여 나온다). */
   recentActivity: ActivityLogEntry[];
@@ -95,12 +110,17 @@ export async function loadProductAnalytics(
   // 이후(없으면 전체 기간)" 누적을 다시 센다 — 표에는 이 누적 기준을
   // 보여주고, 동향 그래프만 최근 N일로 좁힌다. 목록 진입 수는 상품별로
   // 쪼갤 수 없는(특정 상품에 딸린 게 아닌) 숫자라 전체 개수만 센다.
-  let allViewRowsQuery = supabase.from("product_views").select("product_id");
+  let allViewRowsQuery = supabase
+    .from("product_views")
+    .select("product_id, ref");
   let allReservationRowsQuery = supabase
     .from("reservations")
-    .select("product_id");
+    .select("product_id, ref");
   let listViewCountQuery = supabase
     .from("booking_list_views")
+    .select("*", { count: "exact", head: true });
+  let applyViewCountQuery = supabase
+    .from("apply_views")
     .select("*", { count: "exact", head: true });
   if (resetAt) {
     allViewRowsQuery = allViewRowsQuery.gte("viewed_at", resetAt);
@@ -109,19 +129,23 @@ export async function loadProductAnalytics(
       resetAt,
     );
     listViewCountQuery = listViewCountQuery.gte("viewed_at", resetAt);
+    applyViewCountQuery = applyViewCountQuery.gte("viewed_at", resetAt);
   }
 
   const [
     { data: allViewRows },
     { data: allReservationRows },
     { count: listViewCount },
+    { count: applyViewCount },
     { data: recentListViews },
     { data: recentProductViews },
+    { data: recentApplyViews },
     { data: recentReservations },
   ] = await Promise.all([
     allViewRowsQuery,
     allReservationRowsQuery,
     listViewCountQuery,
+    applyViewCountQuery,
     supabase
       .from("booking_list_views")
       .select("id, viewed_at")
@@ -129,6 +153,11 @@ export async function loadProductAnalytics(
       .limit(ACTIVITY_LOG_LIMIT),
     supabase
       .from("product_views")
+      .select("id, viewed_at, product_id")
+      .order("viewed_at", { ascending: false })
+      .limit(ACTIVITY_LOG_LIMIT),
+    supabase
+      .from("apply_views")
       .select("id, viewed_at, product_id")
       .order("viewed_at", { ascending: false })
       .limit(ACTIVITY_LOG_LIMIT),
@@ -154,6 +183,38 @@ export async function loadProductAnalytics(
       (applicationCountByProduct.get(row.product_id) ?? 0) + 1,
     );
   }
+
+  // 채널(ref)별 조회·신청 집계 — 값이 없는 방문은 "(직접 방문)"으로
+  // 묶는다. 인스타그램/공지 링크 등 병렬로 돌리는 홍보 채널을 서로
+  // 비교하려는 목적이라, 상품별이 아니라 사이트 전체로 한 번만 센다.
+  const DIRECT_CHANNEL = "(직접 방문)";
+  const channelViews = new Map<string, number>();
+  for (const row of allViewRows ?? []) {
+    const channel = row.ref?.trim() || DIRECT_CHANNEL;
+    channelViews.set(channel, (channelViews.get(channel) ?? 0) + 1);
+  }
+  const channelApplications = new Map<string, number>();
+  for (const row of allReservationRows ?? []) {
+    const channel = row.ref?.trim() || DIRECT_CHANNEL;
+    channelApplications.set(
+      channel,
+      (channelApplications.get(channel) ?? 0) + 1,
+    );
+  }
+  const channelBreakdown: ChannelBreakdownRow[] = Array.from(
+    new Set([...channelViews.keys(), ...channelApplications.keys()]),
+  )
+    .map((channel) => {
+      const views = channelViews.get(channel) ?? 0;
+      const applications = channelApplications.get(channel) ?? 0;
+      return {
+        channel,
+        views,
+        applications,
+        conversionRate: views > 0 ? (applications / views) * 100 : null,
+      };
+    })
+    .sort((a, b) => b.views - a.views);
 
   const rows: ProductAnalyticsRow[] = (products ?? []).map((p) => {
     const views = viewCountByProduct.get(p.id) ?? 0;
@@ -204,6 +265,12 @@ export async function loadProductAnalytics(
       kind: "product_view" as const,
       productName: productNameById.get(row.product_id) ?? null,
     })),
+    ...(recentApplyViews ?? []).map((row) => ({
+      id: row.id,
+      occurredAt: row.viewed_at,
+      kind: "apply_view" as const,
+      productName: productNameById.get(row.product_id) ?? null,
+    })),
     ...(recentReservations ?? []).map((row) => ({
       id: row.id,
       occurredAt: row.created_at,
@@ -227,5 +294,12 @@ export async function loadProductAnalytics(
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     .slice(0, ACTIVITY_LOG_LIMIT);
 
-  return { rows, daily, listViews: listViewCount ?? 0, recentActivity };
+  return {
+    rows,
+    daily,
+    listViews: listViewCount ?? 0,
+    applyViews: applyViewCount ?? 0,
+    channelBreakdown,
+    recentActivity,
+  };
 }

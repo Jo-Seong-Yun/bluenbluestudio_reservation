@@ -62,6 +62,8 @@ export interface Database {
         Row: {
           id: string;
           product_id: string;
+          /** 링크에 붙어온 ?ref=... 값(유입경로). 없으면 null. */
+          ref: string | null;
           viewed_at: string;
         };
         Insert: Partial<
@@ -75,6 +77,7 @@ export interface Database {
       booking_list_views: {
         Row: {
           id: string;
+          ref: string | null;
           viewed_at: string;
         };
         Insert: Partial<
@@ -83,6 +86,21 @@ export interface Database {
         Update: Partial<
           Database["public"]["Tables"]["booking_list_views"]["Row"]
         >;
+        Relationships: [];
+      };
+      apply_views: {
+        Row: {
+          id: string;
+          product_id: string;
+          ref: string | null;
+          viewed_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["apply_views"]["Row"]
+        > & {
+          product_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["apply_views"]["Row"]>;
         Relationships: [];
       };
       weekly_hours: {
@@ -165,6 +183,8 @@ export interface Database {
           confirmed_candidate_rank: number | null;
           /** 구글 캘린더에 만든 이벤트 id. 동기화된 적 없으면 null. */
           google_calendar_event_id: string | null;
+          /** 신청 시점에 링크에 붙어 있던 ?ref=... 값(유입경로). */
+          ref: string | null;
           created_at: string;
           updated_at: string;
         };

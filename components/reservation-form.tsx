@@ -16,6 +16,7 @@ import {
   selectedPricedOptions,
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
+import { readRefCookie } from "@/lib/booking/ref-cookie";
 
 /**
  * 손님용 신청서는 관리자 화면보다 훨씬 큰 글자로 보여준다 — 문항을
@@ -113,6 +114,18 @@ export function ReservationForm({
   const [pricedItems, setPricedItems] = useState<
     { fieldId: string; label: string; price: number }[]
   >([]);
+
+  // 신청서에 들어오기 전에 상품 목록/상세를 거치며 쿠키에 저장된
+  // 유입경로 값 — 조회 기록과 같은 값으로 맞춰야 채널별 전환율을 비교할
+  // 수 있다(lib/booking/ref-cookie.ts). 서버 렌더 시점엔 쿠키를 읽을 수
+  // 없으니, state 대신 ref로 마운트 후 DOM에 직접 채워 넣는다 — 리렌더도
+  // 없고 하이드레이션 시점의 서버/클라이언트 값 불일치도 없다.
+  const refInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (refInputRef.current) {
+      refInputRef.current.value = readRefCookie() ?? "";
+    }
+  }, []);
 
   // 체크박스/라디오를 전부 controlled로 바꾸는 건 이 화면 전체를 다시
   // 짜는 큰 변경이라, 대신 변경이 있을 때마다 DOM에서 지금 체크된 값을
@@ -219,6 +232,7 @@ export function ReservationForm({
             <input type="hidden" name="candidateTime" value={c.time} />
           </div>
         ))}
+        <input type="hidden" name="ref" ref={refInputRef} defaultValue="" />
 
         <div className="space-y-3">
           {customFields.map((field) => (

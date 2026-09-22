@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { logProductView } from "@/lib/booking/actions";
+import { captureRefFromUrl, readRefCookie } from "@/lib/booking/ref-cookie";
 
 /**
  * 화면에 보이는 게 없는 순수 기록용 컴포넌트. 이 화면이 마운트되는
@@ -16,7 +17,8 @@ export function ProductViewTracker({ productId }: { productId: string }) {
   useEffect(() => {
     if (logged.current) return;
     logged.current = true;
-    void logProductView(productId);
+    captureRefFromUrl();
+    void logProductView(productId, readRefCookie());
   }, [productId]);
 
   return null;

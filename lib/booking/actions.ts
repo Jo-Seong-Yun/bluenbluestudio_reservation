@@ -93,6 +93,10 @@ export async function createReservation(
     date,
     time: rawTimes[i] ?? "",
   }));
+  // 신청서를 여는 동안 lib/booking/ref-cookie.ts가 쿠키로 들고 다닌
+  // 유입경로 값 — 조회 기록(product_views 등)과 같은 값이어야 "조회만
+  // vs 실제 전환"을 채널별로 비교할 수 있다.
+  const ref = String(formData.get("ref") ?? "").trim().slice(0, 50) || null;
 
   const parsed = reservationSchema.safeParse({ candidates });
 
@@ -183,7 +187,7 @@ export async function createReservation(
 
       await supabase
         .from("reservations")
-        .update({ estimated_amount: estimatedAmount })
+        .update({ estimated_amount: estimatedAmount, ref })
         .eq("id", reservationId);
 
       const reservationNotice = {
@@ -447,6 +451,27 @@ export async function lookupReservationsByPhone(
 }
 
 /**
+ * 손님 조회 기록(product_views/booking_list_views/apply_views) 셋 다
+ * 관리자 본인이 로그인한 채로 손님 화면을 둘러볼 때는 안 남긴다 —
+ * 사장님이 직접 화면을 확인하거나 새로고침한 것까지 손님 통계에
+ * 섞이면 조회수·전환율이 실제보다 부풀려진다. 이 사이트는 "로그인한
+ * 사용자 = 관리자"뿐이라 세션 유무만 보면 된다.
+ */
+async function isAdminVisitor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<boolean> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user !== null;
+}
+
+function normalizeRef(ref: string | null | undefined): string | null {
+  const trimmed = ref?.trim();
+  return trimmed ? trimmed.slice(0, 50) : null;
+}
+
+/**
  * 상품별 "링크 진입 횟수" 통계용 조회 기록. 상품 상세 페이지가 서버에서
  * 렌더링될 때가 아니라, 그 화면이 브라우저에 실제로 뜬 시점에(클라이언트
  * 컴포넌트가 마운트될 때) 호출한다 — 이 라우트는 동적 렌더링 대상인데,
@@ -456,13 +481,16 @@ export async function lookupReservationsByPhone(
  * 있다. 서버 컴포넌트 쪽에서 기록하면 이런 타이밍에 따라 언제 찍히는지
  * (또는 찍히긴 하는지) 애매해지므로, 상품 목록에서 클릭해 들어오든 공유된
  * 링크로 바로 들어오든 상관없이 "화면이 실제로 떴다"는 확실한 신호인
- * 마운트 시점에 클라이언트에서 직접 부른다.
+ * 마운트 시점에 클라이언트에서 직접 부른다. ref는 손님이 들어온 링크의
+ * ?ref=... 값(유입경로) — lib/booking/ref-cookie.ts가 쿠키로 들고 다닌다.
  */
-export async function logProductView(productId: string) {
+export async function logProductView(productId: string, ref?: string | null) {
   const supabase = await createClient();
+  if (await isAdminVisitor(supabase)) return;
+
   const { error } = await supabase
     .from("product_views")
-    .insert({ product_id: productId });
+    .insert({ product_id: productId, ref: normalizeRef(ref) });
   // 손님 화면에는 절대 영향을 주면 안 되니 던지지 않는다 — 대신 서버
   // 로그에는 남겨서, 마이그레이션 누락 같은 문제가 생기면(테이블이나
   // RLS 정책이 없어 계속 조용히 실패하면) 눈치챌 수 있게 한다.
@@ -470,12 +498,34 @@ export async function logProductView(productId: string) {
 }
 
 /**
- * "상품 목록 진입 수 → 상품 상세 진입 수 → 실제 예약 수" 퍼널의 첫 단계용
- * 기록. logProductView와 같은 이유로(로딩 경계 때문에 서버 렌더링 시점이
- * 애매하다) 목록 화면이 브라우저에 실제로 뜬 시점에 클라이언트에서 부른다.
+ * "상품 목록 진입 수 → 상품 상세 진입 수 → 신청서 진입 수 → 실제 예약 수"
+ * 퍼널의 첫 단계용 기록. logProductView와 같은 이유로(로딩 경계 때문에
+ * 서버 렌더링 시점이 애매하다) 목록 화면이 브라우저에 실제로 뜬 시점에
+ * 클라이언트에서 부른다.
  */
-export async function logBookingListView() {
+export async function logBookingListView(ref?: string | null) {
   const supabase = await createClient();
-  const { error } = await supabase.from("booking_list_views").insert({});
+  if (await isAdminVisitor(supabase)) return;
+
+  const { error } = await supabase
+    .from("booking_list_views")
+    .insert({ ref: normalizeRef(ref) });
   if (error) console.error("상품 목록 조회 기록 실패:", error.message);
+}
+
+/**
+ * 퍼널의 세 번째 단계("신청서 진입") 기록. 손님이 희망 시간 3개를
+ * 골라 신청서 작성 화면(/booking/[slug]/apply)까지 왔다는 뜻이라,
+ * 상품 상세와 이 시점 사이에서 이탈했으면 "날짜·시간 선택 단계
+ * 이탈"로, 이 시점과 실제 예약 사이에서 이탈했으면 "신청서 작성 단계
+ * 이탈"로 구분해서 볼 수 있다.
+ */
+export async function logApplyView(productId: string, ref?: string | null) {
+  const supabase = await createClient();
+  if (await isAdminVisitor(supabase)) return;
+
+  const { error } = await supabase
+    .from("apply_views")
+    .insert({ product_id: productId, ref: normalizeRef(ref) });
+  if (error) console.error("신청서 진입 기록 실패:", error.message);
 }
