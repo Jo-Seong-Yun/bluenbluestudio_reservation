@@ -8,6 +8,7 @@ import { kstToday, diffDays, type DateString } from "@/lib/time";
 import { ReservationForm } from "@/components/reservation-form";
 import { loadActiveCustomFields } from "@/lib/booking/custom-fields";
 import { Button } from "@/components/ui";
+import { ApplyViewTracker } from "./apply-view-tracker";
 
 export const metadata: Metadata = { title: "신청 내용 작성" };
 
@@ -140,6 +141,8 @@ export default async function ApplyPage({
 
   return (
     <main className="mx-auto w-full max-w-xl px-6 py-12">
+      <ApplyViewTracker productId={product.id} />
+
       <ReservationForm
         productId={product.id}
         productName={product.name}
