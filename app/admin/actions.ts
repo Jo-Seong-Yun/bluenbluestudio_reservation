@@ -760,6 +760,44 @@ export async function saveAdminMemo(formData: FormData) {
   after(() => syncReservationToSheet(id));
 }
 
+// 통계 화면 "상세 로그"의 각 기록(목록 진입/상품 상세 진입/신청서
+// 진입/실제 예약)에 메모를 남기는 폼이 공통으로 쓴다. 종류에 따라
+// 실제 행이 있는 테이블이 다르므로(예약은 admin_memo, 나머지 셋은 새로
+// 추가한 memo 컬럼) kind로 분기한다. "reset" 줄은 실제 행이 아니라
+// 애초에 이 액션을 호출하는 폼 자체가 없다.
+const ACTIVITY_MEMO_TABLE = {
+  list_view: "booking_list_views",
+  product_view: "product_views",
+  apply_view: "apply_views",
+} as const;
+
+export async function saveActivityMemo(formData: FormData) {
+  await requireAdmin();
+
+  const kind = String(formData.get("kind") ?? "");
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const memo = String(formData.get("memo") ?? "").trim();
+
+  const supabase = await createClient();
+
+  if (kind === "reservation") {
+    await supabase
+      .from("reservations")
+      .update({ admin_memo: memo || null })
+      .eq("id", id);
+  } else if (kind in ACTIVITY_MEMO_TABLE) {
+    await supabase
+      .from(ACTIVITY_MEMO_TABLE[kind as keyof typeof ACTIVITY_MEMO_TABLE])
+      .update({ memo: memo || null })
+      .eq("id", id);
+  } else {
+    return;
+  }
+
+  revalidatePath("/admin/analytics");
+}
+
 /**
  * 예약 한 건의 촬영 원가(대관료, 소품, 외주 등). 매출 관리 화면의
  * 순이익 계산에 쓴다. 빈 값으로 저장하면 null(=원가 없음)로 되돌아간다
