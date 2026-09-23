@@ -150,7 +150,8 @@ export function RuleModal({
 
       <dialog
         ref={dialogRef}
-        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-5xl rounded-xl border p-0 backdrop:bg-black/50"
+        className="border-border bg-surface text-foreground rounded-xl border p-0 backdrop:bg-black/50"
+        style={{ width: "calc(100% - 2rem)", maxWidth: "64rem" }}
       >
         <div className="flex items-center justify-between border-b border-inherit px-5 py-4">
           <p className="font-bold">{isEdit ? "규칙 수정" : "규칙 추가"}</p>
@@ -167,10 +168,10 @@ export function RuleModal({
         <form
           key={epoch}
           action={action}
-          className="flex h-[82vh]"
+          style={{ display: "flex", height: "82vh", overflow: "hidden" }}
         >
           {/* 좌측: 편집 영역 */}
-          <div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-5">
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflowY: "auto", padding: "1.25rem" }}>
             <div className="space-y-4">
               {isEdit && rule ? (
                 <input type="hidden" name="id" value={rule.id} />
@@ -352,7 +353,7 @@ export function RuleModal({
             </div>
 
             {/* 하단 버튼은 스크롤 영역 맨 아래에 고정 */}
-            <div className="mt-auto pt-6">
+            <div style={{ marginTop: "auto", paddingTop: "1.5rem" }}>
               <ErrorText>{state?.error ?? null}</ErrorText>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="ghost" onClick={close}>
@@ -366,7 +367,7 @@ export function RuleModal({
           </div>
 
           {/* 우측: 미리보기 영역 */}
-          <div className="border-border flex w-[400px] shrink-0 flex-col overflow-y-auto border-l p-5">
+          <div className="border-border" style={{ width: "400px", flexShrink: 0, display: "flex", flexDirection: "column", overflowY: "auto", borderLeftWidth: "1px", padding: "1.25rem" }}>
             <p className="text-muted mb-2 text-xs font-medium">
               미리보기 — 실제 발송되는 모습 그대로 ({"{{계좌}}"}/{"{{공지}}"}는
               설정값, 나머지는 예시 값)
@@ -381,7 +382,8 @@ export function RuleModal({
                 띄워, 손님이 받는 메일과 100% 같은 모습을 보여준다. */}
             <iframe
               title="메일 미리보기"
-              className="border-border min-h-0 flex-1 rounded-md border bg-white"
+              className="border-border rounded-md border bg-white"
+              style={{ flex: 1, minHeight: 0 }}
               srcDoc={finalizeEmailHtml(renderEmailHtml(body, previewValues), {
                 ctaText: ctaEnabled ? ctaText : null,
                 ctaUrl: ctaEnabled ? ctaUrl : null,
