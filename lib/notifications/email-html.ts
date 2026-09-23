@@ -59,9 +59,22 @@ export function renderEmailHtml(
  * 않게 한다. 메일 앱은 사이트 CSS를 못 쓰니 필요한 서식은 인라인으로 준다.
  */
 export function finalizeEmailHtml(html: string): string {
+  // 메일 앱은 사이트 CSS(class)를 못 쓰니 표·인용 같은 블록 서식은
+  // 인라인 style로 직접 준다. 편집기·손님 화면은 class로 처리한다.
   const safe = sanitizeDescriptionHtml(html)
     .replace(/<p([^>]*)><\/p>/g, "<p$1><br></p>")
-    .replace(/<img /g, '<img style="max-width:100%;height:auto" ');
+    .replace(/<img /g, '<img style="max-width:100%;height:auto" ')
+    .replace(/<table/g, '<table style="border-collapse:collapse;margin:12px 0"')
+    // style이 없는 셀에만 테두리를 넣는다(정렬 등 style이 이미 있는 셀은
+    // 속성이 겹치지 않게 그대로 둔다).
+    .replace(
+      /<(td|th)((?:(?!style=)[^>])*?)>/g,
+      '<$1$2 style="border:1px solid #d1d5db;padding:6px 8px">',
+    )
+    .replace(
+      /<blockquote/g,
+      '<blockquote style="border-left:3px solid #d1d5db;margin:8px 0;padding-left:12px;color:#555"',
+    );
   return (
     '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;' +
     'font-size:15px;line-height:1.6;color:#111">' +

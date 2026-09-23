@@ -21,8 +21,16 @@ import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 const proseClass =
   "[&_a]:text-brand space-y-3 leading-relaxed break-words [&_a]:underline " +
   "[&_h2]:mt-6 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:mt-4 [&_h3]:font-bold " +
-  "[&_li]:ml-5 [&_li]:list-disc [&_strong]:font-bold [&_img]:my-3 " +
-  "[&_img]:max-w-full [&_img]:rounded-lg [&_p:empty]:min-h-[1em]";
+  "[&_li]:ml-5 [&_li]:list-disc [&_ol]:list-decimal [&_ol_li]:list-decimal " +
+  "[&_strong]:font-bold [&_u]:underline [&_s]:line-through [&_img]:my-3 " +
+  "[&_img]:max-w-full [&_img]:rounded-lg [&_p:empty]:min-h-[1em] " +
+  "[&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted " +
+  "[&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:ml-0 [&_ul[data-type=taskList]]:space-y-1 " +
+  "[&_ul[data-type=taskList]_li]:flex [&_ul[data-type=taskList]_li]:list-none " +
+  "[&_ul[data-type=taskList]_li]:ml-0 [&_ul[data-type=taskList]_li]:gap-2 " +
+  "[&_table]:border-collapse [&_table]:my-3 " +
+  "[&_td]:border [&_td]:border-border [&_td]:p-2 [&_td]:align-top " +
+  "[&_th]:border [&_th]:border-border [&_th]:bg-surface-subtle [&_th]:p-2";
 
 /**
  * 상품 설명 렌더링. 관리자 미리보기 없이 위지윅으로 편집하니, 에디터가
