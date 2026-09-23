@@ -108,23 +108,34 @@ export default async function AnalyticsPage() {
 
       <section className="border-border bg-surface mt-6 rounded-xl border p-4">
         <h2 className="mb-4 font-bold">시간대별 접속자 수 (KST)</h2>
-        <div className="flex h-32 items-end gap-px overflow-x-auto">
+        {/* x축 기준선은 border-bottom으로 표시 — gap-px로 24칸 균등 분할 */}
+        <div className="border-border flex h-24 items-end gap-px border-b overflow-x-auto">
           {hourly.map((h) => (
             <div
               key={h.hour}
-              className="flex min-w-[calc((100%-23px)/24)] flex-1 flex-col items-center gap-1"
+              className="flex min-w-[calc((100%-23px)/24)] flex-1 items-end justify-center h-full"
             >
-              <div className="flex h-24 w-full items-end justify-center">
-                <div
-                  className="bg-brand w-full rounded-t opacity-80"
-                  style={{ height: `${(h.views / maxHourly) * 100}%`, minHeight: h.views > 0 ? "2px" : undefined }}
-                  title={`${h.hour}시 ${h.views}건`}
-                />
-              </div>
-              <span className="text-muted text-[9px]">
-                {h.hour % 3 === 0 ? `${h.hour}시` : ""}
-              </span>
+              <div
+                className={`w-full rounded-t transition-opacity hover:opacity-100 ${h.views === 0 ? "bg-brand/20" : "bg-brand opacity-80"}`}
+                style={{
+                  height: h.views === 0
+                    ? "1px"
+                    : `${Math.max(3, (h.views / maxHourly) * 100)}%`,
+                }}
+                title={`${h.hour}시 ${h.views}건`}
+              />
             </div>
+          ))}
+        </div>
+        {/* 레이블 행: 막대 행과 분리해 클리핑 없이 표시 */}
+        <div className="flex gap-px mt-1">
+          {hourly.map((h) => (
+            <span
+              key={h.hour}
+              className="text-muted flex-1 min-w-0 text-center text-[9px]"
+            >
+              {h.hour % 3 === 0 ? `${h.hour}시` : ""}
+            </span>
           ))}
         </div>
       </section>
