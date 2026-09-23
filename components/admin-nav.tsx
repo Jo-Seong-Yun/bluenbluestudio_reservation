@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/admin/analytics", label: "통계" },
   { href: "/admin/schedule", label: "스케줄관리" },
   { href: "/admin/design", label: "디자인" },
+  { href: "/admin/emails", label: "이메일" },
   { href: "/admin/settings", label: "설정" },
 ] as const;
 

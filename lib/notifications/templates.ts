@@ -48,10 +48,6 @@ type ReservationRequestInfo = {
   code: string;
 };
 
-export function customerRequestedSubject(): string {
-  return `[${SITE.name}] 예약 신청이 접수되었습니다`;
-}
-
 export function customerRequestedText(info: ReservationRequestInfo): string {
   return (
     `[${SITE.name}] ${info.productName} 예약 신청이 접수되었습니다. ` +
@@ -60,57 +56,12 @@ export function customerRequestedText(info: ReservationRequestInfo): string {
   );
 }
 
-type ReservationRequestedEmailInfo = ReservationRequestInfo & {
-  bankAccount?: string | null;
-  notice?: string | null;
-};
-
-/**
- * 손님용 "예약 접수" 이메일 본문. SMS는 글자 수 제한 때문에 짧게 줄이지만,
- * 이메일은 예약완료 화면과 같은 수준으로 입금 계좌·안내사항까지 담는다.
- */
-export function customerRequestedEmailText(
-  info: ReservationRequestedEmailInfo,
-): string {
-  const lines = [
-    `${info.productName} 예약 신청이 접수되었습니다.`,
-    "",
-    "희망 시간(이 중 하나로 확정됩니다):",
-    ...info.candidateTimes.map(
-      (time, i) => `  ${i + 1}지망: ${formatShootTime(time)}`,
-    ),
-    "",
-    `예약번호: ${info.code}`,
-    "",
-    "예약 내역은 입력하신 연락처로 조회할 수 있으며, 신청하신 희망 시간 중 " +
-      "하나로 확정해드리면 아래 계좌로 예약금을 입금해 주세요.",
-  ];
-
-  if (info.bankAccount) {
-    lines.push("", `입금 계좌: ${info.bankAccount}`);
-  }
-
-  if (info.notice) {
-    lines.push("", info.notice);
-  }
-
-  return lines.join("\n");
-}
-
-export function customerConfirmedSubject(): string {
-  return `[${SITE.name}] 예약이 확정되었습니다`;
-}
-
 export function customerConfirmedText(info: ReservationInfo): string {
   return (
     `[${SITE.name}] 예약이 확정되었습니다. ` +
     `${formatShootTime(info.shootStart)}, 예약번호 ${info.code}. ` +
     `촬영 전날 다시 안내드리겠습니다.`
   );
-}
-
-export function customerCancelledSubject(): string {
-  return `[${SITE.name}] 예약이 취소되었습니다`;
 }
 
 type ReservationCancelledInfo = {
@@ -135,10 +86,6 @@ type ReservationRescheduledInfo = {
 };
 
 /** 관리자가 확정된 예약의 일정을 직접 바꿨을 때 손님에게 보내는 안내. */
-export function customerRescheduledSubject(): string {
-  return `[${SITE.name}] 예약 일정이 변경되었습니다`;
-}
-
 export function customerRescheduledText(
   info: ReservationRescheduledInfo,
 ): string {
@@ -147,10 +94,6 @@ export function customerRescheduledText(
     `기존 ${formatShootTime(info.oldShootStart)} → 변경 ${formatShootTime(info.newShootStart)}, ` +
     `예약번호 ${info.code}.`
   );
-}
-
-export function customerReminderSubject(): string {
-  return `[${SITE.name}] 내일 촬영 예약 안내`;
 }
 
 export function customerReminderText(info: ReservationInfo): string {
@@ -165,10 +108,6 @@ type AdminNewRequestInfo = ReservationRequestInfo & {
   customerName: string;
   customerPhone: string;
 };
-
-export function adminNewRequestSubject(): string {
-  return `[${SITE.name}] 새 예약 신청이 들어왔습니다`;
-}
 
 export function adminNewRequestText(info: AdminNewRequestInfo): string {
   return (
@@ -260,64 +199,42 @@ export function adminNewRequestKakaoVariables(
 }
 
 /**
- * 관리자가 /admin/settings에서 직접 고칠 수 있는 이메일 문구용 변수맵.
- * {{변수명}} 자리표시자(lib/notifications/email-templates-shared.ts의
- * renderEmailTemplate)를 채우는 데 쓴다 — 카카오 변수(#{...})와 이름
- * 형식이 겹치지 않게 다른 접두사를 쓴다.
+ * 이메일 규칙(email_rules)의 {{변수명}} 자리표시자를 채우는 공용
+ * 변수맵. 예전엔 목적(접수/확정/…)마다 변수맵 함수가 따로 있었지만,
+ * 이제는 어느 트리거의 규칙에든 같은 변수를 자유롭게 쓸 수 있어야
+ * 해서 하나로 통합했다 — 호출하는 쪽이 그 시점에 실제로 아는 값만
+ * 채워 넘기고, 나머지는 자동으로 빈 문자열이 된다(카카오 변수
+ * #{...}와 이름 형식이 겹치지 않게 접두사 없이 그대로 쓴다).
  */
-export function customerRequestedEmailVariables(
-  info: ReservationRequestedEmailInfo & { customerName: string },
-): Record<string, string> {
-  return {
-    이름: info.customerName,
-    상품명: info.productName,
-    후보목록: formatCandidateListMultiline(info.candidateTimes),
-    예약번호: info.code,
-    계좌: info.bankAccount ?? "",
-    공지: info.notice ?? "",
-  };
-}
-
-/** 확정/취소/리마인드 셋 다 "손님 이름 + 상품 + 시간 하나 + 예약번호" 형태라 공용으로 쓴다. */
-export function reservationEmailVariables(info: {
-  customerName: string;
-  productName: string;
-  /** 확정 전(후보만 낸 상태)에 취소됐으면 null. */
-  shootStart: Date | null;
-  code: string;
-  /** 관리자가 예약 상세에서 입력한 촬영 장소. 리마인드 메일에서만 쓰지만,
-   * 안 넘겨도 그냥 빈 문자열이라 셋 다 공용으로 둬도 안전하다. */
+export function buildEmailVariables(info: {
+  customerName?: string;
+  customerPhone?: string;
+  productName?: string;
+  /** 확정 전(후보만 낸 상태)이거나 아직 없으면 null/undefined. */
+  shootStart?: Date | null;
+  /** 관리자가 예약 상세에서 입력한 촬영 장소. */
   shootLocation?: string | null;
+  code?: string;
+  bankAccount?: string | null;
+  notice?: string | null;
+  candidateTimes?: Date[];
+  oldShootStart?: Date;
+  newShootStart?: Date;
 }): Record<string, string> {
   return {
-    이름: info.customerName,
-    상품명: info.productName,
+    이름: info.customerName ?? "",
+    연락처: info.customerPhone ?? "",
+    상품명: info.productName ?? "",
     일시: info.shootStart ? formatShootTime(info.shootStart) : "",
-    예약번호: info.code,
     촬영장소: info.shootLocation ?? "",
-  };
-}
-
-export function customerRescheduledEmailVariables(
-  info: ReservationRescheduledInfo & { customerName: string },
-): Record<string, string> {
-  return {
-    이름: info.customerName,
-    상품명: info.productName,
-    기존일시: formatShootTime(info.oldShootStart),
-    변경일시: formatShootTime(info.newShootStart),
-    예약번호: info.code,
-  };
-}
-
-export function adminNewRequestEmailVariables(
-  info: AdminNewRequestInfo,
-): Record<string, string> {
-  return {
-    이름: info.customerName,
-    연락처: info.customerPhone,
-    상품명: info.productName,
-    후보목록: formatCandidateListMultiline(info.candidateTimes),
-    예약번호: info.code,
+    예약번호: info.code ?? "",
+    계좌: info.bankAccount ?? "",
+    공지: info.notice ?? "",
+    후보목록:
+      info.candidateTimes && info.candidateTimes.length > 0
+        ? formatCandidateListMultiline(info.candidateTimes)
+        : "",
+    기존일시: info.oldShootStart ? formatShootTime(info.oldShootStart) : "",
+    변경일시: info.newShootStart ? formatShootTime(info.newShootStart) : "",
   };
 }

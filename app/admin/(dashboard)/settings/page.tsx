@@ -1,46 +1,29 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { SettingsForm } from "./settings-form";
-import { EmailTemplatesSection } from "./email-templates-section";
 import { GoogleSheetsBackfillSection } from "./google-sheets-backfill-section";
 import { GoogleCalendarBackfillSection } from "./google-calendar-backfill-section";
 import { RecordSheetTemplateSection } from "./record-sheet-template-section";
-import {
-  DEFAULT_EMAIL_TEMPLATES,
-  EMAIL_TEMPLATE_PURPOSES,
-  type EmailTemplate,
-  type EmailTemplatePurpose,
-} from "@/lib/notifications/email-templates-shared";
 import { getRecordSheetTemplateRows } from "@/lib/record-sheet/template-store";
 import { getPricedOptionLabels } from "@/app/admin/actions";
 
 export const metadata: Metadata = { title: "예약 설정" };
-// 새로 추가한 이메일 문구 섹션이 캐시된 옛 페이지 때문에 안 보이는 일이
-// 없게, 이 페이지는 항상 요청마다 새로 렌더링한다.
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const [
-    { data: settings },
-    { data: emailTemplateRows },
-    recordSheetRows,
-    pricedOptionLabels,
-  ] = await Promise.all([
-    supabase
-      .from("settings")
-      .select(
-        "slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, reservation_success_heading, reservation_success_message, admin_notify_phone, admin_notify_email, show_product_thumbnails",
-      )
-      .eq("id", 1)
-      .single(),
-    supabase
-      .from("email_templates")
-      .select("purpose, subject, body")
-      .in("purpose", EMAIL_TEMPLATE_PURPOSES),
-    getRecordSheetTemplateRows(),
-    getPricedOptionLabels(),
-  ]);
+  const [{ data: settings }, recordSheetRows, pricedOptionLabels] =
+    await Promise.all([
+      supabase
+        .from("settings")
+        .select(
+          "slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, reservation_success_heading, reservation_success_message, admin_notify_phone, admin_notify_email, show_product_thumbnails",
+        )
+        .eq("id", 1)
+        .single(),
+      getRecordSheetTemplateRows(),
+      getPricedOptionLabels(),
+    ]);
 
   if (!settings) {
     return (
@@ -48,18 +31,6 @@ export default async function SettingsPage() {
         설정 행을 찾을 수 없습니다. 마이그레이션이 제대로 적용되었는지 확인해 주시기 바랍니다.
       </p>
     );
-  }
-
-  // DB에 아직 행이 없는 목적(마이그레이션 직후 등)은 하드코딩된 기본
-  // 문구로 채워, 화면에서는 5개 목적이 항상 다 보이게 한다.
-  const emailTemplates: Record<EmailTemplatePurpose, EmailTemplate> = {
-    ...DEFAULT_EMAIL_TEMPLATES,
-  };
-  for (const row of emailTemplateRows ?? []) {
-    emailTemplates[row.purpose as EmailTemplatePurpose] = {
-      subject: row.subject,
-      body: row.body,
-    };
   }
 
   return (
@@ -80,10 +51,6 @@ export default async function SettingsPage() {
           showProductThumbnails: settings.show_product_thumbnails,
         }}
       />
-
-      <div className="mt-10 max-w-xl">
-        <EmailTemplatesSection initial={emailTemplates} />
-      </div>
 
       <div className="mt-10 max-w-xl">
         <RecordSheetTemplateSection

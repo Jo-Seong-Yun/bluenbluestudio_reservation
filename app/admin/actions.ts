@@ -34,9 +34,13 @@ import {
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
 import {
-  EMAIL_TEMPLATE_PURPOSES,
-  type EmailTemplatePurpose,
-} from "@/lib/notifications/email-templates-shared";
+  DAY_OFFSET_TRIGGER_TYPES,
+  EMAIL_RECIPIENTS,
+  EMAIL_TRIGGER_TYPES,
+  type EmailRecipient,
+  type EmailTriggerType,
+} from "@/lib/notifications/email-rules-shared";
+import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
 import {
   parseRecordSheetRows,
   type RecordSheetRow,
@@ -616,6 +620,7 @@ export async function updateReservationStatus(formData: FormData) {
 
     const base = {
       reservationId: id,
+      productId: reservation.product_id,
       customerName: reservation.customer_name,
       customerPhone: reservation.customer_phone,
       customerEmail: reservation.customer_email,
@@ -629,19 +634,22 @@ export async function updateReservationStatus(formData: FormData) {
     //
     // confirmed 경로는 위에서 이미 "후보 있는 예약이면 여기 안 옴"을
     // 보장했으므로 shoot_start가 항상 있다(레거시 예약만 도달).
-    after(() =>
-      status === "confirmed"
+    after(async () => {
+      const adminEmail = await getAdminNotifyEmail();
+      return status === "confirmed"
         ? notifyCustomerConfirmed({
             ...base,
+            adminEmail,
             shootStart: new Date(reservation.shoot_start!),
           })
         : notifyCustomerCancelled({
             ...base,
+            adminEmail,
             shootStart: reservation.shoot_start
               ? new Date(reservation.shoot_start)
               : null,
-          }),
-    );
+          });
+    });
   }
 }
 
@@ -725,12 +733,15 @@ export async function confirmReservationCandidate(
       birthDate: reservation.birth_date,
       email: reservation.customer_email,
     });
+    const adminEmail = await getAdminNotifyEmail();
     await Promise.all([
       notifyCustomerConfirmed({
         reservationId: id,
+        productId: reservation.product_id,
         customerName: reservation.customer_name,
         customerPhone: reservation.customer_phone,
         customerEmail: reservation.customer_email,
+        adminEmail,
         productName: product?.name ?? "촬영",
         shootStart: new Date(candidate.shoot_start),
         code: reservation.code,
@@ -1275,11 +1286,14 @@ export async function createManualReservation(
           birthDate: extraBirthDate,
           email: extraEmail,
         });
+        const adminEmail = await getAdminNotifyEmail();
         await Promise.all([
           notifyCustomerConfirmed({
             reservationId,
+            productId: input.productId,
             customerName: input.customerName,
             customerPhone: input.customerPhone,
+            adminEmail,
             productName: product.name,
             shootStart,
             code,
@@ -1410,12 +1424,15 @@ export async function rescheduleReservation(
       birthDate: reservation.birth_date,
       email: reservation.customer_email,
     });
+    const adminEmail = await getAdminNotifyEmail();
     await Promise.all([
       notifyCustomerRescheduled({
         reservationId: input.id,
+        productId: reservation.product_id,
         customerName: reservation.customer_name,
         customerPhone: reservation.customer_phone,
         customerEmail: reservation.customer_email,
+        adminEmail,
         productName: product.name,
         oldShootStart,
         newShootStart,
@@ -1592,47 +1609,104 @@ export async function saveBookingStyle(
   return { success: true };
 }
 
+export type EmailRuleActionState = { error?: string; success?: boolean } | null;
+
 /**
- * 이메일 문구(제목/본문) 저장. 5개 목적(customer_requested 등) 중
- * 하나씩 고친다 — 화면(email-templates-section.tsx)이 한 번에 한
- * 템플릿만 보여주고 저장하는 구조라 이 액션도 한 건씩 받는다.
+ * 이메일 규칙 추가/수정. id가 없으면 새로 만들고, 있으면 그 규칙을
+ * 통째로 덮어쓴다 — 화면(emails/email-rules-section.tsx)이 규칙 하나를
+ * 통째로 편집하는 구조라 이 액션도 한 건씩 받는다.
  *
  * 본문 안의 {{변수명}}은 검증하지 않는다 — 모르는 변수를 써도 발송
- * 시점에 그대로 남을 뿐(lib/notifications/email-templates-shared.ts의
+ * 시점에 그대로 남을 뿐(lib/notifications/email-rules-shared.ts의
  * renderEmailTemplate), 저장 자체를 막을 이유가 없다. 오타를 미리
  * 걸러주기보다는 화면에 "사용 가능한 변수" 목록을 보여주는 쪽을 택했다.
  */
-export async function saveEmailTemplate(
-  _prev: SettingsActionState,
+export async function saveEmailRule(
+  _prev: EmailRuleActionState,
   formData: FormData,
-): Promise<SettingsActionState> {
+): Promise<EmailRuleActionState> {
   await requireAdmin();
 
-  const purpose = String(formData.get("purpose") ?? "");
-  if (!EMAIL_TEMPLATE_PURPOSES.includes(purpose as EmailTemplatePurpose)) {
-    return { error: "잘못된 요청입니다." };
-  }
-
+  const id = String(formData.get("id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const recipient = String(formData.get("recipient") ?? "");
+  const triggerType = String(formData.get("triggerType") ?? "");
+  const dayOffsetRaw = String(formData.get("dayOffset") ?? "").trim();
+  const productId = String(formData.get("productId") ?? "").trim();
   const subject = String(formData.get("subject") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
 
+  if (!name) return { error: "규칙 이름을 입력해 주시기 바랍니다." };
+  if (!EMAIL_RECIPIENTS.includes(recipient as EmailRecipient)) {
+    return { error: "잘못된 요청입니다." };
+  }
+  if (!EMAIL_TRIGGER_TYPES.includes(triggerType as EmailTriggerType)) {
+    return { error: "잘못된 요청입니다." };
+  }
   if (!subject) return { error: "제목을 입력해 주시기 바랍니다." };
   if (!body) return { error: "본문을 입력해 주시기 바랍니다." };
 
+  const isDayOffsetTrigger = DAY_OFFSET_TRIGGER_TYPES.has(
+    triggerType as EmailTriggerType,
+  );
+  let dayOffset: number | null = null;
+  if (isDayOffsetTrigger) {
+    dayOffset = Number(dayOffsetRaw);
+    if (!Number.isInteger(dayOffset) || dayOffset < 1) {
+      return { error: "며칠 전/후인지 1 이상의 숫자로 입력해 주시기 바랍니다." };
+    }
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("email_templates")
-    .upsert(
-      { purpose: purpose as EmailTemplatePurpose, subject, body },
-      { onConflict: "purpose" },
-    );
+  const row = {
+    name,
+    recipient: recipient as EmailRecipient,
+    trigger_type: triggerType as EmailTriggerType,
+    day_offset: dayOffset,
+    product_id: productId || null,
+    subject,
+    body,
+  };
+
+  const { error } = id
+    ? await supabase.from("email_rules").update(row).eq("id", id)
+    : await supabase.from("email_rules").insert(row);
 
   if (error) {
     return { error: `저장하지 못했습니다: ${error.message}` };
   }
 
-  revalidatePath("/admin/settings");
+  revalidatePath("/admin/emails");
   return { success: true };
+}
+
+/** 규칙 켜기/끄기. 목록에서 토글 하나로 바로 반영한다. */
+export async function toggleEmailRule(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const enabled = formData.get("enabled") === "true";
+
+  const supabase = await createClient();
+  await supabase.from("email_rules").update({ enabled: !enabled }).eq("id", id);
+  revalidatePath("/admin/emails");
+}
+
+/**
+ * 규칙 삭제. "이메일 종류를 마음대로 삭제할 수 있어야 한다"는 요구
+ * 그대로, 지우면 그 트리거에서 이 규칙으로 나가던 이메일은 더 이상
+ * 나가지 않는다 — 되돌릴 수 없으니 화면에서 확인창을 띄운다.
+ */
+export async function deleteEmailRule(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  await supabase.from("email_rules").delete().eq("id", id);
+  revalidatePath("/admin/emails");
 }
 
 /**
