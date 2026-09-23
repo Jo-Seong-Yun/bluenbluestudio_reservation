@@ -319,7 +319,9 @@ export async function lookupReservation(
       customerName: reservation.customer_name,
     },
     canCancel:
-      reservation.status === "requested" || reservation.status === "confirmed",
+      reservation.status === "requested" ||
+      reservation.status === "schedule_confirmed" ||
+      reservation.status === "payment_confirmed",
   };
 }
 

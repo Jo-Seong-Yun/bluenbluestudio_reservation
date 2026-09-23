@@ -14,6 +14,8 @@ import {
   EMAIL_TRIGGER_LABELS,
   EMAIL_TRIGGER_TYPES,
   EMAIL_VARIABLES,
+  EMAIL_VARIABLE_PREVIEW_VALUES,
+  renderEmailTemplate,
   type EmailRecipient,
   type EmailRule,
   type EmailTriggerType,
@@ -289,6 +291,20 @@ export function RuleModal({
                   {`{{${v.key}}}`}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="border-border border-t pt-3">
+            <p className="text-muted mb-1.5 text-xs font-medium">
+              미리보기 (예시 값으로 채워본 모습)
+            </p>
+            <div className="border-border bg-surface-subtle rounded-lg border p-3 text-sm">
+              <p className="font-medium">
+                {renderEmailTemplate(subject, EMAIL_VARIABLE_PREVIEW_VALUES)}
+              </p>
+              <p className="text-muted mt-2 whitespace-pre-wrap">
+                {renderEmailTemplate(body, EMAIL_VARIABLE_PREVIEW_VALUES)}
+              </p>
             </div>
           </div>
 

@@ -17,7 +17,8 @@ const initialCancelState: LookupState = { status: "idle" };
 
 const STATUS_LABEL: Record<string, string> = {
   requested: "접수됨 (확정 대기)",
-  confirmed: "확정됨",
+  schedule_confirmed: "일정확정됨",
+  payment_confirmed: "입금확인/예약확정됨",
   completed: "촬영 완료",
   cancelled: "취소됨",
   no_show: "노쇼 처리됨",
@@ -26,8 +27,9 @@ const STATUS_LABEL: Record<string, string> = {
 /**
  * 화면은 크게 세 칸으로 나눈다. requested(접수 대기)는 사장님이 아직
  * 확정하지 않은 신청 단계라 "완료된 예약" 칸에 먼저 들어가고, 사장님이
- * 확정 처리하면 그때 "확정된 예약" 칸으로 넘어간다. no_show는 촬영이
- * 성사되지 않았다는 점에서 "취소된 예약" 칸에 함께 둔다.
+ * 일정확정/입금확인 처리하면 그때 "확정된 예약" 칸으로 넘어간다.
+ * no_show는 촬영이 성사되지 않았다는 점에서 "취소된 예약" 칸에 함께
+ * 둔다.
  */
 const GROUPS = [
   {
@@ -35,7 +37,11 @@ const GROUPS = [
     title: "완료된 예약",
     statuses: ["completed", "requested"],
   },
-  { key: "confirmed", title: "확정된 예약", statuses: ["confirmed"] },
+  {
+    key: "confirmed",
+    title: "확정된 예약",
+    statuses: ["schedule_confirmed", "payment_confirmed"],
+  },
   {
     key: "cancelled",
     title: "취소된 예약",
@@ -238,7 +244,9 @@ function ReservationCard({
   cancelState: LookupState;
 }) {
   const cancellable =
-    reservation.status === "requested" || reservation.status === "confirmed";
+    reservation.status === "requested" ||
+    reservation.status === "schedule_confirmed" ||
+    reservation.status === "payment_confirmed";
 
   return (
     <li className="border-border bg-surface rounded-xl border p-4">

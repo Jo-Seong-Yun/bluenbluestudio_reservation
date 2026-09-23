@@ -181,6 +181,30 @@ async function sendTriggerEmails(params: {
 }
 
 /**
+ * SMS·알림톡 없이 이메일 규칙만 있는 상태 전환(입금확인/완료/노쇼)에
+ * 쓴다 — 이 셋은 아직 심사받은 SMS·알림톡 문구가 없어, 관리자가
+ * /admin/emails에서 직접 만든 이메일 규칙이 있을 때만 그 규칙대로
+ * 나간다(규칙이 없으면 sendTriggerEmails가 조용히 아무것도 안 보낸다).
+ */
+export async function notifyEmailOnlyEvent(params: {
+  triggerType: EmailTriggerType;
+  reservationId: string;
+  productId: string;
+  customerEmail?: string | null;
+  adminEmail?: string | null;
+  variables: Record<string, string>;
+}): Promise<void> {
+  await sendTriggerEmails({
+    triggerType: params.triggerType,
+    productId: params.productId,
+    reservationId: params.reservationId,
+    customerEmail: params.customerEmail,
+    adminEmail: params.adminEmail,
+    variables: params.variables,
+  });
+}
+
+/**
  * 촬영일 기준 며칠 전/후 규칙 하나를 특정 예약에 보낸다. 크론
  * (app/api/cron/reminders/route.ts)이 매일 규칙 전체를 훑으며 이
  * 함수를 부른다. 이미 보낸 적 있으면(hasRuleEmailBeenSent) 크론 쪽에서
@@ -320,7 +344,7 @@ export async function notifyCustomerRequested(
   });
 }
 
-/** 손님: 예약 확정. */
+/** 손님: 예약 일정 확정(입금 확인 전 단계). */
 export async function notifyCustomerConfirmed(
   info: ReservationNotice & { customerName: string },
 ): Promise<void> {
@@ -330,7 +354,7 @@ export async function notifyCustomerConfirmed(
     smsText: customerConfirmedText(info),
     kakaoVariables: customerConfirmedKakaoVariables(info),
     email: {
-      triggerType: "on_confirmed",
+      triggerType: "on_schedule_confirmed",
       variables: buildEmailVariables(info),
     },
   });

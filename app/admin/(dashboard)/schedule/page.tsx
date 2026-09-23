@@ -70,7 +70,7 @@ export default async function SchedulePage({
     supabase
       .from("reservations")
       .select("id, period, customer_name, product_id")
-      .in("status", ["requested", "confirmed"])
+      .in("status", ["requested", "schedule_confirmed", "payment_confirmed"])
       .overlaps("period", range),
     supabase.from("products").select("id, tag_color"),
   ]);

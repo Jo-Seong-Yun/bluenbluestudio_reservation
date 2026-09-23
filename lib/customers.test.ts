@@ -32,7 +32,7 @@ function identityRow(overrides: Partial<IdentitySourceRow>): IdentitySourceRow {
 describe("computeVisitStats", () => {
   it("완료(completed) 상태인 예약만 방문으로 센다", () => {
     const stats = computeVisitStats([
-      visitRow({ customer_phone: "010-1111-1111", status: "confirmed", shoot_start: "2026-12-01T00:00:00Z" }),
+      visitRow({ customer_phone: "010-1111-1111", status: "payment_confirmed", shoot_start: "2026-12-01T00:00:00Z" }),
       visitRow({ customer_phone: "010-1111-1111", status: "completed", shoot_start: "2026-06-01T00:00:00Z" }),
       visitRow({ customer_phone: "010-1111-1111", status: "cancelled", shoot_start: "2026-03-01T00:00:00Z" }),
     ]);

@@ -7,13 +7,22 @@
  * 예전엔 이메일 "종류"가 코드에 6개로 고정돼 있었지만, 이제는 관리자가
  * 규칙(이름·트리거 조건·수신자·제목·본문)을 화면에서 자유롭게 추가·
  * 수정·삭제한다. 트리거는 실제로 코드가 이메일을 보낼 수 있는 지점
- * (예약 접수/확정/취소/일정변경/관리자 신규알림) 더하기, 촬영일 기준
- * 며칠 전/후까지 지원한다 — 후자는 매일 도는 크론이 훑어 발송한다.
+ * (예약 접수/일정확정/입금확인/완료/노쇼/취소/일정변경/관리자 신규알림)
+ * 더하기, 촬영일 기준 며칠 전/후까지 지원한다 — 후자는 매일 도는
+ * 크론이 훑어 발송한다.
+ *
+ * 예약 상태(reservations.status)는 "확정" 한 단계가 아니라
+ * "일정확정"(시간만 잡힘, 입금 전)과 "입금확인/예약확정"(예약금 확인
+ * 완료)으로 나뉜다(app/admin/(dashboard)/reservations/status-buttons.tsx)
+ * — on_schedule_confirmed/on_payment_confirmed가 각각에 대응한다.
  */
 
 export const EMAIL_TRIGGER_TYPES = [
   "on_requested",
-  "on_confirmed",
+  "on_schedule_confirmed",
+  "on_payment_confirmed",
+  "on_completed",
+  "on_no_show",
   "on_cancelled",
   "on_rescheduled",
   "on_admin_new_request",
@@ -25,7 +34,10 @@ export type EmailTriggerType = (typeof EMAIL_TRIGGER_TYPES)[number];
 
 export const EMAIL_TRIGGER_LABELS: Record<EmailTriggerType, string> = {
   on_requested: "예약 접수 시",
-  on_confirmed: "예약 확정 시",
+  on_schedule_confirmed: "일정확정 시",
+  on_payment_confirmed: "입금확인/예약확정 시",
+  on_completed: "완료 처리 시",
+  on_no_show: "노쇼 처리 시",
   on_cancelled: "예약 취소 시",
   on_rescheduled: "예약 일정 변경 시",
   on_admin_new_request: "새 예약 신청 시",
