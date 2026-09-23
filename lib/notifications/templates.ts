@@ -220,6 +220,8 @@ export function buildEmailVariables(info: {
   candidateTimes?: Date[];
   oldShootStart?: Date;
   newShootStart?: Date;
+  /** 취소 시 관리자가 입력한 사유. */
+  cancelReason?: string | null;
 }): Record<string, string> {
   return {
     이름: info.customerName ?? "",
@@ -236,5 +238,6 @@ export function buildEmailVariables(info: {
         : "",
     기존일시: info.oldShootStart ? formatShootTime(info.oldShootStart) : "",
     변경일시: info.newShootStart ? formatShootTime(info.newShootStart) : "",
+    취소사유: info.cancelReason ?? "",
   };
 }

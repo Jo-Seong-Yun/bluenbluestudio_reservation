@@ -41,26 +41,40 @@ export default async function ReservationsPage({
   // 신청들 — shoot_start가 없어 날짜가 정해지지 않았으니 달력에 표시할
   // 수가 없다(어느 칸에 놓을지 알 수 없다). 그래서 달력과 별개로, 월과
   // 무관하게 "확정 대기 중" 목록으로 항상 보여준다.
-  const [{ data: reservations }, { data: allProducts }, { data: pendingReservations }] =
-    await Promise.all([
-      supabase
-        .from("reservations")
-        .select(
-          "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, shoot_location, cost, cost_memo, charged_amount, charged_amount_memo, charged_amount_breakdown, estimated_amount, gender, birth_date, product_id",
-        )
-        .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
-        .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
-        .order("shoot_start"),
-      supabase.from("products").select("id, name, price, sale_price, tag_color").order("sort_order"),
-      supabase
-        .from("reservations")
-        .select(
-          "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, shoot_location, cost, cost_memo, charged_amount, charged_amount_memo, charged_amount_breakdown, estimated_amount, gender, birth_date, product_id",
-        )
-        .eq("status", "requested")
-        .is("shoot_start", null)
-        .order("created_at"),
-    ]);
+  //
+  // trashedReservations는 취소된 예약 — 취소하면 이 화면(달력·확정
+  // 대기 목록)에서는 더 이상 안 보이고 "휴지통" 목록으로만 보인다(DB
+  // 행은 그대로 남아있다). 월과 무관하게 최근 것부터 보여준다.
+  const RESERVATION_COLUMNS =
+    "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, shoot_location, cancel_reason, cost, cost_memo, charged_amount, charged_amount_memo, charged_amount_breakdown, estimated_amount, gender, birth_date, product_id";
+
+  const [
+    { data: reservations },
+    { data: allProducts },
+    { data: pendingReservations },
+    { data: trashedReservations },
+  ] = await Promise.all([
+    supabase
+      .from("reservations")
+      .select(RESERVATION_COLUMNS)
+      .neq("status", "cancelled")
+      .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
+      .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
+      .order("shoot_start"),
+    supabase.from("products").select("id, name, price, sale_price, tag_color").order("sort_order"),
+    supabase
+      .from("reservations")
+      .select(RESERVATION_COLUMNS)
+      .eq("status", "requested")
+      .is("shoot_start", null)
+      .order("created_at"),
+    supabase
+      .from("reservations")
+      .select(RESERVATION_COLUMNS)
+      .eq("status", "cancelled")
+      .order("updated_at", { ascending: false })
+      .limit(50),
+  ]);
 
   const productNameById = new Map(
     (allProducts ?? []).map((p) => [p.id, p.name]),
@@ -96,9 +110,11 @@ export default async function ReservationsPage({
     : [];
 
   const selected = selectedId
-    ? [...(reservations ?? []), ...(pendingReservations ?? [])].find(
-        (r) => r.id === selectedId,
-      )
+    ? [
+        ...(reservations ?? []),
+        ...(pendingReservations ?? []),
+        ...(trashedReservations ?? []),
+      ].find((r) => r.id === selectedId)
     : undefined;
 
   // 확정 대기 중인 예약이면(shoot_start가 없다) 손님이 낸 후보들을
@@ -211,6 +227,13 @@ export default async function ReservationsPage({
     productName: productNameById.get(r.product_id) ?? "",
   }));
 
+  const trashList = (trashedReservations ?? []).map((r) => ({
+    id: r.id,
+    code: r.code,
+    customerName: r.customer_name,
+    productName: productNameById.get(r.product_id) ?? "",
+  }));
+
   return (
     <div>
       <div className="mb-6 flex items-start justify-between gap-4">
@@ -245,6 +268,32 @@ export default async function ReservationsPage({
             ))}
           </ul>
         </div>
+      ) : null}
+
+      {trashList.length > 0 ? (
+        <details className="border-border bg-surface mb-6 rounded-xl border p-4">
+          <summary className="text-muted cursor-pointer text-sm font-bold">
+            휴지통 ({trashList.length})
+          </summary>
+          <p className="text-muted mt-2 mb-3 text-xs">
+            취소된 예약입니다. 내용은 그대로 보관되며, 눌러서 사유를 확인하거나
+            복원할 수 있습니다.
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {trashList.map((t) => (
+              <li key={t.id}>
+                <Link
+                  href={`/admin/reservations?month=${month}&id=${t.id}`}
+                  className={`border-border hover:bg-surface-subtle rounded-lg border px-3 py-1.5 text-sm ${
+                    selectedId === t.id ? "bg-surface-subtle" : ""
+                  }`}
+                >
+                  {t.customerName} · {t.productName}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">

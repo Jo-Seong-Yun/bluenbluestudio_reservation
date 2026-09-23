@@ -98,6 +98,7 @@ export const EMAIL_VARIABLES: { key: string; description: string }[] = [
   },
   { key: "기존일시", description: "변경 전 촬영 일시 (일정 변경에서만 값이 채워짐)" },
   { key: "변경일시", description: "변경된 촬영 일시 (일정 변경에서만 값이 채워짐)" },
+  { key: "취소사유", description: "취소 시 관리자가 입력한 사유 (취소 시에만 값이 채워짐)" },
 ];
 
 /** 미리보기용 예시 값. 모든 변수를 항상 다 채워서 보여준다. */
@@ -113,6 +114,7 @@ export const EMAIL_VARIABLE_PREVIEW_VALUES: Record<string, string> = {
   후보목록: "1지망: 9월 12일(토) 10:00\n2지망: 9월 13일(일) 14:00",
   기존일시: "9월 12일(토) 10:00",
   변경일시: "9월 13일(일) 14:00",
+  취소사유: "고객 요청으로 취소",
 };
 
 /**

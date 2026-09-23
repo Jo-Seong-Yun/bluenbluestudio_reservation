@@ -1,13 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
 import {
+  cancelReservationWithReason,
   confirmReservationCandidate,
-  updateReservationStatus,
-  type ActionState,
 } from "@/app/admin/actions";
-import { Button, ErrorText } from "@/components/ui";
 import { kstDateString, kstTimeString, weekdayOf } from "@/lib/time";
+import { StatusTransitionModal } from "./status-transition-modal";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -20,10 +18,12 @@ function formatCandidateTime(iso: string): string {
 }
 
 /**
- * 손님이 낸 후보(1~3지망) 중 하나를 관리자가 골라 확정한다. 이 순간에야
+ * 손님이 낸 후보(1~3지망) 중 하나를 관리자가 골라 확정한다. 이것도
+ * "일정확정"과 같은 결과(schedule_confirmed)라, 다른 상태 변경과 똑같이
+ * 확인모달(나갈 이메일 미리보기+수정)을 거친다. 확정 자체는 이 순간에야
  * 비로소 그 시간이 실제로 점유되므로(confirmReservationCandidate 참고),
  * 서버가 "그사이 다른 예약이 먼저 가져갔다"고 거절할 수 있다 — 그
- * 에러를 그대로 보여준다.
+ * 에러를 모달 안에 그대로 보여준다.
  */
 export function ConfirmCandidateButtons({
   reservationId,
@@ -32,11 +32,6 @@ export function ConfirmCandidateButtons({
   reservationId: string;
   candidates: { rank: number; shootStart: string; shootEnd: string }[];
 }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(
-    confirmReservationCandidate,
-    null,
-  );
-
   return (
     <div>
       <p className="mb-2 text-sm font-medium">
@@ -44,30 +39,32 @@ export function ConfirmCandidateButtons({
       </p>
       <div className="flex flex-col gap-2">
         {candidates.map((c) => (
-          <form key={c.rank} action={action}>
-            <input type="hidden" name="id" value={reservationId} />
-            <input type="hidden" name="rank" value={c.rank} />
-            <Button
-              type="submit"
-              variant="ghost"
-              disabled={pending}
-              className="w-full justify-start"
-            >
-              {c.rank}지망 · {formatCandidateTime(c.shootStart)}로 확정
-            </Button>
-          </form>
+          <StatusTransitionModal
+            key={c.rank}
+            reservationId={reservationId}
+            triggerType="on_schedule_confirmed"
+            buttonLabel={`${c.rank}지망 · ${formatCandidateTime(c.shootStart)}로 확정`}
+            buttonClassName="w-full justify-start"
+            modalTitle="일정확정 확인"
+            confirmAction={confirmReservationCandidate}
+            extraFields={{ rank: String(c.rank) }}
+            extraPreviewVariables={{ 일시: formatCandidateTime(c.shootStart) }}
+          />
         ))}
       </div>
 
-      <ErrorText>{state?.error ?? null}</ErrorText>
-
-      <form action={updateReservationStatus} className="mt-3">
-        <input type="hidden" name="id" value={reservationId} />
-        <input type="hidden" name="status" value="cancelled" />
-        <Button type="submit" variant="ghost" className="text-xs">
-          이 신청 취소하기
-        </Button>
-      </form>
+      <div className="mt-3">
+        <StatusTransitionModal
+          reservationId={reservationId}
+          triggerType="on_cancelled"
+          buttonLabel="이 신청 취소하기"
+          buttonVariant="danger"
+          buttonClassName="text-xs"
+          modalTitle="예약 취소 확인"
+          requireReason
+          confirmAction={cancelReservationWithReason}
+        />
+      </div>
     </div>
   );
 }

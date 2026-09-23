@@ -196,6 +196,10 @@ export interface Database {
           ref: string | null;
           /** 관리자가 예약 상세에서 직접 입력하는 촬영 장소. */
           shoot_location: string | null;
+          /** 취소 사유. 취소할 때 화면에서 입력을 강제한다. */
+          cancel_reason: string | null;
+          /** 취소되기 직전 상태 — 휴지통에서 복원할 때 이 값으로 되돌린다. */
+          status_before_cancel: ReservationStatus | null;
           created_at: string;
           updated_at: string;
         };
