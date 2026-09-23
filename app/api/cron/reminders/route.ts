@@ -6,7 +6,11 @@ import {
   notifyCustomerReminder,
   sendDayOffsetRuleEmail,
 } from "@/lib/notifications/notify";
-import { loadDayOffsetEmailRules, type EmailRule } from "@/lib/notifications/email-rules";
+import {
+  loadDayOffsetEmailRules,
+  ruleRecipientAddresses,
+  type EmailRule,
+} from "@/lib/notifications/email-rules";
 import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
 import { buildEmailVariables } from "@/lib/notifications/templates";
 import { getProductName } from "@/lib/notifications/product-name";
@@ -136,7 +140,15 @@ async function sendRuleToTargetDay(
   let sent = 0;
   for (const reservation of candidates ?? []) {
     if (!reservation.shoot_start) continue;
-    if (await hasRuleEmailBeenSent(rule.id, reservation.id)) continue;
+
+    const unsent: string[] = [];
+    for (const to of ruleRecipientAddresses(rule.recipients, {
+      customerEmail: reservation.customer_email,
+      adminEmail,
+    })) {
+      if (!(await hasRuleEmailBeenSent(rule.id, reservation.id, to))) unsent.push(to);
+    }
+    if (unsent.length === 0) continue;
 
     const productName = await getProductName(reservation.product_id);
     const variables = buildEmailVariables({
@@ -147,14 +159,13 @@ async function sendRuleToTargetDay(
       code: reservation.code,
     });
 
-    const attempted = await sendDayOffsetRuleEmail({
+    await sendDayOffsetRuleEmail({
       rule,
       reservationId: reservation.id,
-      customerEmail: reservation.customer_email,
-      adminEmail,
+      to: unsent,
       variables,
     });
-    if (attempted) sent += 1;
+    sent += 1;
   }
 
   return sent;

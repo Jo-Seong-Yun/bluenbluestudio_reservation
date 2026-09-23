@@ -10,7 +10,9 @@ export {
   EMAIL_RECIPIENT_LABELS,
   EMAIL_VARIABLES,
   EMAIL_VARIABLE_PREVIEW_VALUES,
+  formatRecipients,
   renderEmailTemplate,
+  ruleRecipientAddresses,
 } from "./email-rules-shared";
 export type { EmailRecipient, EmailRule, EmailTriggerType } from "./email-rules-shared";
 
@@ -18,7 +20,7 @@ type EmailRuleRow = {
   id: string;
   name: string;
   enabled: boolean;
-  recipient: string;
+  recipients: string[];
   trigger_type: string;
   day_offset: number | null;
   product_id: string | null;
@@ -27,14 +29,14 @@ type EmailRuleRow = {
 };
 
 const EMAIL_RULE_COLUMNS =
-  "id, name, enabled, recipient, trigger_type, day_offset, product_id, subject, body";
+  "id, name, enabled, recipients, trigger_type, day_offset, product_id, subject, body";
 
 function mapRow(row: EmailRuleRow): EmailRule {
   return {
     id: row.id,
     name: row.name,
     enabled: row.enabled,
-    recipient: row.recipient as EmailRecipient,
+    recipients: row.recipients as EmailRecipient[],
     triggerType: row.trigger_type as EmailTriggerType,
     dayOffset: row.day_offset,
     productId: row.product_id,

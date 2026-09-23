@@ -5,7 +5,9 @@ import {
   EMAIL_TRIGGER_TYPES,
   EMAIL_VARIABLES,
   EMAIL_VARIABLE_PREVIEW_VALUES,
+  formatRecipients,
   renderEmailTemplate,
+  ruleRecipientAddresses,
 } from "./email-rules-shared";
 
 describe("renderEmailTemplate", () => {
@@ -53,5 +55,36 @@ describe("이메일 규칙 변수·트리거 목록 일관성", () => {
   it("트리거·수신자 목록이 비어있지 않다", () => {
     expect(EMAIL_TRIGGER_TYPES.length).toBeGreaterThan(0);
     expect(EMAIL_RECIPIENTS.length).toBe(2);
+  });
+});
+
+describe("이메일 규칙 받는 사람(중복 선택)", () => {
+  it("손님·사장님 둘 다 고르면 두 주소로 보낸다", () => {
+    expect(
+      ruleRecipientAddresses(["customer", "admin"], {
+        customerEmail: "c@x.test",
+        adminEmail: "a@x.test",
+      }),
+    ).toEqual(["c@x.test", "a@x.test"]);
+  });
+
+  it("주소가 없는 쪽은 빼고, 같은 주소는 한 번만 보낸다", () => {
+    expect(
+      ruleRecipientAddresses(["customer", "admin"], {
+        customerEmail: null,
+        adminEmail: "a@x.test",
+      }),
+    ).toEqual(["a@x.test"]);
+    expect(
+      ruleRecipientAddresses(["customer", "admin"], {
+        customerEmail: "same@x.test",
+        adminEmail: "same@x.test",
+      }),
+    ).toEqual(["same@x.test"]);
+  });
+
+  it("라벨은 고른 순서와 상관없이 손님·사장님 순으로 보여준다", () => {
+    expect(formatRecipients(["admin", "customer"])).toBe("손님·사장님");
+    expect(formatRecipients(["admin"])).toBe("사장님");
   });
 });

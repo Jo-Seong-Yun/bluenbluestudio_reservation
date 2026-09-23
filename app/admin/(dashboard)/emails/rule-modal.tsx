@@ -50,6 +50,10 @@ export function RuleModal({
   const [triggerType, setTriggerType] = useState<EmailTriggerType>(
     rule?.triggerType ?? "on_requested",
   );
+  // 보낼 시점을 바꾸면 받는 사람 칸 위치가 바뀌어 다시 그려지므로, 선택값은 여기서 들고 있는다.
+  const [recipients, setRecipients] = useState<EmailRecipient[]>(
+    rule?.recipients ?? ["customer"],
+  );
   const [subject, setSubject] = useState(rule?.subject ?? "");
   // 본문은 서식 에디터(HTML). 서식 에디터 전에 만든 평문 규칙은 HTML로 바꿔 연다.
   const [body, setBody] = useState(toEditorHtml(rule?.body ?? ""));
@@ -72,6 +76,7 @@ export function RuleModal({
 
   function open() {
     setTriggerType(rule?.triggerType ?? "on_requested");
+    setRecipients(rule?.recipients ?? ["customer"]);
     setSubject(rule?.subject ?? "");
     setBody(toEditorHtml(rule?.body ?? ""));
     setEpoch((n) => n + 1);
@@ -221,25 +226,13 @@ export function RuleModal({
                 />
               </div>
             ) : (
-              <div>
-                <span className="mb-1.5 block text-sm font-medium">받는 사람</span>
-                <div className="flex gap-1.5">
-                  {EMAIL_RECIPIENTS.map((value) => (
-                    <RecipientOption key={value} value={value} rule={rule} />
-                  ))}
-                </div>
-              </div>
+              <RecipientPicker selected={recipients} onChange={setRecipients} />
             )}
           </div>
 
           {needsDayOffset ? (
             <div className="sm:w-1/2">
-              <span className="mb-1.5 block text-sm font-medium">받는 사람</span>
-              <div className="flex gap-1.5">
-                {EMAIL_RECIPIENTS.map((value) => (
-                  <RecipientOption key={value} value={value} rule={rule} />
-                ))}
-              </div>
+              <RecipientPicker selected={recipients} onChange={setRecipients} />
             </div>
           ) : null}
 
@@ -345,26 +338,49 @@ export function RuleModal({
   );
 }
 
-function RecipientOption({
-  value,
-  rule,
+/**
+ * 받는 사람은 중복 선택 가능(손님+사장님 둘 다 등). 둘 다 끄면 저장할 때
+ * 서버가 막지만, 그 전에 화면에서 마지막 하나는 못 끄게 한다.
+ */
+function RecipientPicker({
+  selected,
+  onChange,
 }: {
-  value: EmailRecipient;
-  rule?: EmailRule;
+  selected: EmailRecipient[];
+  onChange: (next: EmailRecipient[]) => void;
 }) {
-  const defaultChecked = (rule?.recipient ?? "customer") === value;
+  function toggle(value: EmailRecipient) {
+    if (!selected.includes(value)) onChange([...selected, value]);
+    else if (selected.length > 1) onChange(selected.filter((v) => v !== value));
+  }
+
   return (
-    <label className="flex-1">
-      <input
-        type="radio"
-        name="recipient"
-        value={value}
-        defaultChecked={defaultChecked}
-        className="peer sr-only"
-      />
-      <span className="border-border peer-checked:bg-brand peer-checked:text-brand-foreground peer-checked:border-brand hover:bg-surface-subtle block cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors">
-        {EMAIL_RECIPIENT_LABELS[value]}
+    <div>
+      <span className="mb-1.5 block text-sm font-medium">
+        받는 사람{" "}
+        <span className="text-muted text-xs font-normal">(중복 선택 가능)</span>
       </span>
-    </label>
+      <div className="flex gap-1.5">
+        {EMAIL_RECIPIENTS.map((value) => {
+          const checked = selected.includes(value);
+          return (
+            <label key={value} className="flex-1">
+              <input
+                type="checkbox"
+                name="recipients"
+                value={value}
+                checked={checked}
+                onChange={() => toggle(value)}
+                className="peer sr-only"
+              />
+              <span className="border-border peer-checked:bg-brand peer-checked:text-brand-foreground peer-checked:border-brand hover:bg-surface-subtle peer-focus-visible:ring-brand block cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors peer-focus-visible:ring-2">
+                {checked ? "✓ " : ""}
+                {EMAIL_RECIPIENT_LABELS[value]}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
   );
 }
