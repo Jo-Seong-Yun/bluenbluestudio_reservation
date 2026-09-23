@@ -172,6 +172,8 @@ type ReservationNotice = CustomerContact & {
   productName: string;
   shootStart: Date;
   code: string;
+  /** 관리자가 예약 상세에서 입력한 촬영 장소. 리마인드 메일에서만 쓴다. */
+  shootLocation?: string | null;
 };
 
 /**

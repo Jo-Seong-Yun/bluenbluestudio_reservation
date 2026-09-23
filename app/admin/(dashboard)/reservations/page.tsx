@@ -46,7 +46,7 @@ export default async function ReservationsPage({
       supabase
         .from("reservations")
         .select(
-          "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, cost, cost_memo, charged_amount, charged_amount_memo, charged_amount_breakdown, estimated_amount, gender, birth_date, product_id",
+          "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, shoot_location, cost, cost_memo, charged_amount, charged_amount_memo, charged_amount_breakdown, estimated_amount, gender, birth_date, product_id",
         )
         .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
         .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
@@ -55,7 +55,7 @@ export default async function ReservationsPage({
       supabase
         .from("reservations")
         .select(
-          "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, cost, cost_memo, charged_amount, charged_amount_memo, charged_amount_breakdown, estimated_amount, gender, birth_date, product_id",
+          "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, shoot_location, cost, cost_memo, charged_amount, charged_amount_memo, charged_amount_breakdown, estimated_amount, gender, birth_date, product_id",
         )
         .eq("status", "requested")
         .is("shoot_start", null)

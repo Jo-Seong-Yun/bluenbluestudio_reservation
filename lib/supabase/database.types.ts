@@ -189,6 +189,8 @@ export interface Database {
           google_calendar_event_id: string | null;
           /** 신청 시점에 링크에 붙어 있던 ?ref=... 값(유입경로). */
           ref: string | null;
+          /** 관리자가 예약 상세에서 직접 입력하는 촬영 장소. */
+          shoot_location: string | null;
           created_at: string;
           updated_at: string;
         };

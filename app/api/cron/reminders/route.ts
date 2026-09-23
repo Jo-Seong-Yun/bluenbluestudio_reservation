@@ -31,7 +31,9 @@ export async function GET(request: NextRequest) {
 
   const { data: reservations, error } = await supabase
     .from("reservations")
-    .select("id, code, customer_name, customer_phone, shoot_start, product_id")
+    .select(
+      "id, code, customer_name, customer_phone, shoot_start, shoot_location, product_id",
+    )
     .eq("status", "confirmed")
     .is("reminded_at", null)
     .gte("shoot_start", rangeStart)
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
       customerPhone: reservation.customer_phone,
       productName,
       shootStart: new Date(reservation.shoot_start),
+      shootLocation: reservation.shoot_location,
       code: reservation.code,
     });
     await supabase

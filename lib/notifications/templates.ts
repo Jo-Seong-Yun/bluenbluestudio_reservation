@@ -285,12 +285,16 @@ export function reservationEmailVariables(info: {
   /** 확정 전(후보만 낸 상태)에 취소됐으면 null. */
   shootStart: Date | null;
   code: string;
+  /** 관리자가 예약 상세에서 입력한 촬영 장소. 리마인드 메일에서만 쓰지만,
+   * 안 넘겨도 그냥 빈 문자열이라 셋 다 공용으로 둬도 안전하다. */
+  shootLocation?: string | null;
 }): Record<string, string> {
   return {
     이름: info.customerName,
     상품명: info.productName,
     일시: info.shootStart ? formatShootTime(info.shootStart) : "",
     예약번호: info.code,
+    촬영장소: info.shootLocation ?? "",
   };
 }
 
