@@ -29,8 +29,8 @@ function caretForDigitIndex(formatted: string, digitsBefore: number): number {
  * 콤마를 문자열 중간에 끼워 넣으면 브라우저가 커서를 맨 끝으로
  * 튕겨버리는 게 일반적인 함정이라, 매 입력마다 "커서 앞에 숫자가
  * 몇 개였는지"를 세어 포맷된 문자열에서 그 위치를 다시 찾아 복원한다
- * (caretForDigitIndex). 실제 폼에 실리는 값(DOM에 하나뿐인 <input>)은
- * 항상 숫자만 남긴 문자열이라, 서버 쪽 파싱은 그대로 두면 된다.
+ * (caretForDigitIndex). 실제 폼에 실리는 값은 name이 붙은 숨은 칸의
+ * 숫자만 남긴 문자열이라, 서버 쪽 파싱은 그대로 두면 된다.
  *
  * 대부분의 폼(uncontrolled): defaultValue만 주면 내부에서 알아서
  * 상태를 들고 있는다.
@@ -100,12 +100,14 @@ export function MoneyInput({
       className={`border-border bg-surface focus-within:border-brand focus-within:ring-brand/30 flex items-center gap-1 rounded-lg border pl-3 focus-within:ring-2 ${className}`}
     >
       <span className="text-muted shrink-0">₩</span>
+      {/* 화면에 보이는 칸은 "50,000"처럼 콤마가 들어가 서버에서
+          Number()로 읽으면 NaN이 된다 — 폼에는 숫자만 담은 숨은 칸을 싣는다. */}
+      {name ? <input type="hidden" name={name} value={current} /> : null}
       <input
         ref={inputRef}
         id={id}
         type="text"
         inputMode="numeric"
-        name={name}
         required={required}
         placeholder={placeholder}
         value={formatDigits(current)}

@@ -901,6 +901,9 @@ export type EmailPreviewItem = {
   recipientLabel: string;
   subject: string;
   body: string;
+  /** 규칙 원문에 {{취소사유}}가 있는지 — 없으면 사유를 적어도 메일은
+   * 안 바뀌므로, 취소 확인모달이 그 사실을 알려준다. */
+  usesCancelReason: boolean;
 };
 
 /**
@@ -955,6 +958,7 @@ export async function previewStatusChangeEmails(
     recipientLabel: EMAIL_RECIPIENT_LABELS[rule.recipient],
     subject: renderEmailTemplate(rule.subject, variables),
     body: renderEmailTemplate(rule.body, variables),
+    usesCancelReason: /\{\{\s*취소사유\s*\}\}/.test(rule.subject + rule.body),
   }));
 }
 
