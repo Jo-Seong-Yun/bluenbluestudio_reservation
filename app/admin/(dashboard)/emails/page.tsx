@@ -15,7 +15,7 @@ export default async function EmailsPage() {
       supabase.from("products").select("id, name").order("sort_order"),
       supabase
         .from("settings")
-        .select("bank_account, notice")
+        .select("bank_account, notice, test_email")
         .eq("id", 1)
         .single(),
     ]);
@@ -44,6 +44,7 @@ export default async function EmailsPage() {
         계좌: settings?.bank_account ?? "",
         공지: settings?.notice ?? "",
       }}
+      testEmail={settings?.test_email ?? ""}
     />
   );
 }
