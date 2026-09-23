@@ -5,6 +5,7 @@ import {
   saveShootLocation,
 } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/submit-button";
+import { RestoreReservationButton } from "./restore-reservation-button";
 import { kstDateString, kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
 import { DeleteReservationButton } from "./delete-reservation-button";
@@ -31,6 +32,8 @@ type ReservationRow = {
   memo: string | null;
   admin_memo: string | null;
   shoot_location: string | null;
+  /** 취소된 예약(휴지통)에서만 값이 있다. */
+  cancel_reason?: string | null;
   cost: number | null;
   cost_memo: string | null;
   charged_amount: number | null;
@@ -213,7 +216,19 @@ function ReservationDetail({
       ) : null}
 
       <div className="border-border mt-4 border-t pt-4">
-        {isPending && reservation.candidates ? (
+        {reservation.status === "cancelled" ? (
+          <div>
+            <p className="mb-1 text-sm font-medium text-red-700 dark:text-red-400">
+              취소되어 휴지통에 있습니다
+            </p>
+            {reservation.cancel_reason ? (
+              <p className="text-muted mb-2 text-sm whitespace-pre-wrap">
+                취소 사유: {reservation.cancel_reason}
+              </p>
+            ) : null}
+            <RestoreReservationButton reservationId={reservation.id} />
+          </div>
+        ) : isPending && reservation.candidates ? (
           <ConfirmCandidateButtons
             reservationId={reservation.id}
             candidates={reservation.candidates}
@@ -223,7 +238,7 @@ function ReservationDetail({
             <p className="mb-2 text-sm font-medium">
               상태 변경{" "}
               <span className="text-muted font-normal">
-                (파란 버튼이 지금 상태입니다)
+                (현재: {STATUS_LABEL[reservation.status] ?? reservation.status})
               </span>
             </p>
             <StatusButtons

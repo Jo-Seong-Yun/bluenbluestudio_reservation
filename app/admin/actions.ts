@@ -38,11 +38,15 @@ import {
 import {
   DAY_OFFSET_TRIGGER_TYPES,
   EMAIL_RECIPIENTS,
+  EMAIL_RECIPIENT_LABELS,
   EMAIL_TRIGGER_TYPES,
+  renderEmailTemplate,
   type EmailRecipient,
   type EmailTriggerType,
 } from "@/lib/notifications/email-rules-shared";
+import { loadEmailRulesForTrigger } from "@/lib/notifications/email-rules";
 import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
+import { siteVariableOverrides } from "@/lib/notifications/notify";
 import {
   parseRecordSheetRows,
   type RecordSheetRow,
@@ -538,74 +542,123 @@ export async function deleteProduct(
   return { success: true };
 }
 
-const RESERVATION_STATUSES = [
-  "requested",
-  "schedule_confirmed",
-  "payment_confirmed",
-  "completed",
-  "cancelled",
-  "no_show",
-] as const;
+type ForwardStatus = "schedule_confirmed" | "payment_confirmed" | "completed" | "no_show";
+
+/** 상태는 엄격한 순서로만 앞으로 나아간다 — 버튼 하나로 성큼 건너뛰지
+ * 못하게 해서 실수로 손님에게 잘못된 메일이 나가는 걸 막는다. 완료·
+ * 노쇼에서 되돌아가려면 revertReservationStatus를, 취소를 복원하려면
+ * restoreCancelledReservation을 따로 쓴다(둘 다 이메일을 보내지 않는
+ * "되돌리기"라 이 표에 없다). */
+const ALLOWED_FORWARD_TRANSITIONS: Partial<Record<string, ForwardStatus[]>> = {
+  requested: ["schedule_confirmed"],
+  schedule_confirmed: ["payment_confirmed"],
+  payment_confirmed: ["completed", "no_show"],
+};
 
 /** payment_confirmed/completed/no_show은 SMS·알림톡 심사 문구가 없어
  * 이메일 규칙만 쏜다 — 이 상태들이 어떤 이메일 트리거에 해당하는지. */
-const EMAIL_ONLY_STATUS_TRIGGERS: Partial<
-  Record<(typeof RESERVATION_STATUSES)[number], EmailTriggerType>
-> = {
+const EMAIL_ONLY_STATUS_TRIGGERS: Partial<Record<ForwardStatus, EmailTriggerType>> = {
   payment_confirmed: "on_payment_confirmed",
   completed: "on_completed",
   no_show: "on_no_show",
 };
 
-export async function updateReservationStatus(formData: FormData) {
+/** 상태 변경 확인모달의 "제출" 폼에 실린 overrides(JSON 문자열, 규칙
+ * id별 수기 수정 제목/본문)를 파싱한다. 비어 있으면 undefined — 그때는
+ * 규칙 원문 그대로 렌더링해서 보낸다. */
+function parseEmailOverrides(
+  formData: FormData,
+): Record<string, { subject: string; body: string }> | undefined {
+  const raw = String(formData.get("overrides") ?? "").trim();
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      Object.values(parsed).every(
+        (v) =>
+          v &&
+          typeof (v as { subject?: unknown }).subject === "string" &&
+          typeof (v as { body?: unknown }).body === "string",
+      )
+    ) {
+      return parsed;
+    }
+  } catch {
+    // 형식이 이상하면 무시하고 규칙 원문으로 보낸다.
+  }
+  return undefined;
+}
+
+export type TransitionActionState = { error?: string } | null;
+
+/**
+ * 확인모달을 거쳐 상태를 다음 단계로만 넘긴다(일정확정→입금확인→
+ * 완료|노쇼). 모달이 보여준 이메일(관리자가 고쳤으면 고친 내용)을
+ * 그대로 이 발송에 쓴다 — ALLOWED_FORWARD_TRANSITIONS에 없는 전환(예:
+ * requested에서 바로 payment_confirmed, 또는 이미 완료된 예약을 다시
+ * 완료 처리)은 거절한다.
+ */
+export async function applyReservationTransition(
+  _prev: TransitionActionState,
+  formData: FormData,
+): Promise<TransitionActionState> {
   await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
-  const rawStatus = String(formData.get("status") ?? "");
-  const status = RESERVATION_STATUSES.find((value) => value === rawStatus);
-  if (!id || !status) return;
+  const rawNextStatus = String(formData.get("nextStatus") ?? "");
+  if (!id) return { error: "잘못된 요청입니다." };
 
+  const overrides = parseEmailOverrides(formData);
   const supabase = await createClient();
 
-  // 갱신 전에 미리 읽어둔다 — update 자체는 status 컬럼만 건드리니
-  // 갱신 뒤에도 이 정보가 사라지지 않지만, 어차피 한 번 더 조회할
-  // 이유가 없다. "일정확정/입금확인"으로 바꾸려는 경우엔 shoot_start가
-  // 있는지 판단하는 데도 이 값이 필요하고(바로 아래), 그 외의 모든
-  // 상태 변경도 구글 시트 고객DB의 방문 집계를 다시 하려면 연락처가
-  // 필요해 항상 읽는다.
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id",
+      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id",
     )
     .eq("id", id)
     .single();
-  if (!reservation) return;
+  if (!reservation) return { error: "예약을 찾을 수 없습니다." };
 
-  if (status === "schedule_confirmed" || status === "payment_confirmed") {
-    // 아직 후보만 낸 채 시간이 정해지지 않은 예약(shoot_start가 없음)은
-    // 이 버튼이 아니라 후보 중 하나를 골라 confirmReservationCandidate로
-    // 확정해야 한다 — 그런 예약이면 아무것도 하지 않고 조용히 무시한다.
-    // 반대로 한 번 확정됐다가 취소·완료·노쇼로 바뀐 예약은 그때 정해진
-    // shoot_start·period가 그대로 남아있어, 이 버튼으로 다시 확정할 수
-    // 있다(취소 → 재확정 등).
-    if (!reservation?.shoot_start) return;
+  const allowed = ALLOWED_FORWARD_TRANSITIONS[reservation.status] ?? [];
+  const nextStatus = allowed.find((value) => value === rawNextStatus);
+  if (!nextStatus) {
+    return {
+      error:
+        "이 예약은 지금 이 상태로 바꿀 수 없습니다. 화면을 새로고침한 뒤 다시 시도해 주시기 바랍니다.",
+    };
+  }
+
+  // 일정확정/입금확인은 이미 shoot_start가 있는 예약에서만 온다
+  // (아직 후보만 낸 예약은 confirmReservationCandidate가 담당) —
+  // ALLOWED_FORWARD_TRANSITIONS상 requested→schedule_confirmed로 여기
+  // 도달했다는 건 레거시(후보 없이 접수된) 예약이라는 뜻이다.
+  if (
+    (nextStatus === "schedule_confirmed" || nextStatus === "payment_confirmed") &&
+    !reservation.shoot_start
+  ) {
+    return { error: "아직 촬영 일시가 정해지지 않은 예약입니다." };
   }
 
   const { error } = await supabase
     .from("reservations")
-    .update({ status })
+    .update({ status: nextStatus })
     .eq("id", id);
 
-  // EXCLUDE 제약(23P01): 취소됐던 예약을 다시 확정하려는데, 그사이 같은
-  // 시간이 다른 예약으로 먼저 확정된 경우. 상태가 안 바뀌었으니 알림도
-  // 보내지 않고 조용히 멈춘다 — 관리자가 다른 시간을 다시 확인해야 한다.
-  if (error) return;
+  if (error) {
+    // EXCLUDE 제약(23P01): 그사이 같은 시간이 다른 예약으로 먼저 확정된 경우.
+    return {
+      error:
+        error.code === "23P01"
+          ? "그사이 같은 시간이 다른 예약으로 확정되었습니다. 새로고침한 뒤 다시 확인해 주시기 바랍니다."
+          : `상태를 바꾸지 못했습니다: ${error.message}`,
+    };
+  }
 
   revalidatePath("/admin/reservations");
 
-  // 구글 시트 백업(예약 탭 + 고객DB 탭의 방문 집계)은 어떤 상태로
-  // 바뀌든 남겨야 하니, 알림 여부와 무관하게 항상 부른다.
   after(async () => {
     await upsertCustomerFromReservation({
       phone: reservation.customer_phone,
@@ -620,8 +673,6 @@ export async function updateReservationStatus(formData: FormData) {
       syncReservationToCalendar(id),
     ]);
   });
-
-  if (status === "requested") return;
 
   const { data: product } = await supabase
     .from("products")
@@ -639,30 +690,25 @@ export async function updateReservationStatus(formData: FormData) {
     code: reservation.code,
   };
 
-  // 알림 발송(SMS·이메일)은 응답을 붙잡지 않는다 — 관리자가 상태를
-  // 바꾸는 버튼을 눌렀을 때 발송이 끝날 때까지 화면이 멈춰 있으면
-  // 안 되니, after()로 응답 뒤에 보낸다.
-  //
-  // 일정확정/입금확인 경로는 위에서 이미 "후보 있는 예약이면 여기 안
-  // 옴"을 보장했으므로 shoot_start가 항상 있다(레거시 예약만 도달).
-  // 완료·노쇼·취소는 원래 확정 때 정해진 shoot_start가 그대로 남아있다.
   after(async () => {
     const adminEmail = await getAdminNotifyEmail();
     const shootStart = reservation.shoot_start
       ? new Date(reservation.shoot_start)
       : null;
 
-    if (status === "schedule_confirmed") {
-      return notifyCustomerConfirmed({ ...base, adminEmail, shootStart: shootStart! });
-    }
-    if (status === "cancelled") {
-      return notifyCustomerCancelled({ ...base, adminEmail, shootStart });
+    if (nextStatus === "schedule_confirmed") {
+      return notifyCustomerConfirmed({
+        ...base,
+        adminEmail,
+        shootStart: shootStart!,
+        emailOverrides: overrides,
+      });
     }
 
     // payment_confirmed/completed/no_show: SMS·알림톡은 아직 심사받은
     // 문구가 없어 보내지 않고, 관리자가 만들어둔 이메일 규칙만 확인한다
     // (규칙이 없으면 sendTriggerEmails가 조용히 아무것도 안 보낸다).
-    const triggerType = EMAIL_ONLY_STATUS_TRIGGERS[status];
+    const triggerType = EMAIL_ONLY_STATUS_TRIGGERS[nextStatus];
     if (!triggerType) return;
     return notifyEmailOnlyEvent({
       triggerType,
@@ -671,8 +717,245 @@ export async function updateReservationStatus(formData: FormData) {
       customerEmail: reservation.customer_email,
       adminEmail,
       variables: buildEmailVariables({ ...base, shootStart }),
+      overrides,
     });
   });
+
+  return null;
+}
+
+/**
+ * 예약을 취소한다. requested/schedule_confirmed/payment_confirmed
+ * 어디서든 가능하지만, 이미 완료·노쇼·취소된 예약은 취소할 수 없다.
+ * 취소 사유를 반드시 받고(화면에서도 강제하지만 서버에서도 한 번 더
+ * 막는다), 취소되기 직전 상태를 status_before_cancel에 남겨 휴지통
+ * 복원(restoreCancelledReservation) 때 그 상태로 되돌릴 수 있게 한다.
+ */
+export async function cancelReservationWithReason(
+  _prev: TransitionActionState,
+  formData: FormData,
+): Promise<TransitionActionState> {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const cancelReason = String(formData.get("cancelReason") ?? "").trim();
+  if (!id) return { error: "잘못된 요청입니다." };
+  if (!cancelReason) return { error: "취소 사유를 입력해 주시기 바랍니다." };
+
+  const overrides = parseEmailOverrides(formData);
+  const supabase = await createClient();
+
+  const { data: reservation } = await supabase
+    .from("reservations")
+    .select(
+      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id",
+    )
+    .eq("id", id)
+    .single();
+  if (!reservation) return { error: "예약을 찾을 수 없습니다." };
+
+  if (
+    reservation.status !== "requested" &&
+    reservation.status !== "schedule_confirmed" &&
+    reservation.status !== "payment_confirmed"
+  ) {
+    return { error: "이미 완료·노쇼·취소 처리된 예약은 취소할 수 없습니다." };
+  }
+
+  const { error } = await supabase
+    .from("reservations")
+    .update({
+      status: "cancelled",
+      cancel_reason: cancelReason,
+      status_before_cancel: reservation.status,
+    })
+    .eq("id", id);
+  if (error) return { error: `취소하지 못했습니다: ${error.message}` };
+
+  revalidatePath("/admin/reservations");
+
+  after(async () => {
+    await upsertCustomerFromReservation({
+      phone: reservation.customer_phone,
+      name: reservation.customer_name,
+      gender: reservation.gender,
+      birthDate: reservation.birth_date,
+      email: reservation.customer_email,
+    });
+    await Promise.all([
+      syncReservationToSheet(id),
+      syncCustomerToSheet(reservation.customer_phone),
+      syncReservationToCalendar(id),
+    ]);
+  });
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("name")
+    .eq("id", reservation.product_id)
+    .single();
+
+  after(async () => {
+    const adminEmail = await getAdminNotifyEmail();
+    return notifyCustomerCancelled({
+      reservationId: id,
+      productId: reservation.product_id,
+      customerName: reservation.customer_name,
+      customerPhone: reservation.customer_phone,
+      customerEmail: reservation.customer_email,
+      adminEmail,
+      productName: product?.name ?? "촬영",
+      shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
+      code: reservation.code,
+      cancelReason,
+      emailOverrides: overrides,
+    });
+  });
+
+  return null;
+}
+
+/**
+ * 완료·노쇼를 잘못 눌렀을 때의 되돌리기 — 바로 전 단계(입금확인/
+ * 예약확정)로만 되돌린다. 실수를 고치는 동작이라 이메일은 보내지
+ * 않는다.
+ */
+export async function revertReservationStatus(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  const { data: reservation } = await supabase
+    .from("reservations")
+    .select("status")
+    .eq("id", id)
+    .single();
+  if (!reservation) return;
+  if (reservation.status !== "completed" && reservation.status !== "no_show") return;
+
+  await supabase
+    .from("reservations")
+    .update({ status: "payment_confirmed" })
+    .eq("id", id);
+
+  revalidatePath("/admin/reservations");
+}
+
+/**
+ * 휴지통(취소된 예약)에서 복원한다. 취소되기 직전 상태
+ * (status_before_cancel)로 되돌리고, 취소 기록(cancel_reason/
+ * status_before_cancel)은 지운다. 이메일은 보내지 않는다.
+ *
+ * 취소된 사이에 같은 시간이 다른 예약으로 확정됐을 수 있어(이중예약
+ * 방지 EXCLUDE 제약), 복원 자체가 거절될 수 있다 — 그 경우를 화면에
+ * 보여줘야 해서 ActionState를 돌려준다.
+ */
+export async function restoreCancelledReservation(
+  _prev: TransitionActionState,
+  formData: FormData,
+): Promise<TransitionActionState> {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "잘못된 요청입니다." };
+
+  const supabase = await createClient();
+  const { data: reservation } = await supabase
+    .from("reservations")
+    .select("status, status_before_cancel")
+    .eq("id", id)
+    .single();
+  if (!reservation) return { error: "예약을 찾을 수 없습니다." };
+  if (reservation.status !== "cancelled") {
+    return { error: "취소된 예약만 복원할 수 있습니다." };
+  }
+
+  const restoredStatus = reservation.status_before_cancel ?? "requested";
+
+  const { error } = await supabase
+    .from("reservations")
+    .update({
+      status: restoredStatus,
+      cancel_reason: null,
+      status_before_cancel: null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    return {
+      error:
+        error.code === "23P01"
+          ? "그사이 같은 시간이 다른 예약으로 확정되어 복원할 수 없습니다."
+          : `복원하지 못했습니다: ${error.message}`,
+    };
+  }
+
+  revalidatePath("/admin/reservations");
+  return null;
+}
+
+export type EmailPreviewItem = {
+  ruleId: string;
+  recipientLabel: string;
+  subject: string;
+  body: string;
+};
+
+/**
+ * 상태 변경 확인모달이 여는 순간 부른다 — 이 트리거에 걸린 이메일
+ * 규칙들을 지금 이 예약 데이터로 렌더링해서 보여준다. 관리자가 여기서
+ * 고친 내용은 이 화면(모달)에만 남아있다가, "확인"을 누를 때
+ * overrides로 실제 발송 액션에 실려간다 — 규칙 자체(템플릿)는 안
+ * 바뀐다. 취소 확인모달은 아직 입력 전인 취소사유를 extraVariables로
+ * 넘겨받아 {{취소사유}}에 반영할 수 있다.
+ */
+export async function previewStatusChangeEmails(
+  reservationId: string,
+  triggerType: EmailTriggerType,
+  extraVariables?: Record<string, string>,
+): Promise<EmailPreviewItem[]> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const { data: reservation } = await supabase
+    .from("reservations")
+    .select(
+      "code, customer_name, customer_phone, shoot_start, shoot_location, product_id",
+    )
+    .eq("id", reservationId)
+    .single();
+  if (!reservation) return [];
+
+  const rules = await loadEmailRulesForTrigger(triggerType, reservation.product_id);
+  if (rules.length === 0) return [];
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("name")
+    .eq("id", reservation.product_id)
+    .single();
+
+  const variables = {
+    ...buildEmailVariables({
+      customerName: reservation.customer_name,
+      customerPhone: reservation.customer_phone,
+      productName: product?.name ?? "촬영",
+      shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
+      shootLocation: reservation.shoot_location,
+      code: reservation.code,
+    }),
+    ...(await siteVariableOverrides()),
+    ...extraVariables,
+  };
+
+  return rules.map((rule) => ({
+    ruleId: rule.id,
+    recipientLabel: EMAIL_RECIPIENT_LABELS[rule.recipient],
+    subject: renderEmailTemplate(rule.subject, variables),
+    body: renderEmailTemplate(rule.body, variables),
+  }));
 }
 
 /**
@@ -695,6 +978,7 @@ export async function confirmReservationCandidate(
     return { error: "잘못된 요청입니다." };
   }
 
+  const overrides = parseEmailOverrides(formData);
   const supabase = await createClient();
 
   const { data: candidate } = await supabase
@@ -767,6 +1051,7 @@ export async function confirmReservationCandidate(
         productName: product?.name ?? "촬영",
         shootStart: new Date(candidate.shoot_start),
         code: reservation.code,
+        emailOverrides: overrides,
       }),
       syncReservationToSheet(id),
       syncCustomerToSheet(reservation.customer_phone),

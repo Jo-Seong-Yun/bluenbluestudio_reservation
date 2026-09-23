@@ -124,10 +124,17 @@ async function tryRuleEmail(params: {
   to: string;
   variables: Record<string, string>;
   reservationId?: string | null;
+  /** 상태 변경 확인모달에서 관리자가 수기로 고친 제목/본문 — 있으면
+   * 규칙을 다시 렌더링하지 않고 이 내용을 그대로 쓴다. */
+  override?: { subject: string; body: string };
 }): Promise<void> {
   try {
-    const subject = renderEmailTemplate(params.rule.subject, params.variables);
-    const text = renderEmailTemplate(params.rule.body, params.variables);
+    const subject =
+      params.override?.subject ??
+      renderEmailTemplate(params.rule.subject, params.variables);
+    const text =
+      params.override?.body ??
+      renderEmailTemplate(params.rule.body, params.variables);
     await sendEmail({ to: params.to, subject, text });
     await logNotification({
       channel: "email",
@@ -157,7 +164,7 @@ async function tryRuleEmail(params: {
  * 쪽이 이 값을 몰라도(또는 몰라서 빈 문자열을 넘겨도) 항상 맞는
  * 값으로 채워지게 한다.
  */
-async function siteVariableOverrides(): Promise<Record<string, string>> {
+export async function siteVariableOverrides(): Promise<Record<string, string>> {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("settings")
@@ -186,6 +193,8 @@ async function sendTriggerEmails(params: {
   customerEmail?: string | null;
   adminEmail?: string | null;
   variables: Record<string, string>;
+  /** 상태 변경 확인모달에서 수기로 고친 내용 — 규칙 id를 키로 한다. */
+  overrides?: Record<string, { subject: string; body: string }>;
 }): Promise<void> {
   const rules = await loadEmailRulesForTrigger(params.triggerType, params.productId);
   if (rules.length === 0) return;
@@ -200,6 +209,7 @@ async function sendTriggerEmails(params: {
         to,
         variables,
         reservationId: params.reservationId,
+        override: params.overrides?.[rule.id],
       });
     }),
   );
@@ -218,6 +228,7 @@ export async function notifyEmailOnlyEvent(params: {
   customerEmail?: string | null;
   adminEmail?: string | null;
   variables: Record<string, string>;
+  overrides?: Record<string, { subject: string; body: string }>;
 }): Promise<void> {
   await sendTriggerEmails({
     triggerType: params.triggerType,
@@ -226,6 +237,7 @@ export async function notifyEmailOnlyEvent(params: {
     customerEmail: params.customerEmail,
     adminEmail: params.adminEmail,
     variables: params.variables,
+    overrides: params.overrides,
   });
 }
 
@@ -308,6 +320,7 @@ async function notifyCustomer(params: {
   email?: {
     triggerType: EmailTriggerType;
     variables: Record<string, string>;
+    overrides?: Record<string, { subject: string; body: string }>;
   };
 }): Promise<void> {
   const kakaoAttempted = await tryKakao({
@@ -340,6 +353,7 @@ async function notifyCustomer(params: {
         customerEmail: params.info.customerEmail,
         adminEmail: params.info.adminEmail,
         variables: params.email.variables,
+        overrides: params.email.overrides,
       }),
     );
   }
@@ -372,7 +386,10 @@ export async function notifyCustomerRequested(
 
 /** 손님: 예약 일정 확정(입금 확인 전 단계). */
 export async function notifyCustomerConfirmed(
-  info: ReservationNotice & { customerName: string },
+  info: ReservationNotice & {
+    customerName: string;
+    emailOverrides?: Record<string, { subject: string; body: string }>;
+  },
 ): Promise<void> {
   await notifyCustomer({
     purpose: "customer_confirmed",
@@ -382,6 +399,7 @@ export async function notifyCustomerConfirmed(
     email: {
       triggerType: "on_schedule_confirmed",
       variables: buildEmailVariables(info),
+      overrides: info.emailOverrides,
     },
   });
 }
@@ -396,6 +414,8 @@ export async function notifyCustomerCancelled(
     productName: string;
     shootStart: Date | null;
     code: string;
+    cancelReason?: string | null;
+    emailOverrides?: Record<string, { subject: string; body: string }>;
   },
 ): Promise<void> {
   await notifyCustomer({
@@ -406,6 +426,7 @@ export async function notifyCustomerCancelled(
     email: {
       triggerType: "on_cancelled",
       variables: buildEmailVariables(info),
+      overrides: info.emailOverrides,
     },
   });
 }

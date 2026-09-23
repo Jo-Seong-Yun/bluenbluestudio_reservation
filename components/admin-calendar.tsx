@@ -21,7 +21,8 @@ export type CalendarReservation = {
 
 const STATUS_DOT: Record<string, string> = {
   requested: "bg-amber-500",
-  confirmed: "bg-brand",
+  schedule_confirmed: "bg-blue-400",
+  payment_confirmed: "bg-brand",
   completed: "bg-emerald-500",
   cancelled: "bg-gray-400",
   no_show: "bg-red-500",
