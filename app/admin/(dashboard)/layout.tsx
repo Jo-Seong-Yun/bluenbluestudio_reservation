@@ -9,8 +9,7 @@ import {
   PendingOverlay,
   PendingOverlayProvider,
 } from "@/components/pending-overlay";
-import { SITE } from "@/lib/site";
-import siteLogo from "./site-logo.png";
+import { SITE, BRAND_LOGO } from "@/lib/site";
 
 /**
  * 관리자 화면 공통 틀. 여기서 로그인 여부를 확인한다.
@@ -45,10 +44,10 @@ export default async function AdminLayout({
               className="flex shrink-0 flex-col items-center leading-tight"
             >
               <Image
-                src={siteLogo}
+                src={BRAND_LOGO.src}
                 alt={SITE.name}
-                width={62}
-                height={32}
+                width={BRAND_LOGO.width}
+                height={BRAND_LOGO.height}
                 priority
                 className="h-8 w-auto"
               />

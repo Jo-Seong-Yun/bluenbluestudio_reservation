@@ -11,3 +11,15 @@ export const SITE = {
   description:
     "사진과 영상을 담는 푸르른 스튜디오입니다. 원하는 날짜와 시간을 선택하여 예약해 주시기 바랍니다.",
 } as const;
+
+/**
+ * 손글씨 로고(public/brand-logo.png)의 실제 가로세로 픽셀 크기. public/
+ * 경로로 쓰는 next/image는 정적 임포트와 달리 크기를 자동으로 알아내지
+ * 못해 직접 넘겨야 한다 — 관리자 헤더·예약 화면 양쪽에서 이 값을
+ * 그대로 쓴다.
+ */
+export const BRAND_LOGO = {
+  src: "/brand-logo.png",
+  width: 1080,
+  height: 554,
+} as const;
