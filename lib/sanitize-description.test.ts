@@ -53,4 +53,21 @@ describe("sanitizeDescriptionHtml", () => {
     expect(output).toContain('target="_blank"');
     expect(output).toContain("noopener");
   });
+
+  it("문단의 행간격과 단락 앞/뒤 공백은 에디터가 만드는 값만 남긴다", () => {
+    const output = sanitizeDescriptionHtml(
+      '<p style="text-align: center; line-height: 1.5; padding-top: 0.75em; padding-bottom: 0.75em">가</p>',
+    );
+    expect(output).toContain("line-height:1.5");
+    expect(output).toContain("padding-top:0.75em");
+    expect(output).toContain("padding-bottom:0.75em");
+    expect(output).toContain("text-align:center");
+
+    const bad = sanitizeDescriptionHtml(
+      '<p style="line-height: 50; padding-top: 500px">나</p><h2 style="line-height: 2.25">다</h2>',
+    );
+    expect(bad).not.toContain("line-height:50");
+    expect(bad).not.toContain("500px");
+    expect(bad).toContain("line-height:2.25");
+  });
 });
