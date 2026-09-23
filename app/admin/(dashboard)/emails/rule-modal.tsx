@@ -20,6 +20,10 @@ import {
   type EmailRule,
   type EmailTriggerType,
 } from "@/lib/notifications/email-rules-shared";
+import { renderEmailHtml, toEditorHtml } from "@/lib/notifications/email-html";
+import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
+import { RichTextEditor } from "@/components/rich-text-editor";
+import type { Editor } from "@tiptap/react";
 import type { ProductOption } from "./email-rules-section";
 
 const initialState: EmailRuleActionState = null;
@@ -47,9 +51,10 @@ export function RuleModal({
     rule?.triggerType ?? "on_requested",
   );
   const [subject, setSubject] = useState(rule?.subject ?? "");
-  const [body, setBody] = useState(rule?.body ?? "");
+  // 본문은 서식 에디터(HTML). 서식 에디터 전에 만든 평문 규칙은 HTML로 바꿔 연다.
+  const [body, setBody] = useState(toEditorHtml(rule?.body ?? ""));
   const subjectRef = useRef<HTMLInputElement>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyEditorRef = useRef<Editor | null>(null);
   const lastFocused = useRef<"subject" | "body">("body");
   // 모달을 다시 열 때마다 이전 입력을 지우고 원래 값으로 되돌리기 위한 리마운트 키.
   const [epoch, setEpoch] = useState(0);
@@ -68,7 +73,7 @@ export function RuleModal({
   function open() {
     setTriggerType(rule?.triggerType ?? "on_requested");
     setSubject(rule?.subject ?? "");
-    setBody(rule?.body ?? "");
+    setBody(toEditorHtml(rule?.body ?? ""));
     setEpoch((n) => n + 1);
     dialogRef.current?.showModal();
   }
@@ -79,20 +84,20 @@ export function RuleModal({
 
   function insertVariable(key: string) {
     const placeholder = `{{${key}}}`;
-    const target =
-      lastFocused.current === "subject" ? subjectRef.current : bodyRef.current;
 
-    if (!target) {
-      setBody((prev) => prev + placeholder);
+    // 본문(서식 에디터)은 마지막 커서 위치에 끼워 넣는다 — onChange가
+    // 알아서 body 상태를 갱신한다.
+    if (lastFocused.current === "body") {
+      bodyEditorRef.current?.chain().focus().insertContent(placeholder).run();
       return;
     }
 
+    const target = subjectRef.current;
+    if (!target) return;
+
     const start = target.selectionStart ?? target.value.length;
     const end = target.selectionEnd ?? target.value.length;
-    const next = target.value.slice(0, start) + placeholder + target.value.slice(end);
-
-    if (target === subjectRef.current) setSubject(next);
-    else setBody(next);
+    setSubject(target.value.slice(0, start) + placeholder + target.value.slice(end));
 
     requestAnimationFrame(() => {
       target.focus();
@@ -131,7 +136,7 @@ export function RuleModal({
 
       <dialog
         ref={dialogRef}
-        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-lg rounded-xl border p-0 backdrop:bg-black/50"
+        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-2xl rounded-xl border p-0 backdrop:bg-black/50"
       >
         <div className="flex items-center justify-between border-b border-inherit px-5 py-4">
           <p className="font-bold">{isEdit ? "규칙 수정" : "규칙 추가"}</p>
@@ -275,15 +280,15 @@ export function RuleModal({
 
           <div>
             <label className="mb-1 block text-xs font-medium">본문</label>
-            <textarea
-              ref={bodyRef}
-              name="body"
-              required
-              rows={8}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
+            <input type="hidden" name="body" value={body} />
+            {/* form의 key(epoch)가 바뀌면 에디터도 새로 마운트되어 initial을 다시 읽는다. */}
+            <RichTextEditor
+              initial={body}
+              onChange={setBody}
+              heightClass="h-[280px]"
+              placeholder="손님에게 보낼 내용을 작성해 주십시오."
               onFocus={() => (lastFocused.current = "body")}
-              className={`${inputClass} font-mono text-xs leading-relaxed`}
+              editorRef={bodyEditorRef}
             />
           </div>
 
@@ -315,9 +320,12 @@ export function RuleModal({
               <p className="font-medium">
                 {renderEmailTemplate(subject, previewValues)}
               </p>
-              <p className="text-muted mt-2 whitespace-pre-wrap">
-                {renderEmailTemplate(body, previewValues)}
-              </p>
+              <div
+                className="mt-2 break-words [&_a]:text-brand [&_a]:underline [&_h2]:mt-3 [&_h2]:text-lg [&_h2]:font-bold [&_h3]:font-bold [&_img]:max-w-full [&_li]:ml-5 [&_li]:list-disc [&_p]:my-1 [&_p:empty]:min-h-[1em] [&_strong]:font-bold"
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeDescriptionHtml(renderEmailHtml(body, previewValues)),
+                }}
+              />
             </div>
           </div>
 
