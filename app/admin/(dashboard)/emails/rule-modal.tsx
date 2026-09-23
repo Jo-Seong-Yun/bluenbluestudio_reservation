@@ -31,12 +31,6 @@ import type { ProductOption } from "./email-rules-section";
 
 const initialState: EmailRuleActionState = null;
 
-/**
- * 이메일 규칙 추가/수정 모달. 문항 추가/수정 모달(field-modal.tsx)과
- * 같은 구조를 따른다 — 다만 여기는 저장 실패(제목/본문 누락 등)를
- * 화면에 보여줘야 해서 useActionState로 상태를 들고, 성공했을 때만
- * 닫는다.
- */
 export function RuleModal({
   products,
   rule,
@@ -44,7 +38,6 @@ export function RuleModal({
 }: {
   products: ProductOption[];
   rule?: EmailRule;
-  /** 미리보기에서 {{계좌}}/{{공지}}는 예시값 대신 이 실제 설정값을 보여준다. */
   siteVariables: Record<string, string>;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -53,7 +46,6 @@ export function RuleModal({
   const [triggerType, setTriggerType] = useState<EmailTriggerType>(
     rule?.triggerType ?? "on_requested",
   );
-  // 보낼 시점을 바꾸면 받는 사람 칸 위치가 바뀌어 다시 그려지므로, 선택값은 여기서 들고 있는다.
   const [recipients, setRecipients] = useState<EmailRecipient[]>(
     rule?.recipients ?? ["customer"],
   );
@@ -61,12 +53,10 @@ export function RuleModal({
   const [ctaEnabled, setCtaEnabled] = useState(Boolean(rule?.ctaText));
   const [ctaText, setCtaText] = useState(rule?.ctaText ?? "");
   const [ctaUrl, setCtaUrl] = useState(rule?.ctaUrl ?? "");
-  // 본문은 서식 에디터(HTML). 서식 에디터 전에 만든 평문 규칙은 HTML로 바꿔 연다.
   const [body, setBody] = useState(toEditorHtml(rule?.body ?? ""));
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyEditorRef = useRef<Editor | null>(null);
   const lastFocused = useRef<"subject" | "body">("body");
-  // 모달을 다시 열 때마다 이전 입력을 지우고 원래 값으로 되돌리기 위한 리마운트 키.
   const [epoch, setEpoch] = useState(0);
 
   const [state, action, pending] = useActionState<
@@ -98,21 +88,15 @@ export function RuleModal({
 
   function insertVariable(key: string) {
     const placeholder = `{{${key}}}`;
-
-    // 본문(서식 에디터)은 마지막 커서 위치에 끼워 넣는다 — onChange가
-    // 알아서 body 상태를 갱신한다.
     if (lastFocused.current === "body") {
       bodyEditorRef.current?.chain().focus().insertContent(placeholder).run();
       return;
     }
-
     const target = subjectRef.current;
     if (!target) return;
-
     const start = target.selectionStart ?? target.value.length;
     const end = target.selectionEnd ?? target.value.length;
     setSubject(target.value.slice(0, start) + placeholder + target.value.slice(end));
-
     requestAnimationFrame(() => {
       target.focus();
       const cursor = start + placeholder.length;
@@ -122,9 +106,6 @@ export function RuleModal({
 
   const needsDayOffset = DAY_OFFSET_TRIGGER_TYPES.has(triggerType);
 
-  // {{계좌}}/{{공지}}는 예시가 아니라 실제 설정값이 궁금해서 미리보기를
-  // 보는 경우가 많아, 값이 있으면 그걸로 덮어쓴다(설정에 아직 아무것도
-  // 안 넣었으면 예시값을 그대로 보여준다).
   const previewValues = {
     ...EMAIL_VARIABLE_PREVIEW_VALUES,
     ...(siteVariables.계좌 ? { 계좌: siteVariables.계좌 } : {}),
@@ -151,8 +132,9 @@ export function RuleModal({
       <dialog
         ref={dialogRef}
         className="border-border bg-surface text-foreground rounded-xl border p-0 backdrop:bg-black/50"
-        style={{ width: "calc(100% - 2rem)", maxWidth: "64rem" }}
+        style={{ width: "calc(100vw - 2rem)", maxWidth: "64rem", margin: "auto" }}
       >
+        {/* 헤더 */}
         <div className="flex items-center justify-between border-b border-inherit px-5 py-4">
           <p className="font-bold">{isEdit ? "규칙 수정" : "규칙 추가"}</p>
           <button
@@ -165,13 +147,22 @@ export function RuleModal({
           </button>
         </div>
 
-        <form
-          key={epoch}
-          action={action}
-          style={{ display: "flex", height: "82vh", overflow: "hidden" }}
-        >
-          {/* 좌측: 편집 영역 */}
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflowY: "auto", padding: "1.25rem" }}>
+        {/* 본문: 좌우 2열 */}
+        <div style={{ display: "flex", height: "82vh", overflow: "hidden" }}>
+
+          {/* 좌측: 편집 폼 */}
+          <form
+            key={epoch}
+            action={action}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              overflowY: "auto",
+              padding: "1.25rem",
+            }}
+          >
             <div className="space-y-4">
               {isEdit && rule ? (
                 <input type="hidden" name="id" value={rule.id} />
@@ -352,7 +343,6 @@ export function RuleModal({
               </div>
             </div>
 
-            {/* 하단 버튼은 스크롤 영역 맨 아래에 고정 */}
             <div style={{ marginTop: "auto", paddingTop: "1.5rem" }}>
               <ErrorText>{state?.error ?? null}</ErrorText>
               <div className="flex justify-end gap-2 pt-2">
@@ -364,10 +354,21 @@ export function RuleModal({
                 </SubmitButton>
               </div>
             </div>
-          </div>
+          </form>
 
-          {/* 우측: 미리보기 영역 */}
-          <div className="border-border" style={{ width: "400px", flexShrink: 0, display: "flex", flexDirection: "column", overflowY: "auto", borderLeftWidth: "1px", padding: "1.25rem" }}>
+          {/* 우측: 미리보기 */}
+          <div
+            className="border-border"
+            style={{
+              width: "400px",
+              flexShrink: 0,
+              display: "flex",
+              flexDirection: "column",
+              overflowY: "auto",
+              borderLeftWidth: "1px",
+              padding: "1.25rem",
+            }}
+          >
             <p className="text-muted mb-2 text-xs font-medium">
               미리보기 — 실제 발송되는 모습 그대로 ({"{{계좌}}"}/{"{{공지}}"}는
               설정값, 나머지는 예시 값)
@@ -378,8 +379,6 @@ export function RuleModal({
                 {renderEmailTemplate(subject, previewValues)}
               </p>
             </div>
-            {/* 발송 함수(finalizeEmailHtml)가 만드는 HTML을 그대로 iframe에
-                띄워, 손님이 받는 메일과 100% 같은 모습을 보여준다. */}
             <iframe
               title="메일 미리보기"
               className="border-border rounded-md border bg-white"
@@ -390,16 +389,13 @@ export function RuleModal({
               })}
             />
           </div>
-        </form>
+
+        </div>
       </dialog>
     </>
   );
 }
 
-/**
- * 받는 사람은 중복 선택 가능(손님+사장님 둘 다 등). 둘 다 끄면 저장할 때
- * 서버가 막지만, 그 전에 화면에서 마지막 하나는 못 끄게 한다.
- */
 function RecipientPicker({
   selected,
   onChange,
