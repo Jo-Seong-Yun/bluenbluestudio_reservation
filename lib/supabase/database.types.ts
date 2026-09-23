@@ -258,9 +258,15 @@ export interface Database {
           /** "통계 리셋" 버튼을 마지막으로 누른 시점. 집계는 이 시점 이후
            * 기록만 센다(로그 자체는 지우지 않는다). 누른 적 없으면 null. */
           analytics_reset_at: string | null;
-          /** lib/booking-theme.ts의 BookingThemeId 중 하나. */
-          booking_theme: string;
-          booking_social_links: { label: string; url: string }[];
+          /** lib/booking-style.ts의 BookingStyle 그대로. */
+          booking_style: {
+            accentColor: string;
+            saleColor: string;
+            textColor: string;
+            textSize: string;
+            cardRadius: string;
+            cardSize: string;
+          };
           updated_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["settings"]["Row"]>;

@@ -5,6 +5,13 @@ import { saveSettings, type SettingsActionState } from "@/app/admin/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
 import { ReservationSuccessPreview } from "./reservation-success-preview";
+import { BookingStylePreview } from "./booking-style-preview";
+import {
+  CARD_RADIUS_OPTIONS,
+  CARD_SIZE_OPTIONS,
+  TEXT_SIZE_OPTIONS,
+  type BookingStyle,
+} from "@/lib/booking-style";
 
 export type SettingsFormValues = {
   slotIntervalMin: number;
@@ -19,6 +26,7 @@ export type SettingsFormValues = {
   adminNotifyPhone: string;
   adminNotifyEmail: string;
   showProductThumbnails: boolean;
+  bookingStyle: BookingStyle;
 };
 
 const FORM_ID = "settings-form";
@@ -42,6 +50,11 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
   );
   const [bankAccount, setBankAccount] = useState(initial.bankAccount);
   const [notice, setNotice] = useState(initial.notice);
+  const [bookingStyle, setBookingStyle] = useState(initial.bookingStyle);
+
+  function patchBookingStyle(patch: Partial<BookingStyle>) {
+    setBookingStyle((prev) => ({ ...prev, ...patch }));
+  }
 
   return (
     <>
@@ -242,6 +255,129 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
           </section>
 
           <section className="space-y-4">
+            <h2 className="font-bold">예약 페이지 디자인</h2>
+            <p className="text-muted -mt-2 text-xs">
+              예약하기(/booking) 화면의 색상·글자 크기·카드 모양을 정합니다.
+              오른쪽 미리보기에 바로 반영됩니다.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="강조색" hint="예약하기 링크·예약 조회 버튼.">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    name="accentColor"
+                    value={bookingStyle.accentColor}
+                    onChange={(e) => patchBookingStyle({ accentColor: e.target.value })}
+                    className="h-9 w-9 shrink-0 cursor-pointer rounded border p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={bookingStyle.accentColor}
+                    onChange={(e) => patchBookingStyle({ accentColor: e.target.value })}
+                    className={`${inputClass} font-mono uppercase`}
+                  />
+                </div>
+              </Field>
+
+              <Field label="세일 배지 색" hint="할인율 배지.">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    name="saleColor"
+                    value={bookingStyle.saleColor}
+                    onChange={(e) => patchBookingStyle({ saleColor: e.target.value })}
+                    className="h-9 w-9 shrink-0 cursor-pointer rounded border p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={bookingStyle.saleColor}
+                    onChange={(e) => patchBookingStyle({ saleColor: e.target.value })}
+                    className={`${inputClass} font-mono uppercase`}
+                  />
+                </div>
+              </Field>
+
+              <Field label="텍스트 색" hint="상품명·가격.">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    name="textColor"
+                    value={bookingStyle.textColor}
+                    onChange={(e) => patchBookingStyle({ textColor: e.target.value })}
+                    className="h-9 w-9 shrink-0 cursor-pointer rounded border p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={bookingStyle.textColor}
+                    onChange={(e) => patchBookingStyle({ textColor: e.target.value })}
+                    className={`${inputClass} font-mono uppercase`}
+                  />
+                </div>
+              </Field>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <span className="mb-1.5 block text-sm font-medium">텍스트 크기</span>
+                <input type="hidden" name="textSize" value={bookingStyle.textSize} />
+                <div className="flex flex-wrap gap-1.5">
+                  {TEXT_SIZE_OPTIONS.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      type="button"
+                      variant={bookingStyle.textSize === opt.value ? "primary" : "ghost"}
+                      aria-pressed={bookingStyle.textSize === opt.value}
+                      className="text-xs"
+                      onClick={() => patchBookingStyle({ textSize: opt.value })}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="mb-1.5 block text-sm font-medium">박스 모서리</span>
+                <input type="hidden" name="cardRadius" value={bookingStyle.cardRadius} />
+                <div className="flex flex-wrap gap-1.5">
+                  {CARD_RADIUS_OPTIONS.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      type="button"
+                      variant={bookingStyle.cardRadius === opt.value ? "primary" : "ghost"}
+                      aria-pressed={bookingStyle.cardRadius === opt.value}
+                      className="text-xs"
+                      onClick={() => patchBookingStyle({ cardRadius: opt.value })}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="mb-1.5 block text-sm font-medium">박스 크기</span>
+                <input type="hidden" name="cardSize" value={bookingStyle.cardSize} />
+                <div className="flex flex-wrap gap-1.5">
+                  {CARD_SIZE_OPTIONS.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      type="button"
+                      variant={bookingStyle.cardSize === opt.value ? "primary" : "ghost"}
+                      aria-pressed={bookingStyle.cardSize === opt.value}
+                      className="text-xs"
+                      onClick={() => patchBookingStyle({ cardSize: opt.value })}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <h2 className="font-bold">알림 받을 연락처</h2>
             <p className="text-muted -mt-2 text-xs">
               새 예약 신청이 들어오면 즉시 알려 드립니다. 둘 다 비워두면 사장님
@@ -276,13 +412,14 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
           lg 미만에서는 폼 아래로 자연스럽게 떨어져 쌓인다(sticky는
           lg부터만 건다 — 좁은 화면에서 계속 붙어 있으면 오히려
           입력칸을 가린다). */}
-        <aside className="lg:sticky lg:top-36">
+        <aside className="lg:sticky lg:top-36 space-y-8">
           <ReservationSuccessPreview
             successHeading={reservationSuccessHeading}
             successMessage={reservationSuccessMessage}
             bankAccount={bankAccount}
             notice={notice}
           />
+          <BookingStylePreview style={bookingStyle} />
         </aside>
       </div>
     </>

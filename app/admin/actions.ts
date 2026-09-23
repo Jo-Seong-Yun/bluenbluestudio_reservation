@@ -22,6 +22,7 @@ import {
 } from "@/lib/notifications/notify";
 import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 import { PRODUCT_TAG_COLORS } from "@/lib/product-tag-colors";
+import { isValidHexColor } from "@/lib/booking-style";
 import {
   APPLICANT_FIELD_LABELS,
   LOCKED_FIELD_TYPES,
@@ -1413,6 +1414,10 @@ export async function rescheduleReservation(
  */
 export type SettingsActionState = { error?: string; success?: boolean } | null;
 
+const TEXT_SIZES = new Set(["sm", "md", "lg"]);
+const CARD_RADIUSES = new Set(["none", "md", "xl", "full"]);
+const CARD_SIZES = new Set(["compact", "standard", "spacious"]);
+
 export async function saveSettings(
   _prev: SettingsActionState,
   formData: FormData,
@@ -1439,6 +1444,28 @@ export async function saveSettings(
     formData.get("adminNotifyEmail") ?? "",
   ).trim();
   const showProductThumbnails = formData.get("showProductThumbnails") === "on";
+  const accentColor = String(formData.get("accentColor") ?? "").trim();
+  const saleColor = String(formData.get("saleColor") ?? "").trim();
+  const textColor = String(formData.get("textColor") ?? "").trim();
+  const textSize = String(formData.get("textSize") ?? "");
+  const cardRadius = String(formData.get("cardRadius") ?? "");
+  const cardSize = String(formData.get("cardSize") ?? "");
+
+  if (
+    !isValidHexColor(accentColor) ||
+    !isValidHexColor(saleColor) ||
+    !isValidHexColor(textColor)
+  ) {
+    return { error: "예약 페이지 색상 값을 다시 확인해 주시기 바랍니다." };
+  }
+
+  if (
+    !TEXT_SIZES.has(textSize) ||
+    !CARD_RADIUSES.has(cardRadius) ||
+    !CARD_SIZES.has(cardSize)
+  ) {
+    return { error: "예약 페이지 텍스트 크기·박스 모양 값을 다시 확인해 주시기 바랍니다." };
+  }
 
   if (
     !Number.isInteger(slotIntervalMin) ||
@@ -1485,6 +1512,14 @@ export async function saveSettings(
       admin_notify_phone: adminNotifyPhone || null,
       admin_notify_email: adminNotifyEmail || null,
       show_product_thumbnails: showProductThumbnails,
+      booking_style: {
+        accentColor,
+        saleColor,
+        textColor,
+        textSize,
+        cardRadius,
+        cardSize,
+      },
     })
     .eq("id", 1);
 
