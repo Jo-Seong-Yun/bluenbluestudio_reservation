@@ -108,7 +108,7 @@ export function FieldModal({
 
       <dialog
         ref={dialogRef}
-        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-md rounded-xl border p-0 backdrop:bg-black/50"
+        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-2xl rounded-xl border p-0 backdrop:bg-black/50"
       >
         <div className="flex items-center justify-between border-b border-inherit px-5 py-4">
           <p className="font-bold">{isEdit ? "질문 수정" : "질문 추가"}</p>
