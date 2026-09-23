@@ -149,6 +149,28 @@ async function tryRuleEmail(params: {
 }
 
 /**
+ * {{계좌}}/{{공지}}는 예약 하나하나가 아니라 스튜디오 전체 설정값이라,
+ * 어느 트리거의 어느 규칙에 넣어도 항상 지금 설정값이 나가야 한다 —
+ * 접수(on_requested) 흐름만 이 값을 직접 넘겨줬던 예전 방식으로는
+ * 다른 트리거(일정확정 등)의 규칙에 {{계좌}}를 넣으면 빈 칸으로
+ * 나갔다. 발송 직전에 여기서 설정을 다시 읽어 무조건 덮어써서, 호출한
+ * 쪽이 이 값을 몰라도(또는 몰라서 빈 문자열을 넘겨도) 항상 맞는
+ * 값으로 채워지게 한다.
+ */
+async function siteVariableOverrides(): Promise<Record<string, string>> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("settings")
+    .select("bank_account, notice")
+    .eq("id", 1)
+    .single();
+  return {
+    계좌: data?.bank_account ?? "",
+    공지: data?.notice ?? "",
+  };
+}
+
+/**
  * 특정 이벤트(접수/확정/취소/일정변경/관리자 신규알림)가 일어난 순간
  * 이메일을 보낸다. 관리자가 /admin/settings의 "이메일 규칙"에서 이
  * 트리거에 걸어둔 규칙을 전부 찾아(상품 필터가 있으면 이 발송 건의
@@ -166,6 +188,9 @@ async function sendTriggerEmails(params: {
   variables: Record<string, string>;
 }): Promise<void> {
   const rules = await loadEmailRulesForTrigger(params.triggerType, params.productId);
+  if (rules.length === 0) return;
+
+  const variables = { ...params.variables, ...(await siteVariableOverrides()) };
   await Promise.all(
     rules.map((rule) => {
       const to = rule.recipient === "admin" ? params.adminEmail : params.customerEmail;
@@ -173,7 +198,7 @@ async function sendTriggerEmails(params: {
       return tryRuleEmail({
         rule,
         to,
-        variables: params.variables,
+        variables,
         reservationId: params.reservationId,
       });
     }),
@@ -219,10 +244,11 @@ export async function sendDayOffsetRuleEmail(params: {
 }): Promise<boolean> {
   const to = params.rule.recipient === "admin" ? params.adminEmail : params.customerEmail;
   if (!to) return false;
+  const variables = { ...params.variables, ...(await siteVariableOverrides()) };
   await tryRuleEmail({
     rule: params.rule,
     to,
-    variables: params.variables,
+    variables,
     reservationId: params.reservationId,
   });
   return true;

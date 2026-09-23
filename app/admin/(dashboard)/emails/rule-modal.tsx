@@ -33,9 +33,12 @@ const initialState: EmailRuleActionState = null;
 export function RuleModal({
   products,
   rule,
+  siteVariables,
 }: {
   products: ProductOption[];
   rule?: EmailRule;
+  /** 미리보기에서 {{계좌}}/{{공지}}는 예시값 대신 이 실제 설정값을 보여준다. */
+  siteVariables: Record<string, string>;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isEdit = Boolean(rule);
@@ -99,6 +102,15 @@ export function RuleModal({
   }
 
   const needsDayOffset = DAY_OFFSET_TRIGGER_TYPES.has(triggerType);
+
+  // {{계좌}}/{{공지}}는 예시가 아니라 실제 설정값이 궁금해서 미리보기를
+  // 보는 경우가 많아, 값이 있으면 그걸로 덮어쓴다(설정에 아직 아무것도
+  // 안 넣었으면 예시값을 그대로 보여준다).
+  const previewValues = {
+    ...EMAIL_VARIABLE_PREVIEW_VALUES,
+    ...(siteVariables.계좌 ? { 계좌: siteVariables.계좌 } : {}),
+    ...(siteVariables.공지 ? { 공지: siteVariables.공지 } : {}),
+  };
 
   return (
     <>
@@ -296,14 +308,15 @@ export function RuleModal({
 
           <div className="border-border border-t pt-3">
             <p className="text-muted mb-1.5 text-xs font-medium">
-              미리보기 (예시 값으로 채워본 모습)
+              미리보기 ({"{{계좌}}"}/{"{{공지}}"}는 설정값, 나머지는 예시 값으로
+              채워본 모습)
             </p>
             <div className="border-border bg-surface-subtle rounded-lg border p-3 text-sm">
               <p className="font-medium">
-                {renderEmailTemplate(subject, EMAIL_VARIABLE_PREVIEW_VALUES)}
+                {renderEmailTemplate(subject, previewValues)}
               </p>
               <p className="text-muted mt-2 whitespace-pre-wrap">
-                {renderEmailTemplate(body, EMAIL_VARIABLE_PREVIEW_VALUES)}
+                {renderEmailTemplate(body, previewValues)}
               </p>
             </div>
           </div>

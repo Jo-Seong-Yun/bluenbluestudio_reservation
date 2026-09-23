@@ -1693,9 +1693,23 @@ export async function saveEmailRule(
     body,
   };
 
-  const { error } = id
-    ? await supabase.from("email_rules").update(row).eq("id", id)
-    : await supabase.from("email_rules").insert(row);
+  let error;
+  if (id) {
+    ({ error } = await supabase.from("email_rules").update(row).eq("id", id));
+  } else {
+    // 새 규칙은 목록 맨 끝에 붙인다(customFields의 addCustomField와
+    // 같은 방식) — 관리자가 직접 정한 순서를 건드리지 않는다.
+    const { data: existing } = await supabase
+      .from("email_rules")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextOrder = (existing?.sort_order ?? -1) + 1;
+    ({ error } = await supabase
+      .from("email_rules")
+      .insert({ ...row, sort_order: nextOrder }));
+  }
 
   if (error) {
     return { error: `저장하지 못했습니다: ${error.message}` };
@@ -1715,6 +1729,43 @@ export async function toggleEmailRule(formData: FormData) {
 
   const supabase = await createClient();
   await supabase.from("email_rules").update({ enabled: !enabled }).eq("id", id);
+  revalidatePath("/admin/emails");
+}
+
+/**
+ * 이메일 규칙 순서 변경. 신청서 문항 순서 변경(moveCustomField)과
+ * 같은 방식 — 화면에서 ▲▼를 누르면 바로 옆(위/아래) 규칙과
+ * sort_order를 맞바꾼다. 클라이언트가 보낸 순서를 믿지 않고, 매번 DB
+ * 에서 현재 순서를 다시 읽어 계산한다(동시에 여러 명이 손대도 안전).
+ */
+export async function moveEmailRule(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const direction = formData.get("direction") === "up" ? -1 : 1;
+  if (!id) return;
+
+  const supabase = await createClient();
+  const { data: rules } = await supabase
+    .from("email_rules")
+    .select("id, sort_order")
+    .order("sort_order");
+
+  if (!rules) return;
+
+  const index = rules.findIndex((rule) => rule.id === id);
+  const target = index + direction;
+  if (index === -1 || target < 0 || target >= rules.length) return;
+
+  const reordered = [...rules];
+  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+
+  await Promise.all(
+    reordered.map((rule, order) =>
+      supabase.from("email_rules").update({ sort_order: order }).eq("id", rule.id),
+    ),
+  );
+
   revalidatePath("/admin/emails");
 }
 
