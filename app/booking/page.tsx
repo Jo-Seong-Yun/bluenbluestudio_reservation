@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { publicImageUrl } from "@/lib/images";
-import { SITE } from "@/lib/site";
+import { SITE, BRAND_LOGO } from "@/lib/site";
 import { tagColorDotClass } from "@/lib/product-tag-colors";
-import { Button } from "@/components/ui";
+import {
+  cardPaddingClass,
+  cardRadiusClass,
+  nameTextClass,
+  priceTextClass,
+  resolveBookingStyle,
+  saleBadgeBackground,
+  thumbnailSizeClass,
+} from "@/lib/booking-style";
 import { BookingListViewTracker } from "./booking-list-view-tracker";
 
 export const metadata: Metadata = { title: "예약하기" };
@@ -20,20 +29,38 @@ export default async function BookingPage() {
       .order("created_at"),
     supabase
       .from("settings")
-      .select("show_product_thumbnails")
+      .select("show_product_thumbnails, booking_style")
       .eq("id", 1)
       .single(),
   ]);
   const showThumbnails = settings?.show_product_thumbnails ?? true;
+  const style = resolveBookingStyle(settings?.booking_style);
+  const radiusClass = cardRadiusClass(style.cardRadius);
+  const paddingClass = cardPaddingClass(style.cardSize);
+  const thumbClass = thumbnailSizeClass(style.cardSize);
+  const nameClass = nameTextClass(style.textSize);
+  const priceClass = priceTextClass(style.textSize);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12">
       <BookingListViewTracker />
 
-      <p className="text-accent text-xs font-medium tracking-widest uppercase sm:text-sm">
-        {SITE.nameEn}
-      </p>
-      <h1 className="mt-2 text-2xl font-bold sm:text-3xl">촬영 상품 선택</h1>
+      {/* 로고를 작게 좌상단에 — 원형 아바타로 크게 두지 않는다. 손님이
+          "예약 도구"를 쓰고 있다는 느낌이 먼저 오도록 한다. */}
+      <div className="flex items-center gap-2">
+        <Image
+          src={BRAND_LOGO.src}
+          alt={SITE.name}
+          width={BRAND_LOGO.width}
+          height={BRAND_LOGO.height}
+          priority
+          className="h-5 w-auto"
+        />
+        <span className="text-accent text-xs font-medium tracking-widest uppercase sm:text-sm">
+          {SITE.nameEn}
+        </span>
+      </div>
+      <h1 className="mt-3 text-2xl font-bold sm:text-3xl">촬영 상품 선택</h1>
       <p className="text-muted mt-2 text-sm sm:text-base">
         원하시는 촬영을 골라 주시기 바랍니다.
       </p>
@@ -62,26 +89,26 @@ export default async function BookingPage() {
                     눌러볼 수 있는 요소라는 걸 몸으로 느끼게 한다. */}
                 <Link
                   href={`/booking/${product.slug}`}
-                  className="border-border bg-surface hover:border-brand group flex items-stretch overflow-hidden rounded-xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                  className={`border-border bg-surface hover:border-brand group flex items-stretch overflow-hidden border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${radiusClass}`}
                 >
                   {dotClass ? (
                     <span className={`w-1.5 shrink-0 ${dotClass}`} />
                   ) : null}
-                  <div className="flex min-w-0 flex-1 items-center gap-4 p-4">
+                  <div className={`flex min-w-0 flex-1 items-center gap-4 ${paddingClass}`}>
                     {showThumbnails ? (
                       product.cover_image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={publicImageUrl(product.cover_image)}
                           alt=""
-                          className="h-20 w-20 shrink-0 rounded-lg object-cover"
+                          className={`shrink-0 rounded-lg object-cover ${thumbClass}`}
                         />
                       ) : (
-                        <div className="bg-surface-subtle h-20 w-20 shrink-0 rounded-lg" />
+                        <div className={`bg-surface-subtle shrink-0 rounded-lg ${thumbClass}`} />
                       )
                     ) : null}
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-lg font-bold sm:text-xl">
+                      <h2 className={`font-bold ${nameClass}`} style={{ color: style.textColor }}>
                         {product.name}
                       </h2>
                       {/* 작은 설명 텍스트만 박스 왼쪽 기준 60% 지점에서
@@ -111,7 +138,13 @@ export default async function BookingPage() {
                           <span className="text-muted text-xs line-through">
                             {product.price.toLocaleString()}원
                           </span>
-                          <span className="rounded-md bg-rose-50 px-1 py-0.5 text-xs font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400">
+                          <span
+                            className="rounded-md px-1 py-0.5 text-xs font-bold"
+                            style={{
+                              backgroundColor: saleBadgeBackground(style.saleColor),
+                              color: style.saleColor,
+                            }}
+                          >
                             {product.sale_price != null
                               ? Math.round(
                                   (1 - product.sale_price / product.price) *
@@ -121,11 +154,17 @@ export default async function BookingPage() {
                             %
                           </span>
                         </div>
-                        <p className="text-foreground text-lg font-extrabold whitespace-nowrap sm:text-xl">
+                        <p
+                          className={`font-extrabold whitespace-nowrap ${priceClass}`}
+                          style={{ color: style.textColor }}
+                        >
                           {(product.sale_price ?? product.price).toLocaleString()}원
                         </p>
                       </div>
-                      <span className="text-brand group-hover:gap-1.5 inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap transition-[gap] sm:text-sm">
+                      <span
+                        className="group-hover:gap-1.5 inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap transition-[gap] sm:text-sm"
+                        style={{ color: style.accentColor }}
+                      >
                         예약하기
                         <span aria-hidden>→</span>
                       </span>
@@ -139,10 +178,12 @@ export default async function BookingPage() {
       )}
 
       <div className="mt-12 text-center">
-        <Link href="/booking/lookup" className="inline-block">
-          <Button type="button" variant="ghost">
-            이미 예약하셨습니까? 예약 조회 →
-          </Button>
+        <Link
+          href="/booking/lookup"
+          className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: style.accentColor }}
+        >
+          이미 예약하셨습니까? 예약 조회 →
         </Link>
       </div>
     </main>
