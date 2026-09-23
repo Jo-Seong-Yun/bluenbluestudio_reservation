@@ -14,11 +14,14 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import TextAlign from "@tiptap/extension-text-align";
 import {
+  ArrowUpDown,
   AlignCenter,
   AlignJustify,
   AlignLeft,
   AlignRight,
   Bold,
+  Check,
+  ChevronDown,
   Eraser,
   Heading2,
   ImageIcon,
@@ -28,6 +31,13 @@ import {
 } from "lucide-react";
 import { ErrorText } from "@/components/ui";
 import { ResizableImage } from "@/components/tiptap/resizable-image";
+import {
+  LINE_HEIGHT_MAX,
+  LINE_HEIGHT_MIN,
+  LINE_HEIGHT_PRESETS,
+  ParagraphSpacing,
+  normalizeLineHeight,
+} from "@/components/tiptap/paragraph-spacing";
 import { publicImageUrl } from "@/lib/images";
 import { uploadProductImage } from "@/lib/storage-upload";
 
@@ -75,6 +85,7 @@ export function RichTextEditor({
       Color,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       ResizableImage,
+      ParagraphSpacing,
     ],
     content: initial,
     immediatelyRender: false,
@@ -105,6 +116,7 @@ export function RichTextEditor({
       link: ctx.editor?.isActive("link") ?? false,
       color: ctx.editor?.getAttributes("textStyle").color ?? "",
       align: ctx.editor?.getAttributes("paragraph").textAlign ?? "left",
+      ...blockSpacing(ctx.editor),
     }),
   });
 
@@ -269,6 +281,13 @@ export function RichTextEditor({
           <AlignJustify size={16} />
         </ToolbarButton>
 
+        <LineSpacingMenu
+          editor={editor}
+          lineHeight={editorState?.lineHeight ?? null}
+          spaceBefore={editorState?.spaceBefore ?? false}
+          spaceAfter={editorState?.spaceAfter ?? false}
+        />
+
         <div className="mx-1 h-5 w-px bg-white/15" />
 
         <label
@@ -313,6 +332,217 @@ export function RichTextEditor({
       </div>
       <EditorContent editor={editor} />
       <ErrorText>{uploadError}</ErrorText>
+    </div>
+  );
+}
+
+/** 커서가 있는 문단(또는 제목)의 행간격·단락 공백 — 툴바 메뉴의 ✓ 표시용. */
+function blockSpacing(editor: Editor | null) {
+  const attrs = editor?.isActive("heading")
+    ? editor.getAttributes("heading")
+    : (editor?.getAttributes("paragraph") ?? {});
+  return {
+    lineHeight: (attrs.lineHeight as string | null) ?? null,
+    spaceBefore: Boolean(attrs.spaceBefore),
+    spaceAfter: Boolean(attrs.spaceAfter),
+  };
+}
+
+/**
+ * 구글 독스의 "줄 및 단락 간격" 메뉴를 따른 드롭다운. 위에는 행간격
+ * (기본/1.0/1.15/1.5/2.0/맞춤), 아래에는 단락 앞/뒤 공백 추가·삭제가
+ * 있고, 커서가 있는 문단의 현재 값에 ✓가 붙는다. 메뉴 버튼은
+ * mousedown을 막아 에디터의 선택 영역이 풀리지 않게 한다.
+ */
+function LineSpacingMenu({
+  editor,
+  lineHeight,
+  spaceBefore,
+  spaceAfter,
+}: {
+  editor: Editor | null;
+  lineHeight: string | null;
+  spaceBefore: boolean;
+  spaceAfter: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [custom, setCustom] = useState("");
+  const [customError, setCustomError] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        // 모달(dialog) 안에서 Esc가 모달까지 닫지 않게 메뉴만 닫는다.
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [open]);
+
+  const isPreset =
+    lineHeight === null || LINE_HEIGHT_PRESETS.some((p) => p.value === lineHeight);
+
+  function toggleMenu() {
+    setOpen((prev) => !prev);
+    setCustom(isPreset ? "" : (lineHeight ?? ""));
+    setCustomError(false);
+  }
+
+  function apply(run: (e: Editor) => void) {
+    if (!editor) return;
+    run(editor);
+    setOpen(false);
+  }
+
+  function applyCustom() {
+    const value = normalizeLineHeight(custom);
+    if (!value) {
+      setCustomError(true);
+      return;
+    }
+    apply((e) => e.chain().focus().setLineHeight(value).run());
+  }
+
+  const item =
+    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-subtle";
+  const checkSlot = (on: boolean) => (
+    <span className="flex w-4 shrink-0 justify-center">
+      {on ? <Check size={14} /> : null}
+    </span>
+  );
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        title="행간격 및 단락 간격"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={toggleMenu}
+        className={`flex h-7 items-center gap-0.5 rounded px-1 text-white ${
+          open ? "bg-white/20" : "hover:bg-white/10"
+        }`}
+      >
+        <ArrowUpDown size={16} />
+        <ChevronDown size={12} />
+      </button>
+
+      {open ? (
+        <div
+          role="menu"
+          className="border-border bg-surface text-foreground absolute top-full left-0 z-20 mt-1 w-56 rounded-lg border p-1 shadow-lg"
+        >
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={lineHeight === null}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => apply((e) => e.chain().focus().setLineHeight(null).run())}
+            className={item}
+          >
+            {checkSlot(lineHeight === null)}
+            기본
+          </button>
+          {LINE_HEIGHT_PRESETS.map((preset) => (
+            <button
+              key={preset.value}
+              type="button"
+              role="menuitemradio"
+              aria-checked={lineHeight === preset.value}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() =>
+                apply((e) => e.chain().focus().setLineHeight(preset.value).run())
+              }
+              className={item}
+            >
+              {checkSlot(lineHeight === preset.value)}
+              {preset.label}
+            </button>
+          ))}
+
+          <div className="flex items-center gap-2 px-2 py-1.5 text-sm">
+            {checkSlot(!isPreset)}
+            <span className="shrink-0">맞춤</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              step={0.05}
+              min={LINE_HEIGHT_MIN}
+              max={LINE_HEIGHT_MAX}
+              value={custom}
+              placeholder="1.25"
+              aria-label={`맞춤 행간격 (${LINE_HEIGHT_MIN}~${LINE_HEIGHT_MAX})`}
+              aria-invalid={customError}
+              onChange={(event) => {
+                setCustom(event.target.value);
+                setCustomError(false);
+              }}
+              onKeyDown={(event) => {
+                // 폼 안이라 Enter가 제출로 이어지지 않게 막고 바로 적용한다.
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  applyCustom();
+                }
+              }}
+              className={`bg-surface w-16 rounded border px-1.5 py-0.5 text-sm ${
+                customError ? "border-red-500" : "border-border"
+              }`}
+            />
+            <button
+              type="button"
+              onClick={applyCustom}
+              className="text-brand shrink-0 text-xs font-medium hover:underline"
+            >
+              적용
+            </button>
+          </div>
+          {customError ? (
+            <p className="px-2 pb-1 text-xs text-red-600 dark:text-red-400">
+              {LINE_HEIGHT_MIN}~{LINE_HEIGHT_MAX} 사이 숫자를 입력해 주십시오.
+            </p>
+          ) : null}
+
+          <div className="border-border my-1 border-t" />
+
+          <button
+            type="button"
+            role="menuitem"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() =>
+              apply((e) => e.chain().focus().setSpaceBefore(!spaceBefore).run())
+            }
+            className={item}
+          >
+            {checkSlot(false)}
+            {spaceBefore ? "단락 앞 공백 삭제" : "단락 앞 공백 추가"}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() =>
+              apply((e) => e.chain().focus().setSpaceAfter(!spaceAfter).run())
+            }
+            className={item}
+          >
+            {checkSlot(false)}
+            {spaceAfter ? "단락 뒤 공백 삭제" : "단락 뒤 공백 추가"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
