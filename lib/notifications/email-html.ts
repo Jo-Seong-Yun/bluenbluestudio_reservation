@@ -104,7 +104,7 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
     ctaBlock =
       `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 4px;">` +
       `<tr><td align="center">` +
-      `<a href="${escapeHtml(options.ctaUrl)}" target="_blank" style="display:inline-block;background-color:${btnColor};color:#ffffff;font-family:${EMAIL_FONT_STACK};padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;line-height:1;">${escapeHtml(options.ctaText)}</a>` +
+      `<a href="${escapeHtml(options.ctaUrl)}" target="_blank" class="cta-btn" style="display:inline-block;background-color:${btnColor};color:#ffffff;font-family:${EMAIL_FONT_STACK};padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,.12);">${escapeHtml(options.ctaText)}</a>` +
       `</td></tr></table>`;
   }
 
@@ -128,8 +128,11 @@ function wrapInEmailShell(content: string, options?: EmailShellOptions): string 
     options?.logoUrl && SAFE_URL.test(options.logoUrl)
       ? `<img src="${escapeHtml(options.logoUrl)}" alt="${escapeHtml(SITE.name)}" style="height:40px;max-width:200px;display:block;">`
       : `<span style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.01em;">${SITE.name}</span>`;
+  const ctaHoverStyle = options?.ctaText
+    ? `<style>.cta-btn{transition:opacity .15s,transform .15s,box-shadow .15s}.cta-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18)!important}</style>`
+    : "";
   return `<!DOCTYPE html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only">${ctaHoverStyle}</head>
 <body style="margin:0;padding:0;background-color:#f4f6f8;-webkit-text-size-adjust:100%;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6f8;">
 <tr><td align="center" style="padding:28px 12px;">
