@@ -15,6 +15,8 @@ import { Extension, type CommandProps } from "@tiptap/core";
 export const PARAGRAPH_SPACE = "0.75em";
 export const LINE_HEIGHT_MIN = 1;
 export const LINE_HEIGHT_MAX = 3;
+export const INDENT_STEP_EM = 2;
+export const INDENT_MAX = 8;
 
 export const LINE_HEIGHT_PRESETS = [
   { value: "1", label: "1.0 (단일)" },
@@ -41,6 +43,8 @@ declare module "@tiptap/core" {
       setLineHeight: (lineHeight: string | null) => ReturnType;
       setSpaceBefore: (on: boolean) => ReturnType;
       setSpaceAfter: (on: boolean) => ReturnType;
+      indent: () => ReturnType;
+      outdent: () => ReturnType;
     };
   }
 }
@@ -79,6 +83,18 @@ export const ParagraphSpacing = Extension.create({
                 ? { style: `padding-bottom: ${PARAGRAPH_SPACE}` }
                 : {},
           },
+          indent: {
+            default: 0,
+            parseHTML: (element) => {
+              const em = parseFloat(element.style.marginLeft || "0");
+              const level = Math.round(em / INDENT_STEP_EM);
+              return Math.min(Math.max(level, 0), INDENT_MAX);
+            },
+            renderHTML: (attributes) =>
+              attributes.indent
+                ? { style: `margin-left: ${attributes.indent * INDENT_STEP_EM}em` }
+                : {},
+          },
         },
       },
     ];
@@ -94,6 +110,39 @@ export const ParagraphSpacing = Extension.create({
       setLineHeight: (lineHeight) => apply({ lineHeight }),
       setSpaceBefore: (on) => apply({ spaceBefore: on }),
       setSpaceAfter: (on) => apply({ spaceAfter: on }),
+      indent:
+        () =>
+        ({ editor, commands }) => {
+          // 목록 안에서는 Tab처럼 항목을 한 단계 들여쓴다.
+          if (editor.isActive("listItem") || editor.isActive("taskItem")) {
+            return commands.sinkListItem(
+              editor.isActive("taskItem") ? "taskItem" : "listItem",
+            );
+          }
+          const attrs = editor.getAttributes(
+            editor.isActive("heading") ? "heading" : "paragraph",
+          );
+          const next = Math.min((attrs.indent ?? 0) + 1, INDENT_MAX);
+          return TYPES.map((type) =>
+            commands.updateAttributes(type, { indent: next }),
+          ).some(Boolean);
+        },
+      outdent:
+        () =>
+        ({ editor, commands }) => {
+          if (editor.isActive("listItem") || editor.isActive("taskItem")) {
+            return commands.liftListItem(
+              editor.isActive("taskItem") ? "taskItem" : "listItem",
+            );
+          }
+          const attrs = editor.getAttributes(
+            editor.isActive("heading") ? "heading" : "paragraph",
+          );
+          const next = Math.max((attrs.indent ?? 0) - 1, 0);
+          return TYPES.map((type) =>
+            commands.updateAttributes(type, { indent: next }),
+          ).some(Boolean);
+        },
     };
   },
 });
