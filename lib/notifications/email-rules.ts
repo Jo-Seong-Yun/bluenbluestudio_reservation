@@ -81,12 +81,21 @@ export async function loadDayOffsetEmailRules(): Promise<EmailRule[]> {
  * 관리자 설정 화면이 목록을 한 번에 다 보여줄 때 쓴다. 관리자가
  * /admin/emails에서 직접 정한 순서(sort_order)대로 보여준다 —
  * moveEmailRule(app/admin/actions.ts)이 이 값을 바꾼다.
+ *
+ * 조회 실패(예: 마이그레이션을 아직 안 돌려 sort_order 컬럼이 없는
+ * 경우)를 조용히 빈 배열로 넘기지 않는다 — 그러면 화면이 "규칙이
+ * 0개"로 보여, 실제로는 다 남아있는데 관리자가 다 지워진 줄 알고
+ * 당황할 수 있다. 에러를 그대로 돌려줘서 화면(emails/page.tsx)이
+ * "규칙이 없다"와 "불러오지 못했다"를 구분해서 보여주게 한다.
  */
-export async function loadAllEmailRules(): Promise<EmailRule[]> {
+export async function loadAllEmailRules(): Promise<{
+  rules: EmailRule[];
+  error: string | null;
+}> {
   const supabase = createAdminClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("email_rules")
     .select(EMAIL_RULE_COLUMNS)
     .order("sort_order", { ascending: true });
-  return (data ?? []).map(mapRow);
+  return { rules: (data ?? []).map(mapRow), error: error?.message ?? null };
 }
