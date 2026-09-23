@@ -38,8 +38,8 @@ import {
 import {
   DAY_OFFSET_TRIGGER_TYPES,
   EMAIL_RECIPIENTS,
-  EMAIL_RECIPIENT_LABELS,
   EMAIL_TRIGGER_TYPES,
+  formatRecipients,
   renderEmailTemplate,
   type EmailRecipient,
   type EmailTriggerType,
@@ -960,7 +960,7 @@ export async function previewStatusChangeEmails(
 
   return rules.map((rule) => ({
     ruleId: rule.id,
-    recipientLabel: EMAIL_RECIPIENT_LABELS[rule.recipient],
+    recipientLabel: formatRecipients(rule.recipients),
     subject: renderEmailTemplate(rule.subject, variables),
     body: renderEmailHtml(rule.body, variables),
     usesCancelReason: /\{\{\s*취소사유\s*\}\}/.test(rule.subject + rule.body),
@@ -1948,7 +1948,10 @@ export async function saveEmailRule(
 
   const id = String(formData.get("id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
-  const recipient = String(formData.get("recipient") ?? "");
+  // 받는 사람은 체크박스라 여러 개 올 수 있다(손님+사장님).
+  const recipients = [
+    ...new Set(formData.getAll("recipients").map((v) => String(v))),
+  ];
   const triggerType = String(formData.get("triggerType") ?? "");
   const dayOffsetRaw = String(formData.get("dayOffset") ?? "").trim();
   const productId = String(formData.get("productId") ?? "").trim();
@@ -1959,7 +1962,10 @@ export async function saveEmailRule(
   const body = isHtmlBody(rawBody) ? sanitizeDescriptionHtml(rawBody) : rawBody;
 
   if (!name) return { error: "규칙 이름을 입력해 주시기 바랍니다." };
-  if (!EMAIL_RECIPIENTS.includes(recipient as EmailRecipient)) {
+  if (recipients.length === 0) {
+    return { error: "받는 사람을 한 명 이상 골라 주시기 바랍니다." };
+  }
+  if (!recipients.every((r) => EMAIL_RECIPIENTS.includes(r as EmailRecipient))) {
     return { error: "잘못된 요청입니다." };
   }
   if (!EMAIL_TRIGGER_TYPES.includes(triggerType as EmailTriggerType)) {
@@ -1982,7 +1988,7 @@ export async function saveEmailRule(
   const supabase = await createClient();
   const row = {
     name,
-    recipient: recipient as EmailRecipient,
+    recipients: recipients as EmailRecipient[],
     trigger_type: triggerType as EmailTriggerType,
     day_offset: dayOffset,
     product_id: productId || null,

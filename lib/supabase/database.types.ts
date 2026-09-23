@@ -443,7 +443,7 @@ export interface Database {
           id: string;
           name: string;
           enabled: boolean;
-          recipient: "customer" | "admin";
+          recipients: ("customer" | "admin")[];
           trigger_type:
             | "on_requested"
             | "on_schedule_confirmed"

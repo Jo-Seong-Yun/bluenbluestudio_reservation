@@ -6,7 +6,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { DeleteRuleButton } from "./delete-rule-button";
 import { RuleModal } from "./rule-modal";
 import {
-  EMAIL_RECIPIENT_LABELS,
+  formatRecipients,
   EMAIL_TRIGGER_LABELS,
   type EmailRule,
 } from "@/lib/notifications/email-rules-shared";
@@ -119,7 +119,7 @@ export function EmailRulesSection({
                       {rule.dayOffset ? ` ${rule.dayOffset}일` : ""}
                     </span>
                     <span className="bg-surface-subtle rounded-full px-2 py-0.5 text-xs">
-                      {EMAIL_RECIPIENT_LABELS[rule.recipient]}에게
+                      {formatRecipients(rule.recipients)}에게
                     </span>
                     <span className="bg-surface-subtle rounded-full px-2 py-0.5 text-xs">
                       {productLabel(rule.productId)}

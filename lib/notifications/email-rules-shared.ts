@@ -59,11 +59,35 @@ export const EMAIL_RECIPIENT_LABELS: Record<EmailRecipient, string> = {
   admin: "사장님",
 };
 
+/** 받는 사람 목록을 "손님·사장님"처럼 화면에 보여줄 글자로 — 순서는 EMAIL_RECIPIENTS 기준. */
+export function formatRecipients(recipients: readonly EmailRecipient[]): string {
+  return EMAIL_RECIPIENTS.filter((r) => recipients.includes(r))
+    .map((r) => EMAIL_RECIPIENT_LABELS[r])
+    .join("·");
+}
+
+/**
+ * 규칙의 받는 사람들을 실제 이메일 주소로 바꾼다. 주소가 없는 쪽(손님이
+ * 이메일을 안 적었거나 사장님 알림 주소가 비어있음)은 빼고, 손님과
+ * 사장님 주소가 같으면(사장님이 직접 테스트 예약을 한 경우 등) 한 번만
+ * 보낸다.
+ */
+export function ruleRecipientAddresses(
+  recipients: readonly EmailRecipient[],
+  emails: { customerEmail?: string | null; adminEmail?: string | null },
+): string[] {
+  const addresses = recipients
+    .map((r) => (r === "admin" ? emails.adminEmail : emails.customerEmail))
+    .filter((to): to is string => Boolean(to));
+  return [...new Set(addresses)];
+}
+
 export type EmailRule = {
   id: string;
   name: string;
   enabled: boolean;
-  recipient: EmailRecipient;
+  /** 비어있지 않은 받는 사람 목록(손님/사장님 중복 선택 가능). */
+  recipients: EmailRecipient[];
   triggerType: EmailTriggerType;
   /** days_before_shoot/days_after_shoot 트리거에서만 쓰는 날짜 수. */
   dayOffset: number | null;

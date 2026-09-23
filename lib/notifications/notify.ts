@@ -6,6 +6,7 @@ import { logNotification } from "./log";
 import {
   loadEmailRulesForTrigger,
   renderEmailTemplate,
+  ruleRecipientAddresses,
   type EmailRule,
   type EmailTriggerType,
 } from "./email-rules";
@@ -193,7 +194,7 @@ export async function siteVariableOverrides(): Promise<Record<string, string>> {
  * 특정 이벤트(접수/확정/취소/일정변경/관리자 신규알림)가 일어난 순간
  * 이메일을 보낸다. 관리자가 /admin/settings의 "이메일 규칙"에서 이
  * 트리거에 걸어둔 규칙을 전부 찾아(상품 필터가 있으면 이 발송 건의
- * 상품과 맞는 것만), 규칙마다 정해진 수신자(손님/사장님)에게 각각
+ * 상품과 맞는 것만), 규칙마다 정해진 수신자(손님/사장님, 둘 다일 수도 있음)에게 각각
  * 보낸다. 걸린 규칙이 하나도 없으면(관리자가 다 지웠으면) 조용히
  * 아무것도 보내지 않는다 — "종류를 마음대로 삭제할 수 있다"는 요구의
  * 자연스러운 결과다.
@@ -213,17 +214,17 @@ async function sendTriggerEmails(params: {
 
   const variables = { ...params.variables, ...(await siteVariableOverrides()) };
   await Promise.all(
-    rules.map((rule) => {
-      const to = rule.recipient === "admin" ? params.adminEmail : params.customerEmail;
-      if (!to) return Promise.resolve();
-      return tryRuleEmail({
-        rule,
-        to,
-        variables,
-        reservationId: params.reservationId,
-        override: params.overrides?.[rule.id],
-      });
-    }),
+    rules.flatMap((rule) =>
+      ruleRecipientAddresses(rule.recipients, params).map((to) =>
+        tryRuleEmail({
+          rule,
+          to,
+          variables,
+          reservationId: params.reservationId,
+          override: params.overrides?.[rule.id],
+        }),
+      ),
+    ),
   );
 }
 
@@ -256,32 +257,38 @@ export async function notifyEmailOnlyEvent(params: {
 /**
  * 촬영일 기준 며칠 전/후 규칙 하나를 특정 예약에 보낸다. 크론
  * (app/api/cron/reminders/route.ts)이 매일 규칙 전체를 훑으며 이
- * 함수를 부른다. 이미 보낸 적 있으면(hasRuleEmailBeenSent) 크론 쪽에서
- * 미리 걸러 부르지 않으므로 여기선 발송 여부만 따진다.
+ * 함수를 부른다. 받는 주소(to)는 크론이 이미 보낸 적 없는 곳만 골라
+ * 넘겨준다(hasRuleEmailBeenSent).
  */
 export async function sendDayOffsetRuleEmail(params: {
   rule: EmailRule;
   reservationId: string;
-  customerEmail?: string | null;
-  adminEmail?: string | null;
+  to: string[];
   variables: Record<string, string>;
-}): Promise<boolean> {
-  const to = params.rule.recipient === "admin" ? params.adminEmail : params.customerEmail;
-  if (!to) return false;
+}): Promise<void> {
+  if (params.to.length === 0) return;
   const variables = { ...params.variables, ...(await siteVariableOverrides()) };
-  await tryRuleEmail({
-    rule: params.rule,
-    to,
-    variables,
-    reservationId: params.reservationId,
-  });
-  return true;
+  await Promise.all(
+    params.to.map((to) =>
+      tryRuleEmail({
+        rule: params.rule,
+        to,
+        variables,
+        reservationId: params.reservationId,
+      }),
+    ),
+  );
 }
 
-/** 이 규칙이 이 예약에 이미 발송됐는지(성공 기준) — 크론의 중복 발송 방지용. */
+/**
+ * 이 규칙이 이 예약의 이 주소로 이미 발송됐는지(성공 기준) — 크론의
+ * 중복 발송 방지용. 받는 사람이 여럿인 규칙은 한쪽만 실패했을 때 그쪽만
+ * 다음 날 다시 시도하도록 주소별로 따진다.
+ */
 export async function hasRuleEmailBeenSent(
   ruleId: string,
   reservationId: string,
+  to: string,
 ): Promise<boolean> {
   const supabase = createAdminClient();
   const { data } = await supabase
@@ -290,6 +297,7 @@ export async function hasRuleEmailBeenSent(
     .eq("channel", "email")
     .eq("purpose", `rule:${ruleId}`)
     .eq("reservation_id", reservationId)
+    .eq("recipient", to)
     .eq("success", true)
     .limit(1)
     .maybeSingle();
