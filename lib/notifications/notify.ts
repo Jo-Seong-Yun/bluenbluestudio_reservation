@@ -11,6 +11,12 @@ import {
 } from "./email-rules";
 import { createAdminClient } from "../supabase/admin";
 import {
+  finalizeEmailHtml,
+  htmlToPlainText,
+  renderEmailHtml,
+  toEditorHtml,
+} from "./email-html";
+import {
   smsNotificationsEnabled,
   solapiKakaoPfId,
   solapiKakaoTemplateId,
@@ -132,10 +138,16 @@ async function tryRuleEmail(params: {
     const subject =
       params.override?.subject ??
       renderEmailTemplate(params.rule.subject, params.variables);
-    const text =
-      params.override?.body ??
-      renderEmailTemplate(params.rule.body, params.variables);
-    await sendEmail({ to: params.to, subject, text });
+    // 본문은 서식 에디터로 쓴 HTML(옛 평문 규칙은 HTML로 바꿔서)로
+    // 보내고, HTML을 못 여는 메일 앱을 위해 평문 대체본도 같이 싣는다.
+    // 확인모달에서 고친 내용(override)은 이미 변수가 채워진 HTML이다.
+    const html = finalizeEmailHtml(
+      params.override
+        ? toEditorHtml(params.override.body)
+        : renderEmailHtml(params.rule.body, params.variables),
+    );
+    const text = htmlToPlainText(html);
+    await sendEmail({ to: params.to, subject, text, html });
     await logNotification({
       channel: "email",
       purpose: `rule:${params.rule.id}`,

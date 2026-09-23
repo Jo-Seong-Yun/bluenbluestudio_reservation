@@ -14,15 +14,18 @@ export async function sendEmail({
   to,
   subject,
   text,
+  html,
 }: {
   to: string;
   subject: string;
+  /** HTML을 못 여는 메일 앱용 평문. html이 없으면 이것만 보낸다. */
   text: string;
+  html?: string;
 }): Promise<void> {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: { user: gmailUser(), pass: gmailAppPassword() },
   });
 
-  await transporter.sendMail({ from: gmailUser(), to, subject, text });
+  await transporter.sendMail({ from: gmailUser(), to, subject, text, html });
 }

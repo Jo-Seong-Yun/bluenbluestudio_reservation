@@ -8,6 +8,7 @@ import {
 } from "@/app/admin/actions";
 import { Button, ErrorText, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import type { EmailTriggerType } from "@/lib/notifications/email-rules-shared";
 
 type EditedEmail = { subject: string; body: string };
@@ -56,6 +57,7 @@ export function StatusTransitionModal({
   const [items, setItems] = useState<EmailPreviewItem[] | null>(null);
   const [edited, setEdited] = useState<Record<string, EditedEmail>>({});
   const [loading, setLoading] = useState(false);
+  const [previewVersion, setPreviewVersion] = useState(0);
 
   const [state, action, pending] = useActionState<
     TransitionActionState,
@@ -80,6 +82,7 @@ export function StatusTransitionModal({
         result.map((item) => [item.ruleId, { subject: item.subject, body: item.body }]),
       ),
     );
+    setPreviewVersion((n) => n + 1);
     setLoading(false);
   }
 
@@ -111,7 +114,7 @@ export function StatusTransitionModal({
 
       <dialog
         ref={dialogRef}
-        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-lg rounded-xl border p-0 backdrop:bg-black/50"
+        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-2xl rounded-xl border p-0 backdrop:bg-black/50"
       >
         <div className="flex items-center justify-between border-b border-inherit px-5 py-4">
           <p className="font-bold">{modalTitle}</p>
@@ -210,19 +213,21 @@ export function StatusTransitionModal({
                       }
                       className={`${inputClass} mb-2`}
                     />
-                    <textarea
-                      rows={6}
-                      value={edited[item.ruleId]?.body ?? item.body}
-                      onChange={(e) =>
+                    {/* 미리보기를 다시 불러오면(취소사유 반영) 에디터 내용도
+                        새로 받아야 해서 previewVersion으로 다시 마운트한다. */}
+                    <RichTextEditor
+                      key={`${item.ruleId}-${previewVersion}`}
+                      initial={item.body}
+                      heightClass="h-[260px]"
+                      onChange={(html) =>
                         setEdited((prev) => ({
                           ...prev,
                           [item.ruleId]: {
                             subject: prev[item.ruleId]?.subject ?? item.subject,
-                            body: e.target.value,
+                            body: html,
                           },
                         }))
                       }
-                      className={`${inputClass} font-mono text-xs leading-relaxed`}
                     />
                   </div>
                 ))}

@@ -45,6 +45,11 @@ import {
   type EmailTriggerType,
 } from "@/lib/notifications/email-rules-shared";
 import { loadEmailRulesForTrigger } from "@/lib/notifications/email-rules";
+import {
+  isEmptyEmailBody,
+  isHtmlBody,
+  renderEmailHtml,
+} from "@/lib/notifications/email-html";
 import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
 import { siteVariableOverrides } from "@/lib/notifications/notify";
 import {
@@ -957,7 +962,7 @@ export async function previewStatusChangeEmails(
     ruleId: rule.id,
     recipientLabel: EMAIL_RECIPIENT_LABELS[rule.recipient],
     subject: renderEmailTemplate(rule.subject, variables),
-    body: renderEmailTemplate(rule.body, variables),
+    body: renderEmailHtml(rule.body, variables),
     usesCancelReason: /\{\{\s*취소사유\s*\}\}/.test(rule.subject + rule.body),
   }));
 }
@@ -1948,7 +1953,10 @@ export async function saveEmailRule(
   const dayOffsetRaw = String(formData.get("dayOffset") ?? "").trim();
   const productId = String(formData.get("productId") ?? "").trim();
   const subject = String(formData.get("subject") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
+  // 본문은 서식 에디터가 만든 HTML — 상품 설명과 같은 허용 목록으로
+  // 정화해서 저장한다({{변수}} 같은 글자는 그대로 남는다).
+  const rawBody = String(formData.get("body") ?? "").trim();
+  const body = isHtmlBody(rawBody) ? sanitizeDescriptionHtml(rawBody) : rawBody;
 
   if (!name) return { error: "규칙 이름을 입력해 주시기 바랍니다." };
   if (!EMAIL_RECIPIENTS.includes(recipient as EmailRecipient)) {
@@ -1958,7 +1966,7 @@ export async function saveEmailRule(
     return { error: "잘못된 요청입니다." };
   }
   if (!subject) return { error: "제목을 입력해 주시기 바랍니다." };
-  if (!body) return { error: "본문을 입력해 주시기 바랍니다." };
+  if (isEmptyEmailBody(body)) return { error: "본문을 입력해 주시기 바랍니다." };
 
   const isDayOffsetTrigger = DAY_OFFSET_TRIGGER_TYPES.has(
     triggerType as EmailTriggerType,
