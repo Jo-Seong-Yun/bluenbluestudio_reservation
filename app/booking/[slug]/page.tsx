@@ -134,7 +134,7 @@ export default async function ProductDetailPage({
                       <span className="text-boost text-xs line-through">
                         {product.price.toLocaleString()}원
                       </span>
-                      <span className="bg-brand/10 text-brand text-boost rounded-md px-1 py-0.5 text-xs font-bold">
+                      <span className="text-boost rounded-md bg-rose-50 px-1 py-0.5 text-xs font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400">
                         {Math.round(
                           (1 - product.sale_price / product.price) * 100,
                         )}

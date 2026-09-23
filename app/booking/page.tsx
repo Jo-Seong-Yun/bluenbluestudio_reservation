@@ -111,7 +111,7 @@ export default async function BookingPage() {
                           <span className="text-muted text-xs line-through">
                             {product.price.toLocaleString()}원
                           </span>
-                          <span className="bg-brand/10 text-brand rounded-md px-1 py-0.5 text-xs font-bold">
+                          <span className="rounded-md bg-rose-50 px-1 py-0.5 text-xs font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400">
                             {product.sale_price != null
                               ? Math.round(
                                   (1 - product.sale_price / product.price) *
