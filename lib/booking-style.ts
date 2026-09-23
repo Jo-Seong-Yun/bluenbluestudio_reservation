@@ -34,6 +34,68 @@ export const DEFAULT_BOOKING_STYLE: BookingStyle = {
   cardSize: "standard",
 };
 
+/**
+ * 한 번에 여섯 값을 다 채우는 미리 만든 조합. 처음부터 하나하나
+ * 고르기보다, 마음에 드는 템플릿을 먼저 고르고 아래 낱개 컨트롤로
+ * 다듬는 순서를 위한 것이다 — 템플릿을 눌러도 그 뒤로 낱개 컨트롤을
+ * 자유롭게 더 바꿀 수 있다(템플릿은 "시작점"일 뿐, 고정된 상태가
+ * 아니다).
+ */
+export type BookingStyleTemplate = {
+  id: string;
+  label: string;
+  description: string;
+  style: BookingStyle;
+};
+
+export const BOOKING_STYLE_TEMPLATES: BookingStyleTemplate[] = [
+  {
+    id: "default",
+    label: "기본 블루",
+    description: "지금 브랜드 컬러 그대로",
+    style: DEFAULT_BOOKING_STYLE,
+  },
+  {
+    id: "deep-green",
+    label: "딥그린",
+    description: "차분한 초록 강조색",
+    style: {
+      accentColor: "#15803d",
+      saleColor: "#b91c1c",
+      textColor: "#0b1b2b",
+      textSize: "md",
+      cardRadius: "xl",
+      cardSize: "standard",
+    },
+  },
+  {
+    id: "monochrome",
+    label: "모노크롬 미니멀",
+    description: "각진 카드, 무채색 위주",
+    style: {
+      accentColor: "#18181b",
+      saleColor: "#52525b",
+      textColor: "#18181b",
+      textSize: "sm",
+      cardRadius: "none",
+      cardSize: "compact",
+    },
+  },
+  {
+    id: "warm-coral",
+    label: "웜 코랄",
+    description: "따뜻한 코랄+핑크, 둥근 카드",
+    style: {
+      accentColor: "#ea580c",
+      saleColor: "#db2777",
+      textColor: "#1c1917",
+      textSize: "lg",
+      cardRadius: "full",
+      cardSize: "spacious",
+    },
+  },
+];
+
 export const TEXT_SIZE_OPTIONS: { value: BookingTextSize; label: string }[] = [
   { value: "sm", label: "작게" },
   { value: "md", label: "보통" },

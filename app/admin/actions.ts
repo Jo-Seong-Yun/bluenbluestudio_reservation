@@ -1436,10 +1436,6 @@ export async function rescheduleReservation(
  */
 export type SettingsActionState = { error?: string; success?: boolean } | null;
 
-const TEXT_SIZES = new Set(["sm", "md", "lg"]);
-const CARD_RADIUSES = new Set(["none", "md", "xl", "full"]);
-const CARD_SIZES = new Set(["compact", "standard", "spacious"]);
-
 export async function saveSettings(
   _prev: SettingsActionState,
   formData: FormData,
@@ -1466,28 +1462,6 @@ export async function saveSettings(
     formData.get("adminNotifyEmail") ?? "",
   ).trim();
   const showProductThumbnails = formData.get("showProductThumbnails") === "on";
-  const accentColor = String(formData.get("accentColor") ?? "").trim();
-  const saleColor = String(formData.get("saleColor") ?? "").trim();
-  const textColor = String(formData.get("textColor") ?? "").trim();
-  const textSize = String(formData.get("textSize") ?? "");
-  const cardRadius = String(formData.get("cardRadius") ?? "");
-  const cardSize = String(formData.get("cardSize") ?? "");
-
-  if (
-    !isValidHexColor(accentColor) ||
-    !isValidHexColor(saleColor) ||
-    !isValidHexColor(textColor)
-  ) {
-    return { error: "예약 페이지 색상 값을 다시 확인해 주시기 바랍니다." };
-  }
-
-  if (
-    !TEXT_SIZES.has(textSize) ||
-    !CARD_RADIUSES.has(cardRadius) ||
-    !CARD_SIZES.has(cardSize)
-  ) {
-    return { error: "예약 페이지 텍스트 크기·박스 모양 값을 다시 확인해 주시기 바랍니다." };
-  }
 
   if (
     !Number.isInteger(slotIntervalMin) ||
@@ -1534,6 +1508,64 @@ export async function saveSettings(
       admin_notify_phone: adminNotifyPhone || null,
       admin_notify_email: adminNotifyEmail || null,
       show_product_thumbnails: showProductThumbnails,
+    })
+    .eq("id", 1);
+
+  if (error) {
+    return { error: `저장하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/"); // 랜딩 페이지가 studio_intro를 보여준다.
+
+  return { success: true };
+}
+
+const TEXT_SIZES = new Set(["sm", "md", "lg"]);
+const CARD_RADIUSES = new Set(["none", "md", "xl", "full"]);
+const CARD_SIZES = new Set(["compact", "standard", "spacious"]);
+
+/**
+ * 예약 페이지 디자인(/admin/design) — 강조색/세일 배지 색/텍스트
+ * 색상·크기/카드 모서리·크기. saveSettings와 분리한 이유는 화면
+ * 자체가 분리돼 있어서다(설정 페이지의 다른 필드들과 같은 폼에 있지
+ * 않다).
+ */
+export type BookingStyleActionState = { error?: string; success?: boolean } | null;
+
+export async function saveBookingStyle(
+  _prev: BookingStyleActionState,
+  formData: FormData,
+): Promise<BookingStyleActionState> {
+  await requireAdmin();
+
+  const accentColor = String(formData.get("accentColor") ?? "").trim();
+  const saleColor = String(formData.get("saleColor") ?? "").trim();
+  const textColor = String(formData.get("textColor") ?? "").trim();
+  const textSize = String(formData.get("textSize") ?? "");
+  const cardRadius = String(formData.get("cardRadius") ?? "");
+  const cardSize = String(formData.get("cardSize") ?? "");
+
+  if (
+    !isValidHexColor(accentColor) ||
+    !isValidHexColor(saleColor) ||
+    !isValidHexColor(textColor)
+  ) {
+    return { error: "색상 값을 다시 확인해 주시기 바랍니다." };
+  }
+
+  if (
+    !TEXT_SIZES.has(textSize) ||
+    !CARD_RADIUSES.has(cardRadius) ||
+    !CARD_SIZES.has(cardSize)
+  ) {
+    return { error: "텍스트 크기·박스 모양 값을 다시 확인해 주시기 바랍니다." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("settings")
+    .update({
       booking_style: {
         accentColor,
         saleColor,
@@ -1549,8 +1581,7 @@ export async function saveSettings(
     return { error: `저장하지 못했습니다: ${error.message}` };
   }
 
-  revalidatePath("/admin/settings");
-  revalidatePath("/"); // 랜딩 페이지가 studio_intro를 보여준다.
+  revalidatePath("/admin/design");
   // 동적 세그먼트가 있는 경로는 파일 구조 패턴 + type을 함께 줘야 한다
   // (revalidatePath는 layout.tsx가 실제로 있는 세그먼트에서만 "layout"
   // 타입이 먹는다 — /booking 아래엔 layout.tsx가 없어 개별로 지정한다).

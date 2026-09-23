@@ -13,7 +13,6 @@ import {
 } from "@/lib/notifications/email-templates-shared";
 import { getRecordSheetTemplateRows } from "@/lib/record-sheet/template-store";
 import { getPricedOptionLabels } from "@/app/admin/actions";
-import { resolveBookingStyle } from "@/lib/booking-style";
 
 export const metadata: Metadata = { title: "예약 설정" };
 // 새로 추가한 이메일 문구 섹션이 캐시된 옛 페이지 때문에 안 보이는 일이
@@ -31,7 +30,7 @@ export default async function SettingsPage() {
     supabase
       .from("settings")
       .select(
-        "slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, reservation_success_heading, reservation_success_message, admin_notify_phone, admin_notify_email, show_product_thumbnails, booking_style",
+        "slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, reservation_success_heading, reservation_success_message, admin_notify_phone, admin_notify_email, show_product_thumbnails",
       )
       .eq("id", 1)
       .single(),
@@ -79,7 +78,6 @@ export default async function SettingsPage() {
           adminNotifyPhone: settings.admin_notify_phone ?? "",
           adminNotifyEmail: settings.admin_notify_email ?? "",
           showProductThumbnails: settings.show_product_thumbnails,
-          bookingStyle: resolveBookingStyle(settings.booking_style),
         }}
       />
 
