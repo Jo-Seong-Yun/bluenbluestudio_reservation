@@ -126,6 +126,45 @@ async function tryKakao(params: {
  * 발송됐는지(촬영일 기준 며칠 전/후 규칙의 중복 발송 방지) 조회할 수
  * 있게 한다(hasRuleEmailBeenSent 참고).
  */
+/**
+ * 관리자가 /admin/emails에서 "테스트 발송"을 누르면, 그 규칙을 예시
+ * 값으로 채워 정해둔 테스트 주소로 한 통 보낸다. 실제 이벤트 발송과
+ * 달리 실패를 삼키지 않고 그대로 돌려줘, 관리자가 왜 안 갔는지 바로 알
+ * 수 있게 한다. 제목 앞에 [테스트]를 붙이고, 로그 purpose는 실제
+ * 발송(rule:<id>)과 구분되게 rule-test:<id>로 남긴다.
+ */
+export async function sendRuleTestEmail(params: {
+  rule: { id: string; subject: string; body: string };
+  to: string;
+  variables: Record<string, string>;
+}): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const subject = `[테스트] ${renderEmailTemplate(params.rule.subject, params.variables)}`;
+    const html = finalizeEmailHtml(
+      renderEmailHtml(params.rule.body, params.variables),
+    );
+    const text = htmlToPlainText(html);
+    await sendEmail({ to: params.to, subject, text, html });
+    await logNotification({
+      channel: "email",
+      purpose: `rule-test:${params.rule.id}`,
+      recipient: params.to,
+      success: true,
+    }).catch(() => {});
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await logNotification({
+      channel: "email",
+      purpose: `rule-test:${params.rule.id}`,
+      recipient: params.to,
+      success: false,
+      error: message,
+    }).catch(() => {});
+    return { ok: false, error: message };
+  }
+}
+
 async function tryRuleEmail(params: {
   rule: EmailRule;
   to: string;

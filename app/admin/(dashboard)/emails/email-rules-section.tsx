@@ -5,6 +5,7 @@ import { moveEmailRule, toggleEmailRule } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/submit-button";
 import { DeleteRuleButton } from "./delete-rule-button";
 import { RuleModal } from "./rule-modal";
+import { TestEmailForm, TestSendButton } from "./test-email";
 import {
   formatRecipients,
   EMAIL_TRIGGER_LABELS,
@@ -30,11 +31,14 @@ export function EmailRulesSection({
   rules,
   products,
   siteVariables,
+  testEmail,
 }: {
   rules: EmailRule[];
   products: ProductOption[];
   /** 미리보기에서 {{계좌}}/{{공지}} 대신 예시값을 안 쓰고 실제 설정값을 보여준다. */
   siteVariables: Record<string, string>;
+  /** 상단에서 저장한 테스트 발송 주소. */
+  testEmail: string;
 }) {
   const [, startTransition] = useTransition();
   const [optimisticRules, applyMove] = useOptimistic(
@@ -68,6 +72,7 @@ export function EmailRulesSection({
 
   return (
     <div className="max-w-2xl">
+      <TestEmailForm testEmail={testEmail} />
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">이메일 규칙</h1>
@@ -147,6 +152,7 @@ export function EmailRulesSection({
                       {rule.enabled ? "끄기" : "켜기"}
                     </SubmitButton>
                   </form>
+                  <TestSendButton ruleId={rule.id} />
                   <RuleModal
                     products={products}
                     rule={rule}

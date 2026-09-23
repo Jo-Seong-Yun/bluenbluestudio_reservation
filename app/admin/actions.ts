@@ -39,6 +39,7 @@ import {
   DAY_OFFSET_TRIGGER_TYPES,
   EMAIL_RECIPIENTS,
   EMAIL_TRIGGER_TYPES,
+  EMAIL_VARIABLE_PREVIEW_VALUES,
   formatRecipients,
   renderEmailTemplate,
   type EmailRecipient,
@@ -51,7 +52,10 @@ import {
   renderEmailHtml,
 } from "@/lib/notifications/email-html";
 import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
-import { siteVariableOverrides } from "@/lib/notifications/notify";
+import {
+  sendRuleTestEmail,
+  siteVariableOverrides,
+} from "@/lib/notifications/notify";
 import {
   parseRecordSheetRows,
   type RecordSheetRow,
@@ -2023,6 +2027,81 @@ export async function saveEmailRule(
 }
 
 /** 규칙 켜기/끄기. 목록에서 토글 하나로 바로 반영한다. */
+export type TestEmailActionState = {
+  error?: string;
+  success?: string;
+} | null;
+
+/** /admin/emails 상단의 "테스트 발송 주소"를 저장한다. */
+export async function saveTestEmail(
+  _prev: TestEmailActionState,
+  formData: FormData,
+): Promise<TestEmailActionState> {
+  await requireAdmin();
+
+  const email = String(formData.get("testEmail") ?? "").trim();
+  if (email && !email.includes("@")) {
+    return { error: "이메일 형식을 확인해 주시기 바랍니다." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("settings")
+    .update({ test_email: email || null })
+    .eq("id", 1);
+  if (error) return { error: "저장에 실패했습니다." };
+
+  revalidatePath("/admin/emails");
+  return {
+    success: email
+      ? "테스트 발송 주소를 저장했습니다."
+      : "테스트 발송 주소를 비웠습니다.",
+  };
+}
+
+/**
+ * 한 규칙을 예시 값으로 채워 저장해둔 테스트 주소로 보낸다. 실제 손님이
+ * 아니라 관리자 확인용이라, {{계좌}}/{{공지}}만 실제 설정값을 쓰고
+ * 나머지 변수는 미리보기와 같은 예시값으로 채운다.
+ */
+export async function sendRuleTest(
+  _prev: TestEmailActionState,
+  formData: FormData,
+): Promise<TestEmailActionState> {
+  await requireAdmin();
+
+  const ruleId = String(formData.get("id") ?? "").trim();
+  if (!ruleId) return { error: "잘못된 요청입니다." };
+
+  const supabase = await createClient();
+  const { data: settings } = await supabase
+    .from("settings")
+    .select("test_email")
+    .eq("id", 1)
+    .single();
+  const to = settings?.test_email?.trim();
+  if (!to) {
+    return { error: "먼저 위쪽에서 테스트 발송 주소를 저장해 주십시오." };
+  }
+
+  const { data: rule } = await supabase
+    .from("email_rules")
+    .select("id, subject, body")
+    .eq("id", ruleId)
+    .single();
+  if (!rule) return { error: "규칙을 찾을 수 없습니다." };
+
+  const variables = {
+    ...EMAIL_VARIABLE_PREVIEW_VALUES,
+    ...(await siteVariableOverrides()),
+  };
+  const result = await sendRuleTestEmail({ rule, to, variables });
+  if (!result.ok) {
+    return { error: `발송에 실패했습니다: ${result.error ?? "알 수 없는 오류"}` };
+  }
+  return { success: `${to} 주소로 테스트 메일을 보냈습니다.` };
+}
+
 export async function toggleEmailRule(formData: FormData) {
   await requireAdmin();
 
