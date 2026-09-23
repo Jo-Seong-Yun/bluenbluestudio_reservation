@@ -761,6 +761,28 @@ export async function saveAdminMemo(formData: FormData) {
   after(() => syncReservationToSheet(id));
 }
 
+/**
+ * 예약별 촬영 장소. 관리자가 예약 상세에서 수기로 입력하면, 촬영 전날
+ * 리마인드 이메일의 {{촬영장소}} 변수가 이 값을 그대로 쓴다
+ * (app/api/cron/reminders/route.ts → notifyCustomerReminder →
+ * lib/notifications/templates.ts의 reservationEmailVariables).
+ */
+export async function saveShootLocation(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const shootLocation = String(formData.get("shootLocation") ?? "").trim();
+
+  const supabase = await createClient();
+  await supabase
+    .from("reservations")
+    .update({ shoot_location: shootLocation || null })
+    .eq("id", id);
+
+  revalidatePath("/admin/reservations");
+}
+
 // 통계 화면 "상세 로그"의 각 기록(목록 진입/상품 상세 진입/신청서
 // 진입/실제 예약)에 메모를 남기는 폼이 공통으로 쓴다. 종류에 따라
 // 실제 행이 있는 테이블이 다르므로(예약은 admin_memo, 나머지 셋은 새로

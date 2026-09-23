@@ -59,6 +59,10 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<
     { key: "이름", description: "손님 이름" },
     { key: "상품명", description: "촬영 상품 이름" },
     { key: "일시", description: "내일 촬영 일시" },
+    {
+      key: "촬영장소",
+      description: "예약관리에서 관리자가 입력한 촬영 장소(안 넣었으면 빈 값)",
+    },
     { key: "예약번호", description: "예약 조회용 번호" },
   ],
   customer_rescheduled: [
@@ -112,6 +116,7 @@ export const EMAIL_TEMPLATE_PREVIEW_VALUES: Record<
     이름: "김철수",
     상품명: "프로필 촬영",
     일시: "9월 12일(토) 10:00",
+    촬영장소: "서울 중랑구 동일로116길 54 지하1층 언컷스튜디오",
     예약번호: "AB12CD34",
   },
   customer_rescheduled: {
@@ -175,10 +180,14 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
   },
   customer_reminder: {
     subject: "[푸르른 스튜디오] 내일 촬영 예약 안내",
+    // {{촬영장소}}는 이후에 추가된 변수라 supabase/migrations의 원래
+    // 시드 문구(이미 적용된 마이그레이션이라 고치지 않는다)에는 없다 —
+    // 여기 기본값과 "기본값으로 되돌리기" 버튼에서부터만 반영된다.
     body: `{{이름}}님, 내일 촬영 예약 안내입니다.
 
 상품: {{상품명}}
 일시: {{일시}}
+장소: {{촬영장소}}
 예약번호: {{예약번호}}
 
 늦지 않게 와주시기 바랍니다.`,

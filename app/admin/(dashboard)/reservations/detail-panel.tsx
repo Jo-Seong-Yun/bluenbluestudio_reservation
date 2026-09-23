@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { saveAdminMemo, saveReservationCost } from "@/app/admin/actions";
+import {
+  saveAdminMemo,
+  saveReservationCost,
+  saveShootLocation,
+} from "@/app/admin/actions";
 import { SubmitButton } from "@/components/submit-button";
 import { kstDateString, kstTimeString } from "@/lib/time";
 import { calculateAge } from "@/lib/age";
@@ -26,6 +30,7 @@ type ReservationRow = {
   people_count: number | null;
   memo: string | null;
   admin_memo: string | null;
+  shoot_location: string | null;
   cost: number | null;
   cost_memo: string | null;
   charged_amount: number | null;
@@ -263,6 +268,26 @@ function ReservationDetail({
         />
         <SubmitButton variant="ghost" className="mt-2">
           메모 저장
+        </SubmitButton>
+      </form>
+
+      <form action={saveShootLocation} className="border-border mt-4 border-t pt-4">
+        <input type="hidden" name="id" value={reservation.id} />
+        <label className="mb-1.5 block text-sm font-medium" htmlFor="shootLocation">
+          촬영 장소{" "}
+          <span className="text-muted font-normal">
+            (촬영 전날 리마인드 이메일의 {"{{"}촬영장소{"}}"}에 쓰입니다)
+          </span>
+        </label>
+        <input
+          id="shootLocation"
+          name="shootLocation"
+          defaultValue={reservation.shoot_location ?? ""}
+          placeholder="서울 중랑구 동일로116길 54 지하1층 언컷스튜디오"
+          className="border-border bg-surface focus:border-brand focus:ring-brand/30 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+        />
+        <SubmitButton variant="ghost" className="mt-2">
+          촬영 장소 저장
         </SubmitButton>
       </form>
 
