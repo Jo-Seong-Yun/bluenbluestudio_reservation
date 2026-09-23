@@ -95,6 +95,8 @@ export type EmailRule = {
   productId: string | null;
   subject: string;
   body: string;
+  ctaText: string | null;
+  ctaUrl: string | null;
 };
 
 /**

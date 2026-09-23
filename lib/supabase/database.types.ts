@@ -261,6 +261,8 @@ export interface Database {
           studio_intro: string | null;
           notice: string | null;
           test_email: string | null;
+          logo_url: string | null;
+          brand_color: string | null;
           /** 예약 신청 완료 화면의 제목/설명 문구. */
           reservation_success_heading: string;
           reservation_success_message: string;
@@ -460,6 +462,8 @@ export interface Database {
           product_id: string | null;
           subject: string;
           body: string;
+          cta_text: string | null;
+          cta_url: string | null;
           sort_order: number;
           created_at: string;
           updated_at: string;

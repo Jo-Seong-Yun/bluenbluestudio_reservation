@@ -58,6 +58,9 @@ export function RuleModal({
     rule?.recipients ?? ["customer"],
   );
   const [subject, setSubject] = useState(rule?.subject ?? "");
+  const [ctaEnabled, setCtaEnabled] = useState(Boolean(rule?.ctaText));
+  const [ctaText, setCtaText] = useState(rule?.ctaText ?? "");
+  const [ctaUrl, setCtaUrl] = useState(rule?.ctaUrl ?? "");
   // 본문은 서식 에디터(HTML). 서식 에디터 전에 만든 평문 규칙은 HTML로 바꿔 연다.
   const [body, setBody] = useState(toEditorHtml(rule?.body ?? ""));
   const subjectRef = useRef<HTMLInputElement>(null);
@@ -82,6 +85,9 @@ export function RuleModal({
     setRecipients(rule?.recipients ?? ["customer"]);
     setSubject(rule?.subject ?? "");
     setBody(toEditorHtml(rule?.body ?? ""));
+    setCtaEnabled(Boolean(rule?.ctaText));
+    setCtaText(rule?.ctaText ?? "");
+    setCtaUrl(rule?.ctaUrl ?? "");
     setEpoch((n) => n + 1);
     dialogRef.current?.showModal();
   }
@@ -288,6 +294,41 @@ export function RuleModal({
             />
           </div>
 
+          <div className="space-y-2">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={ctaEnabled}
+                onChange={(e) => setCtaEnabled(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm font-medium">CTA 버튼 추가</span>
+            </label>
+            {ctaEnabled ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input
+                  name="ctaText"
+                  value={ctaText}
+                  onChange={(e) => setCtaText(e.target.value)}
+                  placeholder="버튼 텍스트 (예: 예약 확인하기)"
+                  className={inputClass}
+                />
+                <input
+                  name="ctaUrl"
+                  value={ctaUrl}
+                  onChange={(e) => setCtaUrl(e.target.value)}
+                  placeholder="https://..."
+                  className={inputClass}
+                />
+              </div>
+            ) : (
+              <>
+                <input type="hidden" name="ctaText" value="" />
+                <input type="hidden" name="ctaUrl" value="" />
+              </>
+            )}
+          </div>
+
           <div>
             <p className="text-muted mb-1.5 text-xs font-medium">
               사용 가능한 변수 (눌러서 커서 위치에 삽입)
@@ -322,7 +363,10 @@ export function RuleModal({
               <iframe
                 title="메일 미리보기"
                 className="border-border h-96 w-full rounded-md border bg-white"
-                srcDoc={finalizeEmailHtml(renderEmailHtml(body, previewValues))}
+                srcDoc={finalizeEmailHtml(renderEmailHtml(body, previewValues), {
+                ctaText: ctaEnabled ? ctaText : null,
+                ctaUrl: ctaEnabled ? ctaUrl : null,
+              })}
               />
             </div>
           </div>

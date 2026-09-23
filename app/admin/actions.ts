@@ -1802,6 +1802,15 @@ export async function saveSettings(
     formData.get("adminNotifyEmail") ?? "",
   ).trim();
   const showProductThumbnails = formData.get("showProductThumbnails") === "on";
+  const logoUrl = String(formData.get("logoUrl") ?? "").trim();
+  const brandColor = String(formData.get("brandColor") ?? "").trim();
+
+  if (logoUrl && !/^https?:\/\//.test(logoUrl)) {
+    return { error: "로고 URL은 http:// 또는 https://로 시작해야 합니다." };
+  }
+  if (brandColor && !/^#[0-9a-fA-F]{6}$/.test(brandColor)) {
+    return { error: "브랜드 색상은 #rrggbb 형식(예: #4a90e2)으로 입력해 주시기 바랍니다." };
+  }
 
   if (
     !Number.isInteger(slotIntervalMin) ||
@@ -1848,6 +1857,8 @@ export async function saveSettings(
       admin_notify_phone: adminNotifyPhone || null,
       admin_notify_email: adminNotifyEmail || null,
       show_product_thumbnails: showProductThumbnails,
+      logo_url: logoUrl || null,
+      brand_color: brandColor || null,
     })
     .eq("id", 1);
 
@@ -1990,6 +2001,12 @@ export async function saveEmailRule(
   }
 
   const supabase = await createClient();
+  const ctaText = String(formData.get("ctaText") ?? "").trim();
+  const ctaUrl = String(formData.get("ctaUrl") ?? "").trim();
+  if (ctaText && ctaUrl && !/^https?:\/\//.test(ctaUrl)) {
+    return { error: "CTA 버튼 URL은 http:// 또는 https://로 시작해야 합니다." };
+  }
+
   const row = {
     name,
     recipients: recipients as EmailRecipient[],
@@ -1998,6 +2015,8 @@ export async function saveEmailRule(
     product_id: productId || null,
     subject,
     body,
+    cta_text: ctaText || null,
+    cta_url: ctaUrl || null,
   };
 
   let error;
@@ -2086,7 +2105,7 @@ export async function sendRuleTest(
 
   const { data: rule } = await supabase
     .from("email_rules")
-    .select("id, subject, body")
+    .select("id, subject, body, cta_text, cta_url")
     .eq("id", ruleId)
     .single();
   if (!rule) return { error: "규칙을 찾을 수 없습니다." };
@@ -2095,7 +2114,11 @@ export async function sendRuleTest(
     ...EMAIL_VARIABLE_PREVIEW_VALUES,
     ...(await siteVariableOverrides()),
   };
-  const result = await sendRuleTestEmail({ rule, to, variables });
+  const result = await sendRuleTestEmail({
+    rule: { ...rule, ctaText: rule.cta_text, ctaUrl: rule.cta_url },
+    to,
+    variables,
+  });
   if (!result.ok) {
     return { error: `발송에 실패했습니다: ${result.error ?? "알 수 없는 오류"}` };
   }

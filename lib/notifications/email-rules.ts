@@ -26,10 +26,12 @@ type EmailRuleRow = {
   product_id: string | null;
   subject: string;
   body: string;
+  cta_text: string | null;
+  cta_url: string | null;
 };
 
 const EMAIL_RULE_COLUMNS =
-  "id, name, enabled, recipients, trigger_type, day_offset, product_id, subject, body";
+  "id, name, enabled, recipients, trigger_type, day_offset, product_id, subject, body, cta_text, cta_url";
 
 function mapRow(row: EmailRuleRow): EmailRule {
   return {
@@ -42,6 +44,8 @@ function mapRow(row: EmailRuleRow): EmailRule {
     productId: row.product_id,
     subject: row.subject,
     body: row.body,
+    ctaText: row.cta_text,
+    ctaUrl: row.cta_url,
   };
 }
 
