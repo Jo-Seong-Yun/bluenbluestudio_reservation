@@ -9,10 +9,20 @@ export const dynamic = "force-dynamic";
 
 export default async function EmailsPage() {
   const supabase = await createClient();
-  const [rules, { data: products }] = await Promise.all([
+  const [rules, { data: products }, { data: settings }] = await Promise.all([
     loadAllEmailRules(),
     supabase.from("products").select("id, name").order("sort_order"),
+    supabase.from("settings").select("bank_account, notice").eq("id", 1).single(),
   ]);
 
-  return <EmailRulesSection rules={rules} products={products ?? []} />;
+  return (
+    <EmailRulesSection
+      rules={rules}
+      products={products ?? []}
+      siteVariables={{
+        계좌: settings?.bank_account ?? "",
+        공지: settings?.notice ?? "",
+      }}
+    />
+  );
 }

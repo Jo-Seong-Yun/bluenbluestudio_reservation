@@ -77,12 +77,16 @@ export async function loadDayOffsetEmailRules(): Promise<EmailRule[]> {
   return (data ?? []).map(mapRow);
 }
 
-/** 관리자 설정 화면이 목록을 한 번에 다 보여줄 때 쓴다. */
+/**
+ * 관리자 설정 화면이 목록을 한 번에 다 보여줄 때 쓴다. 관리자가
+ * /admin/emails에서 직접 정한 순서(sort_order)대로 보여준다 —
+ * moveEmailRule(app/admin/actions.ts)이 이 값을 바꾼다.
+ */
 export async function loadAllEmailRules(): Promise<EmailRule[]> {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("email_rules")
     .select(EMAIL_RULE_COLUMNS)
-    .order("created_at", { ascending: true });
+    .order("sort_order", { ascending: true });
   return (data ?? []).map(mapRow);
 }

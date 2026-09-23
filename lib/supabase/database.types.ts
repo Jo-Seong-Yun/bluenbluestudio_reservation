@@ -455,6 +455,7 @@ export interface Database {
           product_id: string | null;
           subject: string;
           body: string;
+          sort_order: number;
           created_at: string;
           updated_at: string;
         };
