@@ -9,7 +9,12 @@
  */
 
 export type ReservationStatus =
-  "requested" | "confirmed" | "completed" | "cancelled" | "no_show";
+  | "requested"
+  | "schedule_confirmed"
+  | "payment_confirmed"
+  | "completed"
+  | "cancelled"
+  | "no_show";
 
 export type Gender = "male" | "female";
 
@@ -437,7 +442,10 @@ export interface Database {
           recipient: "customer" | "admin";
           trigger_type:
             | "on_requested"
-            | "on_confirmed"
+            | "on_schedule_confirmed"
+            | "on_payment_confirmed"
+            | "on_completed"
+            | "on_no_show"
             | "on_cancelled"
             | "on_rescheduled"
             | "on_admin_new_request"
@@ -454,7 +462,10 @@ export interface Database {
           name: string;
           trigger_type:
             | "on_requested"
-            | "on_confirmed"
+            | "on_schedule_confirmed"
+            | "on_payment_confirmed"
+            | "on_completed"
+            | "on_no_show"
             | "on_cancelled"
             | "on_rescheduled"
             | "on_admin_new_request"

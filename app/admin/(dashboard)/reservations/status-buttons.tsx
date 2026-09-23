@@ -5,9 +5,10 @@ import { updateReservationStatus } from "@/app/admin/actions";
 import { Button } from "@/components/ui";
 
 const STATUS_BUTTONS = [
-  { status: "confirmed", label: "확정" },
-  { status: "completed", label: "완료 처리" },
-  { status: "no_show", label: "노쇼 처리" },
+  { status: "schedule_confirmed", label: "일정확정" },
+  { status: "payment_confirmed", label: "입금확인/예약확정" },
+  { status: "completed", label: "완료" },
+  { status: "no_show", label: "노쇼" },
   { status: "cancelled", label: "취소" },
 ] as const;
 

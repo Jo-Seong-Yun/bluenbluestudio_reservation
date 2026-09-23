@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     .select(
       "id, code, customer_name, customer_phone, shoot_start, shoot_location, product_id",
     )
-    .eq("status", "confirmed")
+    .in("status", ["schedule_confirmed", "payment_confirmed"])
     .is("reminded_at", null)
     .gte("shoot_start", rangeStart)
     .lt("shoot_start", rangeEnd);
@@ -55,8 +55,9 @@ export async function GET(request: NextRequest) {
 
   let sent = 0;
   for (const reservation of reservations ?? []) {
-    // status='confirmed' 조건으로 걸러 왔으니 shoot_start는 항상 있다
-    // (아직 후보만 낸 requested 상태만 null일 수 있다).
+    // schedule_confirmed/payment_confirmed 조건으로 걸러 왔으니
+    // shoot_start는 항상 있다(아직 후보만 낸 requested 상태만 null일
+    // 수 있다).
     if (!reservation.shoot_start) continue;
 
     const productName = await getProductName(reservation.product_id);
@@ -125,7 +126,7 @@ async function sendRuleToTargetDay(
     .select(
       "id, code, customer_name, customer_phone, customer_email, shoot_start, shoot_location, product_id",
     )
-    .eq("status", "confirmed")
+    .in("status", ["schedule_confirmed", "payment_confirmed"])
     .gte("shoot_start", rangeStart)
     .lt("shoot_start", rangeEnd);
   if (rule.productId) query = query.eq("product_id", rule.productId);

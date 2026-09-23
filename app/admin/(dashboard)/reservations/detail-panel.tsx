@@ -49,7 +49,8 @@ type ReservationRow = {
 
 const STATUS_LABEL: Record<string, string> = {
   requested: "접수됨",
-  confirmed: "확정됨",
+  schedule_confirmed: "일정확정됨",
+  payment_confirmed: "입금확인/예약확정됨",
   completed: "촬영 완료",
   cancelled: "취소됨",
   no_show: "노쇼",
@@ -235,7 +236,9 @@ function ReservationDetail({
 
       {/* 확정된 예약만 날짜·시간을 바꿀 수 있다 — 후보만 낸 상태는
           위 ConfirmCandidateButtons로 먼저 확정해야 한다. */}
-      {reservation.status === "confirmed" && start ? (
+      {(reservation.status === "schedule_confirmed" ||
+        reservation.status === "payment_confirmed") &&
+      start ? (
         <RescheduleForm
           reservationId={reservation.id}
           currentDate={kstDateString(start)}

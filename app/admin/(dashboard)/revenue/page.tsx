@@ -10,21 +10,23 @@ export const metadata: Metadata = { title: "매출관리" };
 /**
  * 매출로 치는 예약 상태.
  *
- * "신청만 됨"(requested)은 입금 전이라 빼고, "취소"(cancelled)도 뺀다.
- * "노쇼"(no_show)는 넣는다 — 예약금을 돌려주지 않으니 매출로 잡는 게 맞다.
+ * "신청만 됨"(requested)과 "일정확정"(schedule_confirmed, 시간만
+ * 잡히고 입금 전)은 아직 입금이 확인되지 않았으니 빼고, "취소"
+ * (cancelled)도 뺀다. "노쇼"(no_show)는 넣는다 — 예약금을 돌려주지
+ * 않으니 매출로 잡는 게 맞다.
  *
  * 매출액은 상품 정가가 아니라 예약별로 관리자가 직접 입력하는 실제
  * 지불액(charged_amount) 기준이다 — 할인 이벤트 등으로 건마다 실제
  * 받는 금액이 다를 수 있어서다. 아직 입력하지 않은 예약은 0으로 본다.
  */
 const REVENUE_STATUSES: ReservationStatus[] = [
-  "confirmed",
+  "payment_confirmed",
   "completed",
   "no_show",
 ];
 
 const STATUS_LABELS: Record<string, string> = {
-  confirmed: "확정",
+  payment_confirmed: "입금확인/예약확정",
   completed: "완료",
   no_show: "노쇼",
 };

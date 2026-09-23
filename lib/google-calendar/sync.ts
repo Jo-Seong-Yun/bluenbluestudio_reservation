@@ -23,7 +23,8 @@ import {
  */
 
 const CONFIRMED_STATUSES = new Set<ReservationStatus>([
-  "confirmed",
+  "schedule_confirmed",
+  "payment_confirmed",
   "completed",
   "no_show",
 ]);

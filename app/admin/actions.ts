@@ -19,7 +19,9 @@ import {
   notifyCustomerCancelled,
   notifyCustomerConfirmed,
   notifyCustomerRescheduled,
+  notifyEmailOnlyEvent,
 } from "@/lib/notifications/notify";
+import { buildEmailVariables } from "@/lib/notifications/templates";
 import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
 import { PRODUCT_TAG_COLORS } from "@/lib/product-tag-colors";
 import { isValidHexColor } from "@/lib/booking-style";
@@ -538,11 +540,22 @@ export async function deleteProduct(
 
 const RESERVATION_STATUSES = [
   "requested",
-  "confirmed",
+  "schedule_confirmed",
+  "payment_confirmed",
   "completed",
   "cancelled",
   "no_show",
 ] as const;
+
+/** payment_confirmed/completed/no_show은 SMS·알림톡 심사 문구가 없어
+ * 이메일 규칙만 쏜다 — 이 상태들이 어떤 이메일 트리거에 해당하는지. */
+const EMAIL_ONLY_STATUS_TRIGGERS: Partial<
+  Record<(typeof RESERVATION_STATUSES)[number], EmailTriggerType>
+> = {
+  payment_confirmed: "on_payment_confirmed",
+  completed: "on_completed",
+  no_show: "on_no_show",
+};
 
 export async function updateReservationStatus(formData: FormData) {
   await requireAdmin();
@@ -556,9 +569,9 @@ export async function updateReservationStatus(formData: FormData) {
 
   // 갱신 전에 미리 읽어둔다 — update 자체는 status 컬럼만 건드리니
   // 갱신 뒤에도 이 정보가 사라지지 않지만, 어차피 한 번 더 조회할
-  // 이유가 없다. "확정"으로 바꾸려는 경우엔 shoot_start가 있는지
-  // 판단하는 데도 이 값이 필요하고(바로 아래), 그 외의 모든 상태
-  // 변경도 구글 시트 고객DB의 방문 집계를 다시 하려면 연락처가
+  // 이유가 없다. "일정확정/입금확인"으로 바꾸려는 경우엔 shoot_start가
+  // 있는지 판단하는 데도 이 값이 필요하고(바로 아래), 그 외의 모든
+  // 상태 변경도 구글 시트 고객DB의 방문 집계를 다시 하려면 연락처가
   // 필요해 항상 읽는다.
   const { data: reservation } = await supabase
     .from("reservations")
@@ -569,7 +582,7 @@ export async function updateReservationStatus(formData: FormData) {
     .single();
   if (!reservation) return;
 
-  if (status === "confirmed") {
+  if (status === "schedule_confirmed" || status === "payment_confirmed") {
     // 아직 후보만 낸 채 시간이 정해지지 않은 예약(shoot_start가 없음)은
     // 이 버튼이 아니라 후보 중 하나를 골라 confirmReservationCandidate로
     // 확정해야 한다 — 그런 예약이면 아무것도 하지 않고 조용히 무시한다.
@@ -591,8 +604,8 @@ export async function updateReservationStatus(formData: FormData) {
 
   revalidatePath("/admin/reservations");
 
-  // 구글 시트 백업(예약 탭 + 고객DB 탭의 방문 집계)은 확정/취소뿐 아니라
-  // 완료·노쇼로 바뀔 때도 남겨야 하니, 알림 여부와 무관하게 항상 부른다.
+  // 구글 시트 백업(예약 탭 + 고객DB 탭의 방문 집계)은 어떤 상태로
+  // 바뀌든 남겨야 하니, 알림 여부와 무관하게 항상 부른다.
   after(async () => {
     await upsertCustomerFromReservation({
       phone: reservation.customer_phone,
@@ -608,49 +621,58 @@ export async function updateReservationStatus(formData: FormData) {
     ]);
   });
 
-  // 손님에게 알리는 건 확정/취소로 바뀔 때만(기존 동작 그대로) — 완료·
-  // 노쇼는 별도 알림이 없다.
-  const notifiable = status === "confirmed" || status === "cancelled";
-  if (notifiable) {
-    const { data: product } = await supabase
-      .from("products")
-      .select("name")
-      .eq("id", reservation.product_id)
-      .single();
+  if (status === "requested") return;
 
-    const base = {
+  const { data: product } = await supabase
+    .from("products")
+    .select("name")
+    .eq("id", reservation.product_id)
+    .single();
+
+  const base = {
+    reservationId: id,
+    productId: reservation.product_id,
+    customerName: reservation.customer_name,
+    customerPhone: reservation.customer_phone,
+    customerEmail: reservation.customer_email,
+    productName: product?.name ?? "촬영",
+    code: reservation.code,
+  };
+
+  // 알림 발송(SMS·이메일)은 응답을 붙잡지 않는다 — 관리자가 상태를
+  // 바꾸는 버튼을 눌렀을 때 발송이 끝날 때까지 화면이 멈춰 있으면
+  // 안 되니, after()로 응답 뒤에 보낸다.
+  //
+  // 일정확정/입금확인 경로는 위에서 이미 "후보 있는 예약이면 여기 안
+  // 옴"을 보장했으므로 shoot_start가 항상 있다(레거시 예약만 도달).
+  // 완료·노쇼·취소는 원래 확정 때 정해진 shoot_start가 그대로 남아있다.
+  after(async () => {
+    const adminEmail = await getAdminNotifyEmail();
+    const shootStart = reservation.shoot_start
+      ? new Date(reservation.shoot_start)
+      : null;
+
+    if (status === "schedule_confirmed") {
+      return notifyCustomerConfirmed({ ...base, adminEmail, shootStart: shootStart! });
+    }
+    if (status === "cancelled") {
+      return notifyCustomerCancelled({ ...base, adminEmail, shootStart });
+    }
+
+    // payment_confirmed/completed/no_show: SMS·알림톡은 아직 심사받은
+    // 문구가 없어 보내지 않고, 관리자가 만들어둔 이메일 규칙만 확인한다
+    // (규칙이 없으면 sendTriggerEmails가 조용히 아무것도 안 보낸다).
+    const triggerType = EMAIL_ONLY_STATUS_TRIGGERS[status];
+    if (!triggerType) return;
+    return notifyEmailOnlyEvent({
+      triggerType,
       reservationId: id,
       productId: reservation.product_id,
-      customerName: reservation.customer_name,
-      customerPhone: reservation.customer_phone,
       customerEmail: reservation.customer_email,
-      productName: product?.name ?? "촬영",
-      code: reservation.code,
-    };
-
-    // 알림 발송(SMS·이메일)은 응답을 붙잡지 않는다 — 관리자가 상태를
-    // 바꾸는 버튼을 눌렀을 때 발송이 끝날 때까지 화면이 멈춰 있으면
-    // 안 되니, after()로 응답 뒤에 보낸다.
-    //
-    // confirmed 경로는 위에서 이미 "후보 있는 예약이면 여기 안 옴"을
-    // 보장했으므로 shoot_start가 항상 있다(레거시 예약만 도달).
-    after(async () => {
-      const adminEmail = await getAdminNotifyEmail();
-      return status === "confirmed"
-        ? notifyCustomerConfirmed({
-            ...base,
-            adminEmail,
-            shootStart: new Date(reservation.shoot_start!),
-          })
-        : notifyCustomerCancelled({
-            ...base,
-            adminEmail,
-            shootStart: reservation.shoot_start
-              ? new Date(reservation.shoot_start)
-              : null,
-          });
+      adminEmail,
+      variables: buildEmailVariables({ ...base, shootStart }),
     });
-  }
+  });
 }
 
 /**
@@ -694,7 +716,7 @@ export async function confirmReservationCandidate(
   const { data: reservation, error } = await supabase
     .from("reservations")
     .update({
-      status: "confirmed",
+      status: "schedule_confirmed",
       period,
       shoot_start: candidate.shoot_start,
       shoot_end: candidate.shoot_end,
@@ -1250,7 +1272,7 @@ export async function createManualReservation(
         period,
         shoot_start: shootStart.toISOString(),
         shoot_end: shootEnd.toISOString(),
-        status: "confirmed",
+        status: "schedule_confirmed",
         customer_name: input.customerName,
         customer_phone: input.customerPhone,
         customer_email: extraEmail,
@@ -1371,7 +1393,10 @@ export async function rescheduleReservation(
     .single();
 
   if (!reservation) return { error: "예약을 찾을 수 없습니다." };
-  if (reservation.status !== "confirmed") {
+  if (
+    reservation.status !== "schedule_confirmed" &&
+    reservation.status !== "payment_confirmed"
+  ) {
     return { error: "확정된 예약만 일정을 바꿀 수 있습니다." };
   }
   if (!reservation.shoot_start) {

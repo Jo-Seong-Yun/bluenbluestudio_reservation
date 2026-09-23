@@ -230,7 +230,7 @@ async function loadScheduleContext(params: {
       supabase
         .from("reservations")
         .select("period")
-        .in("status", ["requested", "confirmed"])
+        .in("status", ["requested", "schedule_confirmed", "payment_confirmed"])
         .overlaps("period", range),
     ]);
 
