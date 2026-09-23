@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { missingServerEnv } from "@/lib/supabase/env";
 import { ConfigNotice } from "@/components/config-notice";
@@ -9,6 +10,7 @@ import {
   PendingOverlayProvider,
 } from "@/components/pending-overlay";
 import { SITE } from "@/lib/site";
+import siteLogo from "./site-logo.png";
 
 /**
  * 관리자 화면 공통 틀. 여기서 로그인 여부를 확인한다.
@@ -40,9 +42,16 @@ export default async function AdminLayout({
           <div className="flex h-full w-full items-center gap-4 px-4 sm:gap-6 sm:px-[8.5%]">
             <Link
               href="/admin/products"
-              className="flex shrink-0 flex-col items-center leading-tight font-bold tracking-[0.3px]"
+              className="flex shrink-0 flex-col items-center leading-tight"
             >
-              {SITE.name}
+              <Image
+                src={siteLogo}
+                alt={SITE.name}
+                width={62}
+                height={32}
+                priority
+                className="h-8 w-auto"
+              />
               <span className="text-muted text-xs font-normal tracking-[5.76px]">
                 관리자 페이지
               </span>
