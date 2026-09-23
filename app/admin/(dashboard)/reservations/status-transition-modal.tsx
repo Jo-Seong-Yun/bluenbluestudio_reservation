@@ -154,7 +154,13 @@ export function StatusTransitionModal({
                 required
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                onBlur={() => void loadPreview(reason)}
+                onBlur={() => {
+                  // 다시 불러오면 본문에 직접 고친 내용이 지워지므로,
+                  // 사유가 실제로 들어가는 규칙이 있을 때만 새로 불러온다.
+                  if (items?.some((item) => item.usesCancelReason)) {
+                    void loadPreview(reason);
+                  }
+                }}
                 placeholder="예: 고객 요청, 일정 중복 등"
                 className={inputClass}
               />
@@ -184,6 +190,13 @@ export function StatusTransitionModal({
                     <p className="text-muted mb-2 text-xs font-medium">
                       {item.recipientLabel}에게
                     </p>
+                    {requireReason && !item.usesCancelReason ? (
+                      <p className="mb-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        이 메일 규칙에는 {"{{취소사유}}"}가 없어 사유가 메일에
+                        들어가지 않습니다. 넣으려면 아래 본문에 직접 쓰시거나,
+                        이메일 메뉴에서 이 규칙에 {"{{취소사유}}"}를 추가해 주세요.
+                      </p>
+                    ) : null}
                     <input
                       value={edited[item.ruleId]?.subject ?? item.subject}
                       onChange={(e) =>
