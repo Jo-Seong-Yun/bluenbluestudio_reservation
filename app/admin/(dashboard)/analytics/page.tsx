@@ -28,13 +28,14 @@ const ACTIVITY_KIND_DOT: Record<ActivityLogEntry["kind"], string> = {
 };
 
 export default async function AnalyticsPage() {
-  const { rows, daily, listViews, applyViews, channelBreakdown, recentActivity } =
+  const { rows, daily, hourly, listViews, applyViews, channelBreakdown, recentActivity } =
     await loadProductAnalytics(TREND_DAYS);
 
   const sortedRows = [...rows].sort((a, b) => b.views - a.views);
   const totalViews = rows.reduce((sum, r) => sum + r.views, 0);
   const totalApplications = rows.reduce((sum, r) => sum + r.applications, 0);
   const maxDaily = Math.max(1, ...daily.map((d) => Math.max(d.views, d.applications)));
+  const maxHourly = Math.max(1, ...hourly.map((h) => h.views));
 
   const listToDetailRate = listViews > 0 ? (totalViews / listViews) * 100 : null;
   const detailToApplyRate = totalViews > 0 ? (applyViews / totalViews) * 100 : null;
@@ -99,6 +100,29 @@ export default async function AnalyticsPage() {
               </div>
               <span className="text-muted text-[10px] whitespace-nowrap">
                 {d.date.slice(5).replace("-", "/")}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-border bg-surface mt-6 rounded-xl border p-4">
+        <h2 className="mb-4 font-bold">시간대별 접속자 수 (KST)</h2>
+        <div className="flex h-32 items-end gap-px overflow-x-auto">
+          {hourly.map((h) => (
+            <div
+              key={h.hour}
+              className="flex min-w-[calc((100%-23px)/24)] flex-1 flex-col items-center gap-1"
+            >
+              <div className="flex h-24 w-full items-end justify-center">
+                <div
+                  className="bg-brand w-full rounded-t opacity-80"
+                  style={{ height: `${(h.views / maxHourly) * 100}%`, minHeight: h.views > 0 ? "2px" : undefined }}
+                  title={`${h.hour}시 ${h.views}건`}
+                />
+              </div>
+              <span className="text-muted text-[9px]">
+                {h.hour % 3 === 0 ? `${h.hour}시` : ""}
               </span>
             </div>
           ))}

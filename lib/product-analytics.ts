@@ -30,6 +30,12 @@ export type ActivityLogEntry = {
   ref: string | null;
 };
 
+export type HourlyPoint = {
+  /** 0~23 (KST 기준). */
+  hour: number;
+  views: number;
+};
+
 /** 유입경로(ref)별 조회·신청 집계 한 줄. */
 export type ChannelBreakdownRow = {
   /** ?ref= 값 그대로. 값이 없던 방문은 "(직접 방문)"으로 묶는다. */
@@ -49,6 +55,8 @@ export type ProductAnalytics = {
    * 진입과 실제 예약 사이의 이탈 지점(날짜·시간 선택 vs 신청서 작성)을
    * 가른다. */
   applyViews: number;
+  /** 0~23시(KST) 시간대별 조회수 — 마지막 리셋 이후 누적. */
+  hourly: HourlyPoint[];
   /** 유입경로(ref)별 조회·신청 집계. 조회수 내림차순. */
   channelBreakdown: ChannelBreakdownRow[];
   /** 최근 발생 순(내림차순)으로 최근 ACTIVITY_LOG_LIMIT건. 리셋과 무관하게
@@ -116,7 +124,7 @@ export async function loadProductAnalytics(
   // 쪼갤 수 없는(특정 상품에 딸린 게 아닌) 숫자라 전체 개수만 센다.
   let allViewRowsQuery = supabase
     .from("product_views")
-    .select("product_id, ref");
+    .select("product_id, ref, viewed_at");
   let allReservationRowsQuery = supabase
     .from("reservations")
     .select("product_id, ref");
@@ -205,6 +213,14 @@ export async function loadProductAnalytics(
       (channelApplications.get(channel) ?? 0) + 1,
     );
   }
+  // 시간대별(KST 0~23시) 조회수 — allViewRows 재활용(추가 쿼리 없음).
+  const hourlyMap = Array.from({ length: 24 }, (_, h) => ({ hour: h, views: 0 }));
+  for (const row of allViewRows ?? []) {
+    const kstHour = (new Date(row.viewed_at).getUTCHours() + 9) % 24;
+    hourlyMap[kstHour].views += 1;
+  }
+  const hourly: HourlyPoint[] = hourlyMap;
+
   const channelBreakdown: ChannelBreakdownRow[] = Array.from(
     new Set([...channelViews.keys(), ...channelApplications.keys()]),
   )
@@ -314,6 +330,7 @@ export async function loadProductAnalytics(
   return {
     rows,
     daily,
+    hourly,
     listViews: listViewCount ?? 0,
     applyViews: applyViewCount ?? 0,
     channelBreakdown,
