@@ -150,7 +150,7 @@ export function RuleModal({
 
       <dialog
         ref={dialogRef}
-        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-2xl rounded-xl border p-0 backdrop:bg-black/50"
+        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-5xl rounded-xl border p-0 backdrop:bg-black/50"
       >
         <div className="flex items-center justify-between border-b border-inherit px-5 py-4">
           <p className="font-bold">{isEdit ? "규칙 수정" : "규칙 추가"}</p>
@@ -167,219 +167,226 @@ export function RuleModal({
         <form
           key={epoch}
           action={action}
-          className="max-h-[75vh] space-y-4 overflow-y-auto p-5"
+          className="flex h-[82vh]"
         >
-          {isEdit && rule ? (
-            <input type="hidden" name="id" value={rule.id} />
-          ) : null}
+          {/* 좌측: 편집 영역 */}
+          <div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-5">
+            <div className="space-y-4">
+              {isEdit && rule ? (
+                <input type="hidden" name="id" value={rule.id} />
+              ) : null}
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="name">
-              규칙 이름 <span className="text-red-600 dark:text-red-400">*</span>
-            </label>
-            <input
-              id="name"
-              name="name"
-              required
-              maxLength={60}
-              defaultValue={rule?.name ?? ""}
-              placeholder="예: 프로필 촬영 확정 안내"
-              className={inputClass}
-            />
-          </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium" htmlFor="name">
+                  규칙 이름 <span className="text-red-600 dark:text-red-400">*</span>
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  required
+                  maxLength={60}
+                  defaultValue={rule?.name ?? ""}
+                  placeholder="예: 프로필 촬영 확정 안내"
+                  className={inputClass}
+                />
+              </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                className="mb-1.5 block text-sm font-medium"
-                htmlFor="triggerType"
-              >
-                보낼 시점 <span className="text-red-600 dark:text-red-400">*</span>
-              </label>
-              <select
-                id="triggerType"
-                name="triggerType"
-                required
-                value={triggerType}
-                onChange={(e) =>
-                  setTriggerType(e.target.value as EmailTriggerType)
-                }
-                className={inputClass}
-              >
-                {EMAIL_TRIGGER_TYPES.map((value) => (
-                  <option key={value} value={value}>
-                    {EMAIL_TRIGGER_LABELS[value]}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    className="mb-1.5 block text-sm font-medium"
+                    htmlFor="triggerType"
+                  >
+                    보낼 시점 <span className="text-red-600 dark:text-red-400">*</span>
+                  </label>
+                  <select
+                    id="triggerType"
+                    name="triggerType"
+                    required
+                    value={triggerType}
+                    onChange={(e) =>
+                      setTriggerType(e.target.value as EmailTriggerType)
+                    }
+                    className={inputClass}
+                  >
+                    {EMAIL_TRIGGER_TYPES.map((value) => (
+                      <option key={value} value={value}>
+                        {EMAIL_TRIGGER_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {needsDayOffset ? (
+                {needsDayOffset ? (
+                  <div>
+                    <label
+                      className="mb-1.5 block text-sm font-medium"
+                      htmlFor="dayOffset"
+                    >
+                      며칠{" "}
+                      {triggerType === "days_before_shoot" ? "전" : "후"}{" "}
+                      <span className="text-red-600 dark:text-red-400">*</span>
+                    </label>
+                    <input
+                      id="dayOffset"
+                      name="dayOffset"
+                      type="number"
+                      min={1}
+                      required
+                      defaultValue={rule?.dayOffset ?? 1}
+                      className={inputClass}
+                    />
+                  </div>
+                ) : (
+                  <RecipientPicker selected={recipients} onChange={setRecipients} />
+                )}
+              </div>
+
+              {needsDayOffset ? (
+                <div className="sm:w-1/2">
+                  <RecipientPicker selected={recipients} onChange={setRecipients} />
+                </div>
+              ) : null}
+
               <div>
                 <label
                   className="mb-1.5 block text-sm font-medium"
-                  htmlFor="dayOffset"
+                  htmlFor="productId"
                 >
-                  며칠{" "}
-                  {triggerType === "days_before_shoot" ? "전" : "후"}{" "}
-                  <span className="text-red-600 dark:text-red-400">*</span>
+                  적용 상품
                 </label>
-                <input
-                  id="dayOffset"
-                  name="dayOffset"
-                  type="number"
-                  min={1}
-                  required
-                  defaultValue={rule?.dayOffset ?? 1}
+                <select
+                  id="productId"
+                  name="productId"
+                  defaultValue={rule?.productId ?? ""}
                   className={inputClass}
-                />
-              </div>
-            ) : (
-              <RecipientPicker selected={recipients} onChange={setRecipients} />
-            )}
-          </div>
-
-          {needsDayOffset ? (
-            <div className="sm:w-1/2">
-              <RecipientPicker selected={recipients} onChange={setRecipients} />
-            </div>
-          ) : null}
-
-          <div>
-            <label
-              className="mb-1.5 block text-sm font-medium"
-              htmlFor="productId"
-            >
-              적용 상품
-            </label>
-            <select
-              id="productId"
-              name="productId"
-              defaultValue={rule?.productId ?? ""}
-              className={inputClass}
-            >
-              <option value="">전체 상품</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium">제목</label>
-            <input
-              ref={subjectRef}
-              name="subject"
-              required
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              onFocus={() => (lastFocused.current = "subject")}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium">본문</label>
-            <input type="hidden" name="body" value={body} />
-            {/* form의 key(epoch)가 바뀌면 에디터도 새로 마운트되어 initial을 다시 읽는다. */}
-            <RichTextEditor
-              initial={body}
-              onChange={setBody}
-              heightClass="h-[280px]"
-              placeholder="손님에게 보낼 내용을 작성해 주십시오."
-              onFocus={() => (lastFocused.current = "body")}
-              editorRef={bodyEditorRef}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={ctaEnabled}
-                onChange={(e) => setCtaEnabled(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-sm font-medium">CTA 버튼 추가</span>
-            </label>
-            {ctaEnabled ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <input
-                  name="ctaText"
-                  value={ctaText}
-                  onChange={(e) => setCtaText(e.target.value)}
-                  placeholder="버튼 텍스트 (예: 예약 확인하기)"
-                  className={inputClass}
-                />
-                <input
-                  name="ctaUrl"
-                  value={ctaUrl}
-                  onChange={(e) => setCtaUrl(e.target.value)}
-                  placeholder="https://..."
-                  className={inputClass}
-                />
-              </div>
-            ) : (
-              <>
-                <input type="hidden" name="ctaText" value="" />
-                <input type="hidden" name="ctaUrl" value="" />
-              </>
-            )}
-          </div>
-
-          <div>
-            <p className="text-muted mb-1.5 text-xs font-medium">
-              사용 가능한 변수 (눌러서 커서 위치에 삽입)
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {EMAIL_VARIABLES.map((v) => (
-                <button
-                  key={v.key}
-                  type="button"
-                  title={v.description}
-                  onClick={() => insertVariable(v.key)}
-                  className="border-border bg-surface-subtle hover:bg-brand hover:text-brand-foreground hover:border-brand rounded-md border px-2 py-1 font-mono text-xs transition-colors"
                 >
-                  {`{{${v.key}}}`}
-                </button>
-              ))}
+                  <option value="">전체 상품</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium">제목</label>
+                <input
+                  ref={subjectRef}
+                  name="subject"
+                  required
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  onFocus={() => (lastFocused.current = "subject")}
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium">본문</label>
+                <input type="hidden" name="body" value={body} />
+                <RichTextEditor
+                  initial={body}
+                  onChange={setBody}
+                  heightClass="h-[280px]"
+                  placeholder="손님에게 보낼 내용을 작성해 주십시오."
+                  onFocus={() => (lastFocused.current = "body")}
+                  editorRef={bodyEditorRef}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={ctaEnabled}
+                    onChange={(e) => setCtaEnabled(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm font-medium">CTA 버튼 추가</span>
+                </label>
+                {ctaEnabled ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input
+                      name="ctaText"
+                      value={ctaText}
+                      onChange={(e) => setCtaText(e.target.value)}
+                      placeholder="버튼 텍스트 (예: 예약 확인하기)"
+                      className={inputClass}
+                    />
+                    <input
+                      name="ctaUrl"
+                      value={ctaUrl}
+                      onChange={(e) => setCtaUrl(e.target.value)}
+                      placeholder="https://..."
+                      className={inputClass}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <input type="hidden" name="ctaText" value="" />
+                    <input type="hidden" name="ctaUrl" value="" />
+                  </>
+                )}
+              </div>
+
+              <div>
+                <p className="text-muted mb-1.5 text-xs font-medium">
+                  사용 가능한 변수 (눌러서 커서 위치에 삽입)
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {EMAIL_VARIABLES.map((v) => (
+                    <button
+                      key={v.key}
+                      type="button"
+                      title={v.description}
+                      onClick={() => insertVariable(v.key)}
+                      className="border-border bg-surface-subtle hover:bg-brand hover:text-brand-foreground hover:border-brand rounded-md border px-2 py-1 font-mono text-xs transition-colors"
+                    >
+                      {`{{${v.key}}}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 하단 버튼은 스크롤 영역 맨 아래에 고정 */}
+            <div className="mt-auto pt-6">
+              <ErrorText>{state?.error ?? null}</ErrorText>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="ghost" onClick={close}>
+                  취소
+                </Button>
+                <SubmitButton disabled={pending}>
+                  {pending ? "저장 중…" : "저장"}
+                </SubmitButton>
+              </div>
             </div>
           </div>
 
-          <div className="border-border border-t pt-3">
-            <p className="text-muted mb-1.5 text-xs font-medium">
+          {/* 우측: 미리보기 영역 */}
+          <div className="border-border flex w-[400px] shrink-0 flex-col overflow-y-auto border-l p-5">
+            <p className="text-muted mb-2 text-xs font-medium">
               미리보기 — 실제 발송되는 모습 그대로 ({"{{계좌}}"}/{"{{공지}}"}는
               설정값, 나머지는 예시 값)
             </p>
-            <div className="border-border bg-surface-subtle rounded-lg border p-3 text-sm">
+            <div className="border-border bg-surface-subtle mb-2 rounded-lg border px-3 py-2 text-sm">
               <p className="text-muted text-xs">제목</p>
-              <p className="mb-2 font-medium">
+              <p className="font-medium leading-snug">
                 {renderEmailTemplate(subject, previewValues)}
               </p>
-              {/* 발송 함수(finalizeEmailHtml)가 만드는 HTML을 그대로 iframe에
-                  띄워, 손님이 받는 메일과 100% 같은 모습을 보여준다. */}
-              <iframe
-                title="메일 미리보기"
-                className="border-border h-96 w-full rounded-md border bg-white"
-                srcDoc={finalizeEmailHtml(renderEmailHtml(body, previewValues), {
+            </div>
+            {/* 발송 함수(finalizeEmailHtml)가 만드는 HTML을 그대로 iframe에
+                띄워, 손님이 받는 메일과 100% 같은 모습을 보여준다. */}
+            <iframe
+              title="메일 미리보기"
+              className="border-border min-h-0 flex-1 rounded-md border bg-white"
+              srcDoc={finalizeEmailHtml(renderEmailHtml(body, previewValues), {
                 ctaText: ctaEnabled ? ctaText : null,
                 ctaUrl: ctaEnabled ? ctaUrl : null,
               })}
-              />
-            </div>
-          </div>
-
-          <ErrorText>{state?.error ?? null}</ErrorText>
-
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" onClick={close}>
-              취소
-            </Button>
-            <SubmitButton disabled={pending}>
-              {pending ? "저장 중…" : "저장"}
-            </SubmitButton>
+            />
           </div>
         </form>
       </dialog>
