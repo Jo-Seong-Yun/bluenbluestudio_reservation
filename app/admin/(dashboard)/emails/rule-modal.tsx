@@ -20,8 +20,11 @@ import {
   type EmailRule,
   type EmailTriggerType,
 } from "@/lib/notifications/email-rules-shared";
-import { renderEmailHtml, toEditorHtml } from "@/lib/notifications/email-html";
-import { sanitizeDescriptionHtml } from "@/lib/sanitize-description";
+import {
+  finalizeEmailHtml,
+  renderEmailHtml,
+  toEditorHtml,
+} from "@/lib/notifications/email-html";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import type { Editor } from "@tiptap/react";
 import type { ProductOption } from "./email-rules-section";
@@ -306,18 +309,20 @@ export function RuleModal({
 
           <div className="border-border border-t pt-3">
             <p className="text-muted mb-1.5 text-xs font-medium">
-              미리보기 ({"{{계좌}}"}/{"{{공지}}"}는 설정값, 나머지는 예시 값으로
-              채워본 모습)
+              미리보기 — 실제 발송되는 모습 그대로 ({"{{계좌}}"}/{"{{공지}}"}는
+              설정값, 나머지는 예시 값)
             </p>
             <div className="border-border bg-surface-subtle rounded-lg border p-3 text-sm">
-              <p className="font-medium">
+              <p className="text-muted text-xs">제목</p>
+              <p className="mb-2 font-medium">
                 {renderEmailTemplate(subject, previewValues)}
               </p>
-              <div
-                className="mt-2 break-words [&_a]:text-brand [&_a]:underline [&_h2]:mt-3 [&_h2]:text-lg [&_h2]:font-bold [&_h3]:font-bold [&_img]:max-w-full [&_li]:ml-5 [&_li]:list-disc [&_p]:my-1 [&_p:empty]:min-h-[1em] [&_strong]:font-bold"
-                dangerouslySetInnerHTML={{
-                  __html: sanitizeDescriptionHtml(renderEmailHtml(body, previewValues)),
-                }}
+              {/* 발송 함수(finalizeEmailHtml)가 만드는 HTML을 그대로 iframe에
+                  띄워, 손님이 받는 메일과 100% 같은 모습을 보여준다. */}
+              <iframe
+                title="메일 미리보기"
+                className="border-border h-96 w-full rounded-md border bg-white"
+                srcDoc={finalizeEmailHtml(renderEmailHtml(body, previewValues))}
               />
             </div>
           </div>
