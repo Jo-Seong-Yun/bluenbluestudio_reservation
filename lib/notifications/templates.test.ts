@@ -1,28 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
-  adminNewRequestEmailVariables,
   adminNewRequestKakaoVariables,
-  adminNewRequestSubject,
   adminNewRequestText,
+  buildEmailVariables,
   customerCancelledKakaoVariables,
-  customerCancelledSubject,
   customerCancelledText,
   customerConfirmedKakaoVariables,
-  customerConfirmedSubject,
   customerConfirmedText,
   customerReminderKakaoVariables,
-  customerReminderSubject,
   customerReminderText,
-  customerRequestedEmailText,
-  customerRequestedEmailVariables,
   customerRequestedKakaoVariables,
-  customerRequestedSubject,
   customerRequestedText,
-  customerRescheduledEmailVariables,
   customerRescheduledKakaoVariables,
-  customerRescheduledSubject,
   customerRescheduledText,
-  reservationEmailVariables,
 } from "./templates";
 
 // 2026-09-10T05:00:00Z → KST 2026-09-10(목) 14:00
@@ -97,38 +87,6 @@ describe("알림 문구", () => {
     expect(text).toContain("AB12CD34");
   });
 
-  it("사장님 알림 제목에 스튜디오 이름이 들어간다", () => {
-    expect(adminNewRequestSubject()).toContain("새 예약 신청");
-  });
-
-  it("접수 이메일 본문에는 후보 시간들과 계좌·안내사항까지 담는다", () => {
-    const text = customerRequestedEmailText({
-      ...REQUEST_INFO,
-      bankAccount: "카카오뱅크 3333-01-1234567 홍길동",
-      notice: "촬영 10분 전까지 도착해주세요.",
-    });
-    expect(text).toContain("프로필 촬영");
-    expect(text).toContain("1지망: 9월 10일(목) 14:00");
-    expect(text).toContain("2지망: 9월 11일(금) 15:00");
-    expect(text).toContain("AB12CD34");
-    expect(text).toContain("카카오뱅크 3333-01-1234567 홍길동");
-    expect(text).toContain("촬영 10분 전까지 도착해주세요.");
-  });
-
-  it("접수 이메일 본문은 계좌·안내사항이 없어도 문제없다", () => {
-    const text = customerRequestedEmailText(REQUEST_INFO);
-    expect(text).toContain("프로필 촬영");
-    expect(text).not.toContain("입금 계좌");
-  });
-
-  it("손님용 이메일 제목들도 각 상태를 담는다", () => {
-    expect(customerRequestedSubject()).toContain("접수");
-    expect(customerConfirmedSubject()).toContain("확정");
-    expect(customerCancelledSubject()).toContain("취소");
-    expect(customerReminderSubject()).toContain("내일");
-    expect(customerRescheduledSubject()).toContain("변경");
-  });
-
   it("일정 변경 안내에 기존·변경 시간이 모두 들어간다", () => {
     const text = customerRescheduledText({
       productName: "프로필 촬영",
@@ -151,19 +109,6 @@ describe("알림 문구", () => {
     expect(variables["#{기존일시}"]).toBe("9월 10일(목) 14:00");
     expect(variables["#{변경일시}"]).toBe("9월 11일(금) 15:00");
     expect(variables["#{예약번호}"]).toBe("AB12CD34");
-  });
-
-  it("일정 변경 이메일 변수({{}})에 이름·기존·변경 일시가 들어간다", () => {
-    const variables = customerRescheduledEmailVariables({
-      customerName: "김철수",
-      productName: "프로필 촬영",
-      oldShootStart: SHOOT_START,
-      newShootStart: SECOND_CANDIDATE,
-      code: "AB12CD34",
-    });
-    expect(variables["이름"]).toBe("김철수");
-    expect(variables["기존일시"]).toBe("9월 10일(목) 14:00");
-    expect(variables["변경일시"]).toBe("9월 11일(금) 15:00");
   });
 
   it("자정 근처 KST 날짜도 정확히 표시한다", () => {
@@ -208,34 +153,8 @@ describe("알림 문구", () => {
     expect(variables["#{1지망}"]).toBe("9월 10일(목) 14:00");
   });
 
-  it("설정 화면에서 편집하는 접수 이메일 변수({{}})에 이름·후보목록·계좌·공지가 들어간다", () => {
-    const variables = customerRequestedEmailVariables({
-      ...REQUEST_INFO,
-      customerName: "김철수",
-      bankAccount: "카카오뱅크 3333-01-1234567 홍길동",
-      notice: "촬영 10분 전까지 도착해주세요.",
-    });
-    expect(variables["이름"]).toBe("김철수");
-    expect(variables["상품명"]).toBe("프로필 촬영");
-    expect(variables["후보목록"]).toBe(
-      "1지망: 9월 10일(목) 14:00\n2지망: 9월 11일(금) 15:00",
-    );
-    expect(variables["예약번호"]).toBe("AB12CD34");
-    expect(variables["계좌"]).toBe("카카오뱅크 3333-01-1234567 홍길동");
-    expect(variables["공지"]).toBe("촬영 10분 전까지 도착해주세요.");
-  });
-
-  it("접수 이메일 변수는 계좌·공지가 없으면 빈 문자열이다", () => {
-    const variables = customerRequestedEmailVariables({
-      ...REQUEST_INFO,
-      customerName: "김철수",
-    });
-    expect(variables["계좌"]).toBe("");
-    expect(variables["공지"]).toBe("");
-  });
-
-  it("확정/취소/리마인드 이메일 변수에 이름·상품명·일시·예약번호가 들어간다", () => {
-    const variables = reservationEmailVariables({
+  it("이메일 규칙 공용 변수에는 넘긴 값만 채워지고 나머지는 빈 문자열이다", () => {
+    const variables = buildEmailVariables({
       customerName: "김철수",
       productName: "프로필 촬영",
       shootStart: SHOOT_START,
@@ -245,10 +164,16 @@ describe("알림 문구", () => {
     expect(variables["상품명"]).toBe("프로필 촬영");
     expect(variables["일시"]).toBe("9월 10일(목) 14:00");
     expect(variables["예약번호"]).toBe("AB12CD34");
+    expect(variables["촬영장소"]).toBe("");
+    expect(variables["계좌"]).toBe("");
+    expect(variables["공지"]).toBe("");
+    expect(variables["후보목록"]).toBe("");
+    expect(variables["기존일시"]).toBe("");
+    expect(variables["변경일시"]).toBe("");
   });
 
   it("확정 전 취소된 경우 이메일 변수의 일시는 빈 문자열이다", () => {
-    const variables = reservationEmailVariables({
+    const variables = buildEmailVariables({
       customerName: "김철수",
       productName: "프로필 촬영",
       shootStart: null,
@@ -257,8 +182,22 @@ describe("알림 문구", () => {
     expect(variables["일시"]).toBe("");
   });
 
-  it("사장님용 이메일 변수에 이름·연락처·후보목록이 들어간다", () => {
-    const variables = adminNewRequestEmailVariables({
+  it("접수 이메일 변수에 후보목록·계좌·공지가 채워진다", () => {
+    const variables = buildEmailVariables({
+      ...REQUEST_INFO,
+      customerName: "김철수",
+      bankAccount: "카카오뱅크 3333-01-1234567 홍길동",
+      notice: "촬영 10분 전까지 도착해주세요.",
+    });
+    expect(variables["후보목록"]).toBe(
+      "1지망: 9월 10일(목) 14:00\n2지망: 9월 11일(금) 15:00",
+    );
+    expect(variables["계좌"]).toBe("카카오뱅크 3333-01-1234567 홍길동");
+    expect(variables["공지"]).toBe("촬영 10분 전까지 도착해주세요.");
+  });
+
+  it("사장님용 이메일 변수에 이름·연락처가 들어간다", () => {
+    const variables = buildEmailVariables({
       ...REQUEST_INFO,
       customerName: "김철수",
       customerPhone: "01012345678",
@@ -268,5 +207,17 @@ describe("알림 문구", () => {
     expect(variables["후보목록"]).toBe(
       "1지망: 9월 10일(목) 14:00\n2지망: 9월 11일(금) 15:00",
     );
+  });
+
+  it("일정 변경 이메일 변수에 기존·변경 일시가 들어간다", () => {
+    const variables = buildEmailVariables({
+      customerName: "김철수",
+      productName: "프로필 촬영",
+      oldShootStart: SHOOT_START,
+      newShootStart: SECOND_CANDIDATE,
+      code: "AB12CD34",
+    });
+    expect(variables["기존일시"]).toBe("9월 10일(목) 14:00");
+    expect(variables["변경일시"]).toBe("9월 11일(금) 15:00");
   });
 });

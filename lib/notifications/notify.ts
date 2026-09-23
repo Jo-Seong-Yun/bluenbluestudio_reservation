@@ -3,7 +3,13 @@ import { sendSms } from "./sms";
 import { sendEmail } from "./email";
 import { sendKakaoAlimtalk } from "./kakao";
 import { logNotification } from "./log";
-import { loadEmailTemplate, renderEmailTemplate } from "./email-templates";
+import {
+  loadEmailRulesForTrigger,
+  renderEmailTemplate,
+  type EmailRule,
+  type EmailTriggerType,
+} from "./email-rules";
+import { createAdminClient } from "../supabase/admin";
 import {
   smsNotificationsEnabled,
   solapiKakaoPfId,
@@ -11,29 +17,19 @@ import {
   type KakaoNotificationPurpose,
 } from "./env";
 import {
-  adminNewRequestEmailVariables,
   adminNewRequestKakaoVariables,
-  adminNewRequestSubject,
   adminNewRequestText,
+  buildEmailVariables,
   customerCancelledKakaoVariables,
-  customerCancelledSubject,
   customerCancelledText,
   customerConfirmedKakaoVariables,
-  customerConfirmedSubject,
   customerConfirmedText,
   customerReminderKakaoVariables,
-  customerRequestedEmailText,
-  customerRequestedEmailVariables,
   customerRequestedKakaoVariables,
-  customerRequestedSubject,
   customerRequestedText,
-  customerRescheduledEmailVariables,
   customerRescheduledKakaoVariables,
-  customerRescheduledSubject,
   customerRescheduledText,
-  customerReminderSubject,
   customerReminderText,
-  reservationEmailVariables,
 } from "./templates";
 
 /**
@@ -118,33 +114,24 @@ async function tryKakao(params: {
 }
 
 /**
- * 이메일 발송. /admin/settings에서 관리자가 이 목적(purpose)의 문구를
- * 직접 고쳐뒀으면 그 subject/body에 변수를 채워 넣어 쓰고, 아직 안
- * 고쳤으면(DB에 행이 없으면) 코드에 남아있는 기본 문구로 조용히
- * 되돌아간다 — 관리자 화면을 한 번도 안 열어본 사장님도 발송 자체는
- * 그대로 되어야 한다.
+ * 규칙(email_rules) 하나를 실제로 발송한다. purpose는
+ * `rule:<규칙 id>`로 남겨, 나중에 같은 규칙이 같은 예약에 이미
+ * 발송됐는지(촬영일 기준 며칠 전/후 규칙의 중복 발송 방지) 조회할 수
+ * 있게 한다(hasRuleEmailBeenSent 참고).
  */
-async function tryEmail(params: {
-  purpose: KakaoNotificationPurpose;
+async function tryRuleEmail(params: {
+  rule: EmailRule;
   to: string;
   variables: Record<string, string>;
-  fallbackSubject: string;
-  fallbackText: string;
   reservationId?: string | null;
 }): Promise<void> {
   try {
-    const custom = await loadEmailTemplate(params.purpose);
-    const subject = custom
-      ? renderEmailTemplate(custom.subject, params.variables)
-      : params.fallbackSubject;
-    const text = custom
-      ? renderEmailTemplate(custom.body, params.variables)
-      : params.fallbackText;
-
+    const subject = renderEmailTemplate(params.rule.subject, params.variables);
+    const text = renderEmailTemplate(params.rule.body, params.variables);
     await sendEmail({ to: params.to, subject, text });
     await logNotification({
       channel: "email",
-      purpose: params.purpose,
+      purpose: `rule:${params.rule.id}`,
       recipient: params.to,
       reservationId: params.reservationId,
       success: true,
@@ -152,7 +139,7 @@ async function tryEmail(params: {
   } catch (error) {
     await logNotification({
       channel: "email",
-      purpose: params.purpose,
+      purpose: `rule:${params.rule.id}`,
       recipient: params.to,
       reservationId: params.reservationId,
       success: false,
@@ -161,18 +148,96 @@ async function tryEmail(params: {
   }
 }
 
+/**
+ * 특정 이벤트(접수/확정/취소/일정변경/관리자 신규알림)가 일어난 순간
+ * 이메일을 보낸다. 관리자가 /admin/settings의 "이메일 규칙"에서 이
+ * 트리거에 걸어둔 규칙을 전부 찾아(상품 필터가 있으면 이 발송 건의
+ * 상품과 맞는 것만), 규칙마다 정해진 수신자(손님/사장님)에게 각각
+ * 보낸다. 걸린 규칙이 하나도 없으면(관리자가 다 지웠으면) 조용히
+ * 아무것도 보내지 않는다 — "종류를 마음대로 삭제할 수 있다"는 요구의
+ * 자연스러운 결과다.
+ */
+async function sendTriggerEmails(params: {
+  triggerType: EmailTriggerType;
+  productId: string | null;
+  reservationId?: string | null;
+  customerEmail?: string | null;
+  adminEmail?: string | null;
+  variables: Record<string, string>;
+}): Promise<void> {
+  const rules = await loadEmailRulesForTrigger(params.triggerType, params.productId);
+  await Promise.all(
+    rules.map((rule) => {
+      const to = rule.recipient === "admin" ? params.adminEmail : params.customerEmail;
+      if (!to) return Promise.resolve();
+      return tryRuleEmail({
+        rule,
+        to,
+        variables: params.variables,
+        reservationId: params.reservationId,
+      });
+    }),
+  );
+}
+
+/**
+ * 촬영일 기준 며칠 전/후 규칙 하나를 특정 예약에 보낸다. 크론
+ * (app/api/cron/reminders/route.ts)이 매일 규칙 전체를 훑으며 이
+ * 함수를 부른다. 이미 보낸 적 있으면(hasRuleEmailBeenSent) 크론 쪽에서
+ * 미리 걸러 부르지 않으므로 여기선 발송 여부만 따진다.
+ */
+export async function sendDayOffsetRuleEmail(params: {
+  rule: EmailRule;
+  reservationId: string;
+  customerEmail?: string | null;
+  adminEmail?: string | null;
+  variables: Record<string, string>;
+}): Promise<boolean> {
+  const to = params.rule.recipient === "admin" ? params.adminEmail : params.customerEmail;
+  if (!to) return false;
+  await tryRuleEmail({
+    rule: params.rule,
+    to,
+    variables: params.variables,
+    reservationId: params.reservationId,
+  });
+  return true;
+}
+
+/** 이 규칙이 이 예약에 이미 발송됐는지(성공 기준) — 크론의 중복 발송 방지용. */
+export async function hasRuleEmailBeenSent(
+  ruleId: string,
+  reservationId: string,
+): Promise<boolean> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("notification_logs")
+    .select("id")
+    .eq("channel", "email")
+    .eq("purpose", `rule:${ruleId}`)
+    .eq("reservation_id", reservationId)
+    .eq("success", true)
+    .limit(1)
+    .maybeSingle();
+  return !!data;
+}
+
 type CustomerContact = {
   reservationId: string;
   customerPhone: string;
   /** 선택 입력. 있으면 SMS와 함께 이메일로도 보낸다. */
   customerEmail?: string | null;
+  /** 이 이벤트에 사장님용 이메일 규칙이 걸려 있을 수 있어 항상 같이 넘긴다. */
+  adminEmail?: string | null;
+  /** 상품 필터가 걸린 이메일 규칙을 가려내는 데 쓴다. */
+  productId: string;
 };
 
 type ReservationNotice = CustomerContact & {
   productName: string;
   shootStart: Date;
   code: string;
-  /** 관리자가 예약 상세에서 입력한 촬영 장소. 리마인드 메일에서만 쓴다. */
+  /** 관리자가 예약 상세에서 입력한 촬영 장소. 리마인드류 메일에서만 쓴다. */
   shootLocation?: string | null;
 };
 
@@ -181,19 +246,19 @@ type ReservationNotice = CustomerContact & {
  * 그걸로 먼저 시도하고, 아직 안 됐으면 SMS로 보낸다 — 단, SMS는 건당
  * 비용이 들어 `SOLAPI_SMS_ENABLED=false`로 꺼둘 수 있고, 꺼져 있으면
  * 카카오도 안 됐을 때 손님 연락처로는 아무것도 안 나간다(이메일은 이
- * 스위치와 무관하게 항상 그대로 나간다). 이메일은 손님이 입력했을 때만
- * 추가로 보낸다. emailVariables는 관리자가 /admin/settings에서 고친
- * {{변수}} 문구를 채우는 데 쓰고, DB에 커스텀 문구가 없을 때는
- * emailText(없으면 smsText)로 되돌아간다.
+ * 스위치와 무관하게 항상 그대로 나간다). email 인자를 넘긴 경우에만
+ * 그 트리거에 걸린 이메일 규칙을 찾아 발송한다(리마인드처럼 이벤트가
+ * 아니라 촬영일 기준 시간차로 도는 것은 이 함수를 거치지 않는다).
  */
 async function notifyCustomer(params: {
   purpose: KakaoNotificationPurpose;
   info: CustomerContact;
   smsText: string;
   kakaoVariables: Record<string, string>;
-  emailSubject: string;
-  emailText?: string;
-  emailVariables: Record<string, string>;
+  email?: {
+    triggerType: EmailTriggerType;
+    variables: Record<string, string>;
+  };
 }): Promise<void> {
   const kakaoAttempted = await tryKakao({
     purpose: params.purpose,
@@ -216,15 +281,15 @@ async function notifyCustomer(params: {
     );
   }
 
-  if (params.info.customerEmail) {
+  if (params.email) {
     tasks.push(
-      tryEmail({
-        purpose: params.purpose,
-        to: params.info.customerEmail,
-        variables: params.emailVariables,
-        fallbackSubject: params.emailSubject,
-        fallbackText: params.emailText ?? params.smsText,
+      sendTriggerEmails({
+        triggerType: params.email.triggerType,
+        productId: params.info.productId,
         reservationId: params.info.reservationId,
+        customerEmail: params.info.customerEmail,
+        adminEmail: params.info.adminEmail,
+        variables: params.email.variables,
       }),
     );
   }
@@ -248,9 +313,10 @@ export async function notifyCustomerRequested(
     info,
     smsText: customerRequestedText(info),
     kakaoVariables: customerRequestedKakaoVariables(info),
-    emailSubject: customerRequestedSubject(),
-    emailText: customerRequestedEmailText(info),
-    emailVariables: customerRequestedEmailVariables(info),
+    email: {
+      triggerType: "on_requested",
+      variables: buildEmailVariables(info),
+    },
   });
 }
 
@@ -263,8 +329,10 @@ export async function notifyCustomerConfirmed(
     info,
     smsText: customerConfirmedText(info),
     kakaoVariables: customerConfirmedKakaoVariables(info),
-    emailSubject: customerConfirmedSubject(),
-    emailVariables: reservationEmailVariables(info),
+    email: {
+      triggerType: "on_confirmed",
+      variables: buildEmailVariables(info),
+    },
   });
 }
 
@@ -285,8 +353,10 @@ export async function notifyCustomerCancelled(
     info,
     smsText: customerCancelledText(info),
     kakaoVariables: customerCancelledKakaoVariables(info),
-    emailSubject: customerCancelledSubject(),
-    emailVariables: reservationEmailVariables(info),
+    email: {
+      triggerType: "on_cancelled",
+      variables: buildEmailVariables(info),
+    },
   });
 }
 
@@ -309,12 +379,19 @@ export async function notifyCustomerRescheduled(
     info,
     smsText: customerRescheduledText(info),
     kakaoVariables: customerRescheduledKakaoVariables(info),
-    emailSubject: customerRescheduledSubject(),
-    emailVariables: customerRescheduledEmailVariables(info),
+    email: {
+      triggerType: "on_rescheduled",
+      variables: buildEmailVariables(info),
+    },
   });
 }
 
-/** 손님: 촬영 전날 리마인드 (Vercel Cron에서 호출). */
+/**
+ * 손님: 촬영 전날 리마인드 (Vercel Cron에서 호출). SMS·알림톡만 여기서
+ * 보낸다 — 이메일은 "촬영 며칠 전" 이메일 규칙(days_before_shoot)을
+ * 크론이 별도로 훑어 보내므로(day_offset을 관리자가 자유롭게 바꿀 수
+ * 있어 "내일"에 고정되지 않는다) 이 함수를 거치지 않는다.
+ */
 export async function notifyCustomerReminder(
   info: ReservationNotice & { customerName: string },
 ): Promise<void> {
@@ -323,8 +400,6 @@ export async function notifyCustomerReminder(
     info,
     smsText: customerReminderText(info),
     kakaoVariables: customerReminderKakaoVariables(info),
-    emailSubject: customerReminderSubject(),
-    emailVariables: reservationEmailVariables(info),
   });
 }
 
@@ -332,10 +407,14 @@ export async function notifyCustomerReminder(
  * 사장님: 새 예약 신청 즉시 알림.
  * settings.admin_notify_phone / admin_notify_email 중 채워진 채널로만 보낸다.
  * 하나도 안 채워져 있으면 아무 일도 하지 않는다(로그도 남기지 않는다 —
- * 미설정은 실패가 아니라 그냥 아직 안 쓰는 기능이다).
+ * 미설정은 실패가 아니라 그냥 아직 안 쓰는 기능이다). 이메일은 그와
+ * 별개로, "새 예약 신청 시" 트리거에 걸린 이메일 규칙을 따로 찾아
+ * 보낸다(수신자를 사장님이 아니라 손님으로 걸어둔 규칙은 이 함수에는
+ * 손님 이메일이 없어 자동으로 무시된다).
  */
 export async function notifyAdminNewRequest(info: {
   reservationId: string;
+  productId: string;
   adminPhone: string | null;
   adminEmail: string | null;
   customerName: string;
@@ -367,18 +446,15 @@ export async function notifyAdminNewRequest(info: {
     }
   }
 
-  if (info.adminEmail) {
-    tasks.push(
-      tryEmail({
-        purpose: "admin_new_request",
-        to: info.adminEmail,
-        variables: adminNewRequestEmailVariables(info),
-        fallbackSubject: adminNewRequestSubject(),
-        fallbackText: adminNewRequestText(info),
-        reservationId: info.reservationId,
-      }),
-    );
-  }
+  tasks.push(
+    sendTriggerEmails({
+      triggerType: "on_admin_new_request",
+      productId: info.productId,
+      reservationId: info.reservationId,
+      adminEmail: info.adminEmail,
+      variables: buildEmailVariables(info),
+    }),
+  );
 
   await Promise.all(tasks);
 }

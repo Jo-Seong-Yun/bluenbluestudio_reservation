@@ -429,34 +429,49 @@ export interface Database {
           },
         ];
       };
-      email_templates: {
+      email_rules: {
         Row: {
-          purpose:
-            | "customer_requested"
-            | "customer_confirmed"
-            | "customer_cancelled"
-            | "customer_reminder"
-            | "customer_rescheduled"
-            | "admin_new_request";
+          id: string;
+          name: string;
+          enabled: boolean;
+          recipient: "customer" | "admin";
+          trigger_type:
+            | "on_requested"
+            | "on_confirmed"
+            | "on_cancelled"
+            | "on_rescheduled"
+            | "on_admin_new_request"
+            | "days_before_shoot"
+            | "days_after_shoot";
+          day_offset: number | null;
+          product_id: string | null;
           subject: string;
           body: string;
+          created_at: string;
           updated_at: string;
         };
-        Insert: Partial<
-          Database["public"]["Tables"]["email_templates"]["Row"]
-        > & {
-          purpose:
-            | "customer_requested"
-            | "customer_confirmed"
-            | "customer_cancelled"
-            | "customer_reminder"
-            | "customer_rescheduled"
-            | "admin_new_request";
+        Insert: Partial<Database["public"]["Tables"]["email_rules"]["Row"]> & {
+          name: string;
+          trigger_type:
+            | "on_requested"
+            | "on_confirmed"
+            | "on_cancelled"
+            | "on_rescheduled"
+            | "on_admin_new_request"
+            | "days_before_shoot"
+            | "days_after_shoot";
           subject: string;
           body: string;
         };
-        Update: Partial<Database["public"]["Tables"]["email_templates"]["Row"]>;
-        Relationships: [];
+        Update: Partial<Database["public"]["Tables"]["email_rules"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "email_rules_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;
