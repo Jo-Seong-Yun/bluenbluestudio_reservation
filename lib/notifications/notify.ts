@@ -134,14 +134,16 @@ async function tryKakao(params: {
  * 발송(rule:<id>)과 구분되게 rule-test:<id>로 남긴다.
  */
 export async function sendRuleTestEmail(params: {
-  rule: { id: string; subject: string; body: string };
+  rule: { id: string; subject: string; body: string; ctaText?: string | null; ctaUrl?: string | null };
   to: string;
   variables: Record<string, string>;
 }): Promise<{ ok: boolean; error?: string }> {
   try {
     const subject = `[테스트] ${renderEmailTemplate(params.rule.subject, params.variables)}`;
+    const brand = await loadBrandSettings();
     const html = finalizeEmailHtml(
       renderEmailHtml(params.rule.body, params.variables),
+      { ctaText: params.rule.ctaText, ctaUrl: params.rule.ctaUrl, ...brand },
     );
     const text = htmlToPlainText(html);
     await sendEmail({ to: params.to, subject, text, html });
@@ -173,6 +175,7 @@ async function tryRuleEmail(params: {
   /** 상태 변경 확인모달에서 관리자가 수기로 고친 제목/본문 — 있으면
    * 규칙을 다시 렌더링하지 않고 이 내용을 그대로 쓴다. */
   override?: { subject: string; body: string };
+  brand?: { logoUrl?: string | null; brandColor?: string | null };
 }): Promise<void> {
   try {
     const subject =
@@ -185,6 +188,11 @@ async function tryRuleEmail(params: {
       params.override
         ? toEditorHtml(params.override.body)
         : renderEmailHtml(params.rule.body, params.variables),
+      {
+        ctaText: params.rule.ctaText,
+        ctaUrl: params.rule.ctaUrl,
+        ...params.brand,
+      },
     );
     const text = htmlToPlainText(html);
     await sendEmail({ to: params.to, subject, text, html });
@@ -229,6 +237,16 @@ export async function siteVariableOverrides(): Promise<Record<string, string>> {
   };
 }
 
+async function loadBrandSettings(): Promise<{ logoUrl: string | null; brandColor: string | null }> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("settings")
+    .select("logo_url, brand_color")
+    .eq("id", 1)
+    .single();
+  return { logoUrl: data?.logo_url ?? null, brandColor: data?.brand_color ?? null };
+}
+
 /**
  * 특정 이벤트(접수/확정/취소/일정변경/관리자 신규알림)가 일어난 순간
  * 이메일을 보낸다. 관리자가 /admin/settings의 "이메일 규칙"에서 이
@@ -251,7 +269,10 @@ async function sendTriggerEmails(params: {
   const rules = await loadEmailRulesForTrigger(params.triggerType, params.productId);
   if (rules.length === 0) return;
 
-  const variables = { ...params.variables, ...(await siteVariableOverrides()) };
+  const [variables, brand] = await Promise.all([
+    siteVariableOverrides().then((overrides) => ({ ...params.variables, ...overrides })),
+    loadBrandSettings(),
+  ]);
   await Promise.all(
     rules.flatMap((rule) =>
       ruleRecipientAddresses(rule.recipients, params).map((to) =>
@@ -261,6 +282,7 @@ async function sendTriggerEmails(params: {
           variables,
           reservationId: params.reservationId,
           override: params.overrides?.[rule.id],
+          brand,
         }),
       ),
     ),
@@ -306,7 +328,10 @@ export async function sendDayOffsetRuleEmail(params: {
   variables: Record<string, string>;
 }): Promise<void> {
   if (params.to.length === 0) return;
-  const variables = { ...params.variables, ...(await siteVariableOverrides()) };
+  const [variables, brand] = await Promise.all([
+    siteVariableOverrides().then((overrides) => ({ ...params.variables, ...overrides })),
+    loadBrandSettings(),
+  ]);
   await Promise.all(
     params.to.map((to) =>
       tryRuleEmail({
@@ -314,6 +339,7 @@ export async function sendDayOffsetRuleEmail(params: {
         to,
         variables,
         reservationId: params.reservationId,
+        brand,
       }),
     ),
   );

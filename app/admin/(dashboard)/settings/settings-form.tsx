@@ -19,6 +19,8 @@ export type SettingsFormValues = {
   adminNotifyPhone: string;
   adminNotifyEmail: string;
   showProductThumbnails: boolean;
+  logoUrl: string;
+  brandColor: string;
 };
 
 const FORM_ID = "settings-form";
@@ -200,6 +202,46 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
                 placeholder="예약 확정 후 24시간 안에 입금이 확인되지 않으면 자동 취소됩니다."
                 className={inputClass}
               />
+            </Field>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="font-bold">이메일 양식</h2>
+            <p className="text-muted -mt-2 text-xs">
+              발송되는 모든 이메일 카드에 공통으로 적용됩니다.
+            </p>
+
+            <Field
+              label="로고 URL"
+              hint="헤더에 스튜디오 이름 대신 이미지로 표시됩니다. 비워두면 이름 텍스트로 표시됩니다."
+            >
+              <input
+                name="logoUrl"
+                defaultValue={initial.logoUrl}
+                placeholder="https://..."
+                className={inputClass}
+              />
+            </Field>
+
+            <Field
+              label="브랜드 색상"
+              hint="CTA 버튼 색상으로 사용됩니다. 비워두면 기본 어두운 색이 사용됩니다."
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  name="brandColor"
+                  defaultValue={initial.brandColor}
+                  placeholder="#4a90e2"
+                  maxLength={7}
+                  className={`${inputClass} font-mono`}
+                />
+                {initial.brandColor ? (
+                  <span
+                    className="h-8 w-8 shrink-0 rounded border border-border"
+                    style={{ backgroundColor: initial.brandColor }}
+                  />
+                ) : null}
+              </div>
             </Field>
           </section>
 

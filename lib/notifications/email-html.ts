@@ -58,12 +58,22 @@ export function renderEmailHtml(
   );
 }
 
+type EmailShellOptions = {
+  ctaText?: string | null;
+  ctaUrl?: string | null;
+  logoUrl?: string | null;
+  brandColor?: string | null;
+};
+
+const SAFE_HEX = /^#[0-9a-fA-F]{6}$/;
+const SAFE_URL = /^https?:\/\//;
+
 /**
  * 실제 발송용 HTML. 에디터가 만든 빈 문단(<p></p>)은 메일 앱에서 높이
  * 0으로 접혀 줄 간격이 사라지니 <br>을 넣고, 이미지는 화면 폭을 넘지
  * 않게 한다. 메일 앱은 사이트 CSS를 못 쓰니 필요한 서식은 인라인으로 준다.
  */
-export function finalizeEmailHtml(html: string): string {
+export function finalizeEmailHtml(html: string, options?: EmailShellOptions): string {
   // 메일 앱은 사이트 CSS(class)를 못 쓰니 표·인용 같은 블록 서식은
   // 인라인 style로 직접 준다. 편집기·손님 화면은 class로 처리한다.
   const safe = sanitizeDescriptionHtml(html)
@@ -80,11 +90,30 @@ export function finalizeEmailHtml(html: string): string {
       /<blockquote/g,
       '<blockquote style="border-left:3px solid #d1d5db;margin:8px 0;padding-left:12px;color:#555"',
     );
+
+  let ctaBlock = "";
+  if (
+    options?.ctaText &&
+    options?.ctaUrl &&
+    SAFE_URL.test(options.ctaUrl)
+  ) {
+    const btnColor =
+      options.brandColor && SAFE_HEX.test(options.brandColor)
+        ? options.brandColor
+        : "#111827";
+    ctaBlock =
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 4px;">` +
+      `<tr><td align="center">` +
+      `<a href="${escapeHtml(options.ctaUrl)}" target="_blank" style="display:inline-block;background-color:${btnColor};color:#ffffff;font-family:${EMAIL_FONT_STACK};padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;line-height:1;">${escapeHtml(options.ctaText)}</a>` +
+      `</td></tr></table>`;
+  }
+
   const body =
     `<div style="font-family:${EMAIL_FONT_STACK};font-size:15px;line-height:1.7;color:#1f2937">` +
     safe +
+    ctaBlock +
     "</div>";
-  return wrapInEmailShell(body);
+  return wrapInEmailShell(body, options);
 }
 
 /**
@@ -94,7 +123,11 @@ export function finalizeEmailHtml(html: string): string {
  * 문구를 넣어 흔히 보는 안내 메일처럼 보이게 한다. 구형 메일 앱(아웃룩
  * 등)도 깨지지 않게 table 기반으로 짜고 서식은 전부 인라인으로 준다.
  */
-function wrapInEmailShell(content: string): string {
+function wrapInEmailShell(content: string, options?: EmailShellOptions): string {
+  const headerContent =
+    options?.logoUrl && SAFE_URL.test(options.logoUrl)
+      ? `<img src="${escapeHtml(options.logoUrl)}" alt="${escapeHtml(SITE.name)}" style="height:40px;max-width:200px;display:block;">`
+      : `<span style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.01em;">${SITE.name}</span>`;
   return `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>
 <body style="margin:0;padding:0;background-color:#f4f6f8;-webkit-text-size-adjust:100%;">
@@ -102,7 +135,7 @@ function wrapInEmailShell(content: string): string {
 <tr><td align="center" style="padding:28px 12px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
 <tr><td style="padding:20px 28px;border-bottom:1px solid #eef1f4;font-family:${EMAIL_FONT_STACK};">
-<span style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.01em;">${SITE.name}</span>
+${headerContent}
 </td></tr>
 <tr><td style="padding:28px;">${content}</td></tr>
 <tr><td style="padding:16px 28px 22px;border-top:1px solid #eef1f4;font-family:${EMAIL_FONT_STACK};font-size:12px;line-height:1.6;color:#9ca3af;">
