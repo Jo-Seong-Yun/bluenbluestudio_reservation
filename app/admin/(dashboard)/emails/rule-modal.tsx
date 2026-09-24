@@ -147,21 +147,14 @@ export function RuleModal({
           </button>
         </div>
 
-        {/* 본문: 좌우 2열 */}
-        <div style={{ display: "flex", height: "82vh", overflow: "hidden" }}>
+        {/* 본문: PC 좌우 2열 / 모바일 위아래 1열 (globals.css .email-modal-body) */}
+        <div className="email-modal-body">
 
-          {/* 좌측: 편집 폼 */}
+          {/* 좌측(PC) / 위(모바일): 편집 폼 */}
           <form
             key={epoch}
             action={action}
-            style={{
-              flex: 1,
-              minWidth: 0,
-              display: "flex",
-              flexDirection: "column",
-              overflowY: "auto",
-              padding: "1.25rem",
-            }}
+            className="email-modal-form"
           >
             <div className="space-y-4">
               {isEdit && rule ? (
@@ -356,19 +349,8 @@ export function RuleModal({
             </div>
           </form>
 
-          {/* 우측: 미리보기 */}
-          <div
-            className="border-border"
-            style={{
-              width: "400px",
-              flexShrink: 0,
-              display: "flex",
-              flexDirection: "column",
-              overflowY: "auto",
-              borderLeftWidth: "1px",
-              padding: "1.25rem",
-            }}
-          >
+          {/* 우측(PC) / 아래(모바일): 미리보기 */}
+          <div className="email-modal-preview border-border">
             <p className="text-muted mb-2 text-xs font-medium">
               미리보기 — 실제 발송되는 모습 그대로 ({"{{계좌}}"}/{"{{공지}}"}는
               설정값, 나머지는 예시 값)
