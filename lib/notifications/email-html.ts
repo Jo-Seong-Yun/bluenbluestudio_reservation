@@ -76,33 +76,40 @@ const SAFE_URL = /^https?:\/\//;
  * 값이 하나도 없으면 빈 문자열을 돌려줘 블록 자체가 나타나지 않는다.
  */
 function buildReservationSummaryHtml(vars: Record<string, string>): string {
-  const rows: { label: string; value: string }[] = [];
+  const rows: { label: string; html: string }[] = [];
 
-  if (vars["예약번호"]) rows.push({ label: "예약 번호", value: vars["예약번호"] });
-  if (vars["상품명"]) rows.push({ label: "상품", value: vars["상품명"] });
+  if (vars["예약번호"]) rows.push({ label: "예약 번호", html: escapeHtml(vars["예약번호"]) });
+  if (vars["상품명"]) rows.push({ label: "상품", html: escapeHtml(vars["상품명"]) });
 
   if (vars["일시"]) {
-    rows.push({ label: "촬영 일시", value: vars["일시"] });
+    rows.push({ label: "촬영 일시", html: escapeHtml(vars["일시"]) });
   } else if (vars["후보목록"]) {
-    rows.push({ label: "희망 시간", value: vars["후보목록"] });
+    rows.push({ label: "희망 시간", html: escapeHtml(vars["후보목록"]).replace(/\n/g, "<br>") });
   }
 
   // 일정변경 이메일에서만 나온다 — 일시(확정 시각)가 있으면 확정/리마인드 계열이므로 숨긴다
   if (!vars["일시"] && vars["기존일시"] && vars["변경일시"]) {
-    rows.push({ label: "기존 일시", value: vars["기존일시"] });
-    rows.push({ label: "변경 일시", value: vars["변경일시"] });
+    rows.push({ label: "기존 일시", html: escapeHtml(vars["기존일시"]) });
+    rows.push({ label: "변경 일시", html: escapeHtml(vars["변경일시"]) });
   }
 
-  if (vars["촬영장소"]) rows.push({ label: "촬영 장소", value: vars["촬영장소"] });
+  if (vars["촬영장소"]) {
+    const addr = vars["촬영장소"];
+    const mapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(addr)}`;
+    rows.push({
+      label: "촬영 장소",
+      html: `<a href="${escapeHtml(mapUrl)}" target="_blank" style="color:#2563eb;text-decoration:none;">${escapeHtml(addr)}</a>`,
+    });
+  }
 
   if (rows.length === 0) return "";
 
   const rowsHtml = rows
     .map(
-      ({ label, value }) =>
+      ({ label, html }) =>
         `<tr>` +
         `<td style="font-size:12px;font-weight:600;color:#6b7280;padding:4px 0;width:76px;vertical-align:top;white-space:nowrap;">${escapeHtml(label)}</td>` +
-        `<td style="font-size:13px;color:#111827;padding:4px 0 4px 12px;">${escapeHtml(value).replace(/\n/g, "<br>")}</td>` +
+        `<td style="font-size:13px;color:#111827;padding:4px 0 4px 12px;">${html}</td>` +
         `</tr>`,
     )
     .join("");
