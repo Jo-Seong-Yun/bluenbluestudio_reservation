@@ -11,6 +11,7 @@ import {
   type EmailTriggerType,
 } from "./email-rules";
 import { createAdminClient } from "../supabase/admin";
+import { siteBaseUrl } from "../site";
 import {
   finalizeEmailHtml,
   htmlToPlainText,
@@ -143,7 +144,13 @@ export async function sendRuleTestEmail(params: {
     const brand = await loadBrandSettings();
     const html = finalizeEmailHtml(
       renderEmailHtml(params.rule.body, params.variables),
-      { ctaText: params.rule.ctaText, ctaUrl: params.rule.ctaUrl, emailVariables: params.variables, ...brand },
+      {
+        ctaText: params.rule.ctaText,
+        ctaUrl: params.rule.ctaUrl,
+        emailVariables: params.variables,
+        siteBaseUrl: siteBaseUrl(),
+        ...brand,
+      },
     );
     const text = htmlToPlainText(html);
     await sendEmail({ to: params.to, subject, text, html });
@@ -192,6 +199,7 @@ async function tryRuleEmail(params: {
         ctaText: params.rule.ctaText,
         ctaUrl: params.rule.ctaUrl,
         emailVariables: params.variables,
+        siteBaseUrl: siteBaseUrl(),
         ...params.brand,
       },
     );
