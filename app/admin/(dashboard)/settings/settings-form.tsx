@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { saveSettings, type SettingsActionState } from "@/app/admin/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
 import { ReservationSuccessPreview } from "./reservation-success-preview";
+import { uploadLogoImage } from "@/lib/storage-upload";
 
 export type SettingsFormValues = {
   slotIntervalMin: number;
@@ -44,6 +45,10 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
   );
   const [bankAccount, setBankAccount] = useState(initial.bankAccount);
   const [notice, setNotice] = useState(initial.notice);
+  const [logoUrl, setLogoUrl] = useState(initial.logoUrl);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <>
@@ -212,15 +217,58 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
             </p>
 
             <Field
-              label="로고 URL"
+              label="로고 이미지"
               hint="헤더에 스튜디오 이름 대신 이미지로 표시됩니다. 비워두면 이름 텍스트로 표시됩니다."
             >
-              <input
-                name="logoUrl"
-                defaultValue={initial.logoUrl}
-                placeholder="https://..."
-                className={inputClass}
-              />
+              <input type="hidden" name="logoUrl" value={logoUrl} />
+              <div className="space-y-2">
+                {logoUrl ? (
+                  <div className="flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={logoUrl}
+                      alt="로고 미리보기"
+                      className="border-border h-12 rounded border bg-white object-contain px-2"
+                      style={{ maxWidth: 160 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setLogoUrl("")}
+                      className="text-muted hover:text-foreground text-xs"
+                    >
+                      제거
+                    </button>
+                  </div>
+                ) : null}
+                <label
+                  className={`border-border bg-surface hover:bg-surface-subtle inline-flex cursor-pointer items-center rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${logoUploading ? "pointer-events-none opacity-50" : ""}`}
+                >
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={logoUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setLogoError(null);
+                      setLogoUploading(true);
+                      try {
+                        const url = await uploadLogoImage(file);
+                        setLogoUrl(url);
+                      } catch (err) {
+                        setLogoError(err instanceof Error ? err.message : "업로드 실패");
+                      } finally {
+                        setLogoUploading(false);
+                        if (logoInputRef.current) logoInputRef.current.value = "";
+                      }
+                    }}
+                  />
+                  {logoUploading ? "올리는 중…" : logoUrl ? "다른 이미지로 교체" : "이미지 올리기"}
+                </label>
+                {logoError ? <ErrorText>{logoError}</ErrorText> : null}
+              </div>
             </Field>
 
             <Field
