@@ -87,7 +87,8 @@ function buildReservationSummaryHtml(vars: Record<string, string>): string {
     rows.push({ label: "희망 시간", value: vars["후보목록"] });
   }
 
-  if (vars["기존일시"] && vars["변경일시"]) {
+  // 일정변경 이메일에서만 나온다 — 일시(확정 시각)가 있으면 확정/리마인드 계열이므로 숨긴다
+  if (!vars["일시"] && vars["기존일시"] && vars["변경일시"]) {
     rows.push({ label: "기존 일시", value: vars["기존일시"] });
     rows.push({ label: "변경 일시", value: vars["변경일시"] });
   }
