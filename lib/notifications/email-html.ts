@@ -63,10 +63,56 @@ type EmailShellOptions = {
   ctaUrl?: string | null;
   logoUrl?: string | null;
   brandColor?: string | null;
+  /** buildEmailVariables()가 반환한 변수맵 — 있으면 예약 정보 요약 블록을 본문 상단에 삽입한다. */
+  emailVariables?: Record<string, string> | null;
 };
 
 const SAFE_HEX = /^#[0-9a-fA-F]{6}$/;
 const SAFE_URL = /^https?:\/\//;
+
+/**
+ * buildEmailVariables()의 변수맵에서 핵심 예약 정보만 뽑아
+ * 이메일 상단에 넣을 요약 박스 HTML을 만든다.
+ * 값이 하나도 없으면 빈 문자열을 돌려줘 블록 자체가 나타나지 않는다.
+ */
+function buildReservationSummaryHtml(vars: Record<string, string>): string {
+  const rows: { label: string; value: string }[] = [];
+
+  if (vars["예약번호"]) rows.push({ label: "예약 번호", value: vars["예약번호"] });
+  if (vars["상품명"]) rows.push({ label: "상품", value: vars["상품명"] });
+
+  if (vars["일시"]) {
+    rows.push({ label: "촬영 일시", value: vars["일시"] });
+  } else if (vars["후보목록"]) {
+    rows.push({ label: "희망 시간", value: vars["후보목록"] });
+  }
+
+  if (vars["기존일시"] && vars["변경일시"]) {
+    rows.push({ label: "기존 일시", value: vars["기존일시"] });
+    rows.push({ label: "변경 일시", value: vars["변경일시"] });
+  }
+
+  if (vars["촬영장소"]) rows.push({ label: "촬영 장소", value: vars["촬영장소"] });
+
+  if (rows.length === 0) return "";
+
+  const rowsHtml = rows
+    .map(
+      ({ label, value }) =>
+        `<tr>` +
+        `<td style="font-size:12px;font-weight:600;color:#6b7280;padding:4px 0;width:76px;vertical-align:top;white-space:nowrap;">${escapeHtml(label)}</td>` +
+        `<td style="font-size:13px;color:#111827;padding:4px 0 4px 12px;">${escapeHtml(value).replace(/\n/g, "<br>")}</td>` +
+        `</tr>`,
+    )
+    .join("");
+
+  return (
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin:0 0 24px;">` +
+    `<tr><td style="padding:14px 18px;font-family:${EMAIL_FONT_STACK};">` +
+    `<table width="100%" cellpadding="0" cellspacing="0" border="0">${rowsHtml}</table>` +
+    `</td></tr></table>`
+  );
+}
 
 /**
  * 실제 발송용 HTML. 에디터가 만든 빈 문단(<p></p>)은 메일 앱에서 높이
@@ -108,8 +154,13 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
       `</td></tr></table>`;
   }
 
+  const summaryBlock = options?.emailVariables
+    ? buildReservationSummaryHtml(options.emailVariables)
+    : "";
+
   const body =
     `<div style="font-family:${EMAIL_FONT_STACK};font-size:15px;line-height:1.7;color:#1f2937">` +
+    summaryBlock +
     safe +
     ctaBlock +
     "</div>";
@@ -142,7 +193,7 @@ ${headerContent}
 </td></tr>
 <tr><td style="padding:28px;">${content}</td></tr>
 <tr><td style="padding:16px 28px 22px;border-top:1px solid #eef1f4;font-family:${EMAIL_FONT_STACK};font-size:12px;line-height:1.6;color:#9ca3af;">
-${SITE.name} · ${SITE.nameEn}<br>본 메일은 예약 안내를 위해 발송되었습니다.
+${SITE.name} · ${SITE.nameEn}<br>본 메일은 예약 안내를 위해 발송되었습니다. 수신을 원치 않으시면 스튜디오에 직접 문의해 주세요.<br>수집된 개인정보는 예약 서비스 제공 목적으로만 사용되며 제3자에게 제공되지 않습니다.
 </td></tr>
 </table>
 </td></tr>

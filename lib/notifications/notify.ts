@@ -143,7 +143,7 @@ export async function sendRuleTestEmail(params: {
     const brand = await loadBrandSettings();
     const html = finalizeEmailHtml(
       renderEmailHtml(params.rule.body, params.variables),
-      { ctaText: params.rule.ctaText, ctaUrl: params.rule.ctaUrl, ...brand },
+      { ctaText: params.rule.ctaText, ctaUrl: params.rule.ctaUrl, emailVariables: params.variables, ...brand },
     );
     const text = htmlToPlainText(html);
     await sendEmail({ to: params.to, subject, text, html });
@@ -191,6 +191,7 @@ async function tryRuleEmail(params: {
       {
         ctaText: params.rule.ctaText,
         ctaUrl: params.rule.ctaUrl,
+        emailVariables: params.variables,
         ...params.brand,
       },
     );

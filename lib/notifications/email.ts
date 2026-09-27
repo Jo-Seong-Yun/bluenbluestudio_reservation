@@ -1,6 +1,7 @@
 import "server-only";
 import nodemailer from "nodemailer";
 import { gmailAppPassword, gmailUser } from "./env";
+import { SITE } from "../site";
 
 /**
  * Gmail SMTP로 이메일 발송.
@@ -27,5 +28,5 @@ export async function sendEmail({
     auth: { user: gmailUser(), pass: gmailAppPassword() },
   });
 
-  await transporter.sendMail({ from: gmailUser(), to, subject, text, html });
+  await transporter.sendMail({ from: `"${SITE.name}" <${gmailUser()}>`, to, subject, text, html });
 }
