@@ -48,6 +48,16 @@ type ReservationRow = {
   charged_amount_breakdown?: { label: string; amount: number }[] | null;
   /** shoot_start가 null일 때만 채워진다 — 손님이 낸 희망 시간들. */
   candidates?: { rank: number; shootStart: string; shootEnd: string }[];
+  notificationLogs?: {
+    id: string;
+    channel: "email" | "sms" | "kakao";
+    purpose: string;
+    ruleName: string | null;
+    recipient: string;
+    success: boolean;
+    error: string | null;
+    createdAt: string;
+  }[];
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -330,6 +340,42 @@ function ReservationDetail({
         action={saveReservationCost}
       />
 
+      {/* 이 예약에 발송된 이메일·SMS·카카오 기록 */}
+      <div className="border-border mt-4 border-t pt-4">
+        <p className="mb-2 text-sm font-medium">발송 기록</p>
+        {!reservation.notificationLogs || reservation.notificationLogs.length === 0 ? (
+          <p className="text-muted text-sm">발송 기록이 없습니다.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {reservation.notificationLogs.map((log) => (
+              <li key={log.id} className="flex items-start gap-2 text-xs">
+                <span className="text-muted mt-0.5 w-28 shrink-0 font-mono">
+                  {kstDateString(new Date(log.createdAt))}{" "}
+                  {kstTimeString(new Date(log.createdAt))}
+                </span>
+                <ChannelBadge channel={log.channel} />
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium">
+                    {purposeLabel(log.purpose, log.ruleName)}
+                  </span>
+                  <span className="text-muted ml-1.5">{log.recipient}</span>
+                  {!log.success && log.error ? (
+                    <span className="text-red-500 ml-1.5 truncate" title={log.error}>
+                      · 실패: {log.error}
+                    </span>
+                  ) : null}
+                </span>
+                <span
+                  className={`shrink-0 font-medium ${log.success ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}
+                >
+                  {log.success ? "✓" : "✗"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {/* 상태 버튼들과 시각적으로 분리해둔다 — 되돌릴 수 없는 동작이라
           실수로 다른 버튼과 헷갈려 누르는 일이 없어야 한다. */}
       <div className="mt-6 border-t border-dashed border-red-300 pt-4 dark:border-red-900">
@@ -374,5 +420,44 @@ function Row({
       <dt className="text-muted w-14 shrink-0">{label}</dt>
       <dd>{children}</dd>
     </div>
+  );
+}
+
+const PURPOSE_LABELS: Record<string, string> = {
+  customer_requested: "예약 접수 알림",
+  customer_confirmed: "일정 확정 알림",
+  customer_cancelled: "예약 취소 알림",
+  customer_rescheduled: "일정 변경 알림",
+  customer_reminder: "촬영 전날 리마인드",
+  admin_new_request: "관리자 신규 예약 알림",
+};
+
+function purposeLabel(purpose: string, ruleName: string | null): string {
+  if (purpose in PURPOSE_LABELS) return PURPOSE_LABELS[purpose];
+  if (purpose.startsWith("rule-test:"))
+    return `[테스트] ${ruleName ?? "이메일 규칙"}`;
+  if (purpose.startsWith("rule:"))
+    return ruleName ?? "이메일 규칙";
+  return purpose;
+}
+
+const CHANNEL_LABELS: Record<"email" | "sms" | "kakao", string> = {
+  email: "이메일",
+  sms: "SMS",
+  kakao: "카카오",
+};
+
+function ChannelBadge({ channel }: { channel: "email" | "sms" | "kakao" }) {
+  const colors = {
+    email: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+    sms: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    kakao: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  };
+  return (
+    <span
+      className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${colors[channel]}`}
+    >
+      {CHANNEL_LABELS[channel]}
+    </span>
   );
 }

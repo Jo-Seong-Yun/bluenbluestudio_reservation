@@ -128,6 +128,45 @@ export default async function ReservationsPage({
           .order("rank")
       : { data: [] as { rank: number; shoot_start: string; shoot_end: string }[] };
 
+  // 선택된 예약에 발송된 알림 기록 (이메일·SMS·카카오 모두).
+  const { data: notificationLogRows } = selected
+    ? await supabase
+        .from("notification_logs")
+        .select("id, channel, purpose, recipient, success, error, created_at")
+        .eq("reservation_id", selected.id)
+        .order("created_at", { ascending: false })
+    : {
+        data: [] as {
+          id: string;
+          channel: string;
+          purpose: string;
+          recipient: string;
+          success: boolean;
+          error: string | null;
+          created_at: string;
+        }[],
+      };
+
+  // rule:<id> 형식의 purpose 에서 규칙 이름을 조회한다.
+  const ruleIds = [
+    ...new Set(
+      (notificationLogRows ?? [])
+        .map((l) => {
+          const m = l.purpose.match(/^rule(?:-test)?:(.+)$/);
+          return m ? m[1] : null;
+        })
+        .filter(Boolean) as string[],
+    ),
+  ];
+  const { data: emailRuleRows } =
+    ruleIds.length > 0
+      ? await supabase
+          .from("email_rules")
+          .select("id, name")
+          .in("id", ruleIds)
+      : { data: [] as { id: string; name: string }[] };
+  const ruleNameById = new Map((emailRuleRows ?? []).map((r) => [r.id, r.name]));
+
   // 선택된 예약의 커스텀 문항 답변. 목록 전체가 아니라 선택된 한 건에만
   // 필요하니 여기서 따로 가져온다.
   const { data: answerRows } = selected
@@ -205,6 +244,21 @@ export default async function ReservationsPage({
     ? (selectedProduct.sale_price ?? selectedProduct.price)
     : undefined;
 
+  const notificationLogs = (notificationLogRows ?? []).map((l) => {
+    const ruleMatch = l.purpose.match(/^(rule(?:-test)?):(.+)$/);
+    const ruleName = ruleMatch ? (ruleNameById.get(ruleMatch[2]) ?? null) : null;
+    return {
+      id: l.id,
+      channel: l.channel as "email" | "sms" | "kakao",
+      purpose: l.purpose,
+      ruleName,
+      recipient: l.recipient,
+      success: l.success,
+      error: l.error,
+      createdAt: l.created_at,
+    };
+  });
+
   const selectedWithProduct = selected
     ? {
         ...selected,
@@ -212,6 +266,7 @@ export default async function ReservationsPage({
         customAnswers,
         basePrice,
         priceBreakdown,
+        notificationLogs,
         candidates: (candidateRows ?? []).map((c) => ({
           rank: c.rank,
           shootStart: c.shoot_start,
