@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { loadCustomerSummaries } from "@/lib/customers-db";
+import { loadAllEmailRules } from "@/lib/notifications/email-rules";
+import { createClient } from "@/lib/supabase/server";
 import { CustomerTable } from "./customer-table";
 import { UploadToSheetButton } from "./upload-to-sheet-button";
 import { CustomerAddModal } from "./customer-add-modal";
 
 export const metadata: Metadata = { title: "고객DB" };
+// "메일 발송" 모달이 이메일 규칙 목록을 최신으로 보여줘야 한다.
+export const dynamic = "force-dynamic";
 
 /**
  * 손님을 연락처 기준으로 한 명씩 모아 보여준다. 인적사항(이름·성별·
@@ -18,7 +22,13 @@ export const metadata: Metadata = { title: "고객DB" };
  * 사이트 안에서 바로 보고 다루는 용도로 함께 둔다.
  */
 export default async function CustomersPage() {
-  const customers = (await loadCustomerSummaries()).sort((a, b) => {
+  const supabase = await createClient();
+  const [customersRaw, { rules }, { data: settings }] = await Promise.all([
+    loadCustomerSummaries(),
+    loadAllEmailRules(),
+    supabase.from("settings").select("bank_account, notice").eq("id", 1).single(),
+  ]);
+  const customers = customersRaw.sort((a, b) => {
     // 최근 방문일이 최신인 손님을 먼저 — 아직 방문(완료) 기록이 없는
     // 손님은 맨 뒤로 보낸다.
     if (a.lastVisit && b.lastVisit) return b.lastVisit.localeCompare(a.lastVisit);
@@ -43,7 +53,14 @@ export default async function CustomersPage() {
         </div>
       </div>
 
-      <CustomerTable customers={customers} />
+      <CustomerTable
+        customers={customers}
+        emailRules={rules}
+        siteVariables={{
+          계좌: settings?.bank_account ?? "",
+          공지: settings?.notice ?? "",
+        }}
+      />
     </div>
   );
 }

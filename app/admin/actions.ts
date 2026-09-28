@@ -42,6 +42,7 @@ import {
   EMAIL_VARIABLE_PREVIEW_VALUES,
   formatRecipients,
   renderEmailTemplate,
+  type CtaButton,
   type EmailRecipient,
   type EmailTriggerType,
 } from "@/lib/notifications/email-rules-shared";
@@ -53,6 +54,7 @@ import {
 } from "@/lib/notifications/email-html";
 import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
 import {
+  sendAdHocEmail,
   sendRuleTestEmail,
   siteVariableOverrides,
 } from "@/lib/notifications/notify";
@@ -2846,6 +2848,131 @@ export async function deleteCustomers(
 
   revalidatePath("/admin/customers");
   return { status: "success", count: phones.length };
+}
+
+/**
+ * 고객DB에서 선택한 손님들에게 메일을 보낸다. "이메일" 페이지에 이미
+ * 만들어둔 규칙(프리셋)을 그대로 골라 보내거나, 그 자리에서 제목·본문을
+ * 직접 써서(규칙 모달과 같은 에디터) 보낼 수 있다 — 어느 쪽이든 특정
+ * 예약에 매인 게 아니라 손님에게 곧장 나가는 메일이라 트리거·수신자
+ * 설정을 타지 않고 이 액션이 바로 발송한다. {{이름}}/{{연락처}}와
+ * 사이트 설정값({{계좌}}/{{공지}})만 채워지고, 예약이 있어야 아는 값
+ * (상품명·일시 등)은 채울 예약이 없어 빈 칸으로 남는다 — 프리셋이
+ * 트리거 이메일용으로 그런 변수를 쓰고 있으면 관리자가 화면에서
+ * 그대로 드러난 것을 보고 알 수 있다.
+ */
+export type SendCustomerEmailState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success"; sent: number; skipped: number };
+
+export async function sendCustomerEmails(
+  _prev: SendCustomerEmailState,
+  formData: FormData,
+): Promise<SendCustomerEmailState> {
+  await requireAdmin();
+
+  const phones = formData
+    .getAll("phones")
+    .map((v) => String(v))
+    .filter(Boolean);
+  if (phones.length === 0) {
+    return { status: "error", error: "받는 손님을 선택해 주시기 바랍니다." };
+  }
+
+  const mode = String(formData.get("mode") ?? "");
+  const supabase = await createClient();
+
+  let subjectTemplate: string;
+  let bodyTemplate: string;
+  let ctas: CtaButton[];
+  let purpose: string;
+
+  if (mode === "preset") {
+    const ruleId = String(formData.get("ruleId") ?? "").trim();
+    if (!ruleId) return { status: "error", error: "보낼 메일을 선택해 주시기 바랍니다." };
+    const { data: rule } = await supabase
+      .from("email_rules")
+      .select(
+        "subject, body, cta_text, cta_url, cta_text_2, cta_url_2, cta_text_3, cta_url_3",
+      )
+      .eq("id", ruleId)
+      .single();
+    if (!rule) return { status: "error", error: "선택한 메일을 찾을 수 없습니다." };
+    subjectTemplate = rule.subject;
+    bodyTemplate = rule.body;
+    ctas = ctasFromColumns(rule);
+    purpose = `rule:${ruleId}`;
+  } else if (mode === "custom") {
+    const subject = String(formData.get("subject") ?? "").trim();
+    if (!subject) return { status: "error", error: "제목을 입력해 주시기 바랍니다." };
+    const rawBody = String(formData.get("body") ?? "").trim();
+    const body = isHtmlBody(rawBody) ? sanitizeDescriptionHtml(rawBody) : rawBody;
+    if (isEmptyEmailBody(body)) {
+      return { status: "error", error: "본문을 입력해 주시기 바랍니다." };
+    }
+
+    // 최대 3개 — 규칙 모달(saveEmailRule)과 같은 필드 이름·순서.
+    const ctaSuffixes = ["", "2", "3"] as const;
+    const parsedCtas: CtaButton[] = [];
+    for (const suffix of ctaSuffixes) {
+      const text = String(formData.get(`ctaText${suffix}`) ?? "").trim();
+      const url = String(formData.get(`ctaUrl${suffix}`) ?? "").trim();
+      if (text && url) {
+        if (!/^https?:\/\//.test(url)) {
+          return {
+            status: "error",
+            error: "CTA 버튼 URL은 http:// 또는 https://로 시작해야 합니다.",
+          };
+        }
+        parsedCtas.push({ text, url });
+      }
+    }
+
+    subjectTemplate = subject;
+    bodyTemplate = body;
+    ctas = parsedCtas;
+    purpose = "custom";
+  } else {
+    return { status: "error", error: "잘못된 요청입니다." };
+  }
+
+  const { data: customers } = await supabase
+    .from("customers")
+    .select("phone, name, email")
+    .in("phone", phones);
+
+  const recipients = (customers ?? []).filter(
+    (c): c is { phone: string; name: string; email: string } => Boolean(c.email),
+  );
+  if (recipients.length === 0) {
+    return {
+      status: "error",
+      error: "선택한 손님 중 이메일 주소가 있는 손님이 없습니다.",
+    };
+  }
+
+  const siteOverrides = await siteVariableOverrides();
+
+  const results = await Promise.all(
+    recipients.map((c) => {
+      const variables = { 이름: c.name, 연락처: c.phone, ...siteOverrides };
+      const subject = renderEmailTemplate(subjectTemplate, variables);
+      const html = renderEmailHtml(bodyTemplate, variables);
+      return sendAdHocEmail({ subject, body: html, ctas, to: c.email, purpose });
+    }),
+  );
+
+  const failed = results.filter((r) => !r.ok).length;
+  if (failed === results.length) {
+    return { status: "error", error: "발송에 실패했습니다." };
+  }
+
+  return {
+    status: "success",
+    sent: results.length - failed,
+    skipped: phones.length - recipients.length,
+  };
 }
 
 /**
