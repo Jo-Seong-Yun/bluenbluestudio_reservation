@@ -1199,13 +1199,22 @@ export async function deleteActivityLogEntry(formData: FormData): Promise<{ erro
     return { error: "알 수 없는 종류입니다." };
   }
   const supabase = await createClient();
-  const { error } = await supabase
+  const { error, count } = await supabase
     .from(ACTIVITY_MEMO_TABLE[kind as keyof typeof ACTIVITY_MEMO_TABLE])
-    .delete()
+    .delete({ count: "exact" })
     .eq("id", id);
   if (error) {
     console.error("상세 로그 삭제 실패:", error.message);
     return { error: error.message };
+  }
+  // saveActivityMemo와 같은 이유 — RLS가 delete를 막고 있으면 에러
+  // 없이 0행만 지워진 채 조용히 "성공"으로 끝나 버린다(화면에서는
+  // 지워진 것처럼 보였다가 새로고침하면 다시 나타나는 버그로 드러난다).
+  if (!count) {
+    console.error("상세 로그 삭제 실패: 0행 삭제(RLS 차단 가능성)", kind, id);
+    return {
+      error: "삭제 권한이 없습니다. DB 정책(RLS) 설정이 필요할 수 있습니다.",
+    };
   }
 
   revalidatePath("/admin/analytics");
@@ -1295,17 +1304,21 @@ async function deleteReservationRow(id: string): Promise<{ error?: string }> {
     .select("code, customer_phone, google_calendar_event_id")
     .maybeSingle();
   if (error) return { error: error.message };
-
-  if (deleted) {
-    after(() =>
-      Promise.all([
-        markReservationDeletedInSheet(deleted.code),
-        // 방문 집계(고객DB)는 삭제된 예약을 뺀 나머지로 다시 계산한다.
-        syncCustomerToSheet(deleted.customer_phone),
-        deleteReservationFromCalendar(deleted.google_calendar_event_id),
-      ]),
-    );
+  // RLS가 delete를 막고 있으면 에러 없이 0행만 지워진 채 deleted가
+  // null로 조용히 "성공"처럼 끝난다 — saveActivityMemo와 같은 이유로
+  // 여기서도 반드시 확인한다.
+  if (!deleted) {
+    return { error: "삭제 권한이 없습니다. DB 정책(RLS) 설정이 필요할 수 있습니다." };
   }
+
+  after(() =>
+    Promise.all([
+      markReservationDeletedInSheet(deleted.code),
+      // 방문 집계(고객DB)는 삭제된 예약을 뺀 나머지로 다시 계산한다.
+      syncCustomerToSheet(deleted.customer_phone),
+      deleteReservationFromCalendar(deleted.google_calendar_event_id),
+    ]),
+  );
   return {};
 }
 
