@@ -171,6 +171,48 @@ export async function sendRuleTestEmail(params: {
   }
 }
 
+/**
+ * 고객DB에서 관리자가 손님을 골라 그 자리에서 보내는 메일(트리거·규칙과
+ * 무관하게 즉석에서 한 통 나간다). 이메일 규칙 프리셋을 고르든
+ * 직접입력을 쓰든, 제목·본문은 호출하는 쪽(app/admin/actions.ts의
+ * sendCustomerEmails)이 이미 {{변수}}까지 다 채워서 넘긴다 — 여기서는
+ * 최종 HTML로 감싸 보내고 로그만 남긴다. sendRuleTestEmail과 거의
+ * 같지만 "[테스트]" 접두사를 안 붙이고 실제 주소로 나간다.
+ */
+export async function sendAdHocEmail(params: {
+  subject: string;
+  /** {{변수}}까지 이미 채워진 본문 HTML. */
+  body: string;
+  ctas?: CtaButton[] | null;
+  to: string;
+  /** 로그 purpose 접미사 — 프리셋이면 규칙 id, 직접입력이면 "custom". */
+  purpose: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const brand = await loadBrandSettings();
+    const html = finalizeEmailHtml(params.body, { ctas: params.ctas, ...brand });
+    const text = htmlToPlainText(html);
+    await sendEmail({ to: params.to, subject: params.subject, text, html });
+    await logNotification({
+      channel: "email",
+      purpose: `customer-email:${params.purpose}`,
+      recipient: params.to,
+      success: true,
+    }).catch(() => {});
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await logNotification({
+      channel: "email",
+      purpose: `customer-email:${params.purpose}`,
+      recipient: params.to,
+      success: false,
+      error: message,
+    }).catch(() => {});
+    return { ok: false, error: message };
+  }
+}
+
 async function tryRuleEmail(params: {
   rule: EmailRule;
   to: string;

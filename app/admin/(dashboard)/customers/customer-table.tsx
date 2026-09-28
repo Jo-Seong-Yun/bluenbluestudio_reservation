@@ -3,20 +3,27 @@
 import { useMemo, useState } from "react";
 import { inputClass } from "@/components/ui";
 import type { CustomerSummary } from "@/lib/customers";
+import type { EmailRule } from "@/lib/notifications/email-rules-shared";
 import { kstDateString } from "@/lib/time";
 import { CustomerEditModal } from "./customer-edit-modal";
 import { DeleteCustomersButton } from "./delete-customers-button";
+import { SendCustomerEmailButton } from "./send-customer-email-button";
 
 /**
  * 검색·선택(체크박스)·수기 수정을 갖춘 고객 목록.
  *
- * 체크박스 선택은 "선택 삭제"에 쓰인다 — 나중엔 일괄 문자·이메일 발송
- * 기능도 이 선택 상태를 그대로 이어받아 쓸 수 있다.
+ * 체크박스 선택은 "선택 삭제"와 "메일 발송"에 쓰인다.
  */
 export function CustomerTable({
   customers,
+  emailRules,
+  siteVariables,
 }: {
   customers: CustomerSummary[];
+  /** "메일 발송" 모달의 프리셋 드롭다운에 쓴다(이메일 페이지와 같은 규칙 목록). */
+  emailRules: EmailRule[];
+  /** 메일 미리보기의 {{계좌}}/{{공지}}를 실제 설정값으로 채운다. */
+  siteVariables: Record<string, string>;
 }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -69,6 +76,14 @@ export function CustomerTable({
               <span className="text-brand text-sm font-medium">
                 {selected.size}명 선택됨
               </span>
+              <SendCustomerEmailButton
+                customers={customers
+                  .filter((c) => selected.has(c.phone))
+                  .map((c) => ({ phone: c.phone, name: c.name, email: c.email }))}
+                rules={emailRules}
+                siteVariables={siteVariables}
+                onSent={() => setSelected(new Set())}
+              />
               <DeleteCustomersButton
                 phones={[...selected]}
                 onDeleted={() => setSelected(new Set())}
