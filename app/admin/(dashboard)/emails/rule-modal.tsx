@@ -72,6 +72,14 @@ export function RuleModal({
   }, [state]);
 
   function open() {
+    // 규칙마다 각자 <dialog>를 갖고 있어, 다른 규칙 모달을 닫지 않은 채
+    // 열면 이전 모달 위에 새 모달이 계속 쌓인다 — 열기 전에 이미 열려
+    // 있는 다른 규칙 모달을 먼저 닫는다.
+    document
+      .querySelectorAll<HTMLDialogElement>("dialog.email-modal-dialog[open]")
+      .forEach((d) => {
+        if (d !== dialogRef.current) d.close();
+      });
     setTriggerType(rule?.triggerType ?? "on_requested");
     setRecipients(rule?.recipients ?? ["customer"]);
     setSubject(rule?.subject ?? "");
