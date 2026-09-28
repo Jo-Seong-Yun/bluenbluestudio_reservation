@@ -291,3 +291,35 @@ dialog[open] {
     flex-shrink: 0;
   }
 }
+
+/* 서식 에디터(RichTextEditor)의 표 — Tiptap/prosemirror-tables는 열
+   너비 드래그(resizable: true) 기능 자체는 동작해도 그 손잡이용 CSS는
+   앱에서 직접 넣어줘야 한다. 이게 없으면 손잡이가 화면에 안 보이고
+   폭도 0이라 마우스를 올려도 커서가 안 바뀌고 드래그도 사실상
+   불가능하다("너비 조절이 안 된다"는 문제의 원인). 표를 감싸는
+   .tableWrapper에 가로 스크롤을, 드래그 중인 에디터 루트에는
+   col-resize 커서를 준다. */
+.ProseMirror .tableWrapper {
+  overflow-x: auto;
+}
+.ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+/* 손잡이(.column-resize-handle)는 각 셀의 마지막 자식으로 끼워지므로,
+   셀 자신을 기준으로 절대 위치가 잡히게 relative를 준다 — 없으면
+   손잡이가 엉뚱한 곳(가장 가까운 위치 지정 조상)에 붙어버린다. */
+.ProseMirror table td,
+.ProseMirror table th {
+  position: relative;
+}
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: -2px;
+  width: 5px;
+  background-color: var(--brand);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 20;
+}

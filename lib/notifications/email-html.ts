@@ -131,8 +131,14 @@ function wrapInEmailShell(content: string, options?: EmailShellOptions): string 
   const ctaHoverStyle = options?.ctaText
     ? `<style>.cta-btn{transition:opacity .15s,transform .15s,box-shadow .15s}.cta-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18)!important}</style>`
     : "";
+  // 대부분의 메일 앱은 <link>로 외부 폰트를 못(안) 불러오지만, 관리자
+  // 화면의 "미리보기"는 이 HTML을 그대로 iframe에 넣어 일반 브라우저로
+  // 보여주므로 여기서라도 불러와야 에디터에서 고른 본고딕/나눔고딕/
+  // 나눔명조가 미리보기에도 실제로 적용된다.
+  const fontLink =
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap">';
   return `<!DOCTYPE html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only">${ctaHoverStyle}</head>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only">${fontLink}${ctaHoverStyle}</head>
 <body style="margin:0;padding:0;background-color:#f4f6f8;-webkit-text-size-adjust:100%;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6f8;">
 <tr><td align="center" style="padding:28px 12px;">
