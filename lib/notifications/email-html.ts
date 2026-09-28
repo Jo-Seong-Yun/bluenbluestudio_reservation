@@ -93,6 +93,24 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
     // 메일에서는 셀의 style(width 등)만으로 충분하니 여기서 없앤다.
     .replace(/<colgroup>[\s\S]*?<\/colgroup>/g, "")
     .replace(/\s*colwidth="[^"]*"/g, "")
+    // 표 셀 안의 글자도 에디터(TipTap) 내부에서는 항상 <p>로 감싸
+    // 저장된다(셀 하나에 문단 하나 이상이 있어야 하는 표 구조상 규칙) —
+    // 특히 표에서 행을 복사해 늘렸을 때 이 <p>가 남아 있는 경우가
+    // 많다. 몸통 문단(<p>)은 문단 사이 간격을 위해 일부러 기본 여백을
+    // 그대로 두지만(브라우저 기본 margin), 표 셀 안에서는 그 여백이
+    // "요약 박스"처럼 촘촘해야 할 줄 사이를 두 배 가까이 벌려 놓는다
+    // (padding은 4px인데 <p>의 기본 상하 margin이 13px×2 가까이 붙음).
+    // 그래서 td/th 안쪽에서만 <p>의 margin을 0으로 눌러 준다.
+    .replace(/<(td|th)([^>]*)>([\s\S]*?)<\/\1>/g, (_match, tag, attrs, inner) => {
+      const fixedInner = inner.replace(
+        /<p(\s[^>]*)?>/g,
+        (_pMatch: string, pAttrs?: string) =>
+          pAttrs && /style\s*=/.test(pAttrs)
+            ? `<p${pAttrs.replace(/style="([^"]*)"/, 'style="margin:0;$1"')}>`
+            : `<p${pAttrs ?? ""} style="margin:0">`,
+      );
+      return `<${tag}${attrs}>${fixedInner}</${tag}>`;
+    })
     .replace(/<table/g, '<table style="border-collapse:collapse;margin:12px 0"')
     // style이 없는 셀에만 테두리를 넣는다(정렬 등 style이 이미 있는 셀은
     // 속성이 겹치지 않게 그대로 둔다).
