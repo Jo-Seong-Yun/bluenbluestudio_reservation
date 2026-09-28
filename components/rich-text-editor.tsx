@@ -14,6 +14,7 @@ import {
   type Editor,
 } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
+import { CellSelection } from "@tiptap/pm/tables";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -60,9 +61,11 @@ import {
   MoreHorizontal,
   Omega,
   Outdent,
+  PaintBucket,
   Pilcrow,
   Plus,
   Quote,
+  Square,
   Redo2,
   Search,
   Strikethrough,
@@ -431,6 +434,9 @@ function TableBubbleMenu({ editor }: { editor: Editor | null }) {
         열 삭제
       </TableBubbleTextButton>
       <Divider />
+      <CellBackgroundMenu editor={editor} />
+      <CellBorderMenu editor={editor} />
+      <Divider />
       <TableBubbleTextButton
         danger
         onClick={() => editor.chain().focus().deleteTable().run()}
@@ -438,6 +444,174 @@ function TableBubbleMenu({ editor }: { editor: Editor | null }) {
         표 삭제
       </TableBubbleTextButton>
     </BubbleMenu>
+  );
+}
+
+// ── 셀 style을 머지해서 적용하는 도우미 ──────────────────────────────
+// 기본 TableCell에는 배경색·테두리 커맨드가 없어서, 우리가 늘려둔
+// style 속성을 직접 읽고 고쳐 쓴다. patch에서 값이 null인 속성은
+// 지우고, 나머지는 이미 있는 값(예: 요약 박스의 테두리·모서리 둥글기)
+// 을 보존한 채 덮어쓴다. 드래그로 여러 셀을 선택했으면 전부, 커서만
+// 있으면 그 셀 하나에 적용한다.
+
+function parseStyle(style: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (typeof style !== "string") return out;
+  style.split(";").forEach((decl) => {
+    const idx = decl.indexOf(":");
+    if (idx === -1) return;
+    const key = decl.slice(0, idx).trim();
+    const value = decl.slice(idx + 1).trim();
+    if (key && value) out[key] = value;
+  });
+  return out;
+}
+
+function serializeStyle(map: Record<string, string>): string {
+  return Object.entries(map)
+    .map(([key, value]) => `${key}:${value}`)
+    .join(";");
+}
+
+function applyCellStyle(editor: Editor, patch: Record<string, string | null>) {
+  const { state, view } = editor;
+  const { selection } = state;
+  const tr = state.tr;
+
+  function patchCellAt(pos: number) {
+    const node = tr.doc.nodeAt(pos);
+    if (!node) return;
+    const map = parseStyle(node.attrs.style);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === null) delete map[key];
+      else map[key] = value;
+    }
+    tr.setNodeMarkup(pos, undefined, { ...node.attrs, style: serializeStyle(map) });
+  }
+
+  if (selection instanceof CellSelection) {
+    selection.forEachCell((_node, pos) => patchCellAt(pos));
+  } else {
+    const $pos = selection.$from;
+    for (let depth = $pos.depth; depth > 0; depth--) {
+      if (["tableCell", "tableHeader"].includes($pos.node(depth).type.name)) {
+        patchCellAt($pos.before(depth));
+        break;
+      }
+    }
+  }
+
+  view.dispatch(tr);
+  editor.commands.focus();
+}
+
+const NO_BORDER_PATCH = {
+  "border-top": null,
+  "border-bottom": null,
+  "border-left": null,
+  "border-right": null,
+  "border-top-left-radius": null,
+  "border-top-right-radius": null,
+  "border-bottom-left-radius": null,
+  "border-bottom-right-radius": null,
+} as const;
+
+function CellBackgroundMenu({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const ref = useDismiss(open, () => setOpen(false));
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        title="셀 배경색"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen((v) => !v)}
+        className={`flex h-7 w-7 items-center justify-center rounded ${open ? "bg-surface-subtle" : "hover:bg-surface-subtle"}`}
+      >
+        <PaintBucket size={14} />
+      </button>
+      {open ? (
+        <MenuPanel ref={ref} className="w-[196px]">
+          <div className="grid grid-cols-6 gap-1 p-1">
+            {HIGHLIGHT_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                title={c}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  applyCellStyle(editor, { "background-color": c });
+                  setOpen(false);
+                }}
+                className="border-border h-5 w-5 rounded border"
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            className="hover:bg-surface-subtle mt-1 flex w-full items-center gap-1.5 rounded px-2 py-1 text-xs"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              applyCellStyle(editor, { "background-color": null });
+              setOpen(false);
+            }}
+          >
+            <Eraser size={12} /> 없음
+          </button>
+        </MenuPanel>
+      ) : null}
+    </div>
+  );
+}
+
+function CellBorderMenu({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const ref = useDismiss(open, () => setOpen(false));
+  function pick(color: string | null) {
+    applyCellStyle(editor, {
+      border: color ? `1px solid ${color}` : "none",
+      ...NO_BORDER_PATCH,
+    });
+    setOpen(false);
+  }
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        title="셀 테두리"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen((v) => !v)}
+        className={`flex h-7 w-7 items-center justify-center rounded ${open ? "bg-surface-subtle" : "hover:bg-surface-subtle"}`}
+      >
+        <Square size={14} />
+      </button>
+      {open ? (
+        <MenuPanel ref={ref} className="w-[196px]">
+          <div className="grid grid-cols-6 gap-1 p-1">
+            {TEXT_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                title={c}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(c)}
+                className="border-border h-5 w-5 rounded border"
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            className="hover:bg-surface-subtle mt-1 flex w-full items-center gap-1.5 rounded px-2 py-1 text-xs"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => pick(null)}
+          >
+            <Eraser size={12} /> 없음
+          </button>
+        </MenuPanel>
+      ) : null}
+    </div>
   );
 }
 
