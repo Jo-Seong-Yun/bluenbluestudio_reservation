@@ -51,7 +51,7 @@ function descriptionHint(
 const initialState: ReservationActionState = { status: "idle" };
 
 /**
- * 신청서 작성 페이지 본문. 손님이 고른 희망 시간(정확히 3개, 1지망부터)이
+ * 신청서 작성 페이지 본문. 손님이 고른 희망 시간(정확히 3개, 우선순위 순)이
  * 이미 정해진 채로 이 페이지에 들어오므로(쿼리스트링에 담겨 있다),
  * 여기서는 문항들만 받는다.
  *
@@ -82,7 +82,7 @@ export function ReservationForm({
   bufferAfterMin: number;
   /** 상품 기본가(할인가가 있으면 할인가) — 예상 금액 계산의 출발점. */
   basePrice: number;
-  /** 정확히 3개, 1지망부터 순서대로. */
+  /** 정확히 3개, 우선순위 순서대로. */
   candidates: { date: string; time: string }[];
   backHref: string;
   bankAccount: string | null;
@@ -214,7 +214,7 @@ export function ReservationForm({
       <ul className="text-muted mt-1 space-y-0.5 text-sm">
         {candidates.map((c, i) => (
           <li key={i}>
-            {i + 1}지망 · {c.date} {c.time}
+            {i + 1}번째 · {c.date} {c.time}
           </li>
         ))}
       </ul>

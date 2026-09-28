@@ -102,7 +102,7 @@ export function ReservationSuccessCard({
             <ul className="space-y-0.5">
               {candidates.map((c, i) => (
                 <li key={i}>
-                  {i + 1}지망 · {c.dateLabel} {c.timeLabel}
+                  {i + 1}번째 · {c.dateLabel} {c.timeLabel}
                 </li>
               ))}
             </ul>

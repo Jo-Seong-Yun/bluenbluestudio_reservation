@@ -37,8 +37,8 @@ describe("알림 문구", () => {
   it("접수 안내에 상품·후보 시간들·예약번호가 들어간다", () => {
     const text = customerRequestedText(REQUEST_INFO);
     expect(text).toContain("프로필 촬영");
-    expect(text).toContain("1지망 9월 10일(목) 14:00");
-    expect(text).toContain("2지망 9월 11일(금) 15:00");
+    expect(text).toContain("1번째 9월 10일(목) 14:00");
+    expect(text).toContain("2번째 9월 11일(금) 15:00");
     expect(text).toContain("AB12CD34");
     expect(text).toContain("접수");
   });
@@ -82,8 +82,8 @@ describe("알림 문구", () => {
     expect(text).toContain("김철수");
     expect(text).toContain("01012345678");
     expect(text).toContain("프로필 촬영");
-    expect(text).toContain("1지망 9월 10일(목) 14:00");
-    expect(text).toContain("2지망 9월 11일(금) 15:00");
+    expect(text).toContain("1번째 9월 10일(목) 14:00");
+    expect(text).toContain("2번째 9월 11일(금) 15:00");
     expect(text).toContain("AB12CD34");
   });
 
