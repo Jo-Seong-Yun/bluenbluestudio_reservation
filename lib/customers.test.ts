@@ -81,6 +81,11 @@ describe("summarizeCustomers", () => {
     birth_date: "1995-05-05",
     email: "chulsoo@example.com",
     created_at: "2026-01-01T00:00:00Z",
+    first_visit_override: null,
+    last_visit_override: null,
+    visit_count_override: null,
+    sns_consent_override: null,
+    age_override: null,
   };
 
   it("customers 행과 방문 집계를 합친다", () => {
@@ -169,6 +174,58 @@ describe("summarizeCustomers", () => {
     const [summary] = summarizeCustomers([record], new Map(), "2026-01-31");
     expect(summary.collectedAt).toBe("2026-01-01T00:00:00Z");
     expect(summary.daysSinceCollected).toBe(30);
+  });
+
+  it("예약 없이 등록한 손님도 override 값으로 방문 이력·SNS동의를 직접 채울 수 있다", () => {
+    const withOverrides: CustomerRecord = {
+      ...record,
+      first_visit_override: "2025-12-01",
+      last_visit_override: "2025-12-20",
+      visit_count_override: 3,
+      sns_consent_override: "동의",
+    };
+    const [summary] = summarizeCustomers([withOverrides], new Map(), "2026-01-01");
+    expect(summary.firstVisit).toBe("2025-12-01");
+    expect(summary.lastVisit).toBe("2025-12-20");
+    expect(summary.visitCount).toBe(3);
+    expect(summary.lastVisitSnsConsent).toBe("동의");
+    expect(summary.daysSinceLastVisit).toBe(12);
+  });
+
+  it("override가 있으면 예약 기록으로 계산한 값보다 우선한다", () => {
+    const visitStats = new Map([
+      [
+        "010-1111-1111",
+        { firstVisit: "2026-01-01", lastVisit: "2026-06-01", visitCount: 5, lastVisitReservationId: "res1" },
+      ],
+    ]);
+    const snsMap = new Map([["res1", "비동의"]]);
+    const withOverrides: CustomerRecord = {
+      ...record,
+      last_visit_override: "2026-07-01",
+      visit_count_override: 9,
+      sns_consent_override: "동의",
+    };
+    const [summary] = summarizeCustomers([withOverrides], visitStats, "2026-07-15", snsMap);
+    expect(summary.firstVisit).toBe("2026-01-01"); // override 없는 항목은 계산값 그대로
+    expect(summary.lastVisit).toBe("2026-07-01");
+    expect(summary.visitCount).toBe(9);
+    expect(summary.lastVisitSnsConsent).toBe("동의");
+  });
+
+  it("생년월일이 없을 때만 나이 직접입력값(ageOverride)을 쓴다", () => {
+    const [withoutBirth] = summarizeCustomers(
+      [{ ...record, birth_date: null, age_override: 40 }],
+      new Map(),
+    );
+    expect(withoutBirth.age).toBe(40);
+
+    const [withBirth] = summarizeCustomers(
+      [{ ...record, birth_date: "1995-05-05", age_override: 999 }],
+      new Map(),
+      "2026-06-01",
+    );
+    expect(withBirth.age).not.toBe(999);
   });
 });
 

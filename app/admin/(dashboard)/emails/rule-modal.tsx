@@ -15,7 +15,9 @@ import {
   EMAIL_TRIGGER_TYPES,
   EMAIL_VARIABLES,
   EMAIL_VARIABLE_PREVIEW_VALUES,
+  MAX_CTA_BUTTONS,
   renderEmailTemplate,
+  type CtaButton,
   type EmailRecipient,
   type EmailRule,
   type EmailTriggerType,
@@ -50,9 +52,7 @@ export function RuleModal({
     rule?.recipients ?? ["customer"],
   );
   const [subject, setSubject] = useState(rule?.subject ?? "");
-  const [ctaEnabled, setCtaEnabled] = useState(Boolean(rule?.ctaText));
-  const [ctaText, setCtaText] = useState(rule?.ctaText ?? "");
-  const [ctaUrl, setCtaUrl] = useState(rule?.ctaUrl ?? "");
+  const [ctas, setCtas] = useState<CtaButton[]>(rule?.ctas ?? []);
   const [body, setBody] = useState(toEditorHtml(rule?.body ?? ""));
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyEditorRef = useRef<Editor | null>(null);
@@ -84,9 +84,7 @@ export function RuleModal({
     setRecipients(rule?.recipients ?? ["customer"]);
     setSubject(rule?.subject ?? "");
     setBody(toEditorHtml(rule?.body ?? ""));
-    setCtaEnabled(Boolean(rule?.ctaText));
-    setCtaText(rule?.ctaText ?? "");
-    setCtaUrl(rule?.ctaUrl ?? "");
+    setCtas(rule?.ctas ?? []);
     setEpoch((n) => n + 1);
     dialogRef.current?.showModal();
   }
@@ -169,8 +167,7 @@ export function RuleModal({
   };
 
   const previewHtml = finalizeEmailHtml(renderEmailHtml(body, previewValues), {
-    ctaText: ctaEnabled ? ctaText : null,
-    ctaUrl: ctaEnabled ? ctaUrl : null,
+    ctas,
   });
 
   // <iframe srcDoc>은 값이 바뀌어도 일부 브라우저에서 다시 그리지 않는
@@ -363,38 +360,65 @@ export function RuleModal({
               </div>
 
               <div className="space-y-2">
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={ctaEnabled}
-                    onChange={(e) => setCtaEnabled(e.target.checked)}
-                    className="rounded"
-                  />
-                  <span className="text-sm font-medium">CTA 버튼 추가</span>
-                </label>
-                {ctaEnabled ? (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <input
-                      name="ctaText"
-                      value={ctaText}
-                      onChange={(e) => setCtaText(e.target.value)}
-                      placeholder="버튼 텍스트 (예: 예약 확인하기)"
-                      className={inputClass}
-                    />
-                    <input
-                      name="ctaUrl"
-                      value={ctaUrl}
-                      onChange={(e) => setCtaUrl(e.target.value)}
-                      placeholder="https://..."
-                      className={inputClass}
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <input type="hidden" name="ctaText" value="" />
-                    <input type="hidden" name="ctaUrl" value="" />
-                  </>
-                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    CTA 버튼 ({ctas.length}/{MAX_CTA_BUTTONS})
+                  </span>
+                  {ctas.length < MAX_CTA_BUTTONS ? (
+                    <button
+                      type="button"
+                      onClick={() => setCtas((prev) => [...prev, { text: "", url: "" }])}
+                      className="text-brand text-xs font-medium hover:underline"
+                    >
+                      + 버튼 추가
+                    </button>
+                  ) : null}
+                </div>
+                <p className="text-muted text-xs">
+                  PC에서는 개수와 상관없이 항상 가로로 나란히 놓입니다.
+                  모바일에서는 2개면 가로, 3개면 세로로 쌓입니다.
+                </p>
+
+                {ctas.map((cta, i) => {
+                  const [textName, urlName] =
+                    i === 0 ? ["ctaText", "ctaUrl"] : [`ctaText${i + 1}`, `ctaUrl${i + 1}`];
+                  return (
+                    <div key={i} className="border-border space-y-2 rounded-lg border p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted text-xs font-medium">버튼 {i + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => setCtas((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="text-xs text-red-600 hover:underline dark:text-red-400"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                      <input
+                        name={textName}
+                        value={cta.text}
+                        onChange={(e) =>
+                          setCtas((prev) =>
+                            prev.map((c, idx) => (idx === i ? { ...c, text: e.target.value } : c)),
+                          )
+                        }
+                        placeholder="버튼 텍스트 (예: 예약 확인하기)"
+                        className={inputClass}
+                      />
+                      <input
+                        name={urlName}
+                        value={cta.url}
+                        onChange={(e) =>
+                          setCtas((prev) =>
+                            prev.map((c, idx) => (idx === i ? { ...c, url: e.target.value } : c)),
+                          )
+                        }
+                        placeholder="https://..."
+                        className={inputClass}
+                      />
+                    </div>
+                  );
+                })}
               </div>
 
               <div>

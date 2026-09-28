@@ -337,6 +337,11 @@ export interface Database {
           email: string | null;
           created_at: string;
           updated_at: string;
+          first_visit_override: string | null; // "YYYY-MM-DD"
+          last_visit_override: string | null; // "YYYY-MM-DD"
+          visit_count_override: number | null;
+          sns_consent_override: "동의" | "비동의" | null;
+          age_override: number | null;
         };
         Insert: Partial<Database["public"]["Tables"]["customers"]["Row"]> & {
           phone: string;
@@ -464,6 +469,10 @@ export interface Database {
           body: string;
           cta_text: string | null;
           cta_url: string | null;
+          cta_text_2: string | null;
+          cta_url_2: string | null;
+          cta_text_3: string | null;
+          cta_url_3: string | null;
           sort_order: number;
           created_at: string;
           updated_at: string;

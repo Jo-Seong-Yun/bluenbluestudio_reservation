@@ -58,9 +58,12 @@ export function renderEmailHtml(
   );
 }
 
+export type CtaButton = { text: string; url: string };
+
 type EmailShellOptions = {
-  ctaText?: string | null;
-  ctaUrl?: string | null;
+  /** 0~3개. PC에서는 개수와 무관하게 항상 가로 배치, 모바일에서는
+   * 2개면 가로·3개면 세로로 쌓인다(finalizeEmailHtml 참고). */
+  ctas?: CtaButton[] | null;
   logoUrl?: string | null;
   brandColor?: string | null;
 };
@@ -91,21 +94,32 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
       '<blockquote style="border-left:3px solid #d1d5db;margin:8px 0;padding-left:12px;color:#555"',
     );
 
+  // 최대 3개. PC에서는 개수와 무관하게 표(<table>)의 셀들이 항상
+  // 가로로 나란히 놓인다. 모바일 전용 미디어쿼리(wrapInEmailShell의
+  // cta-stack 스타일)가 3개일 때만 셀을 block으로 바꿔 세로로
+  // 쌓는다 — 2개는 좁은 화면에서도 가로 그대로 둔다.
+  const validCtas = (options?.ctas ?? [])
+    .filter((c): c is CtaButton => Boolean(c.text && c.url && SAFE_URL.test(c.url)))
+    .slice(0, 3);
+
   let ctaBlock = "";
-  if (
-    options?.ctaText &&
-    options?.ctaUrl &&
-    SAFE_URL.test(options.ctaUrl)
-  ) {
+  if (validCtas.length > 0) {
     const btnColor =
-      options.brandColor && SAFE_HEX.test(options.brandColor)
+      options?.brandColor && SAFE_HEX.test(options.brandColor)
         ? options.brandColor
         : "#111827";
+    const cells = validCtas
+      .map(
+        (c) =>
+          `<td class="cta-td" align="center" style="padding:4px;">` +
+          `<a href="${escapeHtml(c.url)}" target="_blank" class="cta-btn" style="display:inline-block;background-color:${btnColor};color:#ffffff;font-family:${EMAIL_FONT_STACK};padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,.12);white-space:nowrap;">${escapeHtml(c.text)}</a>` +
+          `</td>`,
+      )
+      .join("");
+    const stackClass = validCtas.length >= 3 ? " cta-stack" : "";
     ctaBlock =
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 4px;">` +
-      `<tr><td align="center">` +
-      `<a href="${escapeHtml(options.ctaUrl)}" target="_blank" class="cta-btn" style="display:inline-block;background-color:${btnColor};color:#ffffff;font-family:${EMAIL_FONT_STACK};padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,.12);">${escapeHtml(options.ctaText)}</a>` +
-      `</td></tr></table>`;
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="cta-table${stackClass}" style="margin:24px 0 4px;">` +
+      `<tr>${cells}</tr></table>`;
   }
 
   const body =
@@ -128,8 +142,11 @@ function wrapInEmailShell(content: string, options?: EmailShellOptions): string 
     options?.logoUrl && SAFE_URL.test(options.logoUrl)
       ? `<img src="${escapeHtml(options.logoUrl)}" alt="${escapeHtml(SITE.name)}" style="height:40px;max-width:200px;display:block;">`
       : `<span style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.01em;">${SITE.name}</span>`;
-  const ctaHoverStyle = options?.ctaText
-    ? `<style>.cta-btn{transition:opacity .15s,transform .15s,box-shadow .15s}.cta-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18)!important}</style>`
+  // CTA가 3개일 때만 모바일(480px 이하)에서 표 셀을 block으로 바꿔
+  // 세로로 쌓는다 — 1·2개는 화면 크기와 무관하게 항상 가로 그대로.
+  // 각 셀에 이미 준 padding:4px가 쌓였을 때 버튼 사이 세로 여백이 된다.
+  const ctaStyle = options?.ctas?.length
+    ? `<style>.cta-btn{transition:opacity .15s,transform .15s,box-shadow .15s}.cta-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18)!important}@media only screen and (max-width:480px){.cta-stack .cta-td{display:block!important;width:100%!important}}</style>`
     : "";
   // 대부분의 메일 앱은 <link>로 외부 폰트를 못(안) 불러오지만, 관리자
   // 화면의 "미리보기"는 이 HTML을 그대로 iframe에 넣어 일반 브라우저로
@@ -138,7 +155,7 @@ function wrapInEmailShell(content: string, options?: EmailShellOptions): string 
   const fontLink =
     '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap">';
   return `<!DOCTYPE html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only">${fontLink}${ctaHoverStyle}</head>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only">${fontLink}${ctaStyle}</head>
 <body style="margin:0;padding:0;background-color:#f4f6f8;-webkit-text-size-adjust:100%;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6f8;">
 <tr><td align="center" style="padding:28px 12px;">

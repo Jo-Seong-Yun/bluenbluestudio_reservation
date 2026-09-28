@@ -7,6 +7,7 @@ import {
   loadEmailRulesForTrigger,
   renderEmailTemplate,
   ruleRecipientAddresses,
+  type CtaButton,
   type EmailRule,
   type EmailTriggerType,
 } from "./email-rules";
@@ -134,7 +135,7 @@ async function tryKakao(params: {
  * 발송(rule:<id>)과 구분되게 rule-test:<id>로 남긴다.
  */
 export async function sendRuleTestEmail(params: {
-  rule: { id: string; subject: string; body: string; ctaText?: string | null; ctaUrl?: string | null };
+  rule: { id: string; subject: string; body: string; ctas?: CtaButton[] | null };
   to: string;
   variables: Record<string, string>;
 }): Promise<{ ok: boolean; error?: string }> {
@@ -144,8 +145,7 @@ export async function sendRuleTestEmail(params: {
     const html = finalizeEmailHtml(
       renderEmailHtml(params.rule.body, params.variables),
       {
-        ctaText: params.rule.ctaText,
-        ctaUrl: params.rule.ctaUrl,
+        ctas: params.rule.ctas,
         ...brand,
       },
     );
@@ -193,8 +193,7 @@ async function tryRuleEmail(params: {
         ? toEditorHtml(params.override.body)
         : renderEmailHtml(params.rule.body, params.variables),
       {
-        ctaText: params.rule.ctaText,
-        ctaUrl: params.rule.ctaUrl,
+        ctas: params.rule.ctas,
         ...params.brand,
       },
     );
