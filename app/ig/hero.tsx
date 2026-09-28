@@ -68,7 +68,7 @@ export function Hero() {
           transition={{ duration: 0.6 }}
           className="font-[family-name:var(--font-instrument-serif)] text-3xl leading-[1.1] text-white sm:text-5xl lg:text-[48px]"
         >
-          Design at the speed of thought
+          모든 배우의 푸르른 연기생활을 위해
         </motion.p>
 
         <motion.div
@@ -96,8 +96,7 @@ export function Hero() {
           transition={{ delay: 0.4, duration: 0.6 }}
           className="max-w-xl font-[family-name:var(--font-instrument-sans)] text-lg leading-[1.65] text-white sm:text-[20px]"
         >
-          Create fully functional, SEO-optimized websites in seconds with our
-          advanced AI engine.
+          독백·그룹 연기영상 전문 스튜디오
         </motion.p>
 
         <motion.div
@@ -114,7 +113,7 @@ export function Hero() {
               className="font-[family-name:var(--font-instrument-sans)] text-lg font-medium"
               style={{ color: "#0a0400" }}
             >
-              Start Building Free
+              독백 연기영상 촬영신청
             </span>
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3054ff] transition-colors group-hover:bg-[#2040e0]">
               <ArrowRight className="h-5 w-5 text-white" />
@@ -126,7 +125,7 @@ export function Hero() {
             className="group flex items-center gap-2 rounded-lg px-4 py-2 text-white/70 backdrop-blur-sm transition-colors hover:bg-white/5 hover:text-white"
           >
             <span className="font-[family-name:var(--font-instrument-sans)]">
-              See Examples
+              촬영문의
             </span>
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </a>
