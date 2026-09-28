@@ -48,7 +48,7 @@ function HeroVideo() {
   );
 }
 
-export function Hero() {
+export function Hero({ bookingHref }: { bookingHref: string }) {
   return (
     <section className="relative min-h-screen w-full overflow-hidden bg-[#000000] text-white">
       <HeroVideo />
@@ -66,7 +66,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="font-[family-name:var(--font-instrument-serif)] text-3xl leading-[1.1] text-white sm:text-5xl lg:text-[48px]"
+          className="font-[family-name:var(--font-noto-serif-kr)] text-3xl leading-[1.1] text-white sm:text-5xl lg:text-[48px]"
         >
           모든 배우의 푸르른 연기생활을 위해
         </motion.p>
@@ -94,7 +94,7 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.7 }}
           transition={{ delay: 0.4, duration: 0.6 }}
-          className="max-w-xl font-[family-name:var(--font-instrument-sans)] text-lg leading-[1.65] text-white sm:text-[20px]"
+          className="max-w-xl font-[family-name:var(--font-noto-sans-kr)] text-lg leading-[1.65] text-white sm:text-[20px]"
         >
           독백·그룹 연기영상 전문 스튜디오
         </motion.p>
@@ -106,11 +106,11 @@ export function Hero() {
           className="flex flex-col items-center gap-6 sm:flex-row"
         >
           <a
-            href="#"
+            href={bookingHref}
             className="group flex items-center gap-3 rounded-full bg-white py-2 pr-2 pl-6 transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]"
           >
             <span
-              className="font-[family-name:var(--font-instrument-sans)] text-lg font-medium"
+              className="font-[family-name:var(--font-noto-sans-kr)] text-lg font-medium"
               style={{ color: "#0a0400" }}
             >
               독백 연기영상 촬영신청
@@ -121,10 +121,10 @@ export function Hero() {
           </a>
 
           <a
-            href="#"
+            href={bookingHref}
             className="group flex items-center gap-2 rounded-lg px-4 py-2 text-white/70 backdrop-blur-sm transition-colors hover:bg-white/5 hover:text-white"
           >
-            <span className="font-[family-name:var(--font-instrument-sans)]">
+            <span className="font-[family-name:var(--font-noto-sans-kr)]">
               촬영문의
             </span>
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
