@@ -14,7 +14,15 @@ import {
   type Editor,
 } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import { CellSelection } from "@tiptap/pm/tables";
+import {
+  CellSelection,
+  TableMap,
+  selectionCell,
+  addRowAfter as pmAddRowAfter,
+  addRowBefore as pmAddRowBefore,
+  addColumnAfter as pmAddColumnAfter,
+  addColumnBefore as pmAddColumnBefore,
+} from "@tiptap/pm/tables";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -28,7 +36,7 @@ import { TaskList, TaskItem } from "@tiptap/extension-list";
 import {
   Table,
   TableRow,
-  TableHeader,
+  TableHeader as BaseTableHeader,
   TableCell as BaseTableCell,
 } from "@tiptap/extension-table";
 import {
@@ -89,6 +97,7 @@ import {
   FONT_FAMILIES,
   FONT_SIZES,
   FONT_SIZE_DEFAULT,
+  BRAND_COLORS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   HIGHLIGHT_COLORS,
@@ -103,17 +112,24 @@ import { uploadProductImage } from "@/lib/storage-upload";
  * 테두리를 없애는 등 직접 넣은 인라인 스타일이 편집 중 사라진다 —
  * style을 그대로 저장·복원하도록 속성을 하나 늘려둔다.
  */
+const styleAttribute = {
+  style: {
+    default: null,
+    parseHTML: (el: HTMLElement) => el.getAttribute("style"),
+    renderHTML: (attrs: { style?: string | null }) =>
+      attrs.style ? { style: attrs.style } : {},
+  },
+};
+
 const TableCell = BaseTableCell.extend({
   addAttributes() {
-    return {
-      ...this.parent?.(),
-      style: {
-        default: null,
-        parseHTML: (el: HTMLElement) => el.getAttribute("style"),
-        renderHTML: (attrs: { style?: string | null }) =>
-          attrs.style ? { style: attrs.style } : {},
-      },
-    };
+    return { ...this.parent?.(), ...styleAttribute };
+  },
+});
+
+const TableHeader = BaseTableHeader.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...styleAttribute };
   },
 });
 
@@ -414,16 +430,16 @@ function TableBubbleMenu({ editor }: { editor: Editor | null }) {
       options={{ placement: "top", offset: 8 }}
       className="border-border bg-surface flex items-center gap-0.5 rounded-lg border p-1 shadow-lg"
     >
-      <TableBubbleButton title="위에 행 추가" onClick={() => editor.chain().focus().addRowBefore().run()}>
+      <TableBubbleButton title="위에 행 추가" onClick={() => insertRow(editor, "before")}>
         <ArrowUpToLine size={14} />
       </TableBubbleButton>
-      <TableBubbleButton title="아래에 행 추가" onClick={() => editor.chain().focus().addRowAfter().run()}>
+      <TableBubbleButton title="아래에 행 추가" onClick={() => insertRow(editor, "after")}>
         <ArrowDownToLine size={14} />
       </TableBubbleButton>
-      <TableBubbleButton title="왼쪽에 열 추가" onClick={() => editor.chain().focus().addColumnBefore().run()}>
+      <TableBubbleButton title="왼쪽에 열 추가" onClick={() => insertColumn(editor, "before")}>
         <ArrowLeftToLine size={14} />
       </TableBubbleButton>
-      <TableBubbleButton title="오른쪽에 열 추가" onClick={() => editor.chain().focus().addColumnAfter().run()}>
+      <TableBubbleButton title="오른쪽에 열 추가" onClick={() => insertColumn(editor, "after")}>
         <ArrowRightToLine size={14} />
       </TableBubbleButton>
       <Divider />
@@ -505,6 +521,67 @@ function applyCellStyle(editor: Editor, patch: Record<string, string | null>) {
   editor.commands.focus();
 }
 
+// ── 행/열 추가 시 옆 행·열의 서식을 그대로 물려받게 하는 도우미 ──────
+// Tiptap 기본 addRowAfter/addColumnAfter 등은 빈 서식(테두리·배경색
+// 없음)인 셀을 만들어서, 표(특히 요약 박스)에 새 행·열을 추가하면
+// 나머지와 다르게 보였다. prosemirror-tables의 저수준 명령을 직접
+// 호출해 만들어진 트랜잭션에, 기준이 된 행/열의 각 셀 style을 그대로
+// 복사해 얹는다(같은 트랜잭션 안에서 처리해 되돌리기 한 번으로 묶인다).
+
+function insertRow(editor: Editor, direction: "before" | "after") {
+  const { state, view } = editor;
+  const $cell = selectionCell(state);
+  const tableStart = $cell.start(-1);
+  const beforeMap = TableMap.get($cell.node(-1));
+  const templateRow = beforeMap.findCell($cell.pos - tableStart).top;
+
+  const command = direction === "after" ? pmAddRowAfter : pmAddRowBefore;
+  command(state, (tr) => {
+    const table = tr.doc.resolve(tableStart).parent;
+    const map = TableMap.get(table);
+    const newRow = direction === "after" ? templateRow + 1 : templateRow;
+    const fromRow = direction === "after" ? templateRow : templateRow + 1;
+    for (let col = 0; col < map.width; col++) {
+      const fromPos = map.positionAt(fromRow, col, table) + tableStart;
+      const toPos = map.positionAt(newRow, col, table) + tableStart;
+      const fromNode = tr.doc.nodeAt(fromPos);
+      const toNode = tr.doc.nodeAt(toPos);
+      if (fromNode?.attrs.style && toNode) {
+        tr.setNodeMarkup(toPos, undefined, { ...toNode.attrs, style: fromNode.attrs.style });
+      }
+    }
+    view.dispatch(tr);
+  });
+  editor.commands.focus();
+}
+
+function insertColumn(editor: Editor, direction: "before" | "after") {
+  const { state, view } = editor;
+  const $cell = selectionCell(state);
+  const tableStart = $cell.start(-1);
+  const beforeMap = TableMap.get($cell.node(-1));
+  const templateCol = beforeMap.findCell($cell.pos - tableStart).left;
+
+  const command = direction === "after" ? pmAddColumnAfter : pmAddColumnBefore;
+  command(state, (tr) => {
+    const table = tr.doc.resolve(tableStart).parent;
+    const map = TableMap.get(table);
+    const newCol = direction === "after" ? templateCol + 1 : templateCol;
+    const fromCol = direction === "after" ? templateCol : templateCol + 1;
+    for (let row = 0; row < map.height; row++) {
+      const fromPos = map.positionAt(row, fromCol, table) + tableStart;
+      const toPos = map.positionAt(row, newCol, table) + tableStart;
+      const fromNode = tr.doc.nodeAt(fromPos);
+      const toNode = tr.doc.nodeAt(toPos);
+      if (fromNode?.attrs.style && toNode) {
+        tr.setNodeMarkup(toPos, undefined, { ...toNode.attrs, style: fromNode.attrs.style });
+      }
+    }
+    view.dispatch(tr);
+  });
+  editor.commands.focus();
+}
+
 const NO_BORDER_PATCH = {
   "border-top": null,
   "border-bottom": null,
@@ -532,6 +609,24 @@ function CellBackgroundMenu({ editor }: { editor: Editor }) {
       </button>
       {open ? (
         <MenuPanel ref={ref} className="w-[196px]">
+          <p className="text-muted px-1 pb-1 text-[11px] font-medium">브랜드 색상</p>
+          <div className="grid grid-cols-7 gap-1 p-1 pt-0">
+            {BRAND_COLORS.map(({ label, value }) => (
+              <button
+                key={value}
+                type="button"
+                title={`${label} ${value}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  applyCellStyle(editor, { "background-color": value });
+                  setOpen(false);
+                }}
+                className="border-border h-5 w-5 rounded border"
+                style={{ backgroundColor: value }}
+              />
+            ))}
+          </div>
+          <div className="border-border my-1 border-t" />
           <div className="grid grid-cols-6 gap-1 p-1">
             {HIGHLIGHT_COLORS.map((c) => (
               <button
@@ -588,6 +683,21 @@ function CellBorderMenu({ editor }: { editor: Editor }) {
       </button>
       {open ? (
         <MenuPanel ref={ref} className="w-[196px]">
+          <p className="text-muted px-1 pb-1 text-[11px] font-medium">브랜드 색상</p>
+          <div className="grid grid-cols-7 gap-1 p-1 pt-0">
+            {BRAND_COLORS.map(({ label, value }) => (
+              <button
+                key={value}
+                type="button"
+                title={`${label} ${value}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(value)}
+                className="border-border h-5 w-5 rounded border"
+                style={{ backgroundColor: value }}
+              />
+            ))}
+          </div>
+          <div className="border-border my-1 border-t" />
           <div className="grid grid-cols-6 gap-1 p-1">
             {TEXT_COLORS.map((c) => (
               <button
@@ -1162,10 +1272,10 @@ function MoreMenu({
             </button>
           ) : (
             <>
-              <button type="button" className={menuItemClass} onMouseDown={(e) => e.preventDefault()} onClick={() => run((e) => e.chain().focus().addRowAfter().run(), true)}>
+              <button type="button" className={menuItemClass} onMouseDown={(e) => e.preventDefault()} onClick={() => run((e) => insertRow(e, "after"), true)}>
                 <CheckSlot on={false} /> 아래에 행 추가
               </button>
-              <button type="button" className={menuItemClass} onMouseDown={(e) => e.preventDefault()} onClick={() => run((e) => e.chain().focus().addColumnAfter().run(), true)}>
+              <button type="button" className={menuItemClass} onMouseDown={(e) => e.preventDefault()} onClick={() => run((e) => insertColumn(e, "after"), true)}>
                 <CheckSlot on={false} /> 오른쪽에 열 추가
               </button>
               <button type="button" className={menuItemClass} onMouseDown={(e) => e.preventDefault()} onClick={() => run((e) => e.chain().focus().deleteRow().run(), true)}>
