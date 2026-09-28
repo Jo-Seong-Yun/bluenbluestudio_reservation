@@ -128,6 +128,17 @@ export async function loadProductAnalytics(
   let allReservationRowsQuery = supabase
     .from("reservations")
     .select("product_id, ref");
+  // 유입경로별 집계(channelBreakdown)에 목록 진입·신청서 진입도 같이
+  // 세야 한다 — 상품 상세까지 못 가고 목록만 보고 이탈한 방문(예: ref만
+  // 남기고 상세는 안 들어간 경우)도 그 채널의 실적이니, 상품 상세
+  // 조회(product_views)만 세면 상세 로그에는 찍히는데 이 집계표에는
+  // 아예 안 잡히는 채널이 생긴다.
+  let allListViewRowsQuery = supabase
+    .from("booking_list_views")
+    .select("ref, viewed_at");
+  let allApplyViewRowsQuery = supabase
+    .from("apply_views")
+    .select("ref, viewed_at");
   let listViewCountQuery = supabase
     .from("booking_list_views")
     .select("*", { count: "exact", head: true });
@@ -140,6 +151,8 @@ export async function loadProductAnalytics(
       "created_at",
       resetAt,
     );
+    allListViewRowsQuery = allListViewRowsQuery.gte("viewed_at", resetAt);
+    allApplyViewRowsQuery = allApplyViewRowsQuery.gte("viewed_at", resetAt);
     listViewCountQuery = listViewCountQuery.gte("viewed_at", resetAt);
     applyViewCountQuery = applyViewCountQuery.gte("viewed_at", resetAt);
   }
@@ -147,6 +160,8 @@ export async function loadProductAnalytics(
   const [
     { data: allViewRows },
     { data: allReservationRows },
+    { data: allListViewRows },
+    { data: allApplyViewRows },
     { count: listViewCount },
     { count: applyViewCount },
     { data: recentListViews },
@@ -156,6 +171,8 @@ export async function loadProductAnalytics(
   ] = await Promise.all([
     allViewRowsQuery,
     allReservationRowsQuery,
+    allListViewRowsQuery,
+    allApplyViewRowsQuery,
     listViewCountQuery,
     applyViewCountQuery,
     supabase
@@ -199,9 +216,21 @@ export async function loadProductAnalytics(
   // 채널(ref)별 조회·신청 집계 — 값이 없는 방문은 "(직접 방문)"으로
   // 묶는다. 인스타그램/공지 링크 등 병렬로 돌리는 홍보 채널을 서로
   // 비교하려는 목적이라, 상품별이 아니라 사이트 전체로 한 번만 센다.
+  //
+  // "조회"에 해당하는 원본 이벤트가 세 종류(목록 진입/상품 상세 진입/
+  // 신청서 진입)나 있다 — 예전엔 이 중 상품 상세 진입(product_views)만
+  // 셌는데, 그러면 목록만 보고 상세까지 못 간 방문(예: 홍보 링크를
+  // 눌렀지만 목록에서 이탈)의 ref는 상세 로그에는 찍히면서도 이
+  // 집계표에는 그 채널 자체가 아예 나타나지 않는 문제가 있었다.
+  // 상세 로그(recentActivity)와 똑같이 세 소스를 다 합쳐야 "상세
+  // 로그엔 있는데 집계엔 없다"는 불일치가 안 생긴다.
   const DIRECT_CHANNEL = "(직접 방문)";
   const channelViews = new Map<string, number>();
-  for (const row of allViewRows ?? []) {
+  for (const row of [
+    ...(allListViewRows ?? []),
+    ...(allViewRows ?? []),
+    ...(allApplyViewRows ?? []),
+  ]) {
     const channel = row.ref?.trim() || DIRECT_CHANNEL;
     channelViews.set(channel, (channelViews.get(channel) ?? 0) + 1);
   }
@@ -213,9 +242,15 @@ export async function loadProductAnalytics(
       (channelApplications.get(channel) ?? 0) + 1,
     );
   }
-  // 시간대별(KST 0~23시) 조회수 — allViewRows 재활용(추가 쿼리 없음).
+  // 시간대별(KST 0~23시) 접속자 수 — 같은 이유로 목록·상세·신청서
+  // 진입을 모두 합쳐서 센다(상품 상세 진입만 세면 실제 트래픽보다
+  // 적게 보인다).
   const hourlyMap = Array.from({ length: 24 }, (_, h) => ({ hour: h, views: 0 }));
-  for (const row of allViewRows ?? []) {
+  for (const row of [
+    ...(allListViewRows ?? []),
+    ...(allViewRows ?? []),
+    ...(allApplyViewRows ?? []),
+  ]) {
     const kstHour = (new Date(row.viewed_at).getUTCHours() + 9) % 24;
     hourlyMap[kstHour].views += 1;
   }

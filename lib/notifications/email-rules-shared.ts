@@ -82,6 +82,12 @@ export function ruleRecipientAddresses(
   return [...new Set(addresses)];
 }
 
+/** 이메일 본문 아래에 넣는 버튼 하나. */
+export type CtaButton = { text: string; url: string };
+
+/** 규칙 하나에 넣을 수 있는 CTA 버튼 최대 개수. */
+export const MAX_CTA_BUTTONS = 3;
+
 export type EmailRule = {
   id: string;
   name: string;
@@ -95,9 +101,31 @@ export type EmailRule = {
   productId: string | null;
   subject: string;
   body: string;
-  ctaText: string | null;
-  ctaUrl: string | null;
+  /** 0~MAX_CTA_BUTTONS개. PC에서는 항상 가로 배치, 모바일에서는
+   * 2개면 가로·3개면 세로로 배치된다(email-html.ts 참고). */
+  ctas: CtaButton[];
 };
+
+/** email_rules의 CTA 3쌍(cta_text/cta_url, _2, _3) 컬럼을 배열로
+ * 모은다 — 텍스트·URL이 둘 다 있는 것만 남긴다. mapRow(email-rules.ts)와
+ * sendRuleTest(app/admin/actions.ts)가 같이 쓴다. */
+export function ctasFromColumns(row: {
+  cta_text: string | null;
+  cta_url: string | null;
+  cta_text_2: string | null;
+  cta_url_2: string | null;
+  cta_text_3: string | null;
+  cta_url_3: string | null;
+}): CtaButton[] {
+  const pairs: [string | null, string | null][] = [
+    [row.cta_text, row.cta_url],
+    [row.cta_text_2, row.cta_url_2],
+    [row.cta_text_3, row.cta_url_3],
+  ];
+  return pairs
+    .filter((pair): pair is [string, string] => Boolean(pair[0] && pair[1]))
+    .map(([text, url]) => ({ text, url }));
+}
 
 /**
  * 모든 이메일 종류에 공통으로 삽입 가능한 변수. 예전엔 종류별로 쓸 수

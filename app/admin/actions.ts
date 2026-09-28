@@ -45,7 +45,7 @@ import {
   type EmailRecipient,
   type EmailTriggerType,
 } from "@/lib/notifications/email-rules-shared";
-import { loadEmailRulesForTrigger } from "@/lib/notifications/email-rules";
+import { ctasFromColumns, loadEmailRulesForTrigger } from "@/lib/notifications/email-rules";
 import {
   isEmptyEmailBody,
   isHtmlBody,
@@ -2001,10 +2001,21 @@ export async function saveEmailRule(
   }
 
   const supabase = await createClient();
-  const ctaText = String(formData.get("ctaText") ?? "").trim();
-  const ctaUrl = String(formData.get("ctaUrl") ?? "").trim();
-  if (ctaText && ctaUrl && !/^https?:\/\//.test(ctaUrl)) {
-    return { error: "CTA 버튼 URL은 http:// 또는 https://로 시작해야 합니다." };
+
+  // 최대 3개(ctaText/ctaUrl, ctaText2/ctaUrl2, ctaText3/ctaUrl3) —
+  // 필드 이름은 email_rules의 컬럼(cta_text, cta_text_2, cta_text_3)과
+  // 그대로 맞춘다.
+  const ctaSuffixes = ["", "2", "3"] as const;
+  const ctaColumns: Record<string, string | null> = {};
+  for (const suffix of ctaSuffixes) {
+    const text = String(formData.get(`ctaText${suffix}`) ?? "").trim();
+    const url = String(formData.get(`ctaUrl${suffix}`) ?? "").trim();
+    if (text && url && !/^https?:\/\//.test(url)) {
+      return { error: "CTA 버튼 URL은 http:// 또는 https://로 시작해야 합니다." };
+    }
+    const columnSuffix = suffix ? `_${suffix}` : "";
+    ctaColumns[`cta_text${columnSuffix}`] = text || null;
+    ctaColumns[`cta_url${columnSuffix}`] = url || null;
   }
 
   const row = {
@@ -2015,8 +2026,7 @@ export async function saveEmailRule(
     product_id: productId || null,
     subject,
     body,
-    cta_text: ctaText || null,
-    cta_url: ctaUrl || null,
+    ...ctaColumns,
   };
 
   let error;
@@ -2105,7 +2115,7 @@ export async function sendRuleTest(
 
   const { data: rule } = await supabase
     .from("email_rules")
-    .select("id, subject, body, cta_text, cta_url")
+    .select("id, subject, body, cta_text, cta_url, cta_text_2, cta_url_2, cta_text_3, cta_url_3")
     .eq("id", ruleId)
     .single();
   if (!rule) return { error: "규칙을 찾을 수 없습니다." };
@@ -2115,7 +2125,7 @@ export async function sendRuleTest(
     ...(await siteVariableOverrides()),
   };
   const result = await sendRuleTestEmail({
-    rule: { ...rule, ctaText: rule.cta_text, ctaUrl: rule.cta_url },
+    rule: { ...rule, ctas: ctasFromColumns(rule) },
     to,
     variables,
   });
@@ -2554,6 +2564,74 @@ export async function backfillGoogleCalendar(
 }
 
 /**
+ * 고객DB "손님 추가/정보 수정" 폼의 방문 이력 관련 칸(첫방문일·
+ * 최근방문일·총방문횟수·SNS동의·나이)을 읽어 customers 테이블에 저장할
+ * override 값으로 바꾼다. 칸을 비워두면 null이 되어, 평소처럼 예약
+ * 기록에서 자동 계산한 값이 계속 쓰인다(lib/customers.ts의
+ * summarizeCustomers 참고) — 아무 것도 안 건드리고 저장해도 자동
+ * 계산이 깨지지 않는 이유가 이것이다. 나이는 생년월일을 입력했으면
+ * 무시한다(생년월일 쪽이 더 정확한 값이므로).
+ */
+function parseCustomerOverrides(
+  formData: FormData,
+  birthDate: string | null,
+):
+  | {
+      ok: true;
+      value: {
+        first_visit_override: string | null;
+        last_visit_override: string | null;
+        visit_count_override: number | null;
+        sns_consent_override: "동의" | "비동의" | null;
+        age_override: number | null;
+      };
+    }
+  | { ok: false; error: string } {
+  const firstVisitOverride =
+    String(formData.get("firstVisitOverride") ?? "").trim() || null;
+  const lastVisitOverride =
+    String(formData.get("lastVisitOverride") ?? "").trim() || null;
+
+  const visitCountRaw = String(formData.get("visitCountOverride") ?? "").trim();
+  let visitCountOverride: number | null = null;
+  if (visitCountRaw) {
+    const n = Number(visitCountRaw);
+    if (!Number.isInteger(n) || n < 0) {
+      return {
+        ok: false,
+        error: "총방문횟수는 0 이상의 정수로 입력해 주시기 바랍니다.",
+      };
+    }
+    visitCountOverride = n;
+  }
+
+  const rawSns = String(formData.get("snsConsentOverride") ?? "");
+  const snsConsentOverride: "동의" | "비동의" | null =
+    rawSns === "동의" || rawSns === "비동의" ? rawSns : null;
+
+  const ageRaw = String(formData.get("ageOverride") ?? "").trim();
+  let ageOverride: number | null = null;
+  if (!birthDate && ageRaw) {
+    const n = Number(ageRaw);
+    if (!Number.isInteger(n) || n < 0) {
+      return { ok: false, error: "연령은 0 이상의 정수로 입력해 주시기 바랍니다." };
+    }
+    ageOverride = n;
+  }
+
+  return {
+    ok: true,
+    value: {
+      first_visit_override: firstVisitOverride,
+      last_visit_override: lastVisitOverride,
+      visit_count_override: visitCountOverride,
+      sns_consent_override: snsConsentOverride,
+      age_override: ageOverride,
+    },
+  };
+}
+
+/**
  * 고객DB 화면에서 손님을 수기로 새로 추가한다. 예약 없이 등록만
  * 해두는 손님(현장 방문·지인 소개 등 예약 폼을 거치지 않은 경우)을
  * 위한 것 — 연락처가 이미 있는 손님이면(예약을 통해 자동으로
@@ -2593,6 +2671,13 @@ export async function createCustomer(
   const birthDate = String(formData.get("birthDate") ?? "").trim() || null;
   const email = String(formData.get("email") ?? "").trim() || null;
 
+  const overrides = parseCustomerOverrides(formData, birthDate);
+  if (!overrides.ok) return { status: "error", error: overrides.error };
+
+  // 정보수집일 — 비워두면 DB 기본값(지금 시각)을 그대로 쓴다. 예전부터
+  // 알던 손님을 소급 등록할 때, 실제 수집 시점을 직접 지정할 수 있게 한다.
+  const collectedAtRaw = String(formData.get("collectedAt") ?? "").trim();
+
   const supabase = await createClient();
 
   const { data: conflict } = await supabase
@@ -2604,9 +2689,15 @@ export async function createCustomer(
     return { status: "error", error: "이미 등록된 연락처입니다." };
   }
 
-  const { error } = await supabase
-    .from("customers")
-    .insert({ phone, name, gender, birth_date: birthDate, email });
+  const { error } = await supabase.from("customers").insert({
+    phone,
+    name,
+    gender,
+    birth_date: birthDate,
+    email,
+    ...overrides.value,
+    ...(collectedAtRaw ? { created_at: collectedAtRaw } : {}),
+  });
   if (error) {
     return { status: "error", error: `저장하지 못했습니다: ${error.message}` };
   }
@@ -2661,6 +2752,12 @@ export async function updateCustomer(
   const birthDate = String(formData.get("birthDate") ?? "").trim() || null;
   const email = String(formData.get("email") ?? "").trim() || null;
 
+  const overrides = parseCustomerOverrides(formData, birthDate);
+  if (!overrides.ok) return { status: "error", error: overrides.error };
+
+  // 정보수집일 — 비워두면 기존 값을 그대로 둔다(안 건드림).
+  const collectedAtRaw = String(formData.get("collectedAt") ?? "").trim();
+
   const supabase = await createClient();
 
   if (phone !== originalPhone) {
@@ -2690,7 +2787,15 @@ export async function updateCustomer(
 
   const { error } = await supabase
     .from("customers")
-    .update({ phone, name, gender, birth_date: birthDate, email })
+    .update({
+      phone,
+      name,
+      gender,
+      birth_date: birthDate,
+      email,
+      ...overrides.value,
+      ...(collectedAtRaw ? { created_at: collectedAtRaw } : {}),
+    })
     .eq("phone", originalPhone);
   if (error) {
     return { status: "error", error: `저장하지 못했습니다: ${error.message}` };

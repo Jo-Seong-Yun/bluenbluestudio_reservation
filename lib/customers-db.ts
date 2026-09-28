@@ -64,7 +64,9 @@ export async function loadCustomerSummaries(): Promise<CustomerSummary[]> {
   const [{ data: customers }, { data: visitRows }] = await Promise.all([
     supabase
       .from("customers")
-      .select("phone, name, gender, birth_date, email, created_at"),
+      .select(
+        "phone, name, gender, birth_date, email, created_at, first_visit_override, last_visit_override, visit_count_override, sns_consent_override, age_override",
+      ),
     supabase
       .from("reservations")
       .select("id, customer_phone, product_id, status, shoot_start"),

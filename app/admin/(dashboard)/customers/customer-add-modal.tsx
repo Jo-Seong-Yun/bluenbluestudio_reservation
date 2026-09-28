@@ -46,6 +46,7 @@ export function CustomerAddModal() {
       <dialog
         ref={dialogRef}
         className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-md rounded-xl border p-0 backdrop:bg-black/50"
+        style={{ maxHeight: "90vh" }}
       >
         <div className="flex items-center justify-between border-b border-inherit px-5 py-4">
           <p className="font-bold">손님 추가</p>
@@ -59,7 +60,12 @@ export function CustomerAddModal() {
           </button>
         </div>
 
-        <form ref={formRef} action={action} className="space-y-4 p-5">
+        <form
+          ref={formRef}
+          action={action}
+          className="space-y-4 overflow-y-auto p-5"
+          style={{ maxHeight: "calc(90vh - 57px)" }}
+        >
           <div>
             <label className="mb-1.5 block text-sm font-medium" htmlFor="add-name">
               이름 <span className="text-red-600 dark:text-red-400">*</span>
@@ -72,6 +78,20 @@ export function CustomerAddModal() {
               생년월일
             </label>
             <input id="add-birthDate" name="birthDate" type="date" className={inputClass} />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium" htmlFor="add-ageOverride">
+              연령 직접입력
+            </label>
+            <input
+              id="add-ageOverride"
+              name="ageOverride"
+              type="number"
+              min={0}
+              placeholder="생년월일이 없을 때만 사용됩니다"
+              className={inputClass}
+            />
           </div>
 
           <div>
@@ -104,6 +124,79 @@ export function CustomerAddModal() {
               이메일
             </label>
             <input id="add-email" name="email" type="email" className={inputClass} />
+          </div>
+
+          <div className="border-border border-t pt-4">
+            <p className="text-sm font-medium">방문 이력 직접 입력</p>
+            <p className="text-muted mt-0.5 mb-3 text-xs">
+              예약 없이 등록하는 손님이라 자동 계산할 방문 기록이 없습니다.
+              필요하면 직접 채워 넣으세요(비워두면 0회로 표시됩니다).
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium" htmlFor="add-firstVisitOverride">
+                  첫방문일
+                </label>
+                <input
+                  id="add-firstVisitOverride"
+                  name="firstVisitOverride"
+                  type="date"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium" htmlFor="add-lastVisitOverride">
+                  최근방문일
+                </label>
+                <input
+                  id="add-lastVisitOverride"
+                  name="lastVisitOverride"
+                  type="date"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium" htmlFor="add-visitCountOverride">
+                  총방문횟수
+                </label>
+                <input
+                  id="add-visitCountOverride"
+                  name="visitCountOverride"
+                  type="number"
+                  min={0}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium" htmlFor="add-snsConsentOverride">
+                  SNS 업로드 동의
+                </label>
+                <select
+                  id="add-snsConsentOverride"
+                  name="snsConsentOverride"
+                  defaultValue=""
+                  className={inputClass}
+                >
+                  <option value="">자동 계산</option>
+                  <option value="동의">동의</option>
+                  <option value="비동의">비동의</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium" htmlFor="add-collectedAt">
+              정보수집일
+            </label>
+            <input
+              id="add-collectedAt"
+              name="collectedAt"
+              type="date"
+              placeholder="비워두면 오늘 날짜로 저장됩니다"
+              className={inputClass}
+            />
           </div>
 
           {state.status === "error" ? <ErrorText>{state.error}</ErrorText> : null}
