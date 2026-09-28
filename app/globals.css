@@ -254,6 +254,12 @@ dialog[open] {
   display: flex;
   flex-direction: column;
   max-height: 90vh;
+  /* 좌측 폼이 짧은 내용만 있을 때(예: 고객DB "메일 발송"의 프리셋
+     모드는 규칙 편집 폼보다 훨씬 짧다) flex 기본 동작(align-items:
+     stretch)이 두 칸의 높이를 그 짧은 폼에 맞춰버려, 우측 미리보기
+     iframe이 답답할 만큼 작아진다 — 최소 높이를 둬서 내용이 짧아도
+     미리보기가 항상 정상적인 크기로 보이게 한다. */
+  min-height: min(600px, 90vh);
 }
 .email-modal-body {
   display: flex;
