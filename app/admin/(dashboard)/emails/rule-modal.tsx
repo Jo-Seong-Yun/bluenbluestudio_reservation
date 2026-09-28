@@ -114,27 +114,40 @@ export function RuleModal({
   }
 
   /**
-   * 선 없는 표 형식의 "요약 박스"를 커서 위치에 끼워 넣는다 — 라벨/값은
-   * 예시로 채워두되, 어떤 항목을 넣을지·순서·위치는 전부 직접 고치도록
-   * 둔다. 셀의 style(border:none)은 RichTextEditor의 TableCell 확장이
-   * 그대로 기억해 두므로, 발송 시 finalizeEmailHtml이 다른 표에만
-   * 넣는 테두리가 이 표에는 붙지 않는다.
+   * 선 없는 표 형식의 "요약 박스"를 커서 위치에 끼워 넣는다 — 예전에
+   * 자동으로 삽입되던 회색 카드 스타일 그대로 두되, 라벨/값 자체는
+   * 예시로 채워두고 어떤 항목을 넣을지·순서·위치는 전부 직접 고치도록
+   * 둔다. 셀의 style은 RichTextEditor의 TableCell 확장이 그대로
+   * 기억해 두므로, 발송 시 finalizeEmailHtml이 다른(스타일 없는) 표에만
+   * 넣는 테두리가 이 표에는 붙지 않는다. 중첩 표 없이 첫/마지막 행에만
+   * 위·아래 테두리를, 모든 행의 양끝 셀에 좌·우 테두리를 줘서 표
+   * 하나만으로도 둥근 사각 박스처럼 보이게 한다(이메일 클라이언트
+   * 호환을 위해 중첩 표는 피한다).
    */
   function insertSummaryBox() {
-    const labelStyle =
-      "border:none;padding:4px 12px 4px 0;font-weight:600;color:#6b7280;white-space:nowrap;vertical-align:top;";
-    const valueStyle = "border:none;padding:4px 0;vertical-align:top;";
     const rows: [string, string][] = [
       ["예약 번호", "{{예약번호}}"],
       ["상품", "{{상품명}}"],
       ["촬영 일시", "{{일시}}"],
       ["촬영 장소", "{{촬영장소}}"],
     ];
+    const last = rows.length - 1;
     const rowsHtml = rows
-      .map(
-        ([label, value]) =>
-          `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`,
-      )
+      .map(([label, value], i) => {
+        const top = i === 0 ? "border-top:1px solid #e5e7eb;" : "";
+        const bottom = i === last ? "border-bottom:1px solid #e5e7eb;" : "";
+        const radiusTL = i === 0 ? "border-top-left-radius:8px;" : "";
+        const radiusTR = i === 0 ? "border-top-right-radius:8px;" : "";
+        const radiusBL = i === last ? "border-bottom-left-radius:8px;" : "";
+        const radiusBR = i === last ? "border-bottom-right-radius:8px;" : "";
+        const labelStyle =
+          `background-color:#f9fafb;border:none;${top}${bottom}border-left:1px solid #e5e7eb;${radiusTL}${radiusBL}` +
+          "padding:6px 12px 6px 16px;font-size:12px;font-weight:600;color:#6b7280;white-space:nowrap;vertical-align:top;";
+        const valueStyle =
+          `background-color:#f9fafb;border:none;${top}${bottom}border-right:1px solid #e5e7eb;${radiusTR}${radiusBR}` +
+          "padding:6px 16px 6px 12px;font-size:13px;color:#111827;vertical-align:top;";
+        return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+      })
       .join("");
     bodyEditorRef.current
       ?.chain()
