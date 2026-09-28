@@ -55,10 +55,10 @@ export function Hero() {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
 
       <div
-        className="pointer-events-none absolute top-[-20%] left-[20%] h-[600px] w-[600px] rounded-full bg-blue-900/20 blur-[120px] mix-blend-screen"
+        className="pointer-events-none absolute top-[-20%] left-[20%] h-[600px] w-[600px] rounded-full bg-blue-500/40 blur-[120px] mix-blend-screen"
       />
       <div
-        className="pointer-events-none absolute right-[20%] bottom-[-10%] h-[500px] w-[500px] rounded-full bg-indigo-900/20 blur-[120px] mix-blend-screen"
+        className="pointer-events-none absolute right-[20%] bottom-[-10%] h-[500px] w-[500px] rounded-full bg-indigo-500/40 blur-[120px] mix-blend-screen"
       />
 
       <div className="relative z-10 mx-auto mt-20 flex max-w-5xl flex-col items-center space-y-12 px-6 text-center">
