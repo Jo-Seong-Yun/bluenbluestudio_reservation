@@ -1,18 +1,5 @@
+import Image from "next/image";
 import { ChevronDown } from "lucide-react";
-
-/** 로고 자리에 쓰는 별 모양(sunburst) 마크. */
-function SunburstIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden
-    >
-      <path d="M12 0l2.4 8.1L21 3.5l-4.6 6.6L24 12l-7.6 2.4L21 20.5l-6.6-4.6L12 24l-2.4-8.1L3 20.5l4.6-6.6L0 12l7.6-2.4L3 3.5l6.6 4.6L12 0z" />
-    </svg>
-  );
-}
 
 const NAV_LINKS = ["Customer Stories", "Resources", "Pricing"];
 
@@ -20,7 +7,14 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 z-50 flex w-full items-center justify-between px-6 py-4 bg-transparent">
       <div className="flex items-center">
-        <SunburstIcon className="h-6 w-6 text-white" />
+        <Image
+          src="/ig-logo-white.png"
+          alt="푸르른 스튜디오"
+          width={1054}
+          height={542}
+          priority
+          className="h-8 w-auto"
+        />
       </div>
 
       <div
