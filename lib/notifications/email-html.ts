@@ -65,6 +65,8 @@ type EmailShellOptions = {
   brandColor?: string | null;
   /** buildEmailVariables()가 반환한 변수맵 — 있으면 예약 정보 요약 블록을 본문 상단에 삽입한다. */
   emailVariables?: Record<string, string> | null;
+  /** 사이트 베이스 URL — 있으면 촬영 장소 옆에 주소 복사 아이콘(/map 링크)을 붙인다. */
+  siteBaseUrl?: string | null;
 };
 
 const SAFE_HEX = /^#[0-9a-fA-F]{6}$/;
@@ -75,7 +77,10 @@ const SAFE_URL = /^https?:\/\//;
  * 이메일 상단에 넣을 요약 박스 HTML을 만든다.
  * 값이 하나도 없으면 빈 문자열을 돌려줘 블록 자체가 나타나지 않는다.
  */
-function buildReservationSummaryHtml(vars: Record<string, string>): string {
+function buildReservationSummaryHtml(
+  vars: Record<string, string>,
+  siteBaseUrl?: string | null,
+): string {
   const rows: { label: string; html: string }[] = [];
 
   if (vars["예약번호"]) rows.push({ label: "예약 번호", html: escapeHtml(vars["예약번호"]) });
@@ -94,7 +99,16 @@ function buildReservationSummaryHtml(vars: Record<string, string>): string {
   }
 
   if (vars["촬영장소"]) {
-    rows.push({ label: "촬영 장소", html: escapeHtml(vars["촬영장소"]) });
+    const addr = vars["촬영장소"];
+    const mapPageUrl =
+      siteBaseUrl && SAFE_URL.test(siteBaseUrl)
+        ? `${siteBaseUrl}/map?q=${encodeURIComponent(addr)}`
+        : null;
+    const copyIcon = mapPageUrl
+      ? ` <a href="${escapeHtml(mapPageUrl)}" target="_blank" title="주소 복사" style="text-decoration:none;font-size:13px;">📋</a>`
+      : "";
+
+    rows.push({ label: "촬영 장소", html: `${escapeHtml(addr)}${copyIcon}` });
   }
 
   if (rows.length === 0) return "";
