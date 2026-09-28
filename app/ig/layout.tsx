@@ -1,27 +1,25 @@
-import { Instrument_Sans, Instrument_Serif } from "next/font/google";
+import { Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
 
-// 인스타그램 광고 랜딩페이지 전용 글꼴 — 본 사이트(Noto Sans KR)와는
-// 완전히 다른 디자인 언어를 쓰는 별도 캠페인 페이지라 이 라우트
-// 안에서만 CSS 변수로 물려준다.
-const instrumentSans = Instrument_Sans({
+// 인스타그램 광고 랜딩페이지 전용 글꼴 — 카피가 한글로 바뀌면서 라틴
+// 전용이던 Instrument Sans/Serif 대신 한글을 지원하는 Noto Sans/Serif
+// KR로 바꿨다. 이 라우트 안에서만 CSS 변수로 물려준다.
+const notoSansKR = Noto_Sans_KR({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-instrument-sans",
+  variable: "--font-noto-sans-kr",
   display: "swap",
 });
 
-const instrumentSerif = Instrument_Serif({
+const notoSerifKR = Noto_Serif_KR({
   subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-instrument-serif",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-noto-serif-kr",
   display: "swap",
 });
 
 export default function IgLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`${instrumentSans.variable} ${instrumentSerif.variable} bg-black`}>
+    <div className={`${notoSansKR.variable} ${notoSerifKR.variable} bg-black`}>
       {children}
     </div>
   );
