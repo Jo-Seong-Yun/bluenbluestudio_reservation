@@ -6,6 +6,7 @@ import {
 import { kstDateString, kstTimeString } from "@/lib/time";
 import { ResetAnalyticsButton } from "./reset-analytics-button";
 import { ActivityMemo } from "./activity-memo";
+import { ActivityDeleteButton } from "./activity-delete-button";
 
 export const metadata: Metadata = { title: "통계" };
 
@@ -264,11 +265,14 @@ export default async function AnalyticsPage() {
                   )}
                 </span>
                 {entry.kind === "reset" ? null : (
-                  <ActivityMemo
-                    kind={entry.kind}
-                    id={entry.id}
-                    memo={entry.memo}
-                  />
+                  <>
+                    <ActivityMemo
+                      kind={entry.kind}
+                      id={entry.id}
+                      memo={entry.memo}
+                    />
+                    <ActivityDeleteButton kind={entry.kind} id={entry.id} />
+                  </>
                 )}
               </li>
             ))}
