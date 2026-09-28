@@ -82,6 +82,17 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
   const safe = sanitizeDescriptionHtml(html)
     .replace(/<p([^>]*)><\/p>/g, "<p$1><br></p>")
     .replace(/<img /g, '<img style="max-width:100%;height:auto" ')
+    // 편집기(RichTextEditor)에서 표 열 너비를 드래그로 조절하면 그
+    // 흔적(<colgroup><col style="width:...">, td/th의 colwidth 속성)이
+    // HTML에 같이 저장된다 — 상품 상세 설명처럼 일반 브라우저로 보여줄
+    // 때는 편집한 그대로 재현돼야 맞지만, 메일은 클라이언트마다
+    // colgroup/col 지원이 들쭉날쭉해서 의도한 것보다 훨씬 넓은 픽셀
+    // 값으로 강제로 늘어나며 깨진다(특히 "요약 박스"처럼 셀 자체
+    // style에 이미 폭을 줘 둔 표는 내용에 맞춰 좁게 보여야 하는데,
+    // colgroup 때문에 값 칸만 수백 px로 벌어지는 문제가 있었다).
+    // 메일에서는 셀의 style(width 등)만으로 충분하니 여기서 없앤다.
+    .replace(/<colgroup>[\s\S]*?<\/colgroup>/g, "")
+    .replace(/\s*colwidth="[^"]*"/g, "")
     .replace(/<table/g, '<table style="border-collapse:collapse;margin:12px 0"')
     // style이 없는 셀에만 테두리를 넣는다(정렬 등 style이 이미 있는 셀은
     // 속성이 겹치지 않게 그대로 둔다).
@@ -111,12 +122,23 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
       options?.brandColor && SAFE_HEX.test(options.brandColor)
         ? options.brandColor
         : "#111827";
+    // <a>에 직접 width:100%를 주는 방식은 아웃룩 등 상당수 메일
+    // 클라이언트가 앵커 태그의 CSS 너비를 무시해, 색칠된 버튼이
+    // 글자 크기만큼만 작게 그려지고 칸의 나머지는 빈 공간으로 남는
+    // 문제가 있었다. 대신 이메일 버튼의 표준 기법(bulletproof
+    // button)대로 칸(td) 안에 폭 100%짜리 표를 하나 더 넣고, 그
+    // 표의 셀에 배경색을 줘 버튼 박스 자체를 만든다 — <table
+    // width="100%">는 거의 모든 메일 클라이언트가 지키므로, 이
+    // 박스가 항상 자기 칸(전체 60% 중 1/개수)을 꽉 채운다.
     const cellWidthPct = (100 / validCtas.length).toFixed(2);
     const cells = validCtas
       .map(
         (c) =>
           `<td class="cta-td" align="center" width="${cellWidthPct}%" style="padding:4px;width:${cellWidthPct}%;">` +
-          `<a href="${escapeHtml(c.url)}" target="_blank" class="cta-btn" style="display:block;width:100%;box-sizing:border-box;background-color:${btnColor};color:#ffffff;font-family:${EMAIL_FONT_STACK};padding:12px 10px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;line-height:1.3;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.12);">${escapeHtml(c.text)}</a>` +
+          `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;">` +
+          `<tr><td align="center" bgcolor="${btnColor}" style="background-color:${btnColor};border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.12);">` +
+          `<a href="${escapeHtml(c.url)}" target="_blank" class="cta-btn" style="display:block;width:100%;box-sizing:border-box;color:#ffffff;font-family:${EMAIL_FONT_STACK};padding:12px 10px;text-decoration:none;font-size:15px;font-weight:600;line-height:1.3;text-align:center;">${escapeHtml(c.text)}</a>` +
+          `</td></tr></table>` +
           `</td>`,
       )
       .join("");
