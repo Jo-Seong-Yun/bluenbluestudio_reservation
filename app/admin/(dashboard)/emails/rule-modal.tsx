@@ -115,14 +115,16 @@ export function RuleModal({
 
   /**
    * 선 없는 표 형식의 "요약 박스"를 커서 위치에 끼워 넣는다 — 예전에
-   * 자동으로 삽입되던 회색 카드 스타일 그대로 두되, 라벨/값 자체는
-   * 예시로 채워두고 어떤 항목을 넣을지·순서·위치는 전부 직접 고치도록
-   * 둔다. 셀의 style은 RichTextEditor의 TableCell 확장이 그대로
-   * 기억해 두므로, 발송 시 finalizeEmailHtml이 다른(스타일 없는) 표에만
-   * 넣는 테두리가 이 표에는 붙지 않는다. 중첩 표 없이 첫/마지막 행에만
-   * 위·아래 테두리를, 모든 행의 양끝 셀에 좌·우 테두리를 줘서 표
-   * 하나만으로도 둥근 사각 박스처럼 보이게 한다(이메일 클라이언트
-   * 호환을 위해 중첩 표는 피한다).
+   * 자동으로 삽입되던 회색 카드와 내부 여백·글자 크기까지 동일하게
+   * 맞추되, 라벨/값 자체는 예시로 채워두고 어떤 항목을 넣을지·순서·
+   * 위치는 전부 직접 고치도록 둔다. 셀의 style은 RichTextEditor의
+   * TableCell 확장과 sanitizeDescriptionHtml의 허용 목록(td/th
+   * style)이 그대로 통과·보존해 두므로, 발송해도 그대로 남는다.
+   * 예전 버전은 바깥 박스(패딩 14px 18px)용 표를 하나 더 감싼
+   * 중첩 표였는데, 여기서는 표 하나의 첫/마지막 행·양끝 열 셀에
+   * 그 바깥 여백만큼 패딩을 더 얹고 테두리·모서리 둥글기를 셀
+   * 자체에 그려서 같은 모양을 낸다(이메일 클라이언트 호환을 위해
+   * 중첩 표는 피한다).
    */
   function insertSummaryBox() {
     const rows: [string, string][] = [
@@ -134,6 +136,8 @@ export function RuleModal({
     const last = rows.length - 1;
     const rowsHtml = rows
       .map(([label, value], i) => {
+        const padTop = i === 0 ? 14 : 4;
+        const padBottom = i === last ? 14 : 4;
         const top = i === 0 ? "border-top:1px solid #e5e7eb;" : "";
         const bottom = i === last ? "border-bottom:1px solid #e5e7eb;" : "";
         const radiusTL = i === 0 ? "border-top-left-radius:8px;" : "";
@@ -142,10 +146,10 @@ export function RuleModal({
         const radiusBR = i === last ? "border-bottom-right-radius:8px;" : "";
         const labelStyle =
           `background-color:#f9fafb;border:none;${top}${bottom}border-left:1px solid #e5e7eb;${radiusTL}${radiusBL}` +
-          "padding:6px 12px 6px 16px;font-size:12px;font-weight:600;color:#6b7280;white-space:nowrap;vertical-align:top;";
+          `width:76px;padding:${padTop}px 0px ${padBottom}px 18px;font-size:12px;font-weight:600;color:#6b7280;white-space:nowrap;vertical-align:top;`;
         const valueStyle =
           `background-color:#f9fafb;border:none;${top}${bottom}border-right:1px solid #e5e7eb;${radiusTR}${radiusBR}` +
-          "padding:6px 16px 6px 12px;font-size:13px;color:#111827;vertical-align:top;";
+          `padding:${padTop}px 18px ${padBottom}px 12px;font-size:13px;color:#111827;vertical-align:top;`;
         return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
       })
       .join("");

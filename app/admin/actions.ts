@@ -52,7 +52,6 @@ import {
   renderEmailHtml,
 } from "@/lib/notifications/email-html";
 import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
-import { siteBaseUrl } from "@/lib/site";
 import {
   sendRuleTestEmail,
   siteVariableOverrides,
@@ -967,7 +966,7 @@ export async function previewStatusChangeEmails(
     ruleId: rule.id,
     recipientLabel: formatRecipients(rule.recipients),
     subject: renderEmailTemplate(rule.subject, variables),
-    body: renderEmailHtml(rule.body, variables, { siteBaseUrl: siteBaseUrl() }),
+    body: renderEmailHtml(rule.body, variables),
     usesCancelReason: /\{\{\s*취소사유\s*\}\}/.test(rule.subject + rule.body),
   }));
 }
