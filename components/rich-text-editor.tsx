@@ -13,6 +13,7 @@ import {
   useEditorState,
   type Editor,
 } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -34,7 +35,11 @@ import {
   AlignJustify,
   AlignLeft,
   AlignRight,
+  ArrowDownToLine,
+  ArrowLeftToLine,
+  ArrowRightToLine,
   ArrowUpDown,
+  ArrowUpToLine,
   Baseline,
   Bold,
   Check,
@@ -386,8 +391,98 @@ export function RichTextEditor({
       ) : null}
 
       <EditorContent editor={editor} />
+      <TableBubbleMenu editor={editor} />
       <ErrorText>{uploadError}</ErrorText>
     </div>
+  );
+}
+
+// ── 표 안 커서 위치에 뜨는 행/열 추가·삭제 툴바 ──────────────────────
+// 열 너비 조절은 별도 버튼 없이, 표 삽입 시 이미 켜둔 컬럼 드래그
+// (Table.configure({ resizable: true }))로 한다 — 열 경계에 마우스를
+// 올리면 커서가 바뀌고 드래그해서 바로 조절할 수 있다.
+
+function TableBubbleMenu({ editor }: { editor: Editor | null }) {
+  if (!editor) return null;
+  return (
+    <BubbleMenu
+      editor={editor}
+      shouldShow={({ editor }) => editor.isActive("table")}
+      options={{ placement: "top", offset: 8 }}
+      className="border-border bg-surface flex items-center gap-0.5 rounded-lg border p-1 shadow-lg"
+    >
+      <TableBubbleButton title="위에 행 추가" onClick={() => editor.chain().focus().addRowBefore().run()}>
+        <ArrowUpToLine size={14} />
+      </TableBubbleButton>
+      <TableBubbleButton title="아래에 행 추가" onClick={() => editor.chain().focus().addRowAfter().run()}>
+        <ArrowDownToLine size={14} />
+      </TableBubbleButton>
+      <TableBubbleButton title="왼쪽에 열 추가" onClick={() => editor.chain().focus().addColumnBefore().run()}>
+        <ArrowLeftToLine size={14} />
+      </TableBubbleButton>
+      <TableBubbleButton title="오른쪽에 열 추가" onClick={() => editor.chain().focus().addColumnAfter().run()}>
+        <ArrowRightToLine size={14} />
+      </TableBubbleButton>
+      <Divider />
+      <TableBubbleTextButton onClick={() => editor.chain().focus().deleteRow().run()}>
+        행 삭제
+      </TableBubbleTextButton>
+      <TableBubbleTextButton onClick={() => editor.chain().focus().deleteColumn().run()}>
+        열 삭제
+      </TableBubbleTextButton>
+      <Divider />
+      <TableBubbleTextButton
+        danger
+        onClick={() => editor.chain().focus().deleteTable().run()}
+      >
+        표 삭제
+      </TableBubbleTextButton>
+    </BubbleMenu>
+  );
+}
+
+function TableBubbleButton({
+  title,
+  onClick,
+  children,
+}: {
+  title: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className="text-foreground hover:bg-surface-subtle flex h-7 w-7 items-center justify-center rounded"
+    >
+      {children}
+    </button>
+  );
+}
+
+function TableBubbleTextButton({
+  onClick,
+  danger,
+  children,
+}: {
+  onClick: () => void;
+  danger?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className={`hover:bg-surface-subtle rounded px-2 py-1 text-xs font-medium whitespace-nowrap ${
+        danger ? "text-red-600 dark:text-red-400" : "text-foreground"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
