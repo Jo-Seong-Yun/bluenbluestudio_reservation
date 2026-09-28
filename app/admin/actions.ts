@@ -2554,6 +2554,68 @@ export async function backfillGoogleCalendar(
 }
 
 /**
+ * 고객DB 화면에서 손님을 수기로 새로 추가한다. 예약 없이 등록만
+ * 해두는 손님(현장 방문·지인 소개 등 예약 폼을 거치지 않은 경우)을
+ * 위한 것 — 연락처가 이미 있는 손님이면(예약을 통해 자동으로
+ * 만들어졌거나 먼저 수기로 추가됐거나) 새로 만들지 않고 오류로
+ * 알린다(이름 등을 덮어쓰면 기존 값을 잃을 수 있어서).
+ */
+export type CreateCustomerState =
+  | { status: "idle" }
+  | { status: "error"; error: string }
+  | { status: "success" };
+
+export async function createCustomer(
+  _prev: CreateCustomerState,
+  formData: FormData,
+): Promise<CreateCustomerState> {
+  await requireAdmin();
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) {
+    return { status: "error", error: "이름을 입력해 주시기 바랍니다." };
+  }
+
+  const parsedPhone = phoneField.safeParse(formData.get("phone"));
+  if (!parsedPhone.success) {
+    return {
+      status: "error",
+      error:
+        parsedPhone.error.issues[0]?.message ??
+        "연락처를 확인해 주시기 바랍니다.",
+    };
+  }
+  const phone = parsedPhone.data;
+
+  const rawGender = String(formData.get("gender") ?? "");
+  const gender =
+    rawGender === "male" || rawGender === "female" ? rawGender : null;
+  const birthDate = String(formData.get("birthDate") ?? "").trim() || null;
+  const email = String(formData.get("email") ?? "").trim() || null;
+
+  const supabase = await createClient();
+
+  const { data: conflict } = await supabase
+    .from("customers")
+    .select("phone")
+    .eq("phone", phone)
+    .maybeSingle();
+  if (conflict) {
+    return { status: "error", error: "이미 등록된 연락처입니다." };
+  }
+
+  const { error } = await supabase
+    .from("customers")
+    .insert({ phone, name, gender, birth_date: birthDate, email });
+  if (error) {
+    return { status: "error", error: `저장하지 못했습니다: ${error.message}` };
+  }
+
+  revalidatePath("/admin/customers");
+  return { status: "success" };
+}
+
+/**
  * 고객DB 화면에서 손님 인적사항을 수기로 고친다. 연락처도 포함해
  * 전부 고칠 수 있다.
  *

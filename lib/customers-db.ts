@@ -1,6 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { Gender } from "@/lib/supabase/database.types";
+import { SNS_CONSENT_FIELD_LABEL } from "@/lib/booking/custom-fields-shared";
+import { kstToday } from "@/lib/time";
 import {
   computeVisitStats,
   deriveIdentitiesByPhone,
@@ -14,6 +16,48 @@ import {
  * 계산 로직만 유닛 테스트로 검증할 수 있게 둔다.
  */
 
+/**
+ * 가장 최근 방문(완료 처리된 예약)들의 SNS 게시 동의 답변을 찾는다.
+ * 예약마다 상품이 다를 수 있고 "SNS 동의" 문항의 id도 상품별로
+ * 따로 만들어지므로, 예약 → 상품 → 그 상품의 문항 id → 답변 순서로
+ * 찾는다(record-sheet/build-data.ts의 answerByLabel과 같은 방식).
+ */
+async function loadSnsConsentForLastVisits(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  lastVisitReservations: { id: string; product_id: string }[],
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  if (lastVisitReservations.length === 0) return result;
+
+  const reservationIds = lastVisitReservations.map((r) => r.id);
+  const productIds = [...new Set(lastVisitReservations.map((r) => r.product_id))];
+
+  const [{ data: snsFields }, { data: answers }] = await Promise.all([
+    supabase
+      .from("custom_fields")
+      .select("id, product_id")
+      .eq("label", SNS_CONSENT_FIELD_LABEL)
+      .in("product_id", productIds),
+    supabase
+      .from("reservation_answers")
+      .select("reservation_id, field_id, value")
+      .in("reservation_id", reservationIds),
+  ]);
+
+  const snsFieldIdByProduct = new Map(
+    (snsFields ?? []).map((f) => [f.product_id, f.id]),
+  );
+  const answersByReservation = new Map((answers ?? []).map((a) => [a.reservation_id + ":" + a.field_id, a.value]));
+
+  for (const r of lastVisitReservations) {
+    const fieldId = snsFieldIdByProduct.get(r.product_id);
+    if (!fieldId) continue;
+    const value = answersByReservation.get(r.id + ":" + fieldId);
+    if (value) result.set(r.id, value);
+  }
+  return result;
+}
+
 /** 관리자 고객DB 화면·구글 시트 동기화가 함께 쓰는 조회. */
 export async function loadCustomerSummaries(): Promise<CustomerSummary[]> {
   const supabase = await createClient();
@@ -21,10 +65,31 @@ export async function loadCustomerSummaries(): Promise<CustomerSummary[]> {
     supabase
       .from("customers")
       .select("phone, name, gender, birth_date, email, created_at"),
-    supabase.from("reservations").select("customer_phone, status, shoot_start"),
+    supabase
+      .from("reservations")
+      .select("id, customer_phone, product_id, status, shoot_start"),
   ]);
 
-  return summarizeCustomers(customers ?? [], computeVisitStats(visitRows ?? []));
+  const visitStats = computeVisitStats(visitRows ?? []);
+
+  const lastVisitReservations = [...visitStats.values()]
+    .map((s) => s.lastVisitReservationId)
+    .filter((id): id is string => id !== null)
+    .map((id) => (visitRows ?? []).find((r) => r.id === id))
+    .filter((r): r is NonNullable<typeof r> => r !== undefined)
+    .map((r) => ({ id: r.id, product_id: r.product_id }));
+
+  const snsConsentByReservationId = await loadSnsConsentForLastVisits(
+    supabase,
+    lastVisitReservations,
+  );
+
+  return summarizeCustomers(
+    customers ?? [],
+    visitStats,
+    kstToday(),
+    snsConsentByReservationId,
+  );
 }
 
 /**

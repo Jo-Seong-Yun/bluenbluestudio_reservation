@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { loadCustomerSummaries } from "@/lib/customers-db";
 import { CustomerTable } from "./customer-table";
 import { UploadToSheetButton } from "./upload-to-sheet-button";
+import { CustomerAddModal } from "./customer-add-modal";
 
 export const metadata: Metadata = { title: "고객DB" };
 
@@ -36,7 +37,10 @@ export default async function CustomersPage() {
             완료”로 처리된 예약만 셉니다.
           </p>
         </div>
-        <UploadToSheetButton />
+        <div className="flex shrink-0 gap-2">
+          <CustomerAddModal />
+          <UploadToSheetButton />
+        </div>
       </div>
 
       <CustomerTable customers={customers} />
