@@ -46,15 +46,30 @@ export function toEditorHtml(body: string): string {
  * HTML 본문의 {{변수}}를 값으로 채운다. 값(손님 이름 등)은 HTML로
  * 해석되지 않게 이스케이프하고, 여러 줄 값(후보목록 등)은 <br>로 줄을
  * 바꾼다. 모르는 변수는 renderEmailTemplate처럼 그대로 남긴다.
+ *
+ * {{촬영장소}}는 예외로, 관리자가 본문 어디에 적어 넣든 주소 텍스트
+ * 바로 뒤에 지도 앱 주소 복사 아이콘(/map 링크)을 자동으로 붙인다 —
+ * siteBaseUrl이 있을 때만.
  */
 export function renderEmailHtml(
   body: string,
   variables: Record<string, string>,
+  opts?: { siteBaseUrl?: string | null },
 ): string {
   return toEditorHtml(body).replace(
     /\{\{\s*([^}]+?)\s*\}\}/g,
-    (match, key: string) =>
-      key in variables ? escapeHtml(variables[key]).replace(/\n/g, "<br>") : match,
+    (match, key: string) => {
+      if (!(key in variables)) return match;
+      const html = escapeHtml(variables[key]).replace(/\n/g, "<br>");
+      if (key === "촬영장소" && opts?.siteBaseUrl && SAFE_URL.test(opts.siteBaseUrl)) {
+        const mapPageUrl = `${opts.siteBaseUrl}/map?q=${encodeURIComponent(variables[key])}`;
+        return (
+          html +
+          ` <a href="${escapeHtml(mapPageUrl)}" target="_blank" title="주소 복사" style="text-decoration:none;font-size:13px;">📋</a>`
+        );
+      }
+      return html;
+    },
   );
 }
 
@@ -63,73 +78,10 @@ type EmailShellOptions = {
   ctaUrl?: string | null;
   logoUrl?: string | null;
   brandColor?: string | null;
-  /** buildEmailVariables()가 반환한 변수맵 — 있으면 예약 정보 요약 블록을 본문 상단에 삽입한다. */
-  emailVariables?: Record<string, string> | null;
-  /** 사이트 베이스 URL — 있으면 촬영 장소 옆에 주소 복사 아이콘(/map 링크)을 붙인다. */
-  siteBaseUrl?: string | null;
 };
 
 const SAFE_HEX = /^#[0-9a-fA-F]{6}$/;
 const SAFE_URL = /^https?:\/\//;
-
-/**
- * buildEmailVariables()의 변수맵에서 핵심 예약 정보만 뽑아
- * 이메일 상단에 넣을 요약 박스 HTML을 만든다.
- * 값이 하나도 없으면 빈 문자열을 돌려줘 블록 자체가 나타나지 않는다.
- */
-function buildReservationSummaryHtml(
-  vars: Record<string, string>,
-  siteBaseUrl?: string | null,
-): string {
-  const rows: { label: string; html: string }[] = [];
-
-  if (vars["예약번호"]) rows.push({ label: "예약 번호", html: escapeHtml(vars["예약번호"]) });
-  if (vars["상품명"]) rows.push({ label: "상품", html: escapeHtml(vars["상품명"]) });
-
-  if (vars["일시"]) {
-    rows.push({ label: "촬영 일시", html: escapeHtml(vars["일시"]) });
-  } else if (vars["후보목록"]) {
-    rows.push({ label: "희망 시간", html: escapeHtml(vars["후보목록"]).replace(/\n/g, "<br>") });
-  }
-
-  // 일정변경 이메일에서만 나온다 — 일시(확정 시각)가 있으면 확정/리마인드 계열이므로 숨긴다
-  if (!vars["일시"] && vars["기존일시"] && vars["변경일시"]) {
-    rows.push({ label: "기존 일시", html: escapeHtml(vars["기존일시"]) });
-    rows.push({ label: "변경 일시", html: escapeHtml(vars["변경일시"]) });
-  }
-
-  if (vars["촬영장소"]) {
-    const addr = vars["촬영장소"];
-    const mapPageUrl =
-      siteBaseUrl && SAFE_URL.test(siteBaseUrl)
-        ? `${siteBaseUrl}/map?q=${encodeURIComponent(addr)}`
-        : null;
-    const copyIcon = mapPageUrl
-      ? ` <a href="${escapeHtml(mapPageUrl)}" target="_blank" title="주소 복사" style="text-decoration:none;font-size:13px;">📋</a>`
-      : "";
-
-    rows.push({ label: "촬영 장소", html: `${escapeHtml(addr)}${copyIcon}` });
-  }
-
-  if (rows.length === 0) return "";
-
-  const rowsHtml = rows
-    .map(
-      ({ label, html }) =>
-        `<tr>` +
-        `<td style="font-size:12px;font-weight:600;color:#6b7280;padding:4px 0;width:76px;vertical-align:top;white-space:nowrap;">${escapeHtml(label)}</td>` +
-        `<td style="font-size:13px;color:#111827;padding:4px 0 4px 12px;">${html}</td>` +
-        `</tr>`,
-    )
-    .join("");
-
-  return (
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin:0 0 24px;">` +
-    `<tr><td style="padding:14px 18px;font-family:${EMAIL_FONT_STACK};">` +
-    `<table width="100%" cellpadding="0" cellspacing="0" border="0">${rowsHtml}</table>` +
-    `</td></tr></table>`
-  );
-}
 
 /**
  * 실제 발송용 HTML. 에디터가 만든 빈 문단(<p></p>)은 메일 앱에서 높이
@@ -171,13 +123,8 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
       `</td></tr></table>`;
   }
 
-  const summaryBlock = options?.emailVariables
-    ? buildReservationSummaryHtml(options.emailVariables)
-    : "";
-
   const body =
     `<div style="font-family:${EMAIL_FONT_STACK};font-size:15px;line-height:1.7;color:#1f2937">` +
-    summaryBlock +
     safe +
     ctaBlock +
     "</div>";
