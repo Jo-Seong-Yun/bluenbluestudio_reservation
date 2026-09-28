@@ -18,7 +18,7 @@ function formatCandidateTime(iso: string): string {
 }
 
 /**
- * 손님이 낸 후보(1~3지망) 중 하나를 관리자가 골라 확정한다. 이것도
+ * 손님이 낸 후보(최대 3개) 중 하나를 관리자가 골라 확정한다. 이것도
  * "일정확정"과 같은 결과(schedule_confirmed)라, 다른 상태 변경과 똑같이
  * 확인모달(나갈 이메일 미리보기+수정)을 거친다. 확정 자체는 이 순간에야
  * 비로소 그 시간이 실제로 점유되므로(confirmReservationCandidate 참고),
@@ -43,7 +43,7 @@ export function ConfirmCandidateButtons({
             key={c.rank}
             reservationId={reservationId}
             triggerType="on_schedule_confirmed"
-            buttonLabel={`${c.rank}지망 · ${formatCandidateTime(c.shootStart)}로 확정`}
+            buttonLabel={`${c.rank}번째 · ${formatCandidateTime(c.shootStart)}로 확정`}
             buttonClassName="w-full justify-start"
             modalTitle="일정확정 확인"
             confirmAction={confirmReservationCandidate}

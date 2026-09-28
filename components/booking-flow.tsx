@@ -26,7 +26,7 @@ function formatCandidate({ date, time }: Candidate): string {
 }
 
 /**
- * 달력 → 시간 선택을 정확히 3번(1지망~3지망) 반복해 희망 시간 후보를
+ * 달력 → 시간 선택을 정확히 3번 반복해 희망 시간 후보를
  * 모은다. 후보는 확정 전까지 어떤 시간도 잠그지 않는 정책이라(다른
  * 손님도 같은 시간을 후보로 낼 수 있다), 여기서는 그냥 목록에 담기만
  * 하고 실제 서버 확인은 신청서 페이지(apply)와 제출 시점에 한다.
@@ -147,9 +147,9 @@ export function BookingFlow({
             maxMonth={maxMonth}
           />
 
-          {/* 지금까지 고른 후보(1~3지망) 목록. 사장님이 이 중 하나를 골라
+          {/* 지금까지 고른 후보(최대 3개) 목록. 사장님이 이 중 하나를 골라
               확정한다 — 손님도 순서가 그대로 우선순위라는 걸 알 수 있게
-              "n지망"을 붙여 보여준다.
+              "n번째"를 붙여 보여준다.
               lg 이상(달력·시간 칸이 나란히 있고 신청 버튼이 달력 높이의
               세로 중앙에 고정될 때)에서는 빈 자리도 높이만 차지한 채
               안 보이게 둬서 달력 박스 높이가, 곧 버튼 위치가 흔들리지
@@ -169,11 +169,11 @@ export function BookingFlow({
                   <button
                     type="button"
                     onClick={() => removeCandidate(i)}
-                    aria-label={`${i + 1}지망 ${formatCandidate(c)} 삭제`}
+                    aria-label={`${i + 1}번째 ${formatCandidate(c)} 삭제`}
                     className="border-brand bg-brand text-brand-foreground flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
                   >
                     <span className="text-boost">
-                      <span className="mr-1.5 opacity-80">{i + 1}지망</span>
+                      <span className="mr-1.5 opacity-80">{i + 1}번째</span>
                       {formatCandidate(c)}
                     </span>
                     <span className="text-brand-foreground/80" aria-hidden>
@@ -183,7 +183,7 @@ export function BookingFlow({
                 ) : (
                   <div className="hidden items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2 text-sm invisible transition-colors lg:flex">
                     <span className="text-boost">
-                      <span className="mr-1.5 opacity-80">{i + 1}지망</span>{" "}
+                      <span className="mr-1.5 opacity-80">{i + 1}번째</span>{" "}
                     </span>
                   </div>
                 )}

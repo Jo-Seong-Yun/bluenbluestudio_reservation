@@ -16,17 +16,16 @@ function formatMoney(amount: number): string {
   return `${amount.toLocaleString()}원`;
 }
 
-/** "1지망 9월 12일(토) 10:00 / 2지망 9월 13일(일) 14:00" 형태로 후보를 나열한다. */
+/** "1번째 9월 12일(토) 10:00 / 2번째 9월 13일(일) 14:00" 형태로 후보를 나열한다. */
 function formatCandidateList(candidateTimes: Date[]): string {
-  const labels = ["1지망", "2지망", "3지망"];
   return candidateTimes
-    .map((time, i) => `${labels[i]} ${formatShootTime(time)}`)
+    .map((time, i) => `${i + 1}번째 ${formatShootTime(time)}`)
     .join(" / ");
 }
 
 /**
  * 이메일 본문의 {{후보목록}} 변수용. SMS는 한 줄에 다 욱여넣어야 해서
- * " / "로 이어 붙이지만, 이메일은 줄 수 제한이 없으니 "1지망/2지망"
+ * " / "로 이어 붙이지만, 이메일은 줄 수 제한이 없으니 "1번째/2번째"
  * 같은 순위 표시 없이 날짜·요일·시간만 한 줄씩 나열한다.
  */
 function formatCandidateListMultiline(candidateTimes: Date[]): string {
