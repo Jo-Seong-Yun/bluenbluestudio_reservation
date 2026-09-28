@@ -97,7 +97,10 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
   // 최대 3개. PC에서는 개수와 무관하게 표(<table>)의 셀들이 항상
   // 가로로 나란히 놓인다. 모바일 전용 미디어쿼리(wrapInEmailShell의
   // cta-stack 스타일)가 3개일 때만 셀을 block으로 바꿔 세로로
-  // 쌓는다 — 2개는 좁은 화면에서도 가로 그대로 둔다.
+  // 쌓는다 — 2개는 좁은 화면에서도 가로 그대로 둔다. 버튼 전체
+  // 묶음은 항상 본문 폭의 60%를 채우고, 그 안에서 개수만큼 균등
+  // 분할해 각 버튼이 셀 너비를 꽉 채우도록(가로길이 유동) 한다 —
+  // 글자 길이에 맞춰 제각각 좁아지는 대신 버튼끼리 폭이 맞춰진다.
   const validCtas = (options?.ctas ?? [])
     .filter((c): c is CtaButton => Boolean(c.text && c.url && SAFE_URL.test(c.url)))
     .slice(0, 3);
@@ -108,17 +111,18 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
       options?.brandColor && SAFE_HEX.test(options.brandColor)
         ? options.brandColor
         : "#111827";
+    const cellWidthPct = (100 / validCtas.length).toFixed(2);
     const cells = validCtas
       .map(
         (c) =>
-          `<td class="cta-td" align="center" style="padding:4px;">` +
-          `<a href="${escapeHtml(c.url)}" target="_blank" class="cta-btn" style="display:inline-block;background-color:${btnColor};color:#ffffff;font-family:${EMAIL_FONT_STACK};padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,.12);white-space:nowrap;">${escapeHtml(c.text)}</a>` +
+          `<td class="cta-td" align="center" width="${cellWidthPct}%" style="padding:4px;width:${cellWidthPct}%;">` +
+          `<a href="${escapeHtml(c.url)}" target="_blank" class="cta-btn" style="display:block;width:100%;box-sizing:border-box;background-color:${btnColor};color:#ffffff;font-family:${EMAIL_FONT_STACK};padding:12px 10px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;line-height:1.3;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.12);">${escapeHtml(c.text)}</a>` +
           `</td>`,
       )
       .join("");
     const stackClass = validCtas.length >= 3 ? " cta-stack" : "";
     ctaBlock =
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="cta-table${stackClass}" style="margin:24px 0 4px;">` +
+      `<table role="presentation" width="60%" align="center" cellpadding="0" cellspacing="0" border="0" class="cta-table${stackClass}" style="margin:24px auto 4px;width:60%;">` +
       `<tr>${cells}</tr></table>`;
   }
 
@@ -145,8 +149,12 @@ function wrapInEmailShell(content: string, options?: EmailShellOptions): string 
   // CTA가 3개일 때만 모바일(480px 이하)에서 표 셀을 block으로 바꿔
   // 세로로 쌓는다 — 1·2개는 화면 크기와 무관하게 항상 가로 그대로.
   // 각 셀에 이미 준 padding:4px가 쌓였을 때 버튼 사이 세로 여백이 된다.
+  // 버튼 묶음 자체의 폭(cta-table)은 PC에서는 본문의 60%로 좁혀 두지만,
+  // 그 60%를 모바일 좁은 화면에 그대로 적용하면 버튼 한 칸이 너무
+  // 좁아져 글자가 두 줄로 꺾인다 — 모바일에서는 폭을 100%로 넓혀
+  // 칸마다 충분한 너비를 준다(2개는 반반, 3개는 세로 쌓기라 각각 100%).
   const ctaStyle = options?.ctas?.length
-    ? `<style>.cta-btn{transition:opacity .15s,transform .15s,box-shadow .15s}.cta-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18)!important}@media only screen and (max-width:480px){.cta-stack .cta-td{display:block!important;width:100%!important}}</style>`
+    ? `<style>.cta-btn{transition:opacity .15s,transform .15s,box-shadow .15s}.cta-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18)!important}@media only screen and (max-width:480px){.cta-table{width:100%!important}.cta-stack .cta-td{display:block!important;width:100%!important}}</style>`
     : "";
   // 대부분의 메일 앱은 <link>로 외부 폰트를 못(안) 불러오지만, 관리자
   // 화면의 "미리보기"는 이 HTML을 그대로 iframe에 넣어 일반 브라우저로
