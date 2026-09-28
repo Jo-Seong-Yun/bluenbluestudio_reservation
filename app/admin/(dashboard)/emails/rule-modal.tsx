@@ -56,6 +56,7 @@ export function RuleModal({
   const [body, setBody] = useState(toEditorHtml(rule?.body ?? ""));
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyEditorRef = useRef<Editor | null>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
   const lastFocused = useRef<"subject" | "body">("body");
   const [epoch, setEpoch] = useState(0);
 
@@ -112,6 +113,22 @@ export function RuleModal({
     ...(siteVariables.공지 ? { 공지: siteVariables.공지 } : {}),
   };
 
+  const previewHtml = finalizeEmailHtml(renderEmailHtml(body, previewValues), {
+    ctaText: ctaEnabled ? ctaText : null,
+    ctaUrl: ctaEnabled ? ctaUrl : null,
+  });
+
+  // <iframe srcDoc>은 값이 바뀌어도 일부 브라우저에서 다시 그리지 않는
+  // 경우가 있어, 본문을 고칠 때마다 직접 document.write로 새로 그려
+  // 우측 미리보기가 실시간으로 반영되게 한다.
+  useEffect(() => {
+    const doc = previewIframeRef.current?.contentDocument;
+    if (!doc) return;
+    doc.open();
+    doc.write(previewHtml);
+    doc.close();
+  }, [previewHtml]);
+
   return (
     <>
       {isEdit ? (
@@ -131,11 +148,11 @@ export function RuleModal({
 
       <dialog
         ref={dialogRef}
-        className="border-border bg-surface text-foreground rounded-xl border p-0 backdrop:bg-black/50"
+        className="email-modal-dialog border-border bg-surface text-foreground rounded-xl border p-0 backdrop:bg-black/50"
         style={{ width: "calc(100vw - 2rem)", maxWidth: "64rem", margin: "auto" }}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between border-b border-inherit px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-inherit px-5 py-4">
           <p className="font-bold">{isEdit ? "규칙 수정" : "규칙 추가"}</p>
           <button
             type="button"
@@ -362,13 +379,10 @@ export function RuleModal({
               </p>
             </div>
             <iframe
+              ref={previewIframeRef}
               title="메일 미리보기"
               className="border-border rounded-md border bg-white"
               style={{ flex: 1, minHeight: 0 }}
-              srcDoc={finalizeEmailHtml(renderEmailHtml(body, previewValues), {
-                ctaText: ctaEnabled ? ctaText : null,
-                ctaUrl: ctaEnabled ? ctaUrl : null,
-              })}
             />
           </div>
 

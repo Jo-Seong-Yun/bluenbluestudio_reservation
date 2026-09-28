@@ -98,12 +98,15 @@ html::-webkit-scrollbar {
 
 /* <dialog>는 브라우저 기본값이 margin:auto라 화면 중앙에 뜨지만,
    Tailwind preflight가 margin을 0으로 리셋해버려서 좌상단에 붙어버린다.
-   showModal()로 여는 모든 다이얼로그가 항상 화면 정중앙에 오도록 고정한다. */
+   showModal()로 여는 모든 다이얼로그가 항상 화면 정중앙에 오도록 고정한다.
+   내용이 뷰포트보다 커지면 top:50%+translate(-50%) 계산상 위쪽이 화면
+   밖으로 밀려나 잘려 보이므로, 뷰포트를 넘지 않게 상한도 같이 둔다. */
 dialog[open] {
   position: fixed;
   top: 50%;
   left: 50%;
   margin: 0;
+  max-height: calc(100vh - 2rem);
   transform: translate(-50%, -50%);
 }
 
@@ -231,10 +234,20 @@ dialog[open] {
   }
 }
 
-/* 이메일 규칙 모달 — PC: 좌우 2열, 모바일: 위아래 1열 */
+/* 이메일 규칙 모달 — 헤더는 고정, 본문(2열)만 남은 공간을 채우며
+   내부 스크롤되게 다이얼로그 자체를 세로 flex로 만든다. 이렇게 해야
+   dialog[open]의 max-height(뷰포트 상한)에 맞춰 모달 전체 높이가
+   줄어들 때도 헤더가 위로 밀려 잘리지 않는다. PC: 좌우 2열, 모바일:
+   위아래 1열. */
+.email-modal-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
 .email-modal-body {
   display: flex;
-  height: 82vh;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 .email-modal-form {
@@ -257,8 +270,6 @@ dialog[open] {
 @media (max-width: 768px) {
   .email-modal-body {
     flex-direction: column;
-    height: auto;
-    max-height: 82vh;
     overflow-y: auto;
   }
   .email-modal-preview {
