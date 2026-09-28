@@ -46,30 +46,15 @@ export function toEditorHtml(body: string): string {
  * HTML 본문의 {{변수}}를 값으로 채운다. 값(손님 이름 등)은 HTML로
  * 해석되지 않게 이스케이프하고, 여러 줄 값(후보목록 등)은 <br>로 줄을
  * 바꾼다. 모르는 변수는 renderEmailTemplate처럼 그대로 남긴다.
- *
- * {{촬영장소}}는 예외로, 관리자가 본문 어디에 적어 넣든 주소 텍스트
- * 바로 뒤에 지도 앱 주소 복사 아이콘(/map 링크)을 자동으로 붙인다 —
- * siteBaseUrl이 있을 때만.
  */
 export function renderEmailHtml(
   body: string,
   variables: Record<string, string>,
-  opts?: { siteBaseUrl?: string | null },
 ): string {
   return toEditorHtml(body).replace(
     /\{\{\s*([^}]+?)\s*\}\}/g,
-    (match, key: string) => {
-      if (!(key in variables)) return match;
-      const html = escapeHtml(variables[key]).replace(/\n/g, "<br>");
-      if (key === "촬영장소" && opts?.siteBaseUrl && SAFE_URL.test(opts.siteBaseUrl)) {
-        const mapPageUrl = `${opts.siteBaseUrl}/map?q=${encodeURIComponent(variables[key])}`;
-        return (
-          html +
-          ` <a href="${escapeHtml(mapPageUrl)}" target="_blank" title="주소 복사" style="text-decoration:none;font-size:13px;">📋</a>`
-        );
-      }
-      return html;
-    },
+    (match, key: string) =>
+      key in variables ? escapeHtml(variables[key]).replace(/\n/g, "<br>") : match,
   );
 }
 
