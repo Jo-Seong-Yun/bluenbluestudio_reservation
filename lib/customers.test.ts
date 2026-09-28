@@ -8,8 +8,11 @@ import {
   type ReservationVisitRow,
 } from "./customers";
 
+let nextRowId = 0;
+
 function visitRow(overrides: Partial<ReservationVisitRow>): ReservationVisitRow {
   return {
+    id: `r${nextRowId++}`,
     customer_phone: "010-0000-0000",
     status: "requested",
     shoot_start: null,
@@ -44,13 +47,14 @@ describe("computeVisitStats", () => {
 
   it("완료된 예약이 여러 건이면 가장 이르고 가장 늦은 날짜를 찾는다(입력 순서 무관)", () => {
     const stats = computeVisitStats([
-      visitRow({ customer_phone: "010-1111-1111", status: "completed", shoot_start: "2026-08-01T00:00:00Z" }),
-      visitRow({ customer_phone: "010-1111-1111", status: "completed", shoot_start: "2026-02-01T00:00:00Z" }),
+      visitRow({ id: "later", customer_phone: "010-1111-1111", status: "completed", shoot_start: "2026-08-01T00:00:00Z" }),
+      visitRow({ id: "earlier", customer_phone: "010-1111-1111", status: "completed", shoot_start: "2026-02-01T00:00:00Z" }),
     ]);
     const summary = stats.get("010-1111-1111");
     expect(summary?.firstVisit).toBe("2026-02-01");
     expect(summary?.lastVisit).toBe("2026-08-01");
     expect(summary?.visitCount).toBe(2);
+    expect(summary?.lastVisitReservationId).toBe("later");
   });
 
   it("완료된 예약이 하나도 없으면 그 손님은 맵에 아예 없다", () => {
@@ -81,22 +85,67 @@ describe("summarizeCustomers", () => {
 
   it("customers 행과 방문 집계를 합친다", () => {
     const visitStats = new Map([
-      ["010-1111-1111", { firstVisit: "2026-01-01", lastVisit: "2026-06-01", visitCount: 2 }],
+      [
+        "010-1111-1111",
+        {
+          firstVisit: "2026-01-01",
+          lastVisit: "2026-06-01",
+          visitCount: 2,
+          lastVisitReservationId: "res1",
+        },
+      ],
     ]);
-    const [summary] = summarizeCustomers([record], visitStats);
+    const [summary] = summarizeCustomers([record], visitStats, "2026-06-15");
     expect(summary.name).toBe("김철수");
     expect(summary.genderLabel).toBe("남");
     expect(summary.birthDate).toBe("1995-05-05");
     expect(summary.firstVisit).toBe("2026-01-01");
     expect(summary.lastVisit).toBe("2026-06-01");
     expect(summary.visitCount).toBe(2);
+    expect(summary.daysSinceLastVisit).toBe(14);
   });
 
-  it("방문 집계가 없으면(=완료된 예약 없음) 0건으로 채운다", () => {
+  it("방문 집계가 없으면(=완료된 예약 없음) 0건으로 채우고 경과일수·SNS동의는 null", () => {
     const [summary] = summarizeCustomers([record], new Map());
     expect(summary.firstVisit).toBeNull();
     expect(summary.lastVisit).toBeNull();
     expect(summary.visitCount).toBe(0);
+    expect(summary.daysSinceLastVisit).toBeNull();
+    expect(summary.lastVisitSnsConsent).toBeNull();
+  });
+
+  it("최근 방문 예약의 SNS 동의 답변을 찾아 채운다", () => {
+    const visitStats = new Map([
+      [
+        "010-1111-1111",
+        {
+          firstVisit: "2026-01-01",
+          lastVisit: "2026-06-01",
+          visitCount: 1,
+          lastVisitReservationId: "res1",
+        },
+      ],
+    ]);
+    const snsMap = new Map([["res1", "동의"]]);
+    const [summary] = summarizeCustomers([record], visitStats, "2026-06-01", snsMap);
+    expect(summary.lastVisitSnsConsent).toBe("동의");
+  });
+
+  it("SNS 동의 답변이 무응답/알 수 없는 값이면 null로 본다", () => {
+    const visitStats = new Map([
+      [
+        "010-1111-1111",
+        {
+          firstVisit: "2026-01-01",
+          lastVisit: "2026-06-01",
+          visitCount: 1,
+          lastVisitReservationId: "res1",
+        },
+      ],
+    ]);
+    const snsMap = new Map([["res1", "잘못된값"]]);
+    const [summary] = summarizeCustomers([record], visitStats, "2026-06-01", snsMap);
+    expect(summary.lastVisitSnsConsent).toBeNull();
   });
 
   it("성별 값이 없으면 genderLabel은 빈 문자열", () => {

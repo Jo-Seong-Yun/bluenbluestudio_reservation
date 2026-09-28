@@ -101,6 +101,8 @@ export function CustomerTable({
               <th className="px-4 py-3 font-medium">메일주소</th>
               <th className="px-4 py-3 font-medium">첫방문일</th>
               <th className="px-4 py-3 font-medium">최근방문일</th>
+              <th className="px-4 py-3 font-medium">최근방문 경과</th>
+              <th className="px-4 py-3 font-medium">SNS 업로드 동의</th>
               <th className="px-4 py-3 font-medium">총방문횟수</th>
               <th className="px-4 py-3 font-medium">정보수집일</th>
               <th className="px-4 py-3 font-medium">
@@ -111,7 +113,7 @@ export function CustomerTable({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={11} className="text-muted px-4 py-8 text-center">
+                <td colSpan={13} className="text-muted px-4 py-8 text-center">
                   {customers.length === 0
                     ? "아직 예약한 손님이 없습니다."
                     : "검색 결과가 없습니다."}
@@ -136,6 +138,20 @@ export function CustomerTable({
                   <td className="px-4 py-3">{c.email ?? "-"}</td>
                   <td className="px-4 py-3">{c.firstVisit ?? "-"}</td>
                   <td className="px-4 py-3">{c.lastVisit ?? "-"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {c.daysSinceLastVisit !== null ? `${c.daysSinceLastVisit}일 경과` : "-"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.lastVisitSnsConsent === "동의" ? (
+                      <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                        동의
+                      </span>
+                    ) : c.lastVisitSnsConsent === "비동의" ? (
+                      <span className="text-muted">비동의</span>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">{c.visitCount}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {kstDateString(new Date(c.collectedAt))}

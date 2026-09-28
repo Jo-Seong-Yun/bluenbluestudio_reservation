@@ -272,7 +272,7 @@ export async function syncCustomerToSheet(phone: string): Promise<void> {
         .maybeSingle(),
       supabase
         .from("reservations")
-        .select("customer_phone, status, shoot_start")
+        .select("id, customer_phone, status, shoot_start")
         .eq("customer_phone", phone),
     ]);
     // customers 테이블 행이 아직 없으면(이론상 upsertCustomerFromReservation이
@@ -333,7 +333,7 @@ async function writeAllCustomersToSheet(): Promise<number> {
     supabase
       .from("customers")
       .select("phone, name, gender, birth_date, email, created_at"),
-    supabase.from("reservations").select("customer_phone, status, shoot_start"),
+    supabase.from("reservations").select("id, customer_phone, status, shoot_start"),
   ]);
 
   const customerRows = summarizeCustomers(
