@@ -170,6 +170,18 @@ describe("알림 문구", () => {
     expect(variables["후보목록"]).toBe("");
     expect(variables["기존일시"]).toBe("");
     expect(variables["변경일시"]).toBe("");
+    expect(variables["예상금액"]).toBe("");
+  });
+
+  it("예상금액은 기본가+옵션 합계를 천 단위 구분 기호와 함께 보여준다", () => {
+    const variables = buildEmailVariables({
+      customerName: "김철수",
+      productName: "프로필 촬영",
+      shootStart: SHOOT_START,
+      code: "AB12CD34",
+      estimatedAmount: 72000,
+    });
+    expect(variables["예상금액"]).toBe("72,000원");
   });
 
   it("확정 전 취소된 경우 이메일 변수의 일시는 빈 문자열이다", () => {

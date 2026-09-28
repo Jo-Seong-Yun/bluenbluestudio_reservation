@@ -627,7 +627,7 @@ export async function applyReservationTransition(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id",
+      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id, estimated_amount",
     )
     .eq("id", id)
     .single();
@@ -699,6 +699,7 @@ export async function applyReservationTransition(
     customerEmail: reservation.customer_email,
     productName: product?.name ?? "촬영",
     code: reservation.code,
+    estimatedAmount: reservation.estimated_amount,
   };
 
   after(async () => {
@@ -759,7 +760,7 @@ export async function cancelReservationWithReason(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id",
+      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id, estimated_amount",
     )
     .eq("id", id)
     .single();
@@ -820,6 +821,7 @@ export async function cancelReservationWithReason(
       code: reservation.code,
       cancelReason,
       emailOverrides: overrides,
+      estimatedAmount: reservation.estimated_amount,
     });
   });
 
@@ -936,7 +938,7 @@ export async function previewStatusChangeEmails(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, customer_name, customer_phone, shoot_start, shoot_location, product_id",
+      "code, customer_name, customer_phone, shoot_start, shoot_location, product_id, estimated_amount",
     )
     .eq("id", reservationId)
     .single();
@@ -959,6 +961,7 @@ export async function previewStatusChangeEmails(
       shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
       shootLocation: reservation.shoot_location,
       code: reservation.code,
+      estimatedAmount: reservation.estimated_amount,
     }),
     ...(await siteVariableOverrides()),
     ...extraVariables,
@@ -1023,7 +1026,7 @@ export async function confirmReservationCandidate(
     })
     .eq("id", id)
     .select(
-      "code, customer_name, customer_phone, customer_email, gender, birth_date, product_id",
+      "code, customer_name, customer_phone, customer_email, gender, birth_date, product_id, estimated_amount",
     )
     .single();
 
@@ -1067,6 +1070,7 @@ export async function confirmReservationCandidate(
         shootStart: new Date(candidate.shoot_start),
         code: reservation.code,
         emailOverrides: overrides,
+        estimatedAmount: reservation.estimated_amount,
       }),
       syncReservationToSheet(id),
       syncCustomerToSheet(reservation.customer_phone),
@@ -1691,6 +1695,7 @@ export async function createManualReservation(
             productName: product.name,
             shootStart,
             code,
+            estimatedAmount,
           }),
           syncReservationToSheet(reservationId),
           syncCustomerToSheet(input.customerPhone),
@@ -1759,7 +1764,7 @@ export async function rescheduleReservation(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, shoot_start, customer_name, customer_phone, customer_email, gender, birth_date, product_id",
+      "code, status, shoot_start, customer_name, customer_phone, customer_email, gender, birth_date, product_id, estimated_amount",
     )
     .eq("id", input.id)
     .single();
@@ -1834,6 +1839,7 @@ export async function rescheduleReservation(
         oldShootStart,
         newShootStart,
         code: reservation.code,
+        estimatedAmount: reservation.estimated_amount,
       }),
       syncReservationToSheet(input.id),
       syncCustomerToSheet(reservation.customer_phone),

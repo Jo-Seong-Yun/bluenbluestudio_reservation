@@ -11,6 +11,11 @@ function formatShootTime(shootStart: Date): string {
   return `${month}월 ${day}일(${weekday}) ${kstTimeString(shootStart)}`;
 }
 
+/** "72,000원" 형태로 금액을 안내한다. */
+function formatMoney(amount: number): string {
+  return `${amount.toLocaleString()}원`;
+}
+
 /** "1지망 9월 12일(토) 10:00 / 2지망 9월 13일(일) 14:00" 형태로 후보를 나열한다. */
 function formatCandidateList(candidateTimes: Date[]): string {
   const labels = ["1지망", "2지망", "3지망"];
@@ -219,6 +224,8 @@ export function buildEmailVariables(info: {
   newShootStart?: Date;
   /** 취소 시 관리자가 입력한 사유. */
   cancelReason?: string | null;
+  /** 기본가+선택한 유료 옵션 합계(reservations.estimated_amount). 없으면 빈 값. */
+  estimatedAmount?: number | null;
 }): Record<string, string> {
   return {
     이름: info.customerName ?? "",
@@ -236,5 +243,7 @@ export function buildEmailVariables(info: {
     기존일시: info.oldShootStart ? formatShootTime(info.oldShootStart) : "",
     변경일시: info.newShootStart ? formatShootTime(info.newShootStart) : "",
     취소사유: info.cancelReason ?? "",
+    예상금액:
+      info.estimatedAmount != null ? formatMoney(info.estimatedAmount) : "",
   };
 }
