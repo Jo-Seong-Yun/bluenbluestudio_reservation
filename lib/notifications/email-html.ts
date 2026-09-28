@@ -111,7 +111,15 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
       );
       return `<${tag}${attrs}>${fixedInner}</${tag}>`;
     })
-    .replace(/<table/g, '<table style="border-collapse:collapse;margin:12px 0"')
+    // 표는 항상 본문 폭을 꽉 채운다 — "요약 박스"처럼 한쪽 칸(라벨)만
+    // 고정 너비(예: width:76px)를 준 표는, 표 자체에 너비를 안 주면
+    // 내용 길이만큼만 좁게 그려져 카드 오른쪽에 빈 공간이 남는다.
+    // width:100%를 주면 라벨 칸은 지정한 고정폭을 유지하고 나머지
+    // 칸(값)이 남은 공간을 자동으로 채운다.
+    .replace(
+      /<table/g,
+      '<table width="100%" style="border-collapse:collapse;margin:12px 0;width:100%"',
+    )
     // style이 없는 셀에만 테두리를 넣는다(정렬 등 style이 이미 있는 셀은
     // 속성이 겹치지 않게 그대로 둔다).
     .replace(
