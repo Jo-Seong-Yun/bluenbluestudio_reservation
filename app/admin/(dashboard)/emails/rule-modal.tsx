@@ -113,6 +113,36 @@ export function RuleModal({
     });
   }
 
+  /**
+   * 선 없는 표 형식의 "요약 박스"를 커서 위치에 끼워 넣는다 — 라벨/값은
+   * 예시로 채워두되, 어떤 항목을 넣을지·순서·위치는 전부 직접 고치도록
+   * 둔다. 셀의 style(border:none)은 RichTextEditor의 TableCell 확장이
+   * 그대로 기억해 두므로, 발송 시 finalizeEmailHtml이 다른 표에만
+   * 넣는 테두리가 이 표에는 붙지 않는다.
+   */
+  function insertSummaryBox() {
+    const labelStyle =
+      "border:none;padding:4px 12px 4px 0;font-weight:600;color:#6b7280;white-space:nowrap;vertical-align:top;";
+    const valueStyle = "border:none;padding:4px 0;vertical-align:top;";
+    const rows: [string, string][] = [
+      ["예약 번호", "{{예약번호}}"],
+      ["상품", "{{상품명}}"],
+      ["촬영 일시", "{{일시}}"],
+      ["촬영 장소", "{{촬영장소}}"],
+    ];
+    const rowsHtml = rows
+      .map(
+        ([label, value]) =>
+          `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`,
+      )
+      .join("");
+    bodyEditorRef.current
+      ?.chain()
+      .focus()
+      .insertContent(`<table><tbody>${rowsHtml}</tbody></table><p></p>`)
+      .run();
+  }
+
   const needsDayOffset = DAY_OFFSET_TRIGGER_TYPES.has(triggerType);
 
   const previewValues = {
@@ -294,7 +324,16 @@ export function RuleModal({
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium">본문</label>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="block text-xs font-medium">본문</label>
+                  <button
+                    type="button"
+                    onClick={insertSummaryBox}
+                    className="text-brand text-xs font-medium hover:underline"
+                  >
+                    + 요약 박스 삽입
+                  </button>
+                </div>
                 <input type="hidden" name="body" value={body} />
                 <RichTextEditor
                   initial={body}

@@ -23,7 +23,12 @@ import Highlight from "@tiptap/extension-highlight";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import { TaskList, TaskItem } from "@tiptap/extension-list";
-import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table";
+import {
+  Table,
+  TableRow,
+  TableHeader,
+  TableCell as BaseTableCell,
+} from "@tiptap/extension-table";
 import {
   AlignCenter,
   AlignJustify,
@@ -84,6 +89,25 @@ import {
 } from "@/components/tiptap/formatting";
 import { publicImageUrl } from "@/lib/images";
 import { uploadProductImage } from "@/lib/storage-upload";
+
+/**
+ * 기본 TableCell은 style 속성을 기억하지 않아, "요약 박스"처럼 셀마다
+ * 테두리를 없애는 등 직접 넣은 인라인 스타일이 편집 중 사라진다 —
+ * style을 그대로 저장·복원하도록 속성을 하나 늘려둔다.
+ */
+const TableCell = BaseTableCell.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      style: {
+        default: null,
+        parseHTML: (el: HTMLElement) => el.getAttribute("style"),
+        renderHTML: (attrs: { style?: string | null }) =>
+          attrs.style ? { style: attrs.style } : {},
+      },
+    };
+  },
+});
 
 const editorContentBaseClass =
   "overflow-auto rounded-b-lg border border-t-0 border-border bg-surface " +
