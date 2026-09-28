@@ -66,9 +66,9 @@ export function Hero({ bookingHref }: { bookingHref: string }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="font-[family-name:var(--font-noto-serif-kr)] text-3xl leading-[1.1] text-white sm:text-5xl lg:text-[48px]"
+          className="font-[family-name:var(--font-noto-serif-kr)] text-[0.75rem] leading-[1.1] text-white sm:text-[1.2rem]"
         >
-          모든 배우의 푸르른 연기생활을 위해
+          세상 모든 배우의 푸르른 연기 인생을 위해
         </motion.p>
 
         <motion.div
