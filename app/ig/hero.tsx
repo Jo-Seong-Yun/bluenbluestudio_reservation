@@ -71,14 +71,24 @@ export function Hero() {
           Design at the speed of thought
         </motion.p>
 
-        <motion.h1
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="bg-gradient-to-b from-white via-white to-[#b4c0ff] bg-clip-text font-[family-name:var(--font-instrument-sans)] text-6xl font-semibold leading-[0.9] tracking-tighter text-transparent sm:text-8xl lg:text-[136px]"
-        >
-          Build Faster
-        </motion.h1>
+          role="img"
+          aria-label="푸르른 스튜디오"
+          className="aspect-[1054/542] w-[220px] bg-gradient-to-b from-white via-white to-[#b4c0ff] sm:w-[360px] lg:w-[560px]"
+          style={{
+            WebkitMaskImage: "url(/ig-logo-white.png)",
+            maskImage: "url(/ig-logo-white.png)",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+          }}
+        />
 
         <motion.p
           initial={{ opacity: 0 }}
