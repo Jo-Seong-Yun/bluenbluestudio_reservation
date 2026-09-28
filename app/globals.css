@@ -238,8 +238,11 @@ dialog[open] {
    내부 스크롤되게 다이얼로그 자체를 세로 flex로 만든다. 이렇게 해야
    dialog[open]의 max-height(뷰포트 상한)에 맞춰 모달 전체 높이가
    줄어들 때도 헤더가 위로 밀려 잘리지 않는다. PC: 좌우 2열, 모바일:
-   위아래 1열. */
-.email-modal-dialog {
+   위아래 1열.
+   반드시 [open]에만 걸어야 한다 — [open] 없이 display:flex를 주면
+   브라우저 기본값인 "열리지 않은 dialog는 display:none"을 덮어써서,
+   닫혀 있는 규칙마다의 모달이 전부 페이지에 나열되어 버린다. */
+.email-modal-dialog[open] {
   display: flex;
   flex-direction: column;
   max-height: 90vh;
