@@ -38,6 +38,22 @@ export const HIGHLIGHT_COLORS = [
   "#ffe599", "#f9cb9c", "#ea9999", "#b6d7a8", "#9fc5e8", "#b4a7d6",
 ] as const;
 
+/**
+ * 사이트 디자인 토큰(app/globals.css :root)을 리터럴 값으로 옮겨둔
+ * 것 — 표 셀 배경·테두리 색 고를 때 우리 브랜드 색을 바로 쓸 수 있게
+ * 한다. 손님 화면·이메일은 항상 라이트로 고정해서 보여주므로
+ * (다크 모드 대응 CSS 변수 대신) 라이트 모드 값을 그대로 쓴다.
+ */
+export const BRAND_COLORS = [
+  { label: "브랜드", value: "#3d6fe0" },
+  { label: "포인트", value: "#0e93b3" },
+  { label: "옅은 배경", value: "#eef3f9" },
+  { label: "테두리", value: "#dbe4ee" },
+  { label: "본문 글자", value: "#0b1b2b" },
+  { label: "보조 글자", value: "#5a6b7d" },
+  { label: "흰색", value: "#ffffff" },
+] as const;
+
 /** 특수문자 — 자주 쓰는 것 위주. */
 export const SPECIAL_CHARACTERS = [
   "·", "•", "◦", "‣", "■", "□", "▶", "▷", "★", "☆", "♥", "♡",
