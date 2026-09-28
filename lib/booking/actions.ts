@@ -200,6 +200,7 @@ export async function createReservation(
         productName,
         code,
         candidateTimes: candidateTimes.map((c) => c.shootStart),
+        estimatedAmount,
       };
 
       const { data: settingsRow } = await supabase
@@ -380,6 +381,7 @@ export async function cancelReservation(
           productName,
           shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
           code: reservation.code,
+          estimatedAmount: reservation.estimated_amount,
         }),
         syncReservationToSheet(reservation.id),
         syncCustomerToSheet(reservation.customer_phone),

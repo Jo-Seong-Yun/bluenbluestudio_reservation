@@ -128,7 +128,7 @@ async function sendRuleToTargetDay(
   let query = supabase
     .from("reservations")
     .select(
-      "id, code, customer_name, customer_phone, customer_email, shoot_start, shoot_location, product_id",
+      "id, code, customer_name, customer_phone, customer_email, shoot_start, shoot_location, product_id, estimated_amount",
     )
     .in("status", ["schedule_confirmed", "payment_confirmed"])
     .gte("shoot_start", rangeStart)
@@ -157,6 +157,7 @@ async function sendRuleToTargetDay(
       shootStart: new Date(reservation.shoot_start),
       shootLocation: reservation.shoot_location,
       code: reservation.code,
+      estimatedAmount: reservation.estimated_amount,
     });
 
     await sendDayOffsetRuleEmail({

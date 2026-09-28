@@ -423,6 +423,8 @@ type CustomerContact = {
   adminEmail?: string | null;
   /** 상품 필터가 걸린 이메일 규칙을 가려내는 데 쓴다. */
   productId: string;
+  /** {{예상금액}} 변수용 — 기본가+선택한 유료 옵션 합계. */
+  estimatedAmount?: number | null;
 };
 
 type ReservationNotice = CustomerContact & {
@@ -623,6 +625,8 @@ export async function notifyAdminNewRequest(info: {
   productName: string;
   candidateTimes: Date[];
   code: string;
+  /** {{예상금액}} 변수용 — 기본가+선택한 유료 옵션 합계. */
+  estimatedAmount?: number | null;
 }): Promise<void> {
   const tasks: Promise<void>[] = [];
 
