@@ -65,8 +65,6 @@ type EmailShellOptions = {
   brandColor?: string | null;
   /** buildEmailVariables()가 반환한 변수맵 — 있으면 예약 정보 요약 블록을 본문 상단에 삽입한다. */
   emailVariables?: Record<string, string> | null;
-  /** 사이트 베이스 URL — 있으면 촬영 장소에 /map 페이지 링크를 건다. */
-  siteBaseUrl?: string | null;
 };
 
 const SAFE_HEX = /^#[0-9a-fA-F]{6}$/;
@@ -77,10 +75,7 @@ const SAFE_URL = /^https?:\/\//;
  * 이메일 상단에 넣을 요약 박스 HTML을 만든다.
  * 값이 하나도 없으면 빈 문자열을 돌려줘 블록 자체가 나타나지 않는다.
  */
-function buildReservationSummaryHtml(
-  vars: Record<string, string>,
-  siteBaseUrl?: string | null,
-): string {
+function buildReservationSummaryHtml(vars: Record<string, string>): string {
   const rows: { label: string; html: string }[] = [];
 
   if (vars["예약번호"]) rows.push({ label: "예약 번호", html: escapeHtml(vars["예약번호"]) });
@@ -99,33 +94,7 @@ function buildReservationSummaryHtml(
   }
 
   if (vars["촬영장소"]) {
-    const addr = vars["촬영장소"];
-    const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(addr)}`;
-    const kakaoUrl = `https://map.kakao.com/?q=${encodeURIComponent(addr)}`;
-    const googleUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
-    const mapPageUrl =
-      siteBaseUrl && SAFE_URL.test(siteBaseUrl)
-        ? `${siteBaseUrl}/map?q=${encodeURIComponent(addr)}`
-        : null;
-
-    const linkStyle = "color:#2563eb;text-decoration:none;font-size:11px;white-space:nowrap;";
-    const copyLink = mapPageUrl
-      ? `<a href="${escapeHtml(mapPageUrl)}" target="_blank" style="${linkStyle}">📋 복사</a>`
-      : "";
-    const mapLinks =
-      `<a href="${escapeHtml(naverUrl)}" target="_blank" style="${linkStyle}">네이버</a>` +
-      ` · <a href="${escapeHtml(kakaoUrl)}" target="_blank" style="${linkStyle}">카카오</a>` +
-      ` · <a href="${escapeHtml(googleUrl)}" target="_blank" style="${linkStyle}">구글</a>`;
-    const linksRow =
-      (copyLink ? copyLink + `<span style="color:#d1d5db;margin:0 4px;">|</span>` : "") +
-      mapLinks;
-
-    rows.push({
-      label: "촬영 장소",
-      html:
-        `${escapeHtml(addr)}<br>` +
-        `<span style="display:inline-block;margin-top:4px;">${linksRow}</span>`,
-    });
+    rows.push({ label: "촬영 장소", html: escapeHtml(vars["촬영장소"]) });
   }
 
   if (rows.length === 0) return "";
@@ -189,7 +158,7 @@ export function finalizeEmailHtml(html: string, options?: EmailShellOptions): st
   }
 
   const summaryBlock = options?.emailVariables
-    ? buildReservationSummaryHtml(options.emailVariables, options.siteBaseUrl)
+    ? buildReservationSummaryHtml(options.emailVariables)
     : "";
 
   const body =
