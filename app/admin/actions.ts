@@ -1167,6 +1167,52 @@ export async function saveActivityMemo(
 }
 
 /**
+ * 통계 화면 "상세 로그" 한 줄을 삭제한다. 목록/상품 상세/신청서 진입
+ * 로그는 그 기록 테이블(ACTIVITY_MEMO_TABLE)에서 바로 지운다 —
+ * 집계 전용으로 쌓인 행이라 다른 화면에 영향이 없다. "실제 예약"
+ * 줄은 그 예약 자체를 완전히 지운다 — deleteReservationRow로
+ * 예약관리의 "완전 삭제"와 똑같이 처리해(구글시트·캘린더 동기화
+ * 포함), 양쪽에서 같은 손님 데이터가 따로 남지 않게 한다.
+ *
+ * 실제 행을 지우므로 조회수·신청수·유입경로별 집계·동향 그래프는
+ * 다음에 이 화면을 불러올 때 자동으로 그 행이 빠진 수치로 나온다 —
+ * loadProductAnalytics가 항상 남아있는 행만 세기 때문에 따로 재계산
+ * 로직을 둘 필요가 없다. "reset" 줄은 실제 행이 아니라 이 액션을
+ * 부르는 폼 자체가 없다.
+ */
+export async function deleteActivityLogEntry(formData: FormData): Promise<{ error?: string }> {
+  await requireAdmin();
+
+  const kind = String(formData.get("kind") ?? "");
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "대상을 찾을 수 없습니다." };
+
+  if (kind === "reservation") {
+    const { error } = await deleteReservationRow(id);
+    if (error) return { error };
+    revalidatePath("/admin/analytics");
+    revalidatePath("/admin/reservations");
+    return {};
+  }
+
+  if (!(kind in ACTIVITY_MEMO_TABLE)) {
+    return { error: "알 수 없는 종류입니다." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from(ACTIVITY_MEMO_TABLE[kind as keyof typeof ACTIVITY_MEMO_TABLE])
+    .delete()
+    .eq("id", id);
+  if (error) {
+    console.error("상세 로그 삭제 실패:", error.message);
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/analytics");
+  return {};
+}
+
+/**
  * 예약 한 건의 촬영 원가(대관료, 소품, 외주 등). 매출 관리 화면의
  * 순이익 계산에 쓴다. 빈 값으로 저장하면 null(=원가 없음)로 되돌아간다
  * — "0원"과 "아직 입력 안 함"을 구분해야 나중에 빠뜨린 건을 알아볼 수 있다.
@@ -1235,6 +1281,35 @@ export async function deleteMonthlyExpense(formData: FormData) {
 }
 
 /**
+ * 예약 행 자체를 지운다(구글시트·캘린더 동기화까지 포함) — 예약관리의
+ * "완전 삭제"와 통계 화면 "상세 로그"의 "실제 예약" 줄 삭제가 같은
+ * 손님 데이터를 가리키므로 이 핵심 처리를 공유한다. 호출하는 쪽이
+ * 각자 다른 화면을 revalidate/redirect한다.
+ */
+async function deleteReservationRow(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: deleted, error } = await supabase
+    .from("reservations")
+    .delete()
+    .eq("id", id)
+    .select("code, customer_phone, google_calendar_event_id")
+    .maybeSingle();
+  if (error) return { error: error.message };
+
+  if (deleted) {
+    after(() =>
+      Promise.all([
+        markReservationDeletedInSheet(deleted.code),
+        // 방문 집계(고객DB)는 삭제된 예약을 뺀 나머지로 다시 계산한다.
+        syncCustomerToSheet(deleted.customer_phone),
+        deleteReservationFromCalendar(deleted.google_calendar_event_id),
+      ]),
+    );
+  }
+  return {};
+}
+
+/**
  * 예약 완전 삭제.
  *
  * "취소"와 다르다 — 행 자체를 지운다. 되돌릴 수 없고, 손님도 예약
@@ -1253,26 +1328,10 @@ export async function deleteReservation(formData: FormData) {
   const month = String(formData.get("month") ?? "");
   const date = String(formData.get("date") ?? "");
 
-  const supabase = await createClient();
-  const { data: deleted, error } = await supabase
-    .from("reservations")
-    .delete()
-    .eq("id", id)
-    .select("code, customer_phone, google_calendar_event_id")
-    .maybeSingle();
+  const { error } = await deleteReservationRow(id);
   if (error) return;
 
   revalidatePath("/admin/reservations");
-  if (deleted) {
-    after(() =>
-      Promise.all([
-        markReservationDeletedInSheet(deleted.code),
-        // 방문 집계(고객DB)는 삭제된 예약을 뺀 나머지로 다시 계산한다.
-        syncCustomerToSheet(deleted.customer_phone),
-        deleteReservationFromCalendar(deleted.google_calendar_event_id),
-      ]),
-    );
-  }
 
   const params = new URLSearchParams();
   if (month) params.set("month", month);
