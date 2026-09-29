@@ -14,6 +14,7 @@ import {
 import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
 import { buildEmailVariables } from "@/lib/notifications/templates";
 import { getProductName } from "@/lib/notifications/product-name";
+import { loadSelectedPricedOptions } from "@/lib/booking/custom-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -150,7 +151,10 @@ async function sendRuleToTargetDay(
     }
     if (unsent.length === 0) continue;
 
-    const productName = await getProductName(reservation.product_id);
+    const [productName, selectedOptions] = await Promise.all([
+      getProductName(reservation.product_id),
+      loadSelectedPricedOptions(reservation.id),
+    ]);
     const variables = buildEmailVariables({
       customerName: reservation.customer_name,
       productName,
@@ -158,6 +162,7 @@ async function sendRuleToTargetDay(
       shootLocation: reservation.shoot_location,
       code: reservation.code,
       estimatedAmount: reservation.estimated_amount,
+      selectedOptions,
     });
 
     await sendDayOffsetRuleEmail({

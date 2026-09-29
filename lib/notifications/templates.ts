@@ -1,5 +1,6 @@
 import { kstDateString, kstTimeString, weekdayOf } from "../time";
 import { SITE } from "../site";
+import type { PricedSelection } from "../booking/custom-fields-shared";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -225,7 +226,29 @@ export function buildEmailVariables(info: {
   cancelReason?: string | null;
   /** 기본가+선택한 유료 옵션 합계(reservations.estimated_amount). 없으면 빈 값. */
   estimatedAmount?: number | null;
+  /** 신청자가 선택한 유료 추가옵션 — {{추가옵션}}/{{모든옵션}} 변수용.
+   * 없거나 빈 배열이면 두 변수 다 빈 값(모든옵션은 기본 상품 줄만 남을
+   * 수 있다). */
+  selectedOptions?: PricedSelection[];
 }): Record<string, string> {
+  const options = info.selectedOptions ?? [];
+  // 기본가만 따로 저장해두지 않으므로, 예상금액(기본가+옵션 합계)에서
+  // 옵션 합계를 빼서 역산한다 — 신청서 화면·서버 계산과 항상 같은
+  // 기준(estimatedAmount)을 쓰기 위해서다.
+  const addonTotal = options.reduce((sum, o) => sum + o.price, 0);
+  const baseAmount =
+    info.estimatedAmount != null ? info.estimatedAmount - addonTotal : null;
+
+  const addonLines = options.map(
+    (o) => `${o.label} (+${formatMoney(o.price)})`,
+  );
+  const allLines = info.productName
+    ? [
+        `${info.productName}${baseAmount != null ? ` (${formatMoney(baseAmount)})` : ""}`,
+        ...addonLines,
+      ]
+    : addonLines;
+
   return {
     이름: info.customerName ?? "",
     연락처: info.customerPhone ?? "",
@@ -244,5 +267,7 @@ export function buildEmailVariables(info: {
     취소사유: info.cancelReason ?? "",
     예상금액:
       info.estimatedAmount != null ? formatMoney(info.estimatedAmount) : "",
+    추가옵션: addonLines.join("\n"),
+    모든옵션: allLines.join("\n"),
   };
 }

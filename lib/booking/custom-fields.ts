@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   nameField,
   phoneField,
@@ -7,15 +8,60 @@ import {
   genderField,
   birthDateField,
 } from "@/lib/validation/reservation";
-import { fieldFormName, type CustomField } from "./custom-fields-shared";
+import {
+  fieldFormName,
+  selectedLabelsFromAnswers,
+  selectedPricedOptions,
+  type CustomField,
+  type PricedSelection,
+} from "./custom-fields-shared";
 
-export type { CustomField };
+export type { CustomField, PricedSelection };
 export {
   SPECIAL_FIELD_TYPES,
   FIELD_TYPE_LABELS,
   fieldFormName,
 } from "./custom-fields-shared";
 export type { SpecialFieldType } from "./custom-fields-shared";
+
+/**
+ * 이미 접수된 예약 하나가 선택한 유료 옵션 목록 — 이메일의
+ * {{추가옵션}}/{{모든옵션}} 변수용. 신청 시점 계산(selectedPricedOptions)과
+ * 같은 로직을 reservation_answers에 실제 저장된 답변에 그대로 적용한다.
+ * 문항이 나중에 삭제되거나 가격이 바뀌면 그 이후엔 신청 당시와 다른
+ * 값이 나올 수 있다 — 답변 자체에 당시 가격을 따로 못박아 두지 않기
+ * 때문이다(지금 규모에서는 감수할 만한 단순화).
+ *
+ * 관리용 클라이언트를 쓴다 — 접수(on_requested) 알림은 손님이 방금 낸
+ * 요청 안에서(관리자 로그인 세션 없이) 나가는데, reservation_answers는
+ * "관리자만 답변 관리" RLS라 로그인 세션 기반 클라이언트로는 못 읽는다
+ * (손님 쪽엔 등록만 허용돼 있다 — supabase/migrations의 정책 참고).
+ */
+export async function loadSelectedPricedOptions(
+  reservationId: string,
+): Promise<PricedSelection[]> {
+  const supabase = createAdminClient();
+  const { data: answers } = await supabase
+    .from("reservation_answers")
+    .select("field_id, value")
+    .eq("reservation_id", reservationId);
+  if (!answers || answers.length === 0) return [];
+
+  const fieldIds = [...new Set(answers.map((a) => a.field_id))];
+  const { data: fields } = await supabase
+    .from("custom_fields")
+    .select(
+      "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
+    )
+    .in("id", fieldIds);
+  if (!fields || fields.length === 0) return [];
+
+  const selectedLabels = selectedLabelsFromAnswers(
+    fields,
+    answers.map((a) => ({ fieldId: a.field_id, value: a.value })),
+  );
+  return selectedPricedOptions(fields, selectedLabels);
+}
 
 /** 이 상품의 예약 폼에 붙일, 켜져 있는 문항을 순서대로 가져온다. */
 export async function loadActiveCustomFields(
