@@ -7,6 +7,7 @@ import { kstDateString, kstTimeString } from "@/lib/time";
 import { ResetAnalyticsButton } from "./reset-analytics-button";
 import { ActivityMemo } from "./activity-memo";
 import { ActivityDeleteButton } from "./activity-delete-button";
+import { AnalyticsLastSeenTracker } from "./last-seen-tracker";
 
 export const metadata: Metadata = { title: "통계" };
 
@@ -29,8 +30,17 @@ const ACTIVITY_KIND_DOT: Record<ActivityLogEntry["kind"], string> = {
 };
 
 export default async function AnalyticsPage() {
-  const { rows, daily, hourly, listViews, applyViews, channelBreakdown, recentActivity } =
-    await loadProductAnalytics(TREND_DAYS);
+  const {
+    rows,
+    daily,
+    hourly,
+    listViews,
+    applyViews,
+    channelBreakdown,
+    recentActivity,
+    lastSeenAt,
+    previous,
+  } = await loadProductAnalytics(TREND_DAYS);
 
   const sortedRows = [...rows].sort((a, b) => b.views - a.views);
   const totalViews = rows.reduce((sum, r) => sum + r.views, 0);
@@ -43,12 +53,41 @@ export default async function AnalyticsPage() {
   const applyToApplicationRate =
     applyViews > 0 ? (totalApplications / applyViews) * 100 : null;
 
+  // 지난번 확인(previous) 시점 대비 변동치 계산용 — previous가 null이면
+  // (한 번도 연 적 없으면) 전부 null로 두어 아무 변동치도 안 보여준다.
+  const previousTotalViews = previous
+    ? previous.rows.reduce((sum, r) => sum + r.views, 0)
+    : null;
+  const previousTotalApplications = previous
+    ? previous.rows.reduce((sum, r) => sum + r.applications, 0)
+    : null;
+  const previousRowByProductId = previous
+    ? new Map(previous.rows.map((r) => [r.productId, r]))
+    : null;
+  const previousChannelByChannel = previous
+    ? new Map(previous.channelBreakdown.map((r) => [r.channel, r]))
+    : null;
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <AnalyticsLastSeenTracker />
+
+      <div className="mb-1 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">통계</h1>
         <ResetAnalyticsButton />
       </div>
+      {lastSeenAt ? (
+        <p className="text-muted mb-5 text-xs">
+          지난번 확인({kstDateString(new Date(lastSeenAt))}{" "}
+          {kstTimeString(new Date(lastSeenAt))}) 이후 변동된 값은{" "}
+          <span className="font-semibold text-red-600 dark:text-red-400">
+            빨간색
+          </span>
+          으로 표시됩니다.
+        </p>
+      ) : (
+        <div className="mb-6" />
+      )}
 
       {/* 상품 목록 진입 → 상품 상세(설명) 진입 → 신청서 진입 → 실제 예약,
           4단계 유입 퍼널. "상품 상세 → 신청서" 구간 이탈은 날짜·시간
@@ -57,13 +96,30 @@ export default async function AnalyticsPage() {
           진입은 특정 상품에 딸린 숫자가 아니라 사이트 전체 기준이라
           상품별 표에는 안 넣고 여기 요약에서만 보여준다. */}
       <div className="border-border bg-surface flex flex-wrap items-stretch gap-3 rounded-xl border p-4 sm:flex-nowrap">
-        <FunnelStep label="상품 목록 진입" value={listViews} />
+        <FunnelStep
+          label="상품 목록 진입"
+          value={listViews}
+          previous={previous?.listViews ?? null}
+        />
         <FunnelArrow rate={listToDetailRate} />
-        <FunnelStep label="상품 상세 진입" value={totalViews} />
+        <FunnelStep
+          label="상품 상세 진입"
+          value={totalViews}
+          previous={previousTotalViews}
+        />
         <FunnelArrow rate={detailToApplyRate} />
-        <FunnelStep label="신청서 진입" value={applyViews} />
+        <FunnelStep
+          label="신청서 진입"
+          value={applyViews}
+          previous={previous?.applyViews ?? null}
+        />
         <FunnelArrow rate={applyToApplicationRate} />
-        <FunnelStep label="실제 예약" value={totalApplications} highlight />
+        <FunnelStep
+          label="실제 예약"
+          value={totalApplications}
+          previous={previousTotalApplications}
+          highlight
+        />
       </div>
 
       <section className="border-border bg-surface mt-6 rounded-xl border p-4">
@@ -159,18 +215,42 @@ export default async function AnalyticsPage() {
                 </td>
               </tr>
             ) : (
-              sortedRows.map((row) => (
-                <tr key={row.productId} className="border-border border-t">
-                  <td className="px-4 py-3">{row.productName}</td>
-                  <td className="px-4 py-3">{row.views.toLocaleString()}</td>
-                  <td className="px-4 py-3">{row.applications.toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    {row.conversionRate === null
-                      ? "-"
-                      : `${row.conversionRate.toFixed(1)}%`}
-                  </td>
-                </tr>
-              ))
+              sortedRows.map((row) => {
+                const prevRow = previousRowByProductId?.get(row.productId) ?? null;
+                return (
+                  <tr key={row.productId} className="border-border border-t">
+                    <td className="px-4 py-3">{row.productName}</td>
+                    <td className="px-4 py-3">
+                      {row.views.toLocaleString()}
+                      <Delta
+                        current={row.views}
+                        previous={prevRow?.views ?? null}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.applications.toLocaleString()}
+                      <Delta
+                        current={row.applications}
+                        previous={prevRow?.applications ?? null}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.conversionRate === null
+                        ? "-"
+                        : `${row.conversionRate.toFixed(1)}%`}
+                      {row.conversionRate !== null &&
+                      prevRow?.conversionRate != null ? (
+                        <Delta
+                          current={row.conversionRate}
+                          previous={prevRow.conversionRate}
+                          suffix="%p"
+                          decimals={1}
+                        />
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -204,20 +284,42 @@ export default async function AnalyticsPage() {
                 </td>
               </tr>
             ) : (
-              channelBreakdown.map((row) => (
-                <tr key={row.channel} className="border-border border-t">
-                  <td className="px-4 py-3">{row.channel}</td>
-                  <td className="px-4 py-3">{row.views.toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    {row.applications.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    {row.conversionRate === null
-                      ? "-"
-                      : `${row.conversionRate.toFixed(1)}%`}
-                  </td>
-                </tr>
-              ))
+              channelBreakdown.map((row) => {
+                const prevRow = previousChannelByChannel?.get(row.channel) ?? null;
+                return (
+                  <tr key={row.channel} className="border-border border-t">
+                    <td className="px-4 py-3">{row.channel}</td>
+                    <td className="px-4 py-3">
+                      {row.views.toLocaleString()}
+                      <Delta
+                        current={row.views}
+                        previous={prevRow?.views ?? null}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.applications.toLocaleString()}
+                      <Delta
+                        current={row.applications}
+                        previous={prevRow?.applications ?? null}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.conversionRate === null
+                        ? "-"
+                        : `${row.conversionRate.toFixed(1)}%`}
+                      {row.conversionRate !== null &&
+                      prevRow?.conversionRate != null ? (
+                        <Delta
+                          current={row.conversionRate}
+                          previous={prevRow.conversionRate}
+                          suffix="%p"
+                          decimals={1}
+                        />
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -302,21 +404,55 @@ export default async function AnalyticsPage() {
 function FunnelStep({
   label,
   value,
+  previous,
   highlight,
 }: {
   label: string;
   value: number;
+  /** 지난번 확인 시점의 값. null이면(비교 기준 없음) 변동치를 안 보여준다. */
+  previous: number | null;
   highlight?: boolean;
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-1 px-2 py-1 text-center">
       <p className="text-muted text-xs">{label}</p>
-      <p
-        className={`text-2xl font-bold ${highlight ? "text-brand" : ""}`}
-      >
-        {value.toLocaleString()}
-      </p>
+      <div className="flex items-baseline gap-1">
+        <p className={`text-2xl font-bold ${highlight ? "text-brand" : ""}`}>
+          {value.toLocaleString()}
+        </p>
+        <Delta current={value} previous={previous} />
+      </div>
     </div>
+  );
+}
+
+/** 지난번 확인 값(previous) 대비 지금 값(current)의 변동치를 작은 빨간
+ * 글씨로 보여준다. 비교 기준이 없거나(previous === null) 변동이 없으면
+ * 아무것도 그리지 않는다. */
+function Delta({
+  current,
+  previous,
+  suffix = "",
+  decimals = 0,
+}: {
+  current: number;
+  previous: number | null;
+  suffix?: string;
+  decimals?: number;
+}) {
+  if (previous === null) return null;
+  const diff = current - previous;
+  if (Math.round(diff * 10 ** decimals) === 0) return null;
+  const sign = diff > 0 ? "+" : "-";
+  const magnitude = Math.abs(diff);
+  const formatted =
+    decimals > 0 ? magnitude.toFixed(decimals) : magnitude.toLocaleString();
+  return (
+    <span className="ml-1 text-[11px] font-semibold whitespace-nowrap text-red-600 dark:text-red-400">
+      {sign}
+      {formatted}
+      {suffix}
+    </span>
   );
 }
 

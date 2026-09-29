@@ -45,6 +45,16 @@ export type ChannelBreakdownRow = {
   conversionRate: number | null;
 };
 
+/** 지난번 통계 화면 확인 시점 기준 스냅샷 — 지금 값과 비교해 변동치를
+ * 보여주는 데 쓴다(app/admin/(dashboard)/analytics/last-seen-tracker.tsx가
+ * 화면을 볼 때마다 그 시점을 settings.analytics_last_seen_at에 남긴다). */
+export type ProductAnalyticsSnapshot = {
+  listViews: number;
+  applyViews: number;
+  rows: ProductAnalyticsRow[];
+  channelBreakdown: ChannelBreakdownRow[];
+};
+
 export type ProductAnalytics = {
   rows: ProductAnalyticsRow[];
   /** 최근 trendDays일, 전 상품 합계(사이트 전체 동향용). 날짜 오름차순. */
@@ -62,10 +72,33 @@ export type ProductAnalytics = {
   /** 최근 발생 순(내림차순)으로 최근 ACTIVITY_LOG_LIMIT건. 리셋과 무관하게
    * 항상 전체 기록을 보여준다(리셋 시점 자체도 한 줄로 섞여 나온다). */
   recentActivity: ActivityLogEntry[];
+  /** 통계 화면을 마지막으로 연 시점(ISO). 연 적이 없으면 null. */
+  lastSeenAt: string | null;
+  /** lastSeenAt 시점 기준 스냅샷 — 지금 값과 이 값의 차이가 변동치다.
+   * lastSeenAt이 없으면(한 번도 연 적 없으면) null — 비교 기준이 없어
+   * 변동치를 보여줄 수 없다. */
+  previous: ProductAnalyticsSnapshot | null;
 };
 
 /** 상세 로그에 보여줄 최근 이벤트 개수. */
 const ACTIVITY_LOG_LIMIT = 100;
+
+/** cutoff 이전(포함) 항목만 골라 keyOf 기준으로 개수를 센다 — "지난번
+ * 확인 시점까지는 몇 건이었나"를 상품별/채널별로 구할 때 쓴다. */
+function countByKeyUpTo<T>(
+  items: T[],
+  cutoff: string,
+  keyOf: (item: T) => string,
+  timeOf: (item: T) => string,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const item of items) {
+    if (timeOf(item) > cutoff) continue;
+    const key = keyOf(item);
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+  return map;
+}
 
 /**
  * 상품별 조회수·신청수·전환율과, 최근 며칠간의 사이트 전체 동향을
@@ -88,10 +121,17 @@ export async function loadProductAnalytics(
 
   const { data: settingsRow } = await supabase
     .from("settings")
-    .select("analytics_reset_at")
+    .select("analytics_reset_at, analytics_last_seen_at")
     .eq("id", 1)
     .single();
   const resetAt = settingsRow?.analytics_reset_at ?? null;
+  // 리셋 이전 값과는 비교할 대상이 없으니, 지난 확인 시점이 리셋보다
+  // 이르면(또는 아예 없으면) 변동치를 보여줄 기준이 없는 것으로 친다.
+  const lastSeenAt =
+    settingsRow?.analytics_last_seen_at &&
+    (!resetAt || settingsRow.analytics_last_seen_at > resetAt)
+      ? settingsRow.analytics_last_seen_at
+      : null;
 
   // 동향 그래프의 하한은 "최근 N일 시작"과 "마지막 리셋 시점" 중 더
   // 늦은 쪽 — 리셋이 그 안에 있으면 리셋 이전 날짜는 0으로 보인다.
@@ -127,7 +167,7 @@ export async function loadProductAnalytics(
     .select("product_id, ref, viewed_at");
   let allReservationRowsQuery = supabase
     .from("reservations")
-    .select("product_id, ref");
+    .select("product_id, ref, created_at");
   // 유입경로별 집계(channelBreakdown)에 목록 진입·신청서 진입도 같이
   // 세야 한다 — 상품 상세까지 못 가고 목록만 보고 이탈한 방문(예: ref만
   // 남기고 상세는 안 들어간 경우)도 그 채널의 실적이니, 상품 상세
@@ -283,6 +323,74 @@ export async function loadProductAnalytics(
     };
   });
 
+  // 지난번 확인(lastSeenAt) 시점까지는 각 숫자가 몇이었는지 — 지금 값과의
+  // 차이가 화면에 빨간 글씨로 보여줄 변동치다. 기준이 없으면(한 번도
+  // 연 적 없으면) 아예 계산하지 않는다.
+  let previous: ProductAnalyticsSnapshot | null = null;
+  if (lastSeenAt) {
+    const viewCountByProductPrev = countByKeyUpTo(
+      allViewRows ?? [],
+      lastSeenAt,
+      (r) => r.product_id,
+      (r) => r.viewed_at,
+    );
+    const applicationCountByProductPrev = countByKeyUpTo(
+      allReservationRows ?? [],
+      lastSeenAt,
+      (r) => r.product_id,
+      (r) => r.created_at,
+    );
+    const previousRows: ProductAnalyticsRow[] = (products ?? []).map((p) => {
+      const views = viewCountByProductPrev.get(p.id) ?? 0;
+      const applications = applicationCountByProductPrev.get(p.id) ?? 0;
+      return {
+        productId: p.id,
+        productName: p.name,
+        views,
+        applications,
+        conversionRate: views > 0 ? (applications / views) * 100 : null,
+      };
+    });
+
+    const channelViewsPrev = countByKeyUpTo(
+      [
+        ...(allListViewRows ?? []),
+        ...(allViewRows ?? []),
+        ...(allApplyViewRows ?? []),
+      ],
+      lastSeenAt,
+      (r) => r.ref?.trim() || DIRECT_CHANNEL,
+      (r) => r.viewed_at,
+    );
+    const channelApplicationsPrev = countByKeyUpTo(
+      allReservationRows ?? [],
+      lastSeenAt,
+      (r) => r.ref?.trim() || DIRECT_CHANNEL,
+      (r) => r.created_at,
+    );
+    const previousChannelBreakdown: ChannelBreakdownRow[] = channelBreakdown.map(
+      (row) => {
+        const views = channelViewsPrev.get(row.channel) ?? 0;
+        const applications = channelApplicationsPrev.get(row.channel) ?? 0;
+        return {
+          channel: row.channel,
+          views,
+          applications,
+          conversionRate: views > 0 ? (applications / views) * 100 : null,
+        };
+      },
+    );
+
+    previous = {
+      listViews: (allListViewRows ?? []).filter((r) => r.viewed_at <= lastSeenAt)
+        .length,
+      applyViews: (allApplyViewRows ?? []).filter((r) => r.viewed_at <= lastSeenAt)
+        .length,
+      rows: previousRows,
+      channelBreakdown: previousChannelBreakdown,
+    };
+  }
+
   const dailyMap = new Map<DateString, { views: number; applications: number }>();
   for (let i = 0; i < trendDays; i++) {
     dailyMap.set(addDays(since, i), { views: 0, applications: 0 });
@@ -370,5 +478,7 @@ export async function loadProductAnalytics(
     applyViews: applyViewCount ?? 0,
     channelBreakdown,
     recentActivity,
+    lastSeenAt,
+    previous,
   };
 }

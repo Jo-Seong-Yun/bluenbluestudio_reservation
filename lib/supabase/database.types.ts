@@ -272,6 +272,9 @@ export interface Database {
           /** "통계 리셋" 버튼을 마지막으로 누른 시점. 집계는 이 시점 이후
            * 기록만 센다(로그 자체는 지우지 않는다). 누른 적 없으면 null. */
           analytics_reset_at: string | null;
+          /** 통계 화면을 마지막으로 연 시점. 다음에 열 때 이 시점 이후
+           * 변동치를 빨간 글씨로 보여주는 데 쓴다. 연 적 없으면 null. */
+          analytics_last_seen_at: string | null;
           /** lib/booking-style.ts의 BookingStyle 그대로. */
           booking_style: {
             accentColor: string;
