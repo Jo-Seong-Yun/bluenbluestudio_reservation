@@ -35,6 +35,7 @@ import {
   selectedPricedOptions,
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
+import { loadSelectedPricedOptions } from "@/lib/booking/custom-fields";
 import {
   DAY_OFFSET_TRIGGER_TYPES,
   EMAIL_RECIPIENTS,
@@ -722,13 +723,14 @@ export async function applyReservationTransition(
     // (규칙이 없으면 sendTriggerEmails가 조용히 아무것도 안 보낸다).
     const triggerType = EMAIL_ONLY_STATUS_TRIGGERS[nextStatus];
     if (!triggerType) return;
+    const selectedOptions = await loadSelectedPricedOptions(id);
     return notifyEmailOnlyEvent({
       triggerType,
       reservationId: id,
       productId: reservation.product_id,
       customerEmail: reservation.customer_email,
       adminEmail,
-      variables: buildEmailVariables({ ...base, shootStart }),
+      variables: buildEmailVariables({ ...base, shootStart, selectedOptions }),
       overrides,
     });
   });
@@ -947,11 +949,10 @@ export async function previewStatusChangeEmails(
   const rules = await loadEmailRulesForTrigger(triggerType, reservation.product_id);
   if (rules.length === 0) return [];
 
-  const { data: product } = await supabase
-    .from("products")
-    .select("name")
-    .eq("id", reservation.product_id)
-    .single();
+  const [{ data: product }, selectedOptions] = await Promise.all([
+    supabase.from("products").select("name").eq("id", reservation.product_id).single(),
+    loadSelectedPricedOptions(reservationId),
+  ]);
 
   const variables = {
     ...buildEmailVariables({
@@ -962,6 +963,7 @@ export async function previewStatusChangeEmails(
       shootLocation: reservation.shoot_location,
       code: reservation.code,
       estimatedAmount: reservation.estimated_amount,
+      selectedOptions,
     }),
     ...(await siteVariableOverrides()),
     ...extraVariables,

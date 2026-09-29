@@ -171,6 +171,8 @@ describe("알림 문구", () => {
     expect(variables["기존일시"]).toBe("");
     expect(variables["변경일시"]).toBe("");
     expect(variables["예상금액"]).toBe("");
+    expect(variables["추가옵션"]).toBe("");
+    expect(variables["모든옵션"]).toBe("프로필 촬영");
   });
 
   it("예상금액은 기본가+옵션 합계를 천 단위 구분 기호와 함께 보여준다", () => {
@@ -219,6 +221,46 @@ describe("알림 문구", () => {
     expect(variables["후보목록"]).toBe(
       "9월 10일(목) 14:00\n9월 11일(금) 15:00",
     );
+  });
+
+  it("추가옵션 변수는 선택한 옵션과 가격을 한 줄씩 나열한다", () => {
+    const variables = buildEmailVariables({
+      customerName: "김철수",
+      productName: "프로필 촬영",
+      code: "AB12CD34",
+      estimatedAmount: 112000,
+      selectedOptions: [
+        { fieldId: "f1", label: "대본 추가", price: 10000 },
+        { fieldId: "f2", label: "헤어·메이크업", price: 30000 },
+      ],
+    });
+    expect(variables["추가옵션"]).toBe(
+      "대본 추가 (+10,000원)\n헤어·메이크업 (+30,000원)",
+    );
+  });
+
+  it("모든옵션 변수는 기본 상품(기본가)에 이어 추가옵션을 나열한다", () => {
+    const variables = buildEmailVariables({
+      productName: "프로필 촬영",
+      estimatedAmount: 112000,
+      selectedOptions: [
+        { fieldId: "f1", label: "대본 추가", price: 10000 },
+        { fieldId: "f2", label: "헤어·메이크업", price: 30000 },
+      ],
+    });
+    expect(variables["모든옵션"]).toBe(
+      "프로필 촬영 (72,000원)\n대본 추가 (+10,000원)\n헤어·메이크업 (+30,000원)",
+    );
+  });
+
+  it("선택한 옵션이 없으면 추가옵션은 빈 값, 모든옵션은 기본 상품 줄만 남는다", () => {
+    const variables = buildEmailVariables({
+      productName: "프로필 촬영",
+      estimatedAmount: 72000,
+      selectedOptions: [],
+    });
+    expect(variables["추가옵션"]).toBe("");
+    expect(variables["모든옵션"]).toBe("프로필 촬영 (72,000원)");
   });
 
   it("일정 변경 이메일 변수에 기존·변경 일시가 들어간다", () => {

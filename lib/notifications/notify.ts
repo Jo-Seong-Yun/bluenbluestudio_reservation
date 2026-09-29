@@ -12,6 +12,7 @@ import {
   type EmailTriggerType,
 } from "./email-rules";
 import { createAdminClient } from "../supabase/admin";
+import { loadSelectedPricedOptions } from "../booking/custom-fields";
 import {
   finalizeEmailHtml,
   htmlToPlainText,
@@ -504,6 +505,7 @@ export async function notifyCustomerRequested(
     notice?: string | null;
   },
 ): Promise<void> {
+  const selectedOptions = await loadSelectedPricedOptions(info.reservationId);
   await notifyCustomer({
     purpose: "customer_requested",
     info,
@@ -511,7 +513,7 @@ export async function notifyCustomerRequested(
     kakaoVariables: customerRequestedKakaoVariables(info),
     email: {
       triggerType: "on_requested",
-      variables: buildEmailVariables(info),
+      variables: buildEmailVariables({ ...info, selectedOptions }),
     },
   });
 }
@@ -523,6 +525,7 @@ export async function notifyCustomerConfirmed(
     emailOverrides?: Record<string, { subject: string; body: string }>;
   },
 ): Promise<void> {
+  const selectedOptions = await loadSelectedPricedOptions(info.reservationId);
   await notifyCustomer({
     purpose: "customer_confirmed",
     info,
@@ -530,7 +533,7 @@ export async function notifyCustomerConfirmed(
     kakaoVariables: customerConfirmedKakaoVariables(info),
     email: {
       triggerType: "on_schedule_confirmed",
-      variables: buildEmailVariables(info),
+      variables: buildEmailVariables({ ...info, selectedOptions }),
       overrides: info.emailOverrides,
     },
   });
@@ -550,6 +553,7 @@ export async function notifyCustomerCancelled(
     emailOverrides?: Record<string, { subject: string; body: string }>;
   },
 ): Promise<void> {
+  const selectedOptions = await loadSelectedPricedOptions(info.reservationId);
   await notifyCustomer({
     purpose: "customer_cancelled",
     info,
@@ -557,7 +561,7 @@ export async function notifyCustomerCancelled(
     kakaoVariables: customerCancelledKakaoVariables(info),
     email: {
       triggerType: "on_cancelled",
-      variables: buildEmailVariables(info),
+      variables: buildEmailVariables({ ...info, selectedOptions }),
       overrides: info.emailOverrides,
     },
   });
@@ -577,6 +581,7 @@ export async function notifyCustomerRescheduled(
     code: string;
   },
 ): Promise<void> {
+  const selectedOptions = await loadSelectedPricedOptions(info.reservationId);
   await notifyCustomer({
     purpose: "customer_rescheduled",
     info,
@@ -584,7 +589,7 @@ export async function notifyCustomerRescheduled(
     kakaoVariables: customerRescheduledKakaoVariables(info),
     email: {
       triggerType: "on_rescheduled",
-      variables: buildEmailVariables(info),
+      variables: buildEmailVariables({ ...info, selectedOptions }),
     },
   });
 }
@@ -652,13 +657,15 @@ export async function notifyAdminNewRequest(info: {
   }
 
   tasks.push(
-    sendTriggerEmails({
-      triggerType: "on_admin_new_request",
-      productId: info.productId,
-      reservationId: info.reservationId,
-      adminEmail: info.adminEmail,
-      variables: buildEmailVariables(info),
-    }),
+    loadSelectedPricedOptions(info.reservationId).then((selectedOptions) =>
+      sendTriggerEmails({
+        triggerType: "on_admin_new_request",
+        productId: info.productId,
+        reservationId: info.reservationId,
+        adminEmail: info.adminEmail,
+        variables: buildEmailVariables({ ...info, selectedOptions }),
+      }),
+    ),
   );
 
   await Promise.all(tasks);
