@@ -60,7 +60,7 @@ declare global {
         };
       };
       picker: {
-        Action: { PICKED: string };
+        Action: { PICKED: string; CANCEL: string; LOADED: string };
         ViewId: { DOCS: string };
         DocsView: new (viewId?: string) => PickerDocsView;
         PickerBuilder: new () => PickerBuilderInstance;
@@ -99,9 +99,17 @@ function fileUrl(id: string): string {
 export function GoogleDrivePickerButton({
   onPick,
   disabled,
+  onPickerVisibleChange,
 }: {
   onPick: (result: DrivePickResult) => void;
   disabled?: boolean;
+  /** 구글 피커가 실제로 화면에 뜨는 시점(true)/닫히는 시점(false)을
+   * 알려준다. 이 버튼이 <dialog>(showModal) 안에 있으면 그 다이얼로그는
+   * 브라우저의 "top layer"에 놓여, z-index와 무관하게 구글 피커의
+   * 오버레이보다 항상 위에 그려진다 — 그래서 피커가 뜨는 동안은 부모
+   * 다이얼로그를 잠깐 닫아둬야(top layer에서 빠져야) 피커를 실제로
+   * 조작할 수 있다. */
+  onPickerVisibleChange?: (visible: boolean) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +149,16 @@ export function GoogleDrivePickerButton({
       .setDeveloperKey(API_KEY!)
       .addView(view)
       .setCallback((data: PickerData) => {
+        if (data.action === google.picker.Action.LOADED) {
+          onPickerVisibleChange?.(true);
+          return;
+        }
+        if (data.action === google.picker.Action.CANCEL) {
+          onPickerVisibleChange?.(false);
+          return;
+        }
         if (data.action !== google.picker.Action.PICKED) return;
+        onPickerVisibleChange?.(false);
         const doc = data.docs?.[0];
         if (!doc) return;
         const isFolder = doc.mimeType === "application/vnd.google-apps.folder";
