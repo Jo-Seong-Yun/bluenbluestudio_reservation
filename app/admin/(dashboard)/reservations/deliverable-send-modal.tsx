@@ -122,7 +122,13 @@ export function DeliverableSendModal({
               <span className="text-red-600 dark:text-red-400">*</span>
             </label>
             <div className="flex flex-wrap items-center gap-2">
-              <GoogleDrivePickerButton onPick={handlePick} />
+              <GoogleDrivePickerButton
+                onPick={handlePick}
+                onPickerVisibleChange={(visible) => {
+                  if (visible) dialogRef.current?.close();
+                  else dialogRef.current?.showModal();
+                }}
+              />
               {picked ? (
                 <span className="border-border bg-surface-subtle inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm">
                   {picked.isFolder ? "📁" : "📄"}
