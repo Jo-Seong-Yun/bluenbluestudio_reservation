@@ -71,7 +71,10 @@ import {
   syncCustomerToSheet,
   syncReservationToSheet,
 } from "@/lib/google-sheets/sync";
-import { upsertCustomerFromReservation } from "@/lib/customers-db";
+import {
+  upsertCustomerFromReservation,
+  getCustomerEmailByPhone,
+} from "@/lib/customers-db";
 import {
   backfillAllToCalendar,
   deleteReservationFromCalendar,
@@ -987,11 +990,57 @@ export type SendDeliverableState =
   | { status: "success" }
   | { status: "error"; error: string };
 
+export type DeliverableEmailInfo = {
+  /** 예약건 자체에 적힌 이메일 (신청서에 적혔거나 수기 예약에 입력한 값). */
+  reservationEmail: string | null;
+  /** 고객DB(전화번호로 찾은)에 저장된 이메일. */
+  customerDbEmail: string | null;
+  /** 실제로 결과물 메일을 보낼 주소 — 고객DB 쪽을 우선한다. */
+  sendTo: string | null;
+};
+
+/**
+ * 결과물 전송 모달이 열리는 순간 불러온다. 예약건에 적힌 이메일과
+ * 고객DB(전화번호로 찾은)에 저장된 이메일이 다를 수 있다 — 고객DB의
+ * email은 한 번 채워지면 새 예약이 들어와도 절대 안 덮어써지므로,
+ * 관리자가 고객DB에서 직접 고친 주소가 예약건 자체보다 최신일 수
+ * 있다. 실제 발송은 고객DB 주소를 우선하고(sendDeliverableEmail도
+ * 같은 규칙), 여기서는 두 값을 다 알려줘서 다르면 모달이 경고할 수
+ * 있게 한다.
+ */
+export async function loadDeliverableEmailInfo(
+  reservationId: string,
+): Promise<DeliverableEmailInfo> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const { data: reservation } = await supabase
+    .from("reservations")
+    .select("customer_phone, customer_email")
+    .eq("id", reservationId)
+    .single();
+  if (!reservation) {
+    return { reservationEmail: null, customerDbEmail: null, sendTo: null };
+  }
+
+  const customerDbEmail = await getCustomerEmailByPhone(reservation.customer_phone);
+  return {
+    reservationEmail: reservation.customer_email,
+    customerDbEmail,
+    sendTo: customerDbEmail || reservation.customer_email || null,
+  };
+}
+
 /**
  * "결과물 전송" 확인모달의 "확인" 버튼. 예약 상태는 그대로 두고
  * "결과물 전송 시" 트리거에 걸린 이메일 규칙만 찾아 보낸다(규칙이
  * 없으면 조용히 아무 것도 안 나간다 — 다른 상태 전환 트리거와 같은
  * 동작). 확인모달에서 고른 구글 드라이브 링크를 {{결과물링크}}로 채운다.
+ *
+ * 받는 주소는 예약건 자체의 customer_email이 아니라 고객DB(전화번호로
+ * 찾은) 쪽을 우선한다 — 예약건에는 이메일을 안 적었어도 고객DB에는
+ * 관리자가 수기로 채워둔 경우가 있어, 그쪽이 없을 때만 예약건 값으로
+ * 넘어간다(loadDeliverableEmailInfo와 같은 규칙).
  */
 export async function sendDeliverableEmail(
   _prev: SendDeliverableState,
@@ -1021,11 +1070,14 @@ export async function sendDeliverableEmail(
     .single();
   if (!reservation) return { status: "error", error: "예약을 찾을 수 없습니다." };
 
-  const [{ data: product }, selectedOptions, adminEmail] = await Promise.all([
-    supabase.from("products").select("name").eq("id", reservation.product_id).single(),
-    loadSelectedPricedOptions(id),
-    getAdminNotifyEmail(),
-  ]);
+  const [{ data: product }, selectedOptions, adminEmail, customerDbEmail] =
+    await Promise.all([
+      supabase.from("products").select("name").eq("id", reservation.product_id).single(),
+      loadSelectedPricedOptions(id),
+      getAdminNotifyEmail(),
+      getCustomerEmailByPhone(reservation.customer_phone),
+    ]);
+  const recipientEmail = customerDbEmail || reservation.customer_email;
 
   const variables = buildEmailVariables({
     customerName: reservation.customer_name,
@@ -1041,7 +1093,7 @@ export async function sendDeliverableEmail(
     triggerType: "on_deliverable_sent",
     reservationId: id,
     productId: reservation.product_id,
-    customerEmail: reservation.customer_email,
+    customerEmail: recipientEmail,
     adminEmail,
     variables,
     overrides,

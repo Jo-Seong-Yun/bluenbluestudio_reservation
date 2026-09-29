@@ -2,8 +2,10 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import {
+  loadDeliverableEmailInfo,
   previewStatusChangeEmails,
   sendDeliverableEmail,
+  type DeliverableEmailInfo,
   type EmailPreviewItem,
   type SendDeliverableState,
 } from "@/app/admin/actions";
@@ -33,6 +35,7 @@ export function DeliverableSendModal({
   const [edited, setEdited] = useState<Record<string, EditedEmail>>({});
   const [loading, setLoading] = useState(false);
   const [previewVersion, setPreviewVersion] = useState(0);
+  const [emailInfo, setEmailInfo] = useState<DeliverableEmailInfo | null>(null);
 
   const [state, action, pending] = useActionState<
     SendDeliverableState,
@@ -66,7 +69,9 @@ export function DeliverableSendModal({
     setDeliverableUrl("");
     setItems(null);
     setEdited({});
+    setEmailInfo(null);
     void loadPreview("");
+    void loadDeliverableEmailInfo(reservationId).then(setEmailInfo);
     dialogRef.current?.showModal();
   }
 
@@ -76,6 +81,11 @@ export function DeliverableSendModal({
 
   const overridesJson = JSON.stringify(edited);
   const noRules = items !== null && items.length === 0;
+  const emailMismatch =
+    !!emailInfo?.reservationEmail &&
+    !!emailInfo?.customerDbEmail &&
+    emailInfo.reservationEmail !== emailInfo.customerDbEmail;
+  const noEmailAtAll = emailInfo !== null && !emailInfo.sendTo;
 
   return (
     <>
@@ -125,6 +135,23 @@ export function DeliverableSendModal({
               className={inputClass}
             />
           </div>
+
+          {emailMismatch ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+              ⚠ 예약건에 입력된 이메일({emailInfo?.reservationEmail})과
+              고객DB에 저장된 이메일({emailInfo?.customerDbEmail})이
+              다릅니다. 결과물은 고객DB 주소({emailInfo?.customerDbEmail})로
+              발송됩니다 — 주소가 맞는지 확인해 주시기 바랍니다.
+            </div>
+          ) : null}
+
+          {noEmailAtAll ? (
+            <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+              ⚠ 예약건과 고객DB 어디에도 이메일 주소가 없어, 손님에게는
+              메일이 나가지 않습니다. 먼저 고객DB나 예약 메모에 이메일을
+              채워 주시기 바랍니다.
+            </div>
+          ) : null}
 
           <div>
             <p className="text-muted mb-1.5 text-xs font-medium">

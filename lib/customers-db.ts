@@ -95,6 +95,25 @@ export async function loadCustomerSummaries(): Promise<CustomerSummary[]> {
 }
 
 /**
+ * 전화번호로 고객DB에 저장된 이메일을 찾는다. 고객DB의 email은 한 번
+ * 채워지면 새 예약이 들어와도 절대 덮어써지지 않으므로(위 upsert 참고),
+ * 관리자가 고객DB 화면에서 직접 고친 주소가 여기 있을 수 있다 — 예약
+ * 건 자체에 적힌 customer_email보다 더 최신/정확한 주소로 취급한다.
+ */
+export async function getCustomerEmailByPhone(
+  phone: string,
+): Promise<string | null> {
+  if (!phone) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("customers")
+    .select("email")
+    .eq("phone", phone)
+    .maybeSingle();
+  return data?.email ?? null;
+}
+
+/**
  * 예약 하나가 생성/변경될 때마다 그 손님의 customers 행을 "빈 칸만"
  * 채운다. 이미 값이 있는 칸은 절대 덮어쓰지 않는다 — 관리자가 고객DB
  * 화면에서 수기로 고친 값을, 다음 예약이 들어왔다고 신청서에 적힌
