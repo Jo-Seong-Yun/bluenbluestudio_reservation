@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { inputClass } from "@/components/ui";
-import { kstDateString, kstMonthString, kstTimeString } from "@/lib/time";
+import { kstDateString, kstTimeString } from "@/lib/time";
 import { DeliverableSendModal } from "../reservations/deliverable-send-modal";
 
 const SORT_OPTIONS = {
@@ -50,18 +50,15 @@ type Row = {
   createdAt: string;
 };
 
-/** 예약관리 상세로 이동할 때, 확정된 예약은 그 촬영월로 달력을 맞춰야
- * 달력 쪽 목록(월 단위 조회)에도 걸려 상세가 정상적으로 열린다 —
- * 후보만 낸 상태나 취소된 예약은 달력 월과 무관하게 항상 찾아지므로
- * 아무 달이나 상관없다. */
-function detailHref(row: Row): string {
-  const month = row.shootStart
-    ? kstMonthString(new Date(row.shootStart))
-    : kstMonthString(new Date());
-  return `/admin/reservations?month=${month}&id=${row.id}`;
-}
-
-export function ReservationHistoryTable({ rows }: { rows: Row[] }) {
+export function ReservationHistoryTable({
+  rows,
+  selectedId,
+}: {
+  rows: Row[];
+  /** 지금 오른쪽 상세 패널에 열려 있는 예약 — 그 줄을 표에서도
+   * 강조해준다. */
+  selectedId?: string;
+}) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState<SortOption>("created_desc");
@@ -82,7 +79,7 @@ export function ReservationHistoryTable({ rows }: { rows: Row[] }) {
   }, [rows, query, status, sort]);
 
   return (
-    <div className="mt-4">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -153,11 +150,13 @@ export function ReservationHistoryTable({ rows }: { rows: Row[] }) {
               filtered.map((r) => (
                 <tr
                   key={r.id}
-                  className="border-border hover:bg-surface-subtle border-t"
+                  className={`border-border hover:bg-surface-subtle border-t ${
+                    r.id === selectedId ? "bg-surface-subtle" : ""
+                  }`}
                 >
                   <td className="px-4 py-3">
                     <Link
-                      href={detailHref(r)}
+                      href={`?id=${r.id}`}
                       className="hover:text-brand font-mono"
                     >
                       {r.code}

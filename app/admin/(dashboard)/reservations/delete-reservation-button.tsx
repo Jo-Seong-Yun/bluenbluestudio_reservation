@@ -20,11 +20,14 @@ export function DeleteReservationButton({
   id,
   month,
   date,
+  basePath = "/admin/reservations",
 }: {
   id: string;
   month: string;
   /** 확정 전(후보만 낸 상태)이라 날짜가 아직 없으면 undefined. */
   date?: string;
+  /** 삭제 후 돌아갈 화면. 예약내역(표)에서 열었으면 그 화면으로 돌아간다. */
+  basePath?: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState<"ask" | "confirm">("ask");
@@ -82,6 +85,7 @@ export function DeleteReservationButton({
             <input type="hidden" name="id" value={id} />
             <input type="hidden" name="month" value={month} />
             <input type="hidden" name="date" value={date ?? ""} />
+            <input type="hidden" name="basePath" value={basePath} />
 
             <p className="font-bold">마지막 확인입니다</p>
             <p className="text-muted mt-2 text-sm">
