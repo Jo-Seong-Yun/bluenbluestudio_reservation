@@ -3141,6 +3141,24 @@ export async function resetAnalytics(
 }
 
 /**
+ * 통계 화면(/admin/analytics)을 열 때마다(last-seen-tracker.tsx가 마운트
+ * 시점에 한 번 호출) 지금 시점을 settings.analytics_last_seen_at에
+ * 남긴다. 다음에 열 때 이 시점 이후 변동치를 빨간 글씨로 보여주는
+ * 기준이 된다(Gmail·Slack의 "마지막으로 읽은 시점" 배지와 같은 방식).
+ * 화면을 다시 그릴 필요는 없으니(다음 방문에만 영향) revalidatePath는
+ * 부르지 않는다.
+ */
+export async function markAnalyticsSeen(): Promise<void> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  await supabase
+    .from("settings")
+    .update({ analytics_last_seen_at: new Date().toISOString() })
+    .eq("id", 1);
+}
+
+/**
  * 기록표 양식 에디터(설정 화면)에서 "옵션" 태그 드롭다운에 보여줄
  * 선택지. 실제로 가격이 매겨진 옵션(문항편집에서 만든 single_choice/
  * multi_choice의 옵션들, 예: "대본추가")만 모은다 — 상품마다 따로
