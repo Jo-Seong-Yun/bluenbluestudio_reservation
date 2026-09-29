@@ -9,6 +9,7 @@ import {
   type EmailPreviewItem,
   type SendDeliverableState,
 } from "@/app/admin/actions";
+import type { EmailRecipient } from "@/lib/notifications/email-rules-shared";
 import { Button, ErrorText, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { RichTextEditor } from "@/components/rich-text-editor";
@@ -16,6 +17,26 @@ import { RichTextEditor } from "@/components/rich-text-editor";
 type EditedEmail = { subject: string; body: string };
 
 const initialState: SendDeliverableState = { status: "idle" };
+
+/**
+ * 이메일 카드마다 "누구에게(손님·사장님)"뿐 아니라 실제로 어느 주소로
+ * 나가는지도 보여준다 — 손님 주소가 고객DB 우선 규칙으로 정해지므로,
+ * 관리자가 확인모달에서 눈으로 확인할 수 있어야 한다. 주소가 없는
+ * 수신자는 "(이메일 없음)"으로 표시해 그 사람에게는 실제로 메일이
+ * 안 나간다는 걸 알린다.
+ */
+function recipientAddressesText(
+  recipients: EmailRecipient[],
+  emailInfo: DeliverableEmailInfo | null,
+): string {
+  return recipients
+    .map((r) =>
+      r === "admin"
+        ? `사장님: ${emailInfo?.adminEmail || "이메일 없음"}`
+        : `손님: ${emailInfo?.sendTo || "이메일 없음"}`,
+    )
+    .join(" · ");
+}
 
 /**
  * "결과물 전송" 버튼. status-transition-modal.tsx와 같은 확인+수정
@@ -175,7 +196,10 @@ export function DeliverableSendModal({
                     className="border-border rounded-lg border p-3"
                   >
                     <p className="text-muted mb-2 text-xs font-medium">
-                      {item.recipientLabel}에게
+                      발송 대상 ·{" "}
+                      <span className="font-mono font-normal">
+                        {recipientAddressesText(item.recipients, emailInfo)}
+                      </span>
                     </p>
                     <input
                       value={edited[item.ruleId]?.subject ?? item.subject}

@@ -921,6 +921,9 @@ export async function restoreCancelledReservation(
 export type EmailPreviewItem = {
   ruleId: string;
   recipientLabel: string;
+  /** 이 규칙이 실제로 걸어놓은 수신자 종류 — 확인모달이 각 수신자의
+   * 실제 이메일 주소를 옆에 보여줄 때 쓴다. */
+  recipients: EmailRecipient[];
   subject: string;
   body: string;
   /** 규칙 원문에 {{취소사유}}가 있는지 — 없으면 사유를 적어도 메일은
@@ -979,6 +982,7 @@ export async function previewStatusChangeEmails(
   return rules.map((rule) => ({
     ruleId: rule.id,
     recipientLabel: formatRecipients(rule.recipients),
+    recipients: [...rule.recipients],
     subject: renderEmailTemplate(rule.subject, variables),
     body: renderEmailHtml(rule.body, variables),
     usesCancelReason: /\{\{\s*취소사유\s*\}\}/.test(rule.subject + rule.body),
@@ -997,6 +1001,8 @@ export type DeliverableEmailInfo = {
   customerDbEmail: string | null;
   /** 실제로 결과물 메일을 보낼 주소 — 고객DB 쪽을 우선한다. */
   sendTo: string | null;
+  /** 설정에 등록된 사장님 알림 이메일 — "사장님에게" 수신자의 실제 주소. */
+  adminEmail: string | null;
 };
 
 /**
@@ -1020,14 +1026,23 @@ export async function loadDeliverableEmailInfo(
     .eq("id", reservationId)
     .single();
   if (!reservation) {
-    return { reservationEmail: null, customerDbEmail: null, sendTo: null };
+    return {
+      reservationEmail: null,
+      customerDbEmail: null,
+      sendTo: null,
+      adminEmail: null,
+    };
   }
 
-  const customerDbEmail = await getCustomerEmailByPhone(reservation.customer_phone);
+  const [customerDbEmail, adminEmail] = await Promise.all([
+    getCustomerEmailByPhone(reservation.customer_phone),
+    getAdminNotifyEmail(),
+  ]);
   return {
     reservationEmail: reservation.customer_email,
     customerDbEmail,
     sendTo: customerDbEmail || reservation.customer_email || null,
+    adminEmail,
   };
 }
 
