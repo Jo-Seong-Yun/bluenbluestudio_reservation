@@ -441,18 +441,26 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hintPosition="before"
       >
         <div>
-          {options.map((option) => (
-            <label key={option} className={OPTION_LABEL_CLASS}>
-              <input
-                type="radio"
-                name={name}
-                value={option}
-                required={field.required}
-                className={OPTION_INPUT_CLASS}
-              />
-              {option}
-            </label>
-          ))}
+          {options.map((option, index) => {
+            const price = field.option_prices?.[index];
+            return (
+              <label key={option} className={OPTION_LABEL_CLASS}>
+                <input
+                  type="radio"
+                  name={name}
+                  value={option}
+                  required={field.required}
+                  className={OPTION_INPUT_CLASS}
+                />
+                {option}
+                {price ? (
+                  <span className="text-brand text-sm font-medium">
+                    (+{price.toLocaleString()}원)
+                  </span>
+                ) : null}
+              </label>
+            );
+          })}
         </div>
       </Field>
     );
@@ -469,17 +477,25 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         hintPosition="before"
       >
         <div>
-          {options.map((option) => (
-            <label key={option} className={OPTION_LABEL_CLASS}>
-              <input
-                type="checkbox"
-                name={name}
-                value={option}
-                className={OPTION_INPUT_CLASS}
-              />
-              {option}
-            </label>
-          ))}
+          {options.map((option, index) => {
+            const price = field.option_prices?.[index];
+            return (
+              <label key={option} className={OPTION_LABEL_CLASS}>
+                <input
+                  type="checkbox"
+                  name={name}
+                  value={option}
+                  className={OPTION_INPUT_CLASS}
+                />
+                {option}
+                {price ? (
+                  <span className="text-brand text-sm font-medium">
+                    (+{price.toLocaleString()}원)
+                  </span>
+                ) : null}
+              </label>
+            );
+          })}
         </div>
       </Field>
     );
