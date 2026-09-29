@@ -10,10 +10,6 @@ import {
 import { Button, ErrorText, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import {
-  GoogleDrivePickerButton,
-  type DrivePickResult,
-} from "@/components/google-drive-picker-button";
 
 type EditedEmail = { subject: string; body: string };
 
@@ -32,7 +28,7 @@ export function DeliverableSendModal({
   reservationId: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [picked, setPicked] = useState<DrivePickResult | null>(null);
+  const [deliverableUrl, setDeliverableUrl] = useState("");
   const [items, setItems] = useState<EmailPreviewItem[] | null>(null);
   const [edited, setEdited] = useState<Record<string, EditedEmail>>({});
   const [loading, setLoading] = useState(false);
@@ -49,12 +45,12 @@ export function DeliverableSendModal({
     }
   }, [state]);
 
-  async function loadPreview(deliverableUrl: string) {
+  async function loadPreview(url: string) {
     setLoading(true);
     const result = await previewStatusChangeEmails(
       reservationId,
       "on_deliverable_sent",
-      { 결과물링크: deliverableUrl },
+      { 결과물링크: url },
     );
     setItems(result);
     setEdited(
@@ -67,7 +63,7 @@ export function DeliverableSendModal({
   }
 
   function open() {
-    setPicked(null);
+    setDeliverableUrl("");
     setItems(null);
     setEdited({});
     void loadPreview("");
@@ -76,11 +72,6 @@ export function DeliverableSendModal({
 
   function close() {
     dialogRef.current?.close();
-  }
-
-  function handlePick(result: DrivePickResult) {
-    setPicked(result);
-    void loadPreview(result.url);
   }
 
   const overridesJson = JSON.stringify(edited);
@@ -113,38 +104,31 @@ export function DeliverableSendModal({
           className="max-h-[75vh] space-y-4 overflow-y-auto p-5"
         >
           <input type="hidden" name="id" value={reservationId} />
-          <input type="hidden" name="deliverableUrl" value={picked?.url ?? ""} />
           <input type="hidden" name="overrides" value={overridesJson} />
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              전달할 결과물{" "}
+            <label
+              className="mb-1.5 block text-sm font-medium"
+              htmlFor="deliverableUrl"
+            >
+              전달할 결과물 링크{" "}
               <span className="text-red-600 dark:text-red-400">*</span>
             </label>
-            <div className="flex flex-wrap items-center gap-2">
-              <GoogleDrivePickerButton
-                onPick={handlePick}
-                onPickerVisibleChange={(visible) => {
-                  if (visible) dialogRef.current?.close();
-                  else dialogRef.current?.showModal();
-                }}
-              />
-              {picked ? (
-                <span className="border-border bg-surface-subtle inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm">
-                  {picked.isFolder ? "📁" : "📄"}
-                  <span className="truncate">{picked.name}</span>
-                </span>
-              ) : (
-                <span className="text-muted text-xs">
-                  선택한 파일/폴더가 없습니다.
-                </span>
-              )}
-            </div>
+            <input
+              id="deliverableUrl"
+              name="deliverableUrl"
+              type="url"
+              value={deliverableUrl}
+              onChange={(e) => setDeliverableUrl(e.target.value)}
+              onBlur={() => void loadPreview(deliverableUrl)}
+              placeholder="https://drive.google.com/..."
+              className={inputClass}
+            />
           </div>
 
           <div>
             <p className="text-muted mb-1.5 text-xs font-medium">
-              보낼 이메일 (링크를 선택하면 {"{{"}결과물링크{"}}"}가 자동으로
+              보낼 이메일 (링크를 입력하면 {"{{"}결과물링크{"}}"}가 자동으로
               채워집니다)
             </p>
 
@@ -207,7 +191,9 @@ export function DeliverableSendModal({
             <Button type="button" variant="ghost" onClick={close}>
               취소
             </Button>
-            <SubmitButton disabled={pending || loading || !picked || noRules}>
+            <SubmitButton
+              disabled={pending || loading || !deliverableUrl.trim() || noRules}
+            >
               {pending ? "전송 중…" : "확인"}
             </SubmitButton>
           </div>
