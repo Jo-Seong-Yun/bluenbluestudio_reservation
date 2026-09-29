@@ -20,7 +20,7 @@ import { Button } from "@/components/ui";
 
 const GENDER_LABEL: Record<string, string> = { male: "남", female: "여" };
 
-type ReservationRow = {
+export type ReservationRow = {
   id: string;
   code: string;
   status: string;
@@ -75,11 +75,22 @@ export function DetailPanel({
   dayReservations,
   selected,
   month,
+  basePath = "/admin/reservations",
+  emptyHint = "달력에서 날짜나 예약을 선택해 주시기 바랍니다.",
 }: {
   selectedDate?: string;
   dayReservations: ReservationRow[];
   selected?: ReservationRow;
-  month: string;
+  /** 달력 화면(예약관리)에서만 쓰는 값 — 표 화면(예약내역)에는 달이라는
+   * 개념이 없어 넘기지 않아도 된다. */
+  month?: string;
+  /** 이 패널을 담은 화면의 경로. "뒤로" 링크와 삭제 후 돌아갈 곳을
+   * 정한다 — 예약관리(달력)와 예약내역(표) 둘 다 이 컴포넌트를 그대로
+   * 쓰되, 어느 화면으로 돌아가야 하는지만 다르다. */
+  basePath?: string;
+  /** 아무것도 선택 안 됐을 때 보여줄 안내문. 화면마다("달력에서"/"표에서")
+   * 말이 다르니 호출하는 쪽에서 넘긴다. */
+  emptyHint?: string;
 }) {
   if (selected) {
     // key를 예약 id로 못박아 둔다 — 이게 없으면 예약 A에서 입력칸에
@@ -95,6 +106,7 @@ export function DetailPanel({
         key={selected.id}
         reservation={selected}
         month={month}
+        basePath={basePath}
       />
     );
   }
@@ -132,7 +144,7 @@ export function DetailPanel({
 
   return (
     <div className="border-border bg-surface text-muted rounded-xl border p-6 text-center text-sm">
-      달력에서 날짜나 예약을 선택해 주시기 바랍니다.
+      {emptyHint}
     </div>
   );
 }
@@ -140,9 +152,11 @@ export function DetailPanel({
 function ReservationDetail({
   reservation,
   month,
+  basePath,
 }: {
   reservation: ReservationRow;
-  month: string;
+  month?: string;
+  basePath: string;
 }) {
   // 후보(1~3지망)만 낸 채 아직 확정 전이면 shoot_start가 없다 — 날짜
   // 자체가 안 정해졌으니 "그날 목록으로" 링크도, 시간 표시도 못 한다.
@@ -153,17 +167,21 @@ function ReservationDetail({
   const end = reservation.shoot_end ? new Date(reservation.shoot_end) : null;
   const date = reservation.shoot_start?.slice(0, 10);
 
+  // 예약관리(달력)에서는 "그날 목록으로"/"예약관리로" 돌아가고, 예약내역
+  // (표)에서는 그냥 표 화면으로 돌아간다 — month가 있을 때만 달력
+  // 화면이라고 본다.
+  const backHref = month
+    ? date
+      ? `${basePath}?month=${month}&date=${date}`
+      : `${basePath}?month=${month}`
+    : basePath;
+  const backLabel = month ? (date ? `${date} 목록` : "예약관리") : "목록";
+
   return (
     <div className="border-border bg-surface rounded-xl border p-4">
-      <Link
-        href={
-          date
-            ? `/admin/reservations?month=${month}&date=${date}`
-            : `/admin/reservations?month=${month}`
-        }
-      >
+      <Link href={backHref}>
         <Button type="button" variant="ghost" className="text-xs">
-          ← {date ? `${date} 목록` : "예약관리"}
+          ← {backLabel}
         </Button>
       </Link>
 
@@ -394,8 +412,9 @@ function ReservationDetail({
         </p>
         <DeleteReservationButton
           id={reservation.id}
-          month={month}
+          month={month ?? ""}
           date={date}
+          basePath={basePath}
         />
       </div>
     </div>

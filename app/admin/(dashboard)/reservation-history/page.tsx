@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { ReservationHistoryTable } from "./reservation-history-table";
+import { DetailPanel } from "../reservations/detail-panel";
+import { loadReservationDetail } from "@/lib/reservations/load-detail";
 
 export const metadata: Metadata = { title: "예약내역" };
 export const dynamic = "force-dynamic";
@@ -10,20 +12,31 @@ export const dynamic = "force-dynamic";
  * 화면처럼 검색·필터 가능한 표 하나로 쭉 나열해서 보여준다. 달력은
  * "이번 달에 뭐가 있나"를 보기 좋고, 이 화면은 "그 손님/그 예약이
  * 언제였더라"를 찾기 좋다 — 서로 다른 용도라 별도 화면으로 둔다.
- * 상태 변경 등 실제 동작은 여기서 하지 않고, 각 줄을 누르면 예약관리의
- * 해당 예약 상세로 이동해서 처리한다.
+ *
+ * "예약관리를 달력 대신 표로 바꾼 것"이라는 요구에 맞춰, 오른쪽에는
+ * 예약관리와 완전히 같은 DetailPanel을 그대로 쓴다 — 상태 변경·메모·
+ * 결과물 전송 등 예약관리에서 하던 일을 여기서도 똑같이 할 수 있고,
+ * 같은 reservations 테이블을 보는 것이므로 한쪽에서 고치면 다른
+ * 화면에서도(새로 열거나 새로고침하면) 그대로 반영된다.
  */
-export default async function ReservationHistoryPage() {
+export default async function ReservationHistoryPage({
+  searchParams,
+}: PageProps<"/admin/reservation-history">) {
+  const { id } = await searchParams;
+  const selectedId = Array.isArray(id) ? id[0] : id;
+
   const supabase = await createClient();
-  const [{ data: reservations }, { data: products }] = await Promise.all([
-    supabase
-      .from("reservations")
-      .select(
-        "id, code, status, shoot_start, customer_name, customer_phone, charged_amount, estimated_amount, product_id, created_at",
-      )
-      .order("created_at", { ascending: false }),
-    supabase.from("products").select("id, name"),
-  ]);
+  const [{ data: reservations }, { data: products }, selected] =
+    await Promise.all([
+      supabase
+        .from("reservations")
+        .select(
+          "id, code, status, shoot_start, customer_name, customer_phone, charged_amount, estimated_amount, product_id, created_at",
+        )
+        .order("created_at", { ascending: false }),
+      supabase.from("products").select("id, name"),
+      selectedId ? loadReservationDetail(selectedId) : Promise.resolve(undefined),
+    ]);
 
   const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
   const rows = (reservations ?? []).map((r) => ({
@@ -43,11 +56,22 @@ export default async function ReservationHistoryPage() {
     <div>
       <h1 className="text-2xl font-bold">예약내역</h1>
       <p className="text-muted mt-1 text-sm">
-        지금까지 접수된 모든 예약을 최근 접수순으로 모았습니다. 줄을
-        누르면 예약관리에서 그 예약의 상세 내용을 볼 수 있습니다.
+        지금까지 접수된 모든 예약을 최근 접수순으로 모았습니다. 예약번호를
+        누르면 오른쪽에서 예약관리와 똑같이 상세 내용을 보고 처리할 수
+        있습니다.
       </p>
 
-      <ReservationHistoryTable rows={rows} />
+      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <ReservationHistoryTable rows={rows} selectedId={selectedId} />
+        <div>
+          <DetailPanel
+            selected={selected}
+            dayReservations={[]}
+            basePath="/admin/reservation-history"
+            emptyHint="표에서 예약번호를 눌러 선택해 주시기 바랍니다."
+          />
+        </div>
+      </div>
     </div>
   );
 }

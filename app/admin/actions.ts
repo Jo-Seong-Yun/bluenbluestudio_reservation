@@ -670,6 +670,7 @@ export async function applyReservationTransition(
   }
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
 
   after(async () => {
     await upsertCustomerFromReservation({
@@ -787,6 +788,7 @@ export async function cancelReservationWithReason(
   if (error) return { error: `취소하지 못했습니다: ${error.message}` };
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
 
   after(async () => {
     await upsertCustomerFromReservation({
@@ -856,6 +858,7 @@ export async function revertReservationStatus(formData: FormData) {
     .eq("id", id);
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
 }
 
 /**
@@ -908,6 +911,7 @@ export async function restoreCancelledReservation(
   }
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
   return null;
 }
 
@@ -1044,6 +1048,7 @@ export async function sendDeliverableEmail(
   });
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
   return { status: "success" };
 }
 
@@ -1102,6 +1107,7 @@ export async function confirmReservationCandidate(
     .single();
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
 
   if (error) {
     // EXCLUDE 제약(23P01): 이 시간이 그사이 다른 예약으로 먼저 확정됐다.
@@ -1166,6 +1172,7 @@ export async function saveAdminMemo(formData: FormData) {
     .eq("id", id);
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
   after(() => syncReservationToSheet(id));
 }
 
@@ -1189,6 +1196,7 @@ export async function saveShootLocation(formData: FormData) {
     .eq("id", id);
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
 }
 
 // 통계 화면 "상세 로그"의 각 기록(목록 진입/상품 상세 진입/신청서
@@ -1267,6 +1275,7 @@ export async function deleteActivityLogEntry(formData: FormData): Promise<{ erro
     if (error) return { error };
     revalidatePath("/admin/analytics");
     revalidatePath("/admin/reservations");
+    revalidatePath("/admin/reservation-history");
     return {};
   }
 
@@ -1319,6 +1328,7 @@ export async function saveReservationCost(formData: FormData) {
     .eq("id", id);
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
   revalidatePath("/admin/revenue");
   after(() => syncReservationToSheet(id));
 }
@@ -1415,16 +1425,21 @@ export async function deleteReservation(formData: FormData) {
 
   const month = String(formData.get("month") ?? "");
   const date = String(formData.get("date") ?? "");
+  // 예약내역(표) 화면에서 지웠으면 그 화면으로, 예약관리(달력) 화면에서
+  // 지웠으면 그 화면으로 돌아간다 — DetailPanel이 basePath로 알려준다.
+  const basePath =
+    String(formData.get("basePath") ?? "").trim() || "/admin/reservations";
 
   const { error } = await deleteReservationRow(id);
   if (error) return;
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
 
   const params = new URLSearchParams();
   if (month) params.set("month", month);
   if (date) params.set("date", date);
-  redirect(`/admin/reservations?${params.toString()}`);
+  redirect(`${basePath}?${params.toString()}`);
 }
 
 /**
@@ -1746,6 +1761,7 @@ export async function createManualReservation(
       }
 
       revalidatePath("/admin/reservations");
+      revalidatePath("/admin/reservation-history");
 
       after(async () => {
         await upsertCustomerFromReservation({
@@ -1888,6 +1904,7 @@ export async function rescheduleReservation(
   }
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
 
   after(async () => {
     await upsertCustomerFromReservation({
@@ -2408,6 +2425,7 @@ export async function saveReservationChargedAmount(formData: FormData) {
     .eq("id", id);
 
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
   revalidatePath("/admin/revenue");
   after(() => syncReservationToSheet(id));
 }
@@ -2954,6 +2972,7 @@ export async function updateCustomer(
 
   revalidatePath("/admin/customers");
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
   return { status: "success" };
 }
 
@@ -3285,5 +3304,6 @@ export async function saveRecordSheetTemplate(
 
   revalidatePath("/admin/settings");
   revalidatePath("/admin/reservations");
+  revalidatePath("/admin/reservation-history");
   return {};
 }

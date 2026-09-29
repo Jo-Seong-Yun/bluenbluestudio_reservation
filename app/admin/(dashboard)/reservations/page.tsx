@@ -14,6 +14,7 @@ import {
 import { DetailPanel } from "./detail-panel";
 import { ManualReservationButton } from "./manual-reservation-button";
 import { UploadToSheetButton } from "./upload-to-sheet-button";
+import { loadReservationDetail } from "@/lib/reservations/load-detail";
 import type { DateString } from "@/lib/time";
 
 export const metadata: Metadata = { title: "예약관리" };
@@ -109,170 +110,13 @@ export default async function ReservationsPage({
         }))
     : [];
 
-  const selected = selectedId
-    ? [
-        ...(reservations ?? []),
-        ...(pendingReservations ?? []),
-        ...(trashedReservations ?? []),
-      ].find((r) => r.id === selectedId)
-    : undefined;
-
-  // 확정 대기 중인 예약이면(shoot_start가 없다) 손님이 낸 후보들을
-  // 같이 가져와야 관리자가 그중 하나를 골라 확정할 수 있다.
-  const { data: candidateRows } =
-    selected && !selected.shoot_start
-      ? await supabase
-          .from("reservation_candidates")
-          .select("rank, shoot_start, shoot_end")
-          .eq("reservation_id", selected.id)
-          .order("rank")
-      : { data: [] as { rank: number; shoot_start: string; shoot_end: string }[] };
-
-  // 선택된 예약에 발송된 알림 기록 (이메일·SMS·카카오 모두).
-  const { data: notificationLogRows } = selected
-    ? await supabase
-        .from("notification_logs")
-        .select("id, channel, purpose, recipient, success, error, created_at")
-        .eq("reservation_id", selected.id)
-        .order("created_at", { ascending: false })
-    : {
-        data: [] as {
-          id: string;
-          channel: string;
-          purpose: string;
-          recipient: string;
-          success: boolean;
-          error: string | null;
-          created_at: string;
-        }[],
-      };
-
-  // rule:<id> 형식의 purpose 에서 규칙 이름을 조회한다.
-  const ruleIds = [
-    ...new Set(
-      (notificationLogRows ?? [])
-        .map((l) => {
-          const m = l.purpose.match(/^rule(?:-test)?:(.+)$/);
-          return m ? m[1] : null;
-        })
-        .filter(Boolean) as string[],
-    ),
-  ];
-  const { data: emailRuleRows } =
-    ruleIds.length > 0
-      ? await supabase
-          .from("email_rules")
-          .select("id, name")
-          .in("id", ruleIds)
-      : { data: [] as { id: string; name: string }[] };
-  const ruleNameById = new Map((emailRuleRows ?? []).map((r) => [r.id, r.name]));
-
-  // 선택된 예약의 커스텀 문항 답변. 목록 전체가 아니라 선택된 한 건에만
-  // 필요하니 여기서 따로 가져온다.
-  const { data: answerRows } = selected
-    ? await supabase
-        .from("reservation_answers")
-        .select("field_id, value")
-        .eq("reservation_id", selected.id)
-    : { data: [] as { field_id: string; value: string }[] };
-
-  const answerFieldIds = [
-    ...new Set((answerRows ?? []).map((a) => a.field_id)),
-  ];
-  const { data: answerFields } =
-    answerFieldIds.length > 0
-      ? await supabase
-          .from("custom_fields")
-          .select("id, label, type, options, option_prices")
-          .in("id", answerFieldIds)
-      : {
-          data: [] as {
-            id: string;
-            label: string;
-            type: string;
-            options: string[] | null;
-            option_prices: number[] | null;
-          }[],
-        };
-  const answerFieldById = new Map((answerFields ?? []).map((f) => [f.id, f]));
-
-  const priceBreakdown: { label: string; amount: number }[] = [];
-
-  const customAnswers = (answerRows ?? []).map((answer) => {
-    const field = answerFieldById.get(answer.field_id);
-    let value = answer.value;
-    let priceNote: string | undefined;
-
-    if (field?.type === "multi_choice") {
-      try {
-        const selected = JSON.parse(answer.value) as string[];
-        value = selected.join(", ");
-        if (field.option_prices) {
-          for (const opt of selected) {
-            const idx = (field.options ?? []).indexOf(opt);
-            const price = idx >= 0 ? (field.option_prices[idx] ?? 0) : 0;
-            if (price > 0) priceBreakdown.push({ label: opt, amount: price });
-          }
-          const total = selected.reduce((sum, opt) => {
-            const idx = (field.options ?? []).indexOf(opt);
-            return sum + (idx >= 0 ? (field.option_prices![idx] ?? 0) : 0);
-          }, 0);
-          if (total > 0) priceNote = `₩${total.toLocaleString()}`;
-        }
-      } catch {
-        // pass
-      }
-    } else if (field?.type === "single_choice") {
-      if (field.option_prices) {
-        const idx = (field.options ?? []).indexOf(answer.value);
-        const price = idx >= 0 ? (field.option_prices[idx] ?? 0) : 0;
-        if (price > 0) {
-          priceNote = `₩${price.toLocaleString()}`;
-          priceBreakdown.push({ label: answer.value, amount: price });
-        }
-      }
-    } else if (field?.type === "checkbox") {
-      value = answer.value === "true" ? "예" : "아니오";
-    }
-    return { label: field?.label ?? "(삭제된 문항)", value, priceNote };
-  });
-
-  const selectedProduct = selected
-    ? (allProducts ?? []).find((p) => p.id === selected.product_id)
-    : undefined;
-  const basePrice = selectedProduct
-    ? (selectedProduct.sale_price ?? selectedProduct.price)
-    : undefined;
-
-  const notificationLogs = (notificationLogRows ?? []).map((l) => {
-    const ruleMatch = l.purpose.match(/^(rule(?:-test)?):(.+)$/);
-    const ruleName = ruleMatch ? (ruleNameById.get(ruleMatch[2]) ?? null) : null;
-    return {
-      id: l.id,
-      channel: l.channel as "email" | "sms" | "kakao",
-      purpose: l.purpose,
-      ruleName,
-      recipient: l.recipient,
-      success: l.success,
-      error: l.error,
-      createdAt: l.created_at,
-    };
-  });
-
-  const selectedWithProduct = selected
-    ? {
-        ...selected,
-        productName: productNameById.get(selected.product_id) ?? "",
-        customAnswers,
-        basePrice,
-        priceBreakdown,
-        notificationLogs,
-        candidates: (candidateRows ?? []).map((c) => ({
-          rank: c.rank,
-          shootStart: c.shoot_start,
-          shootEnd: c.shoot_end,
-        })),
-      }
+  // 상세 패널에 필요한 데이터는 예약내역(표) 화면과 똑같은 함수로
+  // 가져온다 — 두 화면이 같은 예약을 다르게(달력/표) 보여줄 뿐이라
+  // 상세 로직은 하나만 둔다. 이 달의 목록(reservations)에 없는
+  // 예약(다른 달에 확정됐거나 휴지통 50건 밖)도 id만 있으면 정확히
+  // 찾아낸다.
+  const selectedWithProduct = selectedId
+    ? await loadReservationDetail(selectedId)
     : undefined;
 
   const pendingList = (pendingReservations ?? []).map((r) => ({
