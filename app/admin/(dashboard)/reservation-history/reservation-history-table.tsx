@@ -104,10 +104,12 @@ export function ReservationHistoryTable({ rows }: { rows: Row[] }) {
               </option>
             ))}
           </select>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortOption)}
-            className={`${inputClass} w-auto`}
+            className="border-border bg-surface text-muted rounded-full border px-2.5 py-1.5 text-xs outline-none"
           >
             {Object.entries(SORT_OPTIONS).map(([value, label]) => (
               <option key={value} value={value}>
@@ -115,10 +117,10 @@ export function ReservationHistoryTable({ rows }: { rows: Row[] }) {
               </option>
             ))}
           </select>
+          <span className="border-border bg-surface-subtle text-muted shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium">
+            전체 {rows.length}건 · 검색결과 {filtered.length}건
+          </span>
         </div>
-        <span className="border-border bg-surface-subtle text-muted shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium">
-          전체 {rows.length}건 · 검색결과 {filtered.length}건
-        </span>
       </div>
 
       <div className="border-border bg-surface mt-3 overflow-x-auto rounded-xl border">
