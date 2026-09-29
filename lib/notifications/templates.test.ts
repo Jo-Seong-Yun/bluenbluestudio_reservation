@@ -173,6 +173,17 @@ describe("알림 문구", () => {
     expect(variables["예상금액"]).toBe("");
     expect(variables["추가옵션"]).toBe("");
     expect(variables["모든옵션"]).toBe("프로필 촬영");
+    expect(variables["결과물링크"]).toBe("");
+  });
+
+  it("결과물링크 변수는 넘긴 링크를 그대로 담는다", () => {
+    const variables = buildEmailVariables({
+      productName: "프로필 촬영",
+      deliverableUrl: "https://drive.google.com/drive/folders/abc123",
+    });
+    expect(variables["결과물링크"]).toBe(
+      "https://drive.google.com/drive/folders/abc123",
+    );
   });
 
   it("예상금액은 기본가+옵션 합계를 천 단위 구분 기호와 함께 보여준다", () => {

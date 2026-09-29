@@ -464,6 +464,7 @@ export interface Database {
             | "on_cancelled"
             | "on_rescheduled"
             | "on_admin_new_request"
+            | "on_deliverable_sent"
             | "days_before_shoot"
             | "days_after_shoot";
           day_offset: number | null;
@@ -491,6 +492,7 @@ export interface Database {
             | "on_cancelled"
             | "on_rescheduled"
             | "on_admin_new_request"
+            | "on_deliverable_sent"
             | "days_before_shoot"
             | "days_after_shoot";
           subject: string;
