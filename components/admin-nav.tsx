@@ -7,6 +7,7 @@ import { Button } from "@/components/ui";
 const NAV_ITEMS = [
   { href: "/admin/products", label: "상품관리" },
   { href: "/admin/reservations", label: "예약관리" },
+  { href: "/admin/reservation-history", label: "예약내역" },
   { href: "/admin/customers", label: "고객DB" },
   { href: "/admin/revenue", label: "매출관리" },
   { href: "/admin/analytics", label: "통계" },

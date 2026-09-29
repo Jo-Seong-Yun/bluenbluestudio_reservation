@@ -978,6 +978,75 @@ export async function previewStatusChangeEmails(
   }));
 }
 
+export type SendDeliverableState =
+  | { status: "idle" }
+  | { status: "success" }
+  | { status: "error"; error: string };
+
+/**
+ * "결과물 전송" 확인모달의 "확인" 버튼. 예약 상태는 그대로 두고
+ * "결과물 전송 시" 트리거에 걸린 이메일 규칙만 찾아 보낸다(규칙이
+ * 없으면 조용히 아무 것도 안 나간다 — 다른 상태 전환 트리거와 같은
+ * 동작). 확인모달에서 고른 구글 드라이브 링크를 {{결과물링크}}로 채운다.
+ */
+export async function sendDeliverableEmail(
+  _prev: SendDeliverableState,
+  formData: FormData,
+): Promise<SendDeliverableState> {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const deliverableUrl = String(formData.get("deliverableUrl") ?? "").trim();
+  if (!id) return { status: "error", error: "잘못된 요청입니다." };
+  if (!deliverableUrl) {
+    return {
+      status: "error",
+      error: "구글 드라이브에서 결과물을 먼저 선택해 주시기 바랍니다.",
+    };
+  }
+
+  const overrides = parseEmailOverrides(formData);
+
+  const supabase = await createClient();
+  const { data: reservation } = await supabase
+    .from("reservations")
+    .select(
+      "code, customer_name, customer_phone, customer_email, product_id, estimated_amount",
+    )
+    .eq("id", id)
+    .single();
+  if (!reservation) return { status: "error", error: "예약을 찾을 수 없습니다." };
+
+  const [{ data: product }, selectedOptions, adminEmail] = await Promise.all([
+    supabase.from("products").select("name").eq("id", reservation.product_id).single(),
+    loadSelectedPricedOptions(id),
+    getAdminNotifyEmail(),
+  ]);
+
+  const variables = buildEmailVariables({
+    customerName: reservation.customer_name,
+    customerPhone: reservation.customer_phone,
+    productName: product?.name ?? "촬영",
+    code: reservation.code,
+    estimatedAmount: reservation.estimated_amount,
+    selectedOptions,
+    deliverableUrl,
+  });
+
+  await notifyEmailOnlyEvent({
+    triggerType: "on_deliverable_sent",
+    reservationId: id,
+    productId: reservation.product_id,
+    customerEmail: reservation.customer_email,
+    adminEmail,
+    variables,
+    overrides,
+  });
+
+  revalidatePath("/admin/reservations");
+  return { status: "success" };
+}
+
 /**
  * 관리자가 손님의 후보(1~3지망) 중 하나를 골라 확정한다. 이 순간에야
  * 비로소 그 시간이 실제로 점유된다(EXCLUDE 제약이 confirmed 상태에서만

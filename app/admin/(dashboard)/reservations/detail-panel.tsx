@@ -13,6 +13,7 @@ import { StatusButtons } from "./status-buttons";
 import { ConfirmCandidateButtons } from "./confirm-candidate-buttons";
 import { RescheduleForm } from "./reschedule-form";
 import { RecordSheetButton } from "./record-sheet-button";
+import { DeliverableSendModal } from "./deliverable-send-modal";
 import { MoneyField } from "./money-field";
 import { ChargedAmountBreakdown } from "./charged-amount-breakdown";
 import { Button } from "@/components/ui";
@@ -276,6 +277,15 @@ function ReservationDetail({
       {start ? (
         <div className="border-border mt-4 border-t pt-4">
           <RecordSheetButton reservationId={reservation.id} />
+        </div>
+      ) : null}
+
+      {/* 촬영이 실제로 끝난 뒤 편집본을 넘기는 단계라, 날짜가 확정된
+          예약(start 있음)에서만 보여준다 — 취소된 예약엔 보낼 일이
+          없다. 예약 상태 자체는 이 버튼으로 바뀌지 않는다(메일만 나간다). */}
+      {start && reservation.status !== "cancelled" ? (
+        <div className="border-border mt-4 border-t pt-4">
+          <DeliverableSendModal reservationId={reservation.id} />
         </div>
       ) : null}
 

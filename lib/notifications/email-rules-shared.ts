@@ -26,6 +26,7 @@ export const EMAIL_TRIGGER_TYPES = [
   "on_cancelled",
   "on_rescheduled",
   "on_admin_new_request",
+  "on_deliverable_sent",
   "days_before_shoot",
   "days_after_shoot",
 ] as const;
@@ -41,6 +42,7 @@ export const EMAIL_TRIGGER_LABELS: Record<EmailTriggerType, string> = {
   on_cancelled: "예약 취소 시",
   on_rescheduled: "예약 일정 변경 시",
   on_admin_new_request: "새 예약 신청 시",
+  on_deliverable_sent: "결과물 전송 시",
   days_before_shoot: "촬영 며칠 전",
   days_after_shoot: "촬영 며칠 후",
 };
@@ -165,6 +167,11 @@ export const EMAIL_VARIABLES: { key: string; description: string }[] = [
     key: "모든옵션",
     description: "기본 상품 + 선택한 추가옵션과 각 가격을 모두 한 줄씩 나열",
   },
+  {
+    key: "결과물링크",
+    description:
+      "예약관리의 \"결과물 전송\" 버튼에서 고른 구글 드라이브 파일/폴더 링크 (결과물 전송에서만 값이 채워짐)",
+  },
 ];
 
 /** 미리보기용 예시 값. 모든 변수를 항상 다 채워서 보여준다. */
@@ -184,6 +191,7 @@ export const EMAIL_VARIABLE_PREVIEW_VALUES: Record<string, string> = {
   예상금액: "72,000원",
   추가옵션: "대본 추가 (+10,000원)\n헤어·메이크업 (+30,000원)",
   모든옵션: "프로필 촬영 (72,000원)\n대본 추가 (+10,000원)\n헤어·메이크업 (+30,000원)",
+  결과물링크: "https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrSt",
 };
 
 /**

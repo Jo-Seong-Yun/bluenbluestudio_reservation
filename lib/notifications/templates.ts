@@ -230,6 +230,9 @@ export function buildEmailVariables(info: {
    * 없거나 빈 배열이면 두 변수 다 빈 값(모든옵션은 기본 상품 줄만 남을
    * 수 있다). */
   selectedOptions?: PricedSelection[];
+  /** "결과물 전송" 확인모달에서 고른 구글 드라이브 파일/폴더 링크.
+   * 없으면 빈 값. */
+  deliverableUrl?: string | null;
 }): Record<string, string> {
   const options = info.selectedOptions ?? [];
   // 기본가만 따로 저장해두지 않으므로, 예상금액(기본가+옵션 합계)에서
@@ -269,5 +272,6 @@ export function buildEmailVariables(info: {
       info.estimatedAmount != null ? formatMoney(info.estimatedAmount) : "",
     추가옵션: addonLines.join("\n"),
     모든옵션: allLines.join("\n"),
+    결과물링크: info.deliverableUrl ?? "",
   };
 }
