@@ -8,7 +8,6 @@ import {
 } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { BookingFlow } from "@/components/booking-flow";
-import { publicImageUrl } from "@/lib/images";
 import { Button } from "@/components/ui";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
 import { ProductViewTracker } from "./product-view-tracker";
@@ -142,25 +141,6 @@ export default async function ProductDetailPage({
           ) : null}
         </div>
       </div>
-
-      {product.gallery && product.gallery.length > 0 ? (
-        <ul
-          aria-label="예시 사진"
-          className="mt-5 flex max-w-5xl snap-x gap-3 overflow-x-auto pb-2"
-        >
-          {product.gallery.map((path) => (
-            <li key={path} className="shrink-0 snap-start">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={publicImageUrl(path)}
-                alt=""
-                loading="lazy"
-                className="bg-surface-subtle h-48 w-auto rounded-lg object-cover sm:h-60"
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
 
       <div className="border-brand/30 bg-brand/5 mt-5 max-w-5xl rounded-xl border px-4 py-3">
         <p className="text-boost text-sm leading-relaxed sm:text-base">

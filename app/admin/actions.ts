@@ -350,10 +350,6 @@ export async function saveProduct(
   const input = parsed.data;
   const id = String(formData.get("id") ?? "");
   const coverImage = String(formData.get("coverImage") ?? "") || null;
-  const gallery = formData
-    .getAll("gallery")
-    .map(String)
-    .filter((path) => path.length > 0);
 
   // 정해둔 팔레트 밖의 값(조작되거나 옛날 값)이 오면 그냥 태그 없음으로 —
   // DB 체크 제약에 걸려 저장 자체가 실패하게 두지 않는다.
@@ -376,7 +372,6 @@ export async function saveProduct(
       : null,
     delivery_note: input.deliveryNote || null,
     cover_image: coverImage,
-    gallery,
     is_published: input.isPublished,
     tag_color: tagColor,
   };
