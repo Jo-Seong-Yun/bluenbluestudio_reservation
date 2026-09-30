@@ -28,14 +28,82 @@ const initialState: SendDeliverableState = { status: "idle" };
 function recipientAddressesText(
   recipients: EmailRecipient[],
   emailInfo: DeliverableEmailInfo | null,
+  extraEmails: string[],
 ): string {
+  const extras = extraEmails.map((e) => e.trim()).filter(Boolean);
   return recipients
-    .map((r) =>
-      r === "admin"
-        ? `사장님: ${emailInfo?.adminEmail || "이메일 없음"}`
-        : `손님: ${emailInfo?.sendTo || "이메일 없음"}`,
-    )
+    .map((r) => {
+      if (r === "admin") return `사장님: ${emailInfo?.adminEmail || "이메일 없음"}`;
+      const customer = `손님: ${emailInfo?.sendTo || "이메일 없음"}`;
+      return extras.length > 0 ? `${customer}, ${extras.join(", ")}` : customer;
+    })
     .join(" · ");
+}
+
+/** 최대 인원이 2명 이상인 상품이면 예약자를 뺀 나머지 인원 수. 그 외엔 0. */
+export function extraRecipientCount(productMaxPeople: number | null): number {
+  return productMaxPeople && productMaxPeople > 1 ? productMaxPeople - 1 : 0;
+}
+
+/**
+ * 결과물을 받을 사람 목록. 1번(예약자)은 고객DB/예약건에서 정해진
+ * 주소를 그대로 보여주기만 하고, 2번부터는 사장님이 직접 적는다 —
+ * 칸 수는 상품관리의 "최대 인원"에서 예약자 1명을 뺀 만큼이다.
+ * 비워둔 칸은 보내지 않는다.
+ */
+export function DeliverableRecipients({
+  sendTo,
+  extraEmails,
+  onChangeExtra,
+}: {
+  sendTo: string | null;
+  extraEmails: string[];
+  onChangeExtra: (index: number, value: string) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium">받는 사람</p>
+      <ol className="border-border divide-border divide-y rounded-lg border">
+        <li className="flex items-center gap-3 px-3 py-2.5">
+          <span className="text-muted w-16 shrink-0 text-xs font-medium">
+            1 · 예약자
+          </span>
+          <span
+            className={`min-w-0 flex-1 truncate font-mono text-sm ${sendTo ? "" : "text-red-600 dark:text-red-400"}`}
+          >
+            {sendTo || "이메일 없음"}
+          </span>
+          <span className="text-muted shrink-0 text-[11px]">자동</span>
+        </li>
+        {extraEmails.map((value, i) => (
+          <li key={i} className="flex items-center gap-3 px-3 py-2">
+            <label
+              htmlFor={`extraEmail-${i}`}
+              className="text-muted w-16 shrink-0 text-xs font-medium"
+            >
+              {i + 2} · 동반인
+            </label>
+            <input
+              id={`extraEmail-${i}`}
+              name="extraEmails"
+              type="email"
+              value={value}
+              onChange={(e) => onChangeExtra(i, e.target.value)}
+              placeholder="이메일 주소 (비워두면 보내지 않음)"
+              className="border-border bg-surface focus:border-brand focus:ring-brand/30 min-w-0 flex-1 rounded-md border px-2.5 py-1.5 font-mono text-sm outline-none placeholder:font-sans focus:ring-2"
+            />
+          </li>
+        ))}
+      </ol>
+      {extraEmails.length > 0 ? (
+        <p className="text-muted mt-1.5 text-xs">
+          최대 {extraEmails.length + 1}명 상품이라 예약자 외{" "}
+          {extraEmails.length}명의 이메일을 더 적을 수 있습니다. 같은
+          내용의 메일이 함께 발송됩니다.
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -61,6 +129,7 @@ export function DeliverableSendModal({
   const [loading, setLoading] = useState(false);
   const [previewVersion, setPreviewVersion] = useState(0);
   const [emailInfo, setEmailInfo] = useState<DeliverableEmailInfo | null>(null);
+  const [extraEmails, setExtraEmails] = useState<string[]>([]);
 
   const [state, action, pending] = useActionState<
     SendDeliverableState,
@@ -95,8 +164,14 @@ export function DeliverableSendModal({
     setItems(null);
     setEdited({});
     setEmailInfo(null);
+    setExtraEmails([]);
     void loadPreview("");
-    void loadDeliverableEmailInfo(reservationId).then(setEmailInfo);
+    void loadDeliverableEmailInfo(reservationId).then((info) => {
+      setEmailInfo(info);
+      setExtraEmails(
+        Array.from({ length: extraRecipientCount(info.productMaxPeople) }, () => ""),
+      );
+    });
     dialogRef.current?.showModal();
   }
 
@@ -175,6 +250,18 @@ export function DeliverableSendModal({
             </div>
           ) : null}
 
+          {emailInfo ? (
+            <DeliverableRecipients
+              sendTo={emailInfo.sendTo}
+              extraEmails={extraEmails}
+              onChangeExtra={(index, value) =>
+                setExtraEmails((prev) =>
+                  prev.map((v, i) => (i === index ? value : v)),
+                )
+              }
+            />
+          ) : null}
+
           {noEmailAtAll ? (
             <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
               ⚠ 예약건과 고객DB 어디에도 이메일 주소가 없어, 손님에게는
@@ -207,7 +294,11 @@ export function DeliverableSendModal({
                     <p className="text-muted mb-2 text-xs font-medium">
                       발송 대상 ·{" "}
                       <span className="font-mono font-normal">
-                        {recipientAddressesText(item.recipients, emailInfo)}
+                        {recipientAddressesText(
+                          item.recipients,
+                          emailInfo,
+                          extraEmails,
+                        )}
                       </span>
                     </p>
                     <input

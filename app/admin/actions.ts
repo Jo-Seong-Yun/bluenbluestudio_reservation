@@ -1010,6 +1010,8 @@ export type DeliverableEmailInfo = {
   sendTo: string | null;
   /** 설정에 등록된 사장님 알림 이메일 — "사장님에게" 수신자의 실제 주소. */
   adminEmail: string | null;
+  /** 상품관리에 정한 최대 인원. 2 이상이면 예약자 외 인원의 이메일 칸을 그만큼 더 보여준다. */
+  productMaxPeople: number | null;
 };
 
 /**
@@ -1029,7 +1031,7 @@ export async function loadDeliverableEmailInfo(
   const supabase = await createClient();
   const { data: reservation } = await supabase
     .from("reservations")
-    .select("customer_phone, customer_email")
+    .select("customer_phone, customer_email, product_id")
     .eq("id", reservationId)
     .single();
   if (!reservation) {
@@ -1038,18 +1040,25 @@ export async function loadDeliverableEmailInfo(
       customerDbEmail: null,
       sendTo: null,
       adminEmail: null,
+      productMaxPeople: null,
     };
   }
 
-  const [customerDbEmail, adminEmail] = await Promise.all([
+  const [customerDbEmail, adminEmail, { data: product }] = await Promise.all([
     getCustomerEmailByPhone(reservation.customer_phone),
     getAdminNotifyEmail(),
+    supabase
+      .from("products")
+      .select("max_people")
+      .eq("id", reservation.product_id)
+      .maybeSingle(),
   ]);
   return {
     reservationEmail: reservation.customer_email,
     customerDbEmail,
     sendTo: customerDbEmail || reservation.customer_email || null,
     adminEmail,
+    productMaxPeople: product?.max_people ?? null,
   };
 }
 
