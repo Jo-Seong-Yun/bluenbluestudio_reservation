@@ -244,39 +244,43 @@ function ReservationDetail({
         </div>
       ) : null}
 
-      <div className="border-border mt-4 border-t pt-4">
-        {reservation.status === "cancelled" ? (
-          <div>
-            <p className="mb-1 text-sm font-medium text-red-700 dark:text-red-400">
-              취소되어 휴지통에 있습니다
+      {reservation.status === "cancelled" ? (
+        <div className="border-border mt-4 border-t pt-4">
+          <p className="mb-1 text-sm font-medium text-red-700 dark:text-red-400">
+            취소되어 휴지통에 있습니다
+          </p>
+          {reservation.cancel_reason ? (
+            <p className="text-muted mb-2 text-sm whitespace-pre-wrap">
+              취소 사유: {reservation.cancel_reason}
             </p>
-            {reservation.cancel_reason ? (
-              <p className="text-muted mb-2 text-sm whitespace-pre-wrap">
-                취소 사유: {reservation.cancel_reason}
-              </p>
-            ) : null}
-            <RestoreReservationButton reservationId={reservation.id} />
-          </div>
-        ) : isPending && reservation.candidates ? (
+          ) : null}
+          <RestoreReservationButton reservationId={reservation.id} />
+        </div>
+      ) : isPending && reservation.candidates ? (
+        <div className="border-border mt-4 border-t pt-4">
           <ConfirmCandidateButtons
             reservationId={reservation.id}
             candidates={reservation.candidates}
           />
-        ) : (
-          <>
-            <p className="mb-2 text-sm font-medium">
-              상태 변경{" "}
-              <span className="text-muted font-normal">
-                (현재: {STATUS_LABEL[reservation.status] ?? reservation.status})
-              </span>
-            </p>
-            <StatusButtons
-              reservationId={reservation.id}
-              status={reservation.status}
-            />
-          </>
-        )}
-      </div>
+        </div>
+      ) : basePath === "/admin/reservations" ? (
+        // 예약내역(표)에서는 상태 변경을 표의 버튼 열에서 바로 하므로,
+        // 그 basePath로 열린 상세 패널에서는 이 섹션을 아예 보여주지
+        // 않는다(basePath === "/admin/reservations"일 때만, 즉
+        // 예약관리(달력)에서 열렸을 때만 보여준다).
+        <div className="border-border mt-4 border-t pt-4">
+          <p className="mb-2 text-sm font-medium">
+            상태 변경{" "}
+            <span className="text-muted font-normal">
+              (현재: {STATUS_LABEL[reservation.status] ?? reservation.status})
+            </span>
+          </p>
+          <StatusButtons
+            reservationId={reservation.id}
+            status={reservation.status}
+          />
+        </div>
+      ) : null}
 
       {/* 확정된 예약만 날짜·시간을 바꿀 수 있다 — 후보만 낸 상태는
           위 ConfirmCandidateButtons로 먼저 확정해야 한다. */}
@@ -300,8 +304,12 @@ function ReservationDetail({
 
       {/* 촬영이 실제로 끝난 뒤 편집본을 넘기는 단계라, 날짜가 확정된
           예약(start 있음)에서만 보여준다 — 취소된 예약엔 보낼 일이
-          없다. 예약 상태 자체는 이 버튼으로 바뀌지 않는다(메일만 나간다). */}
-      {start && reservation.status !== "cancelled" ? (
+          없다. 예약 상태 자체는 이 버튼으로 바뀌지 않는다(메일만 나간다).
+          예약내역(표)에서는 이 버튼이 표의 버튼 열에 있으므로, 그
+          basePath에서 열린 상세 패널에서는 중복으로 보여주지 않는다. */}
+      {start &&
+      reservation.status !== "cancelled" &&
+      basePath === "/admin/reservations" ? (
         <div className="border-border mt-4 border-t pt-4">
           <DeliverableSendModal reservationId={reservation.id} />
         </div>

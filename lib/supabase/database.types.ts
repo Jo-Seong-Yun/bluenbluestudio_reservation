@@ -200,6 +200,10 @@ export interface Database {
           cancel_reason: string | null;
           /** 취소되기 직전 상태 — 휴지통에서 복원할 때 이 값으로 되돌린다. */
           status_before_cancel: ReservationStatus | null;
+          /** "결과물 전송" 버튼을 성공적으로 마친 시각. 예약내역 표에서
+           * 이 값의 유무로 "결과물 전송" 버튼과 "작업종료" 텍스트를
+           * 가른다 — 화면에 시각 자체를 보여주지는 않는다. */
+          deliverable_sent_at: string | null;
           created_at: string;
           updated_at: string;
         };

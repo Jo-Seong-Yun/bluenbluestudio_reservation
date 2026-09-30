@@ -14,10 +14,13 @@ export const dynamic = "force-dynamic";
  * 언제였더라"를 찾기 좋다 — 서로 다른 용도라 별도 화면으로 둔다.
  *
  * "예약관리를 달력 대신 표로 바꾼 것"이라는 요구에 맞춰, 오른쪽에는
- * 예약관리와 완전히 같은 DetailPanel을 그대로 쓴다 — 상태 변경·메모·
- * 결과물 전송 등 예약관리에서 하던 일을 여기서도 똑같이 할 수 있고,
- * 같은 reservations 테이블을 보는 것이므로 한쪽에서 고치면 다른
- * 화면에서도(새로 열거나 새로고침하면) 그대로 반영된다.
+ * 예약관리와 같은 DetailPanel을 그대로 쓴다 — 메모·지불액·기록표
+ * 생성 등 예약관리에서 하던 일을 여기서도 똑같이 할 수 있고, 같은
+ * reservations 테이블을 보는 것이므로 한쪽에서 고치면 다른 화면
+ * 에서도(새로 열거나 새로고침하면) 그대로 반영된다. 다만 상태 변경과
+ * 결과물 전송만은 이 화면의 표 자체(각 행의 버튼 열)에서 처리하므로,
+ * 여기서 여는 DetailPanel에는 그 두 섹션이 나타나지 않는다(basePath로
+ * 구분 — detail-panel.tsx 참고).
  */
 export default async function ReservationHistoryPage({
   searchParams,
@@ -31,7 +34,7 @@ export default async function ReservationHistoryPage({
       supabase
         .from("reservations")
         .select(
-          "id, code, status, shoot_start, customer_name, customer_phone, charged_amount, estimated_amount, product_id, created_at",
+          "id, code, status, shoot_start, customer_name, customer_phone, charged_amount, estimated_amount, product_id, created_at, deliverable_sent_at",
         )
         .order("created_at", { ascending: false }),
       supabase.from("products").select("id, name"),
@@ -50,6 +53,7 @@ export default async function ReservationHistoryPage({
     estimatedAmount: r.estimated_amount,
     productName: productNameById.get(r.product_id) ?? "",
     createdAt: r.created_at,
+    deliverableSent: r.deliverable_sent_at !== null,
   }));
 
   return (
@@ -57,8 +61,8 @@ export default async function ReservationHistoryPage({
       <h1 className="text-2xl font-bold">예약내역</h1>
       <p className="text-muted mt-1 text-sm">
         지금까지 접수된 모든 예약을 최근 접수순으로 모았습니다. 예약번호를
-        누르면 오른쪽에서 예약관리와 똑같이 상세 내용을 보고 처리할 수
-        있습니다.
+        누르면 오른쪽에서 상세 내용을 보고 처리할 수 있고, 상태 변경과
+        결과물 전송은 표의 버튼에서 바로 할 수 있습니다.
       </p>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">

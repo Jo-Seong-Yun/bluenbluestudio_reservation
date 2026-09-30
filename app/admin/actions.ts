@@ -1114,6 +1114,13 @@ export async function sendDeliverableEmail(
     overrides,
   });
 
+  // 예약내역 표에서 "결과물 전송" 버튼을 "작업종료" 텍스트로 바꿀 때
+  // 기준으로 쓴다 — 화면에 이 시각 자체를 보여주지는 않는다.
+  await supabase
+    .from("reservations")
+    .update({ deliverable_sent_at: new Date().toISOString() })
+    .eq("id", id);
+
   revalidatePath("/admin/reservations");
   revalidatePath("/admin/reservation-history");
   return { status: "success" };

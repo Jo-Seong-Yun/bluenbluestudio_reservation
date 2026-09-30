@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { inputClass } from "@/components/ui";
 import { kstDateString, kstTimeString } from "@/lib/time";
-import { DeliverableSendModal } from "../reservations/deliverable-send-modal";
+import { ReservationActionCell } from "./reservation-action-cell";
 
 const SORT_OPTIONS = {
   created_desc: "예약시점 순",
@@ -37,6 +37,34 @@ const STATUS_LABEL: Record<string, string> = {
   no_show: "노쇼",
 };
 
+// 예약관리 달력의 상태 점 색(components/admin-calendar.tsx의
+// STATUS_DOT)과 같은 색 배정을 써서, 관리자 화면 전체에서 같은 상태는
+// 항상 같은 색으로 보이게 한다.
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  requested:
+    "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  schedule_confirmed:
+    "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  payment_confirmed: "bg-brand/15 text-brand",
+  completed:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  cancelled:
+    "bg-gray-100 text-gray-600 dark:bg-gray-800/60 dark:text-gray-300",
+  no_show: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+};
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span
+      className={`inline-block shrink-0 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${
+        STATUS_BADGE_CLASS[status] ?? "bg-surface-subtle text-muted"
+      }`}
+    >
+      {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
+
 type Row = {
   id: string;
   code: string;
@@ -48,6 +76,8 @@ type Row = {
   estimatedAmount: number | null;
   productName: string;
   createdAt: string;
+  /** "결과물 전송"을 이미 한 번 성공적으로 마쳤으면 true. */
+  deliverableSent: boolean;
 };
 
 export function ReservationHistoryTable({
@@ -124,17 +154,15 @@ export function ReservationHistoryTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-border text-muted border-b text-left">
+              <th className="px-4 py-3 font-medium">상태</th>
+              <th className="px-4 py-3 font-medium">촬영일시</th>
               <th className="px-4 py-3 font-medium">예약번호</th>
               <th className="px-4 py-3 font-medium">상품</th>
               <th className="px-4 py-3 font-medium">예약자</th>
               <th className="px-4 py-3 font-medium">연락처</th>
-              <th className="px-4 py-3 font-medium">촬영일시</th>
-              <th className="px-4 py-3 font-medium">상태</th>
               <th className="px-4 py-3 font-medium">결제금액</th>
               <th className="px-4 py-3 font-medium">접수일</th>
-              <th className="px-4 py-3 font-medium">
-                <span className="sr-only">결과물 전송</span>
-              </th>
+              <th className="px-4 py-3 font-medium">상태 변경</th>
             </tr>
           </thead>
           <tbody>
@@ -155,16 +183,8 @@ export function ReservationHistoryTable({
                   }`}
                 >
                   <td className="px-4 py-3">
-                    <Link
-                      href={`?id=${r.id}`}
-                      className="hover:text-brand font-mono"
-                    >
-                      {r.code}
-                    </Link>
+                    <StatusBadge status={r.status} />
                   </td>
-                  <td className="px-4 py-3">{r.productName || "-"}</td>
-                  <td className="px-4 py-3">{r.customerName}</td>
-                  <td className="px-4 py-3">{r.customerPhone}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {r.shootStart ? (
                       <>
@@ -175,9 +195,20 @@ export function ReservationHistoryTable({
                       <span className="text-muted">확정 대기</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {STATUS_LABEL[r.status] ?? r.status}
+                  <td className="p-0">
+                    {/* 요청사항: 예약번호 열은 어디를 눌러도 상세로
+                        이동해야 하므로, 셀 전체를 링크로 채운다(다른
+                        열은 그대로 텍스트만 표시). */}
+                    <Link
+                      href={`?id=${r.id}`}
+                      className="hover:text-brand block px-4 py-3 font-mono"
+                    >
+                      {r.code}
+                    </Link>
                   </td>
+                  <td className="px-4 py-3">{r.productName || "-"}</td>
+                  <td className="px-4 py-3">{r.customerName}</td>
+                  <td className="px-4 py-3">{r.customerPhone}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {r.chargedAmount != null
                       ? `${r.chargedAmount.toLocaleString()}원`
@@ -189,11 +220,12 @@ export function ReservationHistoryTable({
                     {kstDateString(new Date(r.createdAt))}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {r.shootStart && r.status !== "cancelled" ? (
-                      <DeliverableSendModal reservationId={r.id} />
-                    ) : (
-                      <span className="text-muted-faint">-</span>
-                    )}
+                    <ReservationActionCell
+                      reservationId={r.id}
+                      status={r.status}
+                      isPending={r.shootStart === null && r.status === "requested"}
+                      deliverableSent={r.deliverableSent}
+                    />
                   </td>
                 </tr>
               ))
