@@ -288,7 +288,6 @@ export async function discardDraftProduct(formData: FormData) {
     product.sale_price === null &&
     product.is_published === false &&
     !product.summary &&
-    !product.page_summary &&
     !product.description &&
     !product.cover_image &&
     (product.gallery ?? []).length === 0 &&
@@ -334,7 +333,6 @@ export async function saveProduct(
     salePrice: formData.get("salePrice"),
     maxPeople: formData.get("maxPeople"),
     summary: formData.get("summary"),
-    pageSummary: formData.get("pageSummary"),
     description: formData.get("description"),
     deliveryNote: formData.get("deliveryNote"),
     isPublished: formData.get("isPublished") === "on",
@@ -366,7 +364,6 @@ export async function saveProduct(
     sale_price: input.salePrice,
     max_people: input.maxPeople,
     summary: input.summary || null,
-    page_summary: input.pageSummary || null,
     description: input.description
       ? sanitizeDescriptionHtml(input.description)
       : null,
@@ -487,7 +484,6 @@ export async function duplicateProduct(formData: FormData) {
         sale_price: source.sale_price,
         max_people: source.max_people,
         summary: source.summary,
-        page_summary: source.page_summary,
         description: source.description,
         cover_image: source.cover_image,
         gallery: source.gallery,

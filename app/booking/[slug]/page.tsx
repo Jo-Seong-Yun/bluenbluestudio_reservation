@@ -7,14 +7,11 @@ import {
   pickDefaultBookingMonth,
 } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
+import { RichText } from "@/components/rich-text";
 import { BookingFlow } from "@/components/booking-flow";
 import { Button } from "@/components/ui";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
 import { ProductViewTracker } from "./product-view-tracker";
-
-/** 상품관리에서 '안내 박스 문구'를 비워둔 상품에 보여줄 기본 문구. */
-const DEFAULT_GUIDE_TEXT =
-  "먼저 희망하는 시간 3개를 선택하면, 푸르른 스튜디오가 3개 중 1개의 일정으로 확정해드립니다.";
 
 export async function generateMetadata({
   params,
@@ -102,60 +99,86 @@ export default async function ProductDetailPage({
         </Button>
       </Link>
 
-      {/* 상세 설명은 손님 화면에서 뺐다(관리자 상품관리에는 그대로
-          남아 있다). 설명이 없으면 왼쪽 칸이 제목·가격만 담은 채 비어
-          보이므로, 상품 정보는 위쪽 한 줄 머리글로 올리고 예약 흐름이
-          화면 폭 전체를 쓰게 한다. */}
-      <div className="mt-6 flex max-w-5xl flex-wrap items-end justify-between gap-x-6 gap-y-2">
+      {/* 왼쪽엔 타이틀·가격 + 상세 내용을 한 박스 안에 담고, 오른쪽엔
+          달력·시간 선택. 좁은 화면에서는 전체가 위아래로 쌓인다(제목→
+          설명→예약 흐름 순서로 읽히도록). 예약 흐름 쪽(BookingFlow)이
+          달력 + 그 옆 시간 선택 칸을 나란히 두려면 꽤 넓은 폭이
+          필요해서, 왼쪽과 나란히 두는 기준을 2xl(넓은 데스크톱)로
+          높여뒀다 — 그보다 좁으면 예약 흐름에게 화면 전체 폭을 내줘야
+          달력이 찌그러지지 않는다. flex 대신 grid를 쓴다 — 왼쪽 칸을
+          28rem "고정 트랙"으로 못박아 두면, 그 안의 글자가 아무리
+          길어도 트랙 자체가 늘어나는 일은 없다(flex의 width는
+          min-content가 크면 그보다 더 넓어질 수 있어 옆 칸(달력)을
+          침범할 수 있었다 — grid의 명시적 트랙 크기는 그런 식으로
+          밀리지 않는다). min-w-0은 각 칸 내부 콘텐츠가 트랙 폭 안에서
+          실제로 줄바꿈되도록 하는 안전장치로 그대로 둔다. items-start라
+          어느 한쪽 칼럼이 더 높아져도 서로 늘어나지 않고, 각자 자기
+          칸 맨 위에서 시작해 상단이 그대로 맞는다. */}
+      <div className="mt-6 grid grid-cols-1 gap-6 2xl:grid-cols-[28rem_minmax(0,1fr)] 2xl:items-start">
         <div className="min-w-0">
-          <h1 className="text-boost text-2xl font-bold">{product.name}</h1>
-          <p className="text-muted text-boost mt-1 text-xs">
-            {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
-          {product.sale_price != null ? (
-            <div className="flex flex-col items-end gap-0">
-              <div className="text-muted flex items-center gap-1.5">
-                <span className="text-boost text-xs line-through">
-                  {product.price.toLocaleString()}원
-                </span>
-                <span className="text-boost rounded-md bg-rose-50 px-1 py-0.5 text-xs font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400">
-                  {Math.round((1 - product.sale_price / product.price) * 100)}%
-                </span>
+          {/* 박스를 둘로 쪼개지 않고 하나로 두되, 안에서 제목/가격 영역과
+              상세 내용 영역을 얇은 구분선(border-t)으로만 나눈다 —
+              "박스 안에 또 박스"가 겹치는 느낌 없이 자연스럽게 이어진다. */}
+          <div className="border-border bg-surface rounded-xl border">
+            <div className="p-3 sm:p-5">
+              <h1 className="text-boost text-2xl font-bold">{product.name}</h1>
+              <p className="text-muted text-boost mt-1 text-xs">
+                {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
+              </p>
+              <div className="mt-3 flex flex-wrap items-end gap-x-2 gap-y-1">
+                {product.sale_price != null ? (
+                  <div className="flex flex-col gap-0">
+                    {/* 정가·할인율은 할인가 위에 작게, 행간을 좁혀서
+                        (gap-0) 할인가 한 덩어리처럼 보이게 한다. */}
+                    <div className="text-muted flex items-center gap-1.5">
+                      <span className="text-boost text-xs line-through">
+                        {product.price.toLocaleString()}원
+                      </span>
+                      <span className="text-boost rounded-md bg-rose-50 px-1 py-0.5 text-xs font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400">
+                        {Math.round(
+                          (1 - product.sale_price / product.price) * 100,
+                        )}
+                        %
+                      </span>
+                    </div>
+                    <span className="text-foreground text-boost text-xl font-extrabold">
+                      {product.sale_price.toLocaleString()}원
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-boost">
+                    {product.price.toLocaleString()}원
+                  </span>
+                )}
+                {product.max_people ? (
+                  <span className="text-muted text-boost">
+                    · 최대 {product.max_people}명
+                  </span>
+                ) : null}
               </div>
-              <span className="text-foreground text-boost text-xl font-extrabold">
-                {product.sale_price.toLocaleString()}원
-              </span>
             </div>
-          ) : (
-            <span className="text-boost text-xl font-extrabold">
-              {product.price.toLocaleString()}원
-            </span>
-          )}
-          {product.max_people ? (
-            <span className="text-muted text-boost">
-              · 최대 {product.max_people}명
-            </span>
-          ) : null}
+
+            {product.description ? (
+              <div className="border-border border-t p-3 sm:p-5">
+                <h2 className="text-boost font-bold">상세 내용</h2>
+                <div className="text-boost mt-3 text-sm sm:text-base">
+                  <RichText>{product.description}</RichText>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
 
-      <div className="border-brand/30 bg-brand/5 mt-5 max-w-5xl rounded-xl border px-4 py-3">
-        <p className="text-boost text-sm leading-relaxed whitespace-pre-line sm:text-base">
-          {product.page_summary || DEFAULT_GUIDE_TEXT}
-        </p>
-      </div>
-
-      <div className="mt-4">
-        <BookingFlow
-          productId={product.id}
-          month={month}
-          availableDates={[...availableDates]}
-          basePath={`/booking/${slug}`}
-          minMonth={minMonth}
-          maxMonth={maxMonth}
-        />
+        <div className="min-w-0">
+          <BookingFlow
+            productId={product.id}
+            month={month}
+            availableDates={[...availableDates]}
+            basePath={`/booking/${slug}`}
+            minMonth={minMonth}
+            maxMonth={maxMonth}
+          />
+        </div>
       </div>
     </main>
   );

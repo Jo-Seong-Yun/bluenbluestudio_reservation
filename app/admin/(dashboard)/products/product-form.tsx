@@ -17,7 +17,6 @@ export type ProductFormValues = {
   salePrice: number | null;
   maxPeople: number | null;
   summary: string;
-  pageSummary: string;
   description: string;
   deliveryNote: string;
   coverImage: string | null;
@@ -81,7 +80,7 @@ export function ProductForm({
         </Field>
 
         <Field
-          label="목록 요약"
+          label="요약"
           hint="예약 페이지의 상품 목록 카드에서 상품 이름 아래에 표시됩니다. 최대 200자이며, 카드에는 2줄까지 보입니다."
         >
           <input
@@ -89,20 +88,6 @@ export function ProductForm({
             maxLength={200}
             defaultValue={initial.summary}
             placeholder="한 사람을 위한 기본 프로필 촬영"
-            className={inputClass}
-          />
-        </Field>
-
-        <Field
-          label="안내 박스 문구 (선택)"
-          hint="상품을 눌러 들어간 화면에서, 달력 바로 위 파란색 둥근 박스 안에 표시됩니다. 비워두면 기본 문구가 나옵니다. 최대 300자."
-        >
-          <textarea
-            name="pageSummary"
-            rows={2}
-            maxLength={300}
-            defaultValue={initial.pageSummary}
-            placeholder="먼저 희망하는 시간 3개를 선택하면, 푸르른 스튜디오가 3개 중 1개의 일정으로 확정해드립니다."
             className={inputClass}
           />
         </Field>
