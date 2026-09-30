@@ -17,6 +17,7 @@ export type ProductFormValues = {
   salePrice: number | null;
   maxPeople: number | null;
   summary: string;
+  pageSummary: string;
   description: string;
   deliveryNote: string;
   coverImage: string | null;
@@ -82,7 +83,7 @@ export function ProductForm({
         </Field>
 
         <Field
-          label="요약"
+          label="목록 요약"
           hint="예약 페이지의 상품 목록 카드에서 상품 이름 아래에 표시됩니다. 최대 200자이며, 카드에는 2줄까지 보입니다."
         >
           <input
@@ -90,6 +91,20 @@ export function ProductForm({
             maxLength={200}
             defaultValue={initial.summary}
             placeholder="한 사람을 위한 기본 프로필 촬영"
+            className={inputClass}
+          />
+        </Field>
+
+        <Field
+          label="상품 페이지 소개 (선택)"
+          hint="상품을 눌러 들어간 화면에서 상품 이름 바로 아래에 표시됩니다. 목록 요약과 따로 적을 수 있습니다. 최대 300자."
+        >
+          <textarea
+            name="pageSummary"
+            rows={2}
+            maxLength={300}
+            defaultValue={initial.pageSummary}
+            placeholder="푸르른 스튜디오의 대표 상품입니다."
             className={inputClass}
           />
         </Field>

@@ -53,6 +53,7 @@ export default async function EditProductPage({
           salePrice: product.sale_price,
           maxPeople: product.max_people,
           summary: product.summary ?? "",
+          pageSummary: product.page_summary ?? "",
           description: product.description ?? "",
           deliveryNote: product.delivery_note ?? "",
           coverImage: product.cover_image,
