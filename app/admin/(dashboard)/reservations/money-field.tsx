@@ -65,29 +65,30 @@ export function MoneyField({
 
   return (
     <div className="border-border mt-4 border-t pt-4">
-      <label className="mb-1.5 block text-sm font-medium" htmlFor={amountName}>
-        {label} <span className="text-muted font-normal">{hint}</span>
+      <label className="block text-sm font-medium" htmlFor={amountName}>
+        {label}
       </label>
-      <div className="flex gap-2">
+      <p className="text-muted mt-0.5 mb-2 text-xs leading-relaxed">{hint}</p>
+      <div className="flex items-center gap-2">
         <MoneyInput
           id={amountName}
           value={amount}
           onChange={handleAmountChange}
-          className="w-full"
+          className="min-w-0 flex-1"
         />
         <Button
           type="button"
           variant="ghost"
           onClick={handleSave}
           disabled={isPending}
-          className="shrink-0"
+          className="min-w-[4.5rem] shrink-0"
         >
           {isPending ? "저장 중…" : justSaved ? "저장됨" : "저장"}
         </Button>
       </div>
       <textarea
         rows={2}
-        placeholder="메모"
+        placeholder="메모 (선택)"
         value={memo}
         onChange={handleMemoChange}
         className="border-border bg-surface focus:border-brand focus:ring-brand/30 mt-2 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
