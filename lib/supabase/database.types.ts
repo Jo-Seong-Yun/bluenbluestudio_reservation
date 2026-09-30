@@ -43,6 +43,8 @@ export interface Database {
           price: number;
           sale_price: number | null;
           summary: string | null;
+          /** 상품 페이지에서 상품명 아래에 보이는 소개 문구(목록 카드의 summary와 별개). */
+          page_summary: string | null;
           description: string | null;
           cover_image: string | null;
           gallery: string[];

@@ -106,6 +106,11 @@ export default async function ProductDetailPage({
       <div className="mt-6 flex max-w-5xl flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <div className="min-w-0">
           <h1 className="text-boost text-2xl font-bold">{product.name}</h1>
+          {product.page_summary ? (
+            <p className="text-muted text-boost mt-1.5 max-w-2xl text-sm whitespace-pre-line sm:text-base">
+              {product.page_summary}
+            </p>
+          ) : null}
           <p className="text-muted text-boost mt-1 text-xs">
             {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
           </p>

@@ -43,6 +43,7 @@ export const productSchema = z
       .union([z.literal(""), z.coerce.number().int().min(1).max(100)])
       .transform((value) => (value === "" ? null : value)),
     summary: z.string().trim().max(200).optional().default(""),
+    pageSummary: z.string().trim().max(300).optional().default(""),
     description: z.string().max(20_000).optional().default(""),
     /** 촬영 기록표(lib/record-sheet)의 "완성본 전달예정일" 칸. 손님에게
      * 묻는 게 아니라 사장님이 상품마다 미리 정해두는 값이다. */
