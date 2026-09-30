@@ -123,12 +123,16 @@ export function BookingFlow({
           영향을 주지 않는다. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[36rem_minmax(0,1fr)] lg:items-stretch">
         <div className="border-border bg-surface min-w-0 w-full rounded-xl border p-3 sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-1.5 flex items-center justify-between">
             <h2 className="text-boost text-lg font-bold">희망 시간 고르기</h2>
             <span className="text-muted text-boost text-xs">
               {candidates.length}/{MAX_CANDIDATES}개 선택
             </span>
           </div>
+          <p className="text-muted text-boost mb-3 text-xs">
+            희망 시간을 {MAX_CANDIDATES}개 모두 선택해 주시면, 그중 하나로
+            예약을 확정해 드립니다.
+          </p>
 
           {/* 3개를 다 골라도 달력은 그대로 둔다 — 대신 오른쪽 시간
               버튼들이 더는 눌리지 않는다(isFull). 사라졌다 나타나는

@@ -43,8 +43,6 @@ export interface Database {
           price: number;
           sale_price: number | null;
           summary: string | null;
-          /** 상품 페이지 달력 위 안내 박스 문구. 비어 있으면 기본 문구를 쓴다. */
-          page_summary: string | null;
           description: string | null;
           cover_image: string | null;
           gallery: string[];
