@@ -82,11 +82,12 @@ export function ProductForm({
         </Field>
 
         <Field
-          label="한 줄 소개"
-          hint="상품 목록에서 이름 아래 작게 표시됩니다."
+          label="요약"
+          hint="예약 페이지의 상품 목록 카드에서 상품 이름 아래에 표시됩니다. 최대 200자이며, 카드에는 2줄까지 보입니다."
         >
           <input
             name="summary"
+            maxLength={200}
             defaultValue={initial.summary}
             placeholder="한 사람을 위한 기본 프로필 촬영"
             className={inputClass}
