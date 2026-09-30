@@ -241,6 +241,14 @@ export function StatusTransitionModal({
             <Button type="button" variant="ghost" onClick={close}>
               취소
             </Button>
+            <SubmitButton
+              variant="ghost"
+              name="skipEmail"
+              value="true"
+              disabled={pending || loading || reasonMissing}
+            >
+              이메일 보내지 않기
+            </SubmitButton>
             <SubmitButton disabled={pending || loading || reasonMissing}>
               {pending ? "처리 중…" : "확인"}
             </SubmitButton>

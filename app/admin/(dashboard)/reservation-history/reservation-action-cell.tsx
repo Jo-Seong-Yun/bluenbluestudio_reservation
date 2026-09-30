@@ -5,21 +5,24 @@ import {
   cancelReservationWithReason,
   revertReservationStatus,
 } from "@/app/admin/actions";
-import { PendingSubmit } from "@/components/submit-button";
+import { SubmitButton } from "@/components/submit-button";
 import { StatusTransitionModal } from "../reservations/status-transition-modal";
 import { DeliverableSendModal } from "../reservations/deliverable-send-modal";
 import { RestoreReservationButton } from "../reservations/restore-reservation-button";
 
-const COMPACT_BUTTON_CLASS = "px-3 py-1.5 text-xs";
+// 이 열에 들어가는 모든 버튼(상태 전환·결과물 전송·되돌리기·복원)이
+// 같은 크기·글자 크기를 쓰도록 한 곳에 모아둔다.
+const BUTTON_SIZE_CLASS = "px-3 py-1.5 text-xs";
+const CANCEL_BUTTON_CLASS = `${BUTTON_SIZE_CLASS} text-red-600 dark:text-red-400`;
 
-/** 완료·노쇼로 잘못 처리했을 때 입금확인 단계로 되돌리는 작은 링크. */
-function RevertLink({ reservationId }: { reservationId: string }) {
+/** 완료·노쇼로 잘못 처리했을 때 입금확인 단계로 되돌리는 버튼. */
+function RevertButton({ reservationId }: { reservationId: string }) {
   return (
     <form action={revertReservationStatus}>
       <input type="hidden" name="id" value={reservationId} />
-      <PendingSubmit className="text-muted hover:text-foreground text-xs underline">
+      <SubmitButton variant="ghost" className={BUTTON_SIZE_CLASS}>
         되돌리기
-      </PendingSubmit>
+      </SubmitButton>
     </form>
   );
 }
@@ -62,7 +65,10 @@ export function ReservationActionCell({
     return (
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">작업종료</span>
-        <RestoreReservationButton reservationId={reservationId} />
+        <RestoreReservationButton
+          reservationId={reservationId}
+          buttonClassName={BUTTON_SIZE_CLASS}
+        />
       </div>
     );
   }
@@ -71,7 +77,7 @@ export function ReservationActionCell({
     return (
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">작업종료</span>
-        <RevertLink reservationId={reservationId} />
+        <RevertButton reservationId={reservationId} />
       </div>
     );
   }
@@ -82,9 +88,12 @@ export function ReservationActionCell({
         {deliverableSent ? (
           <span className="text-sm font-medium">작업종료</span>
         ) : (
-          <DeliverableSendModal reservationId={reservationId} />
+          <DeliverableSendModal
+            reservationId={reservationId}
+            buttonClassName={BUTTON_SIZE_CLASS}
+          />
         )}
-        <RevertLink reservationId={reservationId} />
+        <RevertButton reservationId={reservationId} />
       </div>
     );
   }
@@ -96,7 +105,7 @@ export function ReservationActionCell({
           reservationId={reservationId}
           triggerType="on_schedule_confirmed"
           buttonLabel="일정확정"
-          buttonClassName={COMPACT_BUTTON_CLASS}
+          buttonClassName={BUTTON_SIZE_CLASS}
           modalTitle="일정확정 확인"
           confirmAction={applyReservationTransition}
           extraFields={{ nextStatus: "schedule_confirmed" }}
@@ -108,7 +117,7 @@ export function ReservationActionCell({
           reservationId={reservationId}
           triggerType="on_payment_confirmed"
           buttonLabel="입금확인/예약확정"
-          buttonClassName={COMPACT_BUTTON_CLASS}
+          buttonClassName={BUTTON_SIZE_CLASS}
           modalTitle="입금확인/예약확정 확인"
           confirmAction={applyReservationTransition}
           extraFields={{ nextStatus: "payment_confirmed" }}
@@ -121,7 +130,7 @@ export function ReservationActionCell({
             reservationId={reservationId}
             triggerType="on_completed"
             buttonLabel="완료"
-            buttonClassName={COMPACT_BUTTON_CLASS}
+            buttonClassName={BUTTON_SIZE_CLASS}
             modalTitle="완료 처리 확인"
             confirmAction={applyReservationTransition}
             extraFields={{ nextStatus: "completed" }}
@@ -130,7 +139,7 @@ export function ReservationActionCell({
             reservationId={reservationId}
             triggerType="on_no_show"
             buttonLabel="노쇼"
-            buttonClassName={COMPACT_BUTTON_CLASS}
+            buttonClassName={BUTTON_SIZE_CLASS}
             modalTitle="노쇼 처리 확인"
             confirmAction={applyReservationTransition}
             extraFields={{ nextStatus: "no_show" }}
@@ -142,8 +151,8 @@ export function ReservationActionCell({
         reservationId={reservationId}
         triggerType="on_cancelled"
         buttonLabel="취소"
-        buttonVariant="danger"
-        buttonClassName={COMPACT_BUTTON_CLASS}
+        buttonVariant="ghost"
+        buttonClassName={CANCEL_BUTTON_CLASS}
         modalTitle="예약 취소 확인"
         requireReason
         confirmAction={cancelReservationWithReason}
