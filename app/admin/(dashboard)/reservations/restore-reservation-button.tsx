@@ -15,8 +15,12 @@ import { SubmitButton } from "@/components/submit-button";
  */
 export function RestoreReservationButton({
   reservationId,
+  buttonClassName = "",
 }: {
   reservationId: string;
+  /** 이 버튼을 다른 버튼들과 크기·모양을 맞춰야 하는 자리(예약내역
+   * 표의 버튼 열)에서 넘긴다. */
+  buttonClassName?: string;
 }) {
   const [state, action, pending] = useActionState<
     TransitionActionState,
@@ -26,7 +30,7 @@ export function RestoreReservationButton({
   return (
     <form action={action}>
       <input type="hidden" name="id" value={reservationId} />
-      <SubmitButton variant="ghost" disabled={pending}>
+      <SubmitButton variant="ghost" className={buttonClassName} disabled={pending}>
         {pending ? "복원하는 중…" : "복원"}
       </SubmitButton>
       <div className="mt-2">

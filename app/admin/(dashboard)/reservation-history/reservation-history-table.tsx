@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import { inputClass } from "@/components/ui";
 import { kstDateString, kstTimeString } from "@/lib/time";
@@ -80,6 +80,60 @@ type Row = {
   deliverableSent: boolean;
 };
 
+const COLUMNS = [
+  { key: "status", label: "상태", width: 108 },
+  { key: "shootStart", label: "촬영일시", width: 150 },
+  { key: "code", label: "예약번호", width: 120 },
+  { key: "product", label: "상품", width: 150 },
+  { key: "customerName", label: "예약자", width: 96 },
+  { key: "customerPhone", label: "연락처", width: 128 },
+  { key: "amount", label: "결제금액", width: 120 },
+  { key: "createdAt", label: "접수일", width: 108 },
+  { key: "action", label: "상태 변경", width: 260 },
+] as const;
+
+const MIN_COLUMN_WIDTH = 80;
+
+/**
+ * 표 헤더 오른쪽 끝의 드래그 손잡이. Pointer Capture를 걸어두면
+ * 드래그 도중 마우스가 손잡이 밖으로 나가도(다른 열 위로 넘어가도)
+ * 이 손잡이가 계속 포인터 이벤트를 받는다 — 그래서 window에 별도
+ * mousemove/mouseup 리스너를 붙일 필요가 없다.
+ */
+function ColumnResizeHandle({
+  onResize,
+}: {
+  /** 직전 포인터 위치 대비 가로 이동량(px). 매 이동마다 그만큼만 넘겨준다. */
+  onResize: (deltaX: number) => void;
+}) {
+  const lastXRef = useRef(0);
+
+  function handlePointerDown(e: PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    lastXRef.current = e.clientX;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function handlePointerMove(e: PointerEvent<HTMLDivElement>) {
+    if (e.buttons !== 1) return;
+    const delta = e.clientX - lastXRef.current;
+    lastXRef.current = e.clientX;
+    if (delta !== 0) onResize(delta);
+  }
+
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="열 너비 조절"
+      className="hover:bg-brand/40 active:bg-brand absolute top-0 right-0 z-10 h-full w-1.5 -mr-0.5 cursor-col-resize touch-none select-none"
+    />
+  );
+}
+
 export function ReservationHistoryTable({
   rows,
   selectedId,
@@ -92,6 +146,15 @@ export function ReservationHistoryTable({
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState<SortOption>("created_desc");
+  const [colWidths, setColWidths] = useState<number[]>(
+    COLUMNS.map((c) => c.width),
+  );
+
+  function resizeColumn(index: number, delta: number) {
+    setColWidths((prev) =>
+      prev.map((w, i) => (i === index ? Math.max(MIN_COLUMN_WIDTH, w + delta) : w)),
+    );
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim();
@@ -151,18 +214,28 @@ export function ReservationHistoryTable({
       </div>
 
       <div className="border-border bg-surface mt-3 overflow-x-auto rounded-xl border">
-        <table className="w-full text-sm">
+        <table
+          className="table-fixed text-sm"
+          style={{ width: colWidths.reduce((sum, w) => sum + w, 0) }}
+        >
+          <colgroup>
+            {colWidths.map((w, i) => (
+              <col key={COLUMNS[i].key} style={{ width: w }} />
+            ))}
+          </colgroup>
           <thead>
             <tr className="border-border text-muted border-b text-left">
-              <th className="px-4 py-3 font-medium">상태</th>
-              <th className="px-4 py-3 font-medium">촬영일시</th>
-              <th className="px-4 py-3 font-medium">예약번호</th>
-              <th className="px-4 py-3 font-medium">상품</th>
-              <th className="px-4 py-3 font-medium">예약자</th>
-              <th className="px-4 py-3 font-medium">연락처</th>
-              <th className="px-4 py-3 font-medium">결제금액</th>
-              <th className="px-4 py-3 font-medium">접수일</th>
-              <th className="px-4 py-3 font-medium">상태 변경</th>
+              {COLUMNS.map((col, i) => (
+                <th
+                  key={col.key}
+                  className="relative h-11 px-4 py-3 font-medium select-none"
+                >
+                  {col.label}
+                  <ColumnResizeHandle
+                    onResize={(delta) => resizeColumn(i, delta)}
+                  />
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -182,10 +255,10 @@ export function ReservationHistoryTable({
                     r.id === selectedId ? "bg-surface-subtle" : ""
                   }`}
                 >
-                  <td className="px-4 py-3">
+                  <td className="overflow-hidden px-4 py-3">
                     <StatusBadge status={r.status} />
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="truncate px-4 py-3">
                     {r.shootStart ? (
                       <>
                         {kstDateString(new Date(r.shootStart))}{" "}
@@ -195,31 +268,43 @@ export function ReservationHistoryTable({
                       <span className="text-muted">확정 대기</span>
                     )}
                   </td>
-                  <td className="p-0">
+                  <td className="overflow-hidden p-0">
                     {/* 요청사항: 예약번호 열은 어디를 눌러도 상세로
-                        이동해야 하므로, 셀 전체를 링크로 채운다(다른
-                        열은 그대로 텍스트만 표시). */}
+                        이동해야 하므로, 셀 전체(p-0으로 셀 자체 여백을
+                        없애고 그 자리를 Link의 padding으로 채운다)를
+                        링크로 만든다. table-fixed라 셀 너비가 <col>로
+                        고정되므로 이 block Link가 열을 넓혀도 항상
+                        그 폭 전체를 그대로 채운다. */}
                     <Link
                       href={`?id=${r.id}`}
-                      className="hover:text-brand block px-4 py-3 font-mono"
+                      className="hover:text-brand block truncate px-4 py-3 font-mono"
                     >
                       {r.code}
                     </Link>
                   </td>
-                  <td className="px-4 py-3">{r.productName || "-"}</td>
-                  <td className="px-4 py-3">{r.customerName}</td>
-                  <td className="px-4 py-3">{r.customerPhone}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td
+                    className="truncate px-4 py-3"
+                    title={r.productName || undefined}
+                  >
+                    {r.productName || "-"}
+                  </td>
+                  <td className="truncate px-4 py-3" title={r.customerName}>
+                    {r.customerName}
+                  </td>
+                  <td className="truncate px-4 py-3" title={r.customerPhone}>
+                    {r.customerPhone}
+                  </td>
+                  <td className="truncate px-4 py-3">
                     {r.chargedAmount != null
                       ? `${r.chargedAmount.toLocaleString()}원`
                       : r.estimatedAmount != null
                         ? `${r.estimatedAmount.toLocaleString()}원 (예상)`
                         : "-"}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="truncate px-4 py-3">
                     {kstDateString(new Date(r.createdAt))}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-4 py-3">
                     <ReservationActionCell
                       reservationId={r.id}
                       status={r.status}

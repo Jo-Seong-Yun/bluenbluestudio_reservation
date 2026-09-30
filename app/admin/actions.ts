@@ -625,6 +625,10 @@ export async function applyReservationTransition(
   const rawNextStatus = String(formData.get("nextStatus") ?? "");
   if (!id) return { error: "잘못된 요청입니다." };
 
+  // 확인모달의 "이메일 보내지 않기" 버튼으로 제출되면 이 값이 실려온다
+  // — 상태는 그대로 바꾸되, 아래 이메일 발송만 건너뛴다.
+  const skipEmail = formData.get("skipEmail") === "true";
+
   const overrides = parseEmailOverrides(formData);
   const supabase = await createClient();
 
@@ -707,6 +711,8 @@ export async function applyReservationTransition(
     estimatedAmount: reservation.estimated_amount,
   };
 
+  if (skipEmail) return null;
+
   after(async () => {
     const adminEmail = await getAdminNotifyEmail();
     const shootStart = reservation.shoot_start
@@ -760,6 +766,10 @@ export async function cancelReservationWithReason(
   if (!id) return { error: "잘못된 요청입니다." };
   if (!cancelReason) return { error: "취소 사유를 입력해 주시기 바랍니다." };
 
+  // 확인모달의 "이메일 보내지 않기" 버튼으로 제출되면 이 값이 실려온다
+  // — 취소 처리는 그대로 하되, 아래 이메일 발송만 건너뛴다.
+  const skipEmail = formData.get("skipEmail") === "true";
+
   const overrides = parseEmailOverrides(formData);
   const supabase = await createClient();
 
@@ -807,6 +817,8 @@ export async function cancelReservationWithReason(
       syncReservationToCalendar(id),
     ]);
   });
+
+  if (skipEmail) return null;
 
   const { data: product } = await supabase
     .from("products")
@@ -1146,6 +1158,10 @@ export async function confirmReservationCandidate(
     return { error: "잘못된 요청입니다." };
   }
 
+  // 확인모달의 "이메일 보내지 않기" 버튼으로 제출되면 이 값이 실려온다
+  // — 확정 처리는 그대로 하되, 아래 이메일 발송만 건너뛴다.
+  const skipEmail = formData.get("skipEmail") === "true";
+
   const overrides = parseEmailOverrides(formData);
   const supabase = await createClient();
 
@@ -1209,24 +1225,29 @@ export async function confirmReservationCandidate(
       email: reservation.customer_email,
     });
     const adminEmail = await getAdminNotifyEmail();
-    await Promise.all([
-      notifyCustomerConfirmed({
-        reservationId: id,
-        productId: reservation.product_id,
-        customerName: reservation.customer_name,
-        customerPhone: reservation.customer_phone,
-        customerEmail: reservation.customer_email,
-        adminEmail,
-        productName: product?.name ?? "촬영",
-        shootStart: new Date(candidate.shoot_start),
-        code: reservation.code,
-        emailOverrides: overrides,
-        estimatedAmount: reservation.estimated_amount,
-      }),
+    const tasks: Promise<unknown>[] = [
       syncReservationToSheet(id),
       syncCustomerToSheet(reservation.customer_phone),
       syncReservationToCalendar(id),
-    ]);
+    ];
+    if (!skipEmail) {
+      tasks.push(
+        notifyCustomerConfirmed({
+          reservationId: id,
+          productId: reservation.product_id,
+          customerName: reservation.customer_name,
+          customerPhone: reservation.customer_phone,
+          customerEmail: reservation.customer_email,
+          adminEmail,
+          productName: product?.name ?? "촬영",
+          shootStart: new Date(candidate.shoot_start),
+          code: reservation.code,
+          emailOverrides: overrides,
+          estimatedAmount: reservation.estimated_amount,
+        }),
+      );
+    }
+    await Promise.all(tasks);
   });
 
   return null;
