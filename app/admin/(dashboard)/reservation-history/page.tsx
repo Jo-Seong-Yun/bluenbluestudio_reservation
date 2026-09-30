@@ -37,11 +37,14 @@ export default async function ReservationHistoryPage({
           "id, code, status, shoot_start, customer_name, customer_phone, charged_amount, estimated_amount, product_id, created_at, deliverable_sent_at",
         )
         .order("created_at", { ascending: false }),
-      supabase.from("products").select("id, name"),
+      supabase.from("products").select("id, name, tag_color"),
       selectedId ? loadReservationDetail(selectedId) : Promise.resolve(undefined),
     ]);
 
   const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
+  const productTagColorById = new Map(
+    (products ?? []).map((p) => [p.id, p.tag_color]),
+  );
   const rows = (reservations ?? []).map((r) => ({
     id: r.id,
     code: r.code,
@@ -52,6 +55,7 @@ export default async function ReservationHistoryPage({
     chargedAmount: r.charged_amount,
     estimatedAmount: r.estimated_amount,
     productName: productNameById.get(r.product_id) ?? "",
+    productTagColor: productTagColorById.get(r.product_id) ?? null,
     createdAt: r.created_at,
     deliverableSent: r.deliverable_sent_at !== null,
   }));
@@ -60,7 +64,7 @@ export default async function ReservationHistoryPage({
     <div>
       <h1 className="text-2xl font-bold">예약내역</h1>
       <p className="text-muted mt-1 text-sm">
-        지금까지 접수된 모든 예약을 최근 접수순으로 모았습니다. 예약번호를
+        지금까지 접수된 모든 예약을 최근 접수순으로 모았습니다. 행을
         누르면 오른쪽에서 상세 내용을 보고 처리할 수 있고, 상태 변경과
         결과물 전송은 표의 버튼에서 바로 할 수 있습니다.
       </p>
@@ -72,7 +76,7 @@ export default async function ReservationHistoryPage({
             selected={selected}
             dayReservations={[]}
             basePath="/admin/reservation-history"
-            emptyHint="표에서 예약번호를 눌러 선택해 주시기 바랍니다."
+            emptyHint="표에서 행을 눌러 선택해 주시기 바랍니다."
           />
         </div>
       </div>
