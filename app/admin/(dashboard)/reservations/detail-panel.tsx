@@ -368,7 +368,7 @@ function ReservationDetail({
       <MoneyField
         reservationId={reservation.id}
         label="촬영 원가"
-        hint="(대관료·소품·외주 등, 매출관리 순이익 계산에 사용됩니다)"
+        hint="대관료·소품·외주 등 — 매출관리 순이익 계산에 사용됩니다."
         amountName="cost"
         memoName="costMemo"
         initialAmount={reservation.cost}
@@ -378,31 +378,34 @@ function ReservationDetail({
 
       {/* 이 예약에 발송된 이메일·SMS·카카오 기록 */}
       <div className="border-border mt-4 border-t pt-4">
-        <p className="mb-2 text-sm font-medium">발송 기록</p>
+        <p className="mb-1 text-sm font-medium">발송 기록</p>
         {!reservation.notificationLogs || reservation.notificationLogs.length === 0 ? (
           <p className="text-muted text-sm">발송 기록이 없습니다.</p>
         ) : (
-          <ul className="space-y-1.5">
+          <ul className="divide-border divide-y">
             {reservation.notificationLogs.map((log) => (
-              <li key={log.id} className="flex items-start gap-2 text-xs">
-                <span className="text-muted mt-0.5 w-28 shrink-0 font-mono">
-                  {kstDateString(new Date(log.createdAt))}{" "}
-                  {kstTimeString(new Date(log.createdAt))}
-                </span>
+              <li key={log.id} className="flex items-start gap-2.5 py-2.5">
                 <ChannelBadge channel={log.channel} />
-                <span className="min-w-0 flex-1">
-                  <span className="font-medium">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-snug font-medium">
                     {purposeLabel(log.purpose, log.ruleName)}
-                  </span>
-                  <span className="text-muted ml-1.5">{log.recipient}</span>
+                  </p>
+                  <p className="text-muted mt-0.5 text-xs leading-snug break-all">
+                    {log.recipient}
+                  </p>
+                  <p className="text-muted mt-0.5 text-[11px] tabular-nums">
+                    {kstDateString(new Date(log.createdAt))}{" "}
+                    {kstTimeString(new Date(log.createdAt))}
+                  </p>
                   {!log.success && log.error ? (
-                    <span className="text-red-500 ml-1.5 truncate" title={log.error}>
-                      · 실패: {log.error}
-                    </span>
+                    <p className="mt-0.5 text-xs break-words text-red-500">
+                      실패: {log.error}
+                    </p>
                   ) : null}
-                </span>
+                </div>
                 <span
-                  className={`shrink-0 font-medium ${log.success ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}
+                  className={`shrink-0 text-sm font-medium ${log.success ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}
+                  aria-label={log.success ? "발송 성공" : "발송 실패"}
                 >
                   {log.success ? "✓" : "✗"}
                 </span>
