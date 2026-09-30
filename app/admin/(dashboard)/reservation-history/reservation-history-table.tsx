@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState, type PointerEvent } from "react";
-import Link from "next/link";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { inputClass } from "@/components/ui";
 import { kstDateString, kstTimeString } from "@/lib/time";
+import { tagColorCellClass } from "@/lib/product-tag-colors";
 import { ReservationActionCell } from "./reservation-action-cell";
 
 const SORT_OPTIONS = {
@@ -37,6 +38,18 @@ const STATUS_LABEL: Record<string, string> = {
   no_show: "노쇼",
 };
 
+// 표의 상태 배지는 칸이 좁아 STATUS_LABEL 원문(예: "입금확인/예약확정됨")이
+// 다 안 들어간다 — 검색창 옆 필터 드롭다운은 STATUS_LABEL 그대로 쓰고,
+// 배지만 줄인 말을 쓴다.
+const STATUS_BADGE_LABEL: Record<string, string> = {
+  requested: "접수",
+  schedule_confirmed: "일정확정",
+  payment_confirmed: "입금확인",
+  completed: "촬영완료",
+  cancelled: "취소",
+  no_show: "노쇼",
+};
+
 // 예약관리 달력의 상태 점 색(components/admin-calendar.tsx의
 // STATUS_DOT)과 같은 색 배정을 써서, 관리자 화면 전체에서 같은 상태는
 // 항상 같은 색으로 보이게 한다.
@@ -60,7 +73,30 @@ function StatusBadge({ status }: { status: string }) {
         STATUS_BADGE_CLASS[status] ?? "bg-surface-subtle text-muted"
       }`}
     >
-      {STATUS_LABEL[status] ?? status}
+      {STATUS_BADGE_LABEL[status] ?? STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
+
+/** 상품관리에서 그 상품에 정해둔 태그 색(components/admin-calendar.tsx가
+ * 달력 칩에 쓰는 것과 같은 색상표)을 그대로 배지 색으로 쓴다 — 태그
+ * 색이 없는 상품(레거시)은 기본 회색 배지로 보여준다. */
+function ProductBadge({
+  name,
+  tagColor,
+}: {
+  name: string;
+  tagColor: string | null;
+}) {
+  const cellClass = tagColorCellClass(tagColor);
+  return (
+    <span
+      title={name || undefined}
+      className={`inline-block max-w-[9rem] truncate rounded-full px-2.5 py-1 text-xs font-medium ${
+        cellClass ?? "bg-surface-subtle text-muted"
+      }`}
+    >
+      {name || "-"}
     </span>
   );
 }
@@ -75,63 +111,20 @@ type Row = {
   chargedAmount: number | null;
   estimatedAmount: number | null;
   productName: string;
+  /** 상품관리에서 정한 태그 색 키(예: "lavender"). 없으면 null. */
+  productTagColor: string | null;
   createdAt: string;
   /** "결과물 전송"을 이미 한 번 성공적으로 마쳤으면 true. */
   deliverableSent: boolean;
 };
 
-const COLUMNS = [
-  { key: "status", label: "상태", width: 108 },
-  { key: "shootStart", label: "촬영일시", width: 150 },
-  { key: "code", label: "예약번호", width: 120 },
-  { key: "product", label: "상품", width: 150 },
-  { key: "customerName", label: "예약자", width: 96 },
-  { key: "customerPhone", label: "연락처", width: 128 },
-  { key: "amount", label: "결제금액", width: 120 },
-  { key: "createdAt", label: "접수일", width: 108 },
-  { key: "action", label: "상태 변경", width: 260 },
-] as const;
-
-const MIN_COLUMN_WIDTH = 80;
-
-/**
- * 표 헤더 오른쪽 끝의 드래그 손잡이. Pointer Capture를 걸어두면
- * 드래그 도중 마우스가 손잡이 밖으로 나가도(다른 열 위로 넘어가도)
- * 이 손잡이가 계속 포인터 이벤트를 받는다 — 그래서 window에 별도
- * mousemove/mouseup 리스너를 붙일 필요가 없다.
- */
-function ColumnResizeHandle({
-  onResize,
-}: {
-  /** 직전 포인터 위치 대비 가로 이동량(px). 매 이동마다 그만큼만 넘겨준다. */
-  onResize: (deltaX: number) => void;
-}) {
-  const lastXRef = useRef(0);
-
-  function handlePointerDown(e: PointerEvent<HTMLDivElement>) {
-    e.preventDefault();
-    e.stopPropagation();
-    lastXRef.current = e.clientX;
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }
-
-  function handlePointerMove(e: PointerEvent<HTMLDivElement>) {
-    if (e.buttons !== 1) return;
-    const delta = e.clientX - lastXRef.current;
-    lastXRef.current = e.clientX;
-    if (delta !== 0) onResize(delta);
-  }
-
-  return (
-    <div
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="열 너비 조절"
-      className="hover:bg-brand/40 active:bg-brand absolute top-0 right-0 z-10 h-full w-1.5 -mr-0.5 cursor-col-resize touch-none select-none"
-    />
-  );
+/** 행을 클릭했을 때 상세로 이동하되, 상태 변경 열의 버튼·링크를 누른
+ * 경우는 그 동작만 실행되어야지 행 이동까지 겹치면 안 된다 — 클릭이
+ * 시작된 지점에서부터 가장 가까운 버튼/링크/폼 요소를 찾아, 있으면
+ * 행 이동을 하지 않는다. */
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest("button, a, input, select, textarea"));
 }
 
 export function ReservationHistoryTable({
@@ -143,18 +136,10 @@ export function ReservationHistoryTable({
    * 강조해준다. */
   selectedId?: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState<SortOption>("created_desc");
-  const [colWidths, setColWidths] = useState<number[]>(
-    COLUMNS.map((c) => c.width),
-  );
-
-  function resizeColumn(index: number, delta: number) {
-    setColWidths((prev) =>
-      prev.map((w, i) => (i === index ? Math.max(MIN_COLUMN_WIDTH, w + delta) : w)),
-    );
-  }
 
   const filtered = useMemo(() => {
     const q = query.trim();
@@ -213,35 +198,34 @@ export function ReservationHistoryTable({
         </div>
       </div>
 
-      <div className="border-border bg-surface mt-3 overflow-x-auto rounded-xl border">
-        <table
-          className="table-fixed text-sm"
-          style={{ width: colWidths.reduce((sum, w) => sum + w, 0) }}
-        >
+      <div className="border-border bg-surface mt-3 rounded-xl border">
+        <table className="w-full table-fixed text-sm">
           <colgroup>
-            {colWidths.map((w, i) => (
-              <col key={COLUMNS[i].key} style={{ width: w }} />
-            ))}
+            <col className="w-[9%]" />
+            <col className="w-[12%]" />
+            <col className="w-[15%]" />
+            <col className="w-[10%]" />
+            <col className="w-[12%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col />
           </colgroup>
           <thead>
             <tr className="border-border text-muted border-b text-left">
-              {COLUMNS.map((col, i) => (
-                <th
-                  key={col.key}
-                  className="relative h-11 px-4 py-3 font-medium select-none"
-                >
-                  {col.label}
-                  <ColumnResizeHandle
-                    onResize={(delta) => resizeColumn(i, delta)}
-                  />
-                </th>
-              ))}
+              <th className="px-3 py-3 font-medium">상태</th>
+              <th className="px-3 py-3 font-medium">촬영일시</th>
+              <th className="px-3 py-3 font-medium">상품</th>
+              <th className="px-3 py-3 font-medium">예약자</th>
+              <th className="px-3 py-3 font-medium">연락처</th>
+              <th className="px-3 py-3 font-medium">결제금액</th>
+              <th className="px-3 py-3 font-medium">접수일</th>
+              <th className="px-3 py-3 font-medium">상태 변경</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-muted px-4 py-8 text-center">
+                <td colSpan={8} className="text-muted px-3 py-8 text-center">
                   {rows.length === 0
                     ? "아직 접수된 예약이 없습니다."
                     : "검색 결과가 없습니다."}
@@ -251,60 +235,56 @@ export function ReservationHistoryTable({
               filtered.map((r) => (
                 <tr
                   key={r.id}
-                  className={`border-border hover:bg-surface-subtle border-t ${
+                  onClick={(e) => {
+                    // 상태 변경 열의 버튼·링크를 눌렀으면 그 동작만
+                    // 실행되게 두고, 행 자체의 이동은 하지 않는다.
+                    if (isInteractiveTarget(e.target)) return;
+                    router.push(`?id=${r.id}`);
+                  }}
+                  className={`border-border hover:bg-surface-subtle border-t cursor-pointer ${
                     r.id === selectedId ? "bg-surface-subtle" : ""
                   }`}
                 >
-                  <td className="overflow-hidden px-4 py-3">
+                  <td className="px-3 py-3">
                     <StatusBadge status={r.status} />
                   </td>
-                  <td className="truncate px-4 py-3">
+                  <td className="px-3 py-3 text-xs whitespace-nowrap">
                     {r.shootStart ? (
                       <>
-                        {kstDateString(new Date(r.shootStart))}{" "}
+                        {kstDateString(new Date(r.shootStart))}
+                        <br />
                         {kstTimeString(new Date(r.shootStart))}
                       </>
                     ) : (
                       <span className="text-muted">확정 대기</span>
                     )}
                   </td>
-                  <td className="overflow-hidden p-0">
-                    {/* 요청사항: 예약번호 열은 어디를 눌러도 상세로
-                        이동해야 하므로, 셀 전체(p-0으로 셀 자체 여백을
-                        없애고 그 자리를 Link의 padding으로 채운다)를
-                        링크로 만든다. table-fixed라 셀 너비가 <col>로
-                        고정되므로 이 block Link가 열을 넓혀도 항상
-                        그 폭 전체를 그대로 채운다. */}
-                    <Link
-                      href={`?id=${r.id}`}
-                      className="hover:text-brand block truncate px-4 py-3 font-mono"
-                    >
-                      {r.code}
-                    </Link>
+                  <td className="px-3 py-3">
+                    <ProductBadge
+                      name={r.productName}
+                      tagColor={r.productTagColor}
+                    />
                   </td>
-                  <td
-                    className="truncate px-4 py-3"
-                    title={r.productName || undefined}
-                  >
-                    {r.productName || "-"}
-                  </td>
-                  <td className="truncate px-4 py-3" title={r.customerName}>
+                  <td className="truncate px-3 py-3" title={r.customerName}>
                     {r.customerName}
                   </td>
-                  <td className="truncate px-4 py-3" title={r.customerPhone}>
+                  <td
+                    className="truncate px-3 py-3 text-xs"
+                    title={r.customerPhone}
+                  >
                     {r.customerPhone}
                   </td>
-                  <td className="truncate px-4 py-3">
+                  <td className="px-3 py-3 text-xs whitespace-nowrap">
                     {r.chargedAmount != null
                       ? `${r.chargedAmount.toLocaleString()}원`
                       : r.estimatedAmount != null
                         ? `${r.estimatedAmount.toLocaleString()}원 (예상)`
                         : "-"}
                   </td>
-                  <td className="truncate px-4 py-3">
+                  <td className="px-3 py-3 text-xs whitespace-nowrap">
                     {kstDateString(new Date(r.createdAt))}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <ReservationActionCell
                       reservationId={r.id}
                       status={r.status}
