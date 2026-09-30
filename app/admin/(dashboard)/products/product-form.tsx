@@ -219,7 +219,7 @@ export function ProductForm({
       <section className="space-y-4">
         <ImageUploader
           label="대표 이미지"
-          hint="상품 목록과 상세 화면 맨 위에 표시됩니다."
+          hint="예약 페이지 상품 목록 카드의 썸네일로 표시됩니다. (설정 → 상품 목록 화면 → '썸네일 표시'가 켜져 있을 때만 보입니다.)"
           value={coverImage ? [coverImage] : []}
           onChange={(paths) => setCoverImage(paths[0] ?? null)}
           max={1}
@@ -228,7 +228,7 @@ export function ProductForm({
 
         <ImageUploader
           label="예시 사진"
-          hint="여러 장 업로드할 수 있습니다."
+          hint="예약 페이지의 상품 화면에서 희망 시간 선택 위에 가로로 넘겨 보는 사진으로 표시됩니다. 여러 장 업로드할 수 있으며, 올린 순서대로 보입니다."
           value={gallery}
           onChange={setGallery}
         />
