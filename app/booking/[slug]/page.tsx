@@ -12,6 +12,10 @@ import { Button } from "@/components/ui";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
 import { ProductViewTracker } from "./product-view-tracker";
 
+/** 상품관리에서 '안내 박스 문구'를 비워둔 상품에 보여줄 기본 문구. */
+const DEFAULT_GUIDE_TEXT =
+  "먼저 희망하는 시간 3개를 선택하면, 푸르른 스튜디오가 3개 중 1개의 일정으로 확정해드립니다.";
+
 export async function generateMetadata({
   params,
 }: PageProps<"/booking/[slug]">): Promise<Metadata> {
@@ -105,11 +109,6 @@ export default async function ProductDetailPage({
       <div className="mt-6 flex max-w-5xl flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <div className="min-w-0">
           <h1 className="text-boost text-2xl font-bold">{product.name}</h1>
-          {product.page_summary ? (
-            <p className="text-muted text-boost mt-1.5 max-w-2xl text-sm whitespace-pre-line sm:text-base">
-              {product.page_summary}
-            </p>
-          ) : null}
           <p className="text-muted text-boost mt-1 text-xs">
             {earliestBookable} 부터 {latestBookable} 까지 예약할 수 있습니다.
           </p>
@@ -143,9 +142,8 @@ export default async function ProductDetailPage({
       </div>
 
       <div className="border-brand/30 bg-brand/5 mt-5 max-w-5xl rounded-xl border px-4 py-3">
-        <p className="text-boost text-sm leading-relaxed sm:text-base">
-          먼저 희망하는 시간 3개를 선택하면, 푸르른 스튜디오가 3개 중 1개의
-          일정으로 확정해드립니다.
+        <p className="text-boost text-sm leading-relaxed whitespace-pre-line sm:text-base">
+          {product.page_summary || DEFAULT_GUIDE_TEXT}
         </p>
       </div>
 

@@ -94,15 +94,15 @@ export function ProductForm({
         </Field>
 
         <Field
-          label="상품 페이지 소개 (선택)"
-          hint="상품을 눌러 들어간 화면에서 상품 이름 바로 아래에 표시됩니다. 목록 요약과 따로 적을 수 있습니다. 최대 300자."
+          label="안내 박스 문구 (선택)"
+          hint="상품을 눌러 들어간 화면에서, 달력 바로 위 파란색 둥근 박스 안에 표시됩니다. 비워두면 기본 문구가 나옵니다. 최대 300자."
         >
           <textarea
             name="pageSummary"
             rows={2}
             maxLength={300}
             defaultValue={initial.pageSummary}
-            placeholder="푸르른 스튜디오의 대표 상품입니다."
+            placeholder="먼저 희망하는 시간 3개를 선택하면, 푸르른 스튜디오가 3개 중 1개의 일정으로 확정해드립니다."
             className={inputClass}
           />
         </Field>
