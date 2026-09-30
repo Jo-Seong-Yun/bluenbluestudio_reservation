@@ -21,7 +21,6 @@ export type ProductFormValues = {
   description: string;
   deliveryNote: string;
   coverImage: string | null;
-  gallery: string[];
   isPublished: boolean;
   tagColor: string | null;
 };
@@ -39,7 +38,6 @@ export function ProductForm({
   state: ActionState;
 }) {
   const [coverImage, setCoverImage] = useState(initial.coverImage);
-  const [gallery, setGallery] = useState(initial.gallery);
 
   // Enter를 치면 이 폼의 기본 동작(즉시 제출)이 아니라 다음 입력칸으로
   // 넘어가게 한다 — 저장은 "저장" 버튼이나 Ctrl+S로만 일어나는 별개의
@@ -240,16 +238,6 @@ export function ProductForm({
           max={1}
         />
         <input type="hidden" name="coverImage" value={coverImage ?? ""} />
-
-        <ImageUploader
-          label="예시 사진"
-          hint="예약 페이지의 상품 화면에서 희망 시간 선택 위에 가로로 넘겨 보는 사진으로 표시됩니다. 여러 장 업로드할 수 있으며, 올린 순서대로 보입니다."
-          value={gallery}
-          onChange={setGallery}
-        />
-        {gallery.map((path) => (
-          <input key={path} type="hidden" name="gallery" value={path} />
-        ))}
       </section>
 
       <ErrorText>{state?.error}</ErrorText>
