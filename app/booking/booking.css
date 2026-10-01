@@ -205,3 +205,17 @@
 .booking-workspace h2 {
   color: var(--booking-text, var(--foreground));
 }
+
+/* 작은 화면에서 저장된 양쪽 정렬이 단어 사이 공백을 늘리지 않도록 합니다. */
+@media (max-width: 600px) {
+  .booking-product-description {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .booking-workspace .booking-product-description [style*="text-align:justify"],
+  .booking-workspace .booking-product-description [style*="text-align: justify"] {
+    /* 에디터가 저장한 인라인 정렬만 모바일 읽기 방식으로 덮어씁니다. */
+    text-align: left !important;
+    word-break: keep-all;
+  }
+}

@@ -33,7 +33,7 @@ export function BookingDetail({
             촬영 {product.duration_min}분
             {product.max_people ? ` · 최대 ${product.max_people}명` : ""}
           </p>
-          <div className="border-border mt-6 border-t pt-6">
+          <div className="booking-product-description border-border mt-6 border-t pt-6">
             <h2 className="mb-4 text-lg font-bold">상세 내용</h2>
             {product.description ? (
               <RichText>{product.description}</RichText>
