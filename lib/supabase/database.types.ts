@@ -517,6 +517,16 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      lookup_reservation_by_code: {
+        Args: { p_code: string };
+        Returns: {
+          code: string;
+          status: ReservationStatus;
+          shoot_start: string | null;
+          customer_name: string;
+          customer_phone: string;
+        }[];
+      };
       lookup_reservation: {
         Args: { p_code: string; p_phone: string };
         Returns: Database["public"]["Tables"]["reservations"]["Row"][];

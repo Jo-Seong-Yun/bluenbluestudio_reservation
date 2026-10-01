@@ -46,7 +46,6 @@ export function LookupForm() {
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [cancelCode, setCancelCode] = useState<string | null>(null);
-  const phoneInput = useRef<HTMLInputElement>(null);
   const [handledPhone, setHandledPhone] = useState(phoneState);
   const [handledCode, setHandledCode] = useState(codeState);
   if (phoneState !== handledPhone) {
@@ -62,6 +61,7 @@ export function LookupForm() {
     setHandledCode(codeState);
     if (codeState.status === "found") {
       const r = codeState.reservation;
+      setPhone(codeState.phone ?? "");
       setList([{ ...r, shootEnd: null, productName: "예약 상세" }]);
       setSelectedCode(r.code);
       setFilter("all");
@@ -107,7 +107,7 @@ export function LookupForm() {
         <section className="booking-card mt-5">
           <h1 className="text-2xl font-bold">예약 조회</h1>
           <p className="text-muted mt-3 text-sm">
-            예약할 때 입력한 연락처로 예약 상태를 확인합니다.
+            연락처 또는 예약번호로 예약 상태를 확인합니다.
           </p>
           <div
             className="border-border mt-6 mb-6 flex gap-4 border-b"
@@ -133,9 +133,6 @@ export function LookupForm() {
             action={mode === "phone" ? phoneAction : codeAction}
             className="space-y-5"
             key={mode}
-            onSubmit={() => {
-              if (mode === "code") setPhone(phoneInput.current?.value ?? "");
-            }}
           >
             {mode === "code" ? (
               <Field label="예약번호">
@@ -148,18 +145,19 @@ export function LookupForm() {
                 />
               </Field>
             ) : null}
-            <Field label="연락처" hint="예약할 때 입력한 번호입니다.">
-              <input
-                ref={phoneInput}
-                name="phone"
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel"
-                required
-                className={inputClass}
-                placeholder="01012345678"
-              />
-            </Field>
+            {mode === "phone" ? (
+              <Field label="연락처" hint="예약할 때 입력한 번호입니다.">
+                <input
+                  name="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  required
+                  className={inputClass}
+                  placeholder="01012345678"
+                />
+              </Field>
+            ) : null}
             <div role="alert">
               <ErrorText>
                 {mode === "phone"

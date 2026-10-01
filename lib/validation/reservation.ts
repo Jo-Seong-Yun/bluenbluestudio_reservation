@@ -27,7 +27,10 @@ export const phoneField = z
   .pipe(
     z
       .string()
-      .regex(/^01[0-9]{8,9}$/, "연락처는 숫자만, 010으로 시작해 입력해 주시기 바랍니다."),
+      .regex(
+        /^01[0-9]{8,9}$/,
+        "연락처는 숫자만, 010으로 시작해 입력해 주시기 바랍니다.",
+      ),
   );
 
 /** 빈 문자열이면 null로, 아니면 이메일 형식을 검사한다. */
@@ -140,7 +143,11 @@ export const phoneLookupSchema = z.object({
  * 예약번호는 화면에 항상 대문자로 보여주지만, 손님이 소문자로 치거나
  * 붙여넣기 하면서 앞뒤 공백이 붙을 수 있어 정리한다.
  */
-export const lookupSchema = z.object({
-  code: z.string().trim().toUpperCase().min(1, "예약번호를 입력해 주시기 바랍니다."),
-  phone: phoneField,
+export const codeLookupSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .min(1, "예약번호를 입력해 주시기 바랍니다."),
 });
+export const lookupSchema = codeLookupSchema.extend({ phone: phoneField });
