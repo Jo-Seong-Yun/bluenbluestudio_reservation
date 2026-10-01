@@ -113,7 +113,7 @@ export function DetailPanel({
 
   if (selectedDate) {
     return (
-      <div className="border-border bg-surface rounded-xl border p-4">
+      <div className="admin-detail-panel border-border bg-surface rounded-xl border p-4">
         <p className="mb-3 text-sm font-medium">{selectedDate}</p>
         {dayReservations.length === 0 ? (
           <p className="text-muted text-sm">이 날은 예약이 없습니다.</p>
@@ -165,7 +165,7 @@ function ReservationDetail({
     ? new Date(reservation.shoot_start)
     : null;
   const end = reservation.shoot_end ? new Date(reservation.shoot_end) : null;
-  const date = reservation.shoot_start?.slice(0, 10);
+  const date = start ? kstDateString(start) : undefined;
 
   // 예약관리(달력)에서는 "그날 목록으로"/"예약관리로" 돌아가고, 예약내역
   // (표)에서는 그냥 표 화면으로 돌아간다 — month가 있을 때만 달력
@@ -178,7 +178,7 @@ function ReservationDetail({
   const backLabel = month ? (date ? `${date} 목록` : "예약관리") : "목록";
 
   return (
-    <div className="border-border bg-surface rounded-xl border p-4">
+    <div className="admin-detail-panel border-border bg-surface rounded-xl border p-4">
       <Link href={backHref}>
         <Button type="button" variant="ghost" className="text-xs">
           ← {backLabel}
@@ -335,9 +335,15 @@ function ReservationDetail({
         </SubmitButton>
       </form>
 
-      <form action={saveShootLocation} className="border-border mt-4 border-t pt-4">
+      <form
+        action={saveShootLocation}
+        className="border-border mt-4 border-t pt-4"
+      >
         <input type="hidden" name="id" value={reservation.id} />
-        <label className="mb-1.5 block text-sm font-medium" htmlFor="shootLocation">
+        <label
+          className="mb-1.5 block text-sm font-medium"
+          htmlFor="shootLocation"
+        >
           촬영 장소{" "}
           <span className="text-muted font-normal">
             (촬영 전날 리마인드 이메일의 {"{{"}촬영장소{"}}"}에 쓰입니다)
@@ -379,7 +385,8 @@ function ReservationDetail({
       {/* 이 예약에 발송된 이메일·SMS·카카오 기록 */}
       <div className="border-border mt-4 border-t pt-4">
         <p className="mb-1 text-sm font-medium">발송 기록</p>
-        {!reservation.notificationLogs || reservation.notificationLogs.length === 0 ? (
+        {!reservation.notificationLogs ||
+        reservation.notificationLogs.length === 0 ? (
           <p className="text-muted text-sm">발송 기록이 없습니다.</p>
         ) : (
           <ul className="divide-border divide-y">
@@ -476,8 +483,7 @@ function purposeLabel(purpose: string, ruleName: string | null): string {
   if (purpose in PURPOSE_LABELS) return PURPOSE_LABELS[purpose];
   if (purpose.startsWith("rule-test:"))
     return `[테스트] ${ruleName ?? "이메일 규칙"}`;
-  if (purpose.startsWith("rule:"))
-    return ruleName ?? "이메일 규칙";
+  if (purpose.startsWith("rule:")) return ruleName ?? "이메일 규칙";
   return purpose;
 }
 
@@ -491,7 +497,8 @@ function ChannelBadge({ channel }: { channel: "email" | "sms" | "kakao" }) {
   const colors = {
     email: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
     sms: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-    kakao: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+    kakao:
+      "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
   };
   return (
     <span

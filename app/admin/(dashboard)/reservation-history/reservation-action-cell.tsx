@@ -56,7 +56,7 @@ export function ReservationActionCell({
   if (isPending) {
     return (
       <span className="text-muted text-xs">
-        후보 확정 대기 — 예약번호를 눌러 확정
+        후보 확정 대기 — 행을 선택해 확정
       </span>
     );
   }

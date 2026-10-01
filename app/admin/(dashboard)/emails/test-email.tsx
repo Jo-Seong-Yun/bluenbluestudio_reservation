@@ -14,10 +14,10 @@ import { SubmitButton } from "@/components/submit-button";
  * 발송" 버튼은 여기 저장된 주소로 예시 메일을 보낸다.
  */
 export function TestEmailForm({ testEmail }: { testEmail: string }) {
-  const [state, action, pending] = useActionState<TestEmailActionState, FormData>(
-    saveTestEmail,
-    null,
-  );
+  const [state, action, pending] = useActionState<
+    TestEmailActionState,
+    FormData
+  >(saveTestEmail, null);
 
   return (
     <div className="border-border bg-surface mb-4 rounded-xl border p-4">
@@ -42,7 +42,9 @@ export function TestEmailForm({ testEmail }: { testEmail: string }) {
         </SubmitButton>
       </form>
       {state?.error ? (
-        <p className="mt-2 text-xs text-red-600 dark:text-red-400">{state.error}</p>
+        <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
       ) : state?.success ? (
         <p className="mt-2 text-xs text-green-700 dark:text-green-400">
           {state.success}
@@ -57,24 +59,30 @@ export function TestEmailForm({ testEmail }: { testEmail: string }) {
  * 잠깐 보여줬다가 사라진다. 테스트 주소가 아직 없으면 저장 안내가 뜬다.
  */
 export function TestSendButton({ ruleId }: { ruleId: string }) {
-  const [state, action, pending] = useActionState<TestEmailActionState, FormData>(
-    sendRuleTest,
-    null,
-  );
-  const [flash, setFlash] = useState<TestEmailActionState>(null);
+  const [state, action, pending] = useActionState<
+    TestEmailActionState,
+    FormData
+  >(sendRuleTest, null);
+  const [dismissed, setDismissed] = useState<TestEmailActionState>(null);
 
   useEffect(() => {
     if (!state) return;
-    setFlash(state);
-    const timer = setTimeout(() => setFlash(null), 5000);
+    const timer = setTimeout(() => setDismissed(state), 5000);
     return () => clearTimeout(timer);
   }, [state]);
+
+  const flash = state !== dismissed ? state : null;
 
   return (
     <div className="relative">
       <form action={action}>
         <input type="hidden" name="id" value={ruleId} />
-        <Button type="submit" variant="ghost" className="text-xs" disabled={pending}>
+        <Button
+          type="submit"
+          variant="ghost"
+          className="text-xs"
+          disabled={pending}
+        >
           {pending ? "발송 중…" : "테스트 발송"}
         </Button>
       </form>

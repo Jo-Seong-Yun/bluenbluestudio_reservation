@@ -65,7 +65,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
           저장 버튼은 DOM상 폼 밖에 있어도 form={FORM_ID}로 그 폼을
           그대로 제출한다(상품 수정 화면의 "손님에게 공개" 토글과 같은
           방식). */}
-      <div className="bg-background border-border sticky top-16 z-10 -mx-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b px-4 py-4 sm:-mx-[8.5%] sm:px-[8.5%]">
+      <div className="bg-background border-border sticky top-16 z-10 -mx-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b px-4 py-4 md:-mx-6 md:px-6">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold">예약 설정</h1>
           {/* text-2xl의 줄 높이는 Tailwind가 2rem(32px)으로 고정해
@@ -258,14 +258,21 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
                         const url = await uploadLogoImage(file);
                         setLogoUrl(url);
                       } catch (err) {
-                        setLogoError(err instanceof Error ? err.message : "업로드 실패");
+                        setLogoError(
+                          err instanceof Error ? err.message : "업로드 실패",
+                        );
                       } finally {
                         setLogoUploading(false);
-                        if (logoInputRef.current) logoInputRef.current.value = "";
+                        if (logoInputRef.current)
+                          logoInputRef.current.value = "";
                       }
                     }}
                   />
-                  {logoUploading ? "올리는 중…" : logoUrl ? "다른 이미지로 교체" : "이미지 올리기"}
+                  {logoUploading
+                    ? "올리는 중…"
+                    : logoUrl
+                      ? "다른 이미지로 교체"
+                      : "이미지 올리기"}
                 </label>
                 {logoError ? <ErrorText>{logoError}</ErrorText> : null}
               </div>
@@ -285,7 +292,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
                 />
                 {initial.brandColor ? (
                   <span
-                    className="h-8 w-8 shrink-0 rounded border border-border"
+                    className="border-border h-8 w-8 shrink-0 rounded border"
                     style={{ backgroundColor: initial.brandColor }}
                   />
                 ) : null}

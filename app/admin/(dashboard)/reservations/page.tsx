@@ -152,8 +152,8 @@ export default async function ReservationsPage({
             확정 대기 중인 신청 ({pendingList.length})
           </h2>
           <p className="text-muted mb-3 text-xs">
-            손님이 낸 희망 시간 중 하나를 골라 확정해야 하는 신청들입니다.
-            아직 날짜가 정해지지 않아 달력에는 표시되지 않습니다.
+            손님이 낸 희망 시간 중 하나를 골라 확정해야 하는 신청들입니다. 아직
+            날짜가 정해지지 않아 달력에는 표시되지 않습니다.
           </p>
           <ul className="flex flex-wrap gap-2">
             {pendingList.map((p) => (
@@ -198,7 +198,7 @@ export default async function ReservationsPage({
         </details>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="border-border bg-surface rounded-xl border p-4">
           <AdminCalendar
             month={month}

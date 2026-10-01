@@ -35,7 +35,9 @@ export function Field({
   hintPosition?: "before" | "after";
 }) {
   const hintNode = hint ? (
-    <span className={`text-muted block ${hintPosition === "before" ? "mb-1.5" : "mt-1"} ${hintClassName}`}>
+    <span
+      className={`text-muted block ${hintPosition === "before" ? "mb-1.5" : "mt-1"} ${hintClassName}`}
+    >
       {hint}
     </span>
   ) : null;
@@ -74,6 +76,7 @@ export function Button({
   return (
     <button
       {...props}
+      data-ui="button"
       className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 ${styles} ${className}`}
     />
   );

@@ -243,7 +243,7 @@ app/
     login/                 로그인
     actions.ts             ★ 관리자 서버 액션 전부(약 3,500줄)
     (dashboard)/
-      layout.tsx           헤더(로고+메뉴 AdminNav), requireAdmin, 처리 중 오버레이
+      layout.tsx           AdminWorkspace(사이드바+헤더), requireAdmin, 처리 중 오버레이
       page.tsx             → /admin/products 리다이렉트
       products/            상품관리(그리드, 카드 메뉴, 편집기 3단, 문항 관리)
       reservations/        예약관리(달력 + 상세 패널 + 각종 모달/폼) ★
@@ -589,7 +589,7 @@ requested ──(후보 확정)──▶ schedule_confirmed ──▶ payment_co
   - 유료 옵션이 있으면 하단 고정 "예상 금액" 바
   ▼
 ④ createReservation (lib/booking/actions.ts)
-  1. 후보 3개 스키마 검증(reservationSchema) → 문항 추출/필수 검증(extractReservationFormData)
+  1. 후보 3개 스키마 검증(reservationSchema) → 활성 문항 조회 → 문항 추출/필수 검증(extractReservationFormData). 문항 조회 실패를 빈 목록으로 취급하지 않고 신청을 중단한다. 신청서 최초 로딩 실패 시에도 빈 폼 대신 날짜/시간을 유지하는 다시 불러오기 안내를 보여준다. 성별은 `gender` 및 일반 `single_choice` 모두 상품의 `required` 설정을 따르며, 선택 문항이면 생략 가능하다.
   2. 예상 금액 서버 재계산
   3. 후보 3개 실시간 재검증(loadAvailableSlots)
   4. create_reservation_with_candidates RPC (예약번호 23505 충돌 시 재시도 ≤3)
@@ -839,7 +839,11 @@ requested ──(후보 확정)──▶ schedule_confirmed ──▶ payment_co
 
 ### 8-2. 관리자 메뉴 (`components/admin-nav.tsx` 순서)
 
-상품관리 · 예약관리 · 예약내역 · 고객DB · 매출관리 · 통계 · 스케줄관리 · 디자인 · 이메일 · 설정 (`/admin` → `/admin/products`)
+스튜디오 운영: 예약관리 · 예약내역 · 고객DB · 매출관리 · 통계 / 사이트 관리: 상품관리 · 스케줄관리 · 디자인 · 이메일 · 설정 (`/admin` → `/admin/products`)
+
+- 2안 업무 책상 디자인: 데스크톱 고정 사이드바, 현재 메뉴 강조, 64px 공통 헤더, 모바일 모달 메뉴(Escape로 닫기). 메뉴 10개와 로그아웃 모두 유지.
+- 관리자 영역은 시스템 다크 설정과 관계없이 밝은 회색/흰색/차분한 파랑을 사용한다. 고객 화면의 기존 테마는 유지한다.
+- 로고는 전체 `푸르른 스튜디오` 손글씨로 변경(`public/brand-logo.svg`, 기존 전체 흰색 원본의 알파 형태를 보존해 파란색으로 렌더링). 관리자와 고객 상품 목록에 같은 로고를 쓴다.
 
 ### 8-3. 예약관리 (`/admin/reservations`) — 달력 중심
 
@@ -849,9 +853,9 @@ requested ──(후보 확정)──▶ schedule_confirmed ──▶ payment_co
 
 ### 8-4. 예약내역 (`/admin/reservation-history`) — 표 중심
 
-- 검색(이름/연락처/예약번호), 상태 필터, 정렬(예약시점/촬영일 빠른·느린 순), 건수 배지
-- 열(고정 비율, 가로 스크롤 없음): **상태 배지(짧은 라벨) · 촬영일시 · 상품(태그색 배지) · 예약자 · 연락처 · 결제금액 · 접수일 · 상태 변경**
-- **행 전체 클릭 → `?id=` 상세 패널**(`<tr onClick>` + 버튼/링크 클릭은 제외하는 `isInteractiveTarget`)
+- 전체/일정 확인 대기/입금 확인 대기/촬영 완료 요약, 검색(이름/연락처/예약번호), 상태 필터 및 상태별 빠른 탭(취소·노쇼 포함), 정렬(예약시점/촬영일 빠른·느린 순), 건수 배지, 달력 이동 링크
+- 열(고정 비율): **상태 배지(짧은 라벨) · 촬영일시 · 상품(태그색 배지) · 예약자(예약번호 보조 표기) · 연락처 · 결제금액 · 접수일 · 예약 처리**. 좁은 데스크톱에서는 표 영역만 스크롤하고, 모바일은 같은 행/처리 버튼을 모든 정보가 보이는 카드로 배치한다. 열 너비 드래그와 별도 예약번호 열은 추가하지 않는다.
+- **행 전체 클릭 또는 키보드 Enter/Space → `?id=` 상세 패널**(버튼/링크와 내부 SVG 클릭은 행 이동에서 제외). 선택 전에는 표를 넓게 사용하고, 선택 후 넓은 화면은 오른쪽 패널, 작은 화면은 아래 패널로 배치해 자동으로 상세 위치를 보여준다.
 - 상태 변경 열(`reservation-action-cell.tsx`): 후보 대기 안내 / 일정확정 / 입금확인·예약확정 / 완료·노쇼 / 취소(빨간 글씨) / 완료 후 결과물 전송 → "작업종료" + 되돌리기 / 노쇼 "작업종료"+되돌리기 / 취소 "작업종료"+복원. 버튼 글자 크기 통일(`px-3 py-1.5 text-xs`)
 - 상세 패널은 예약관리와 동일 컴포넌트지만 `basePath="/admin/reservation-history"`이면 **상태 변경·결과물 전송 섹션을 숨김**(표에서 처리하므로)
 
@@ -901,6 +905,8 @@ requested ──(후보 확정)──▶ schedule_confirmed ──▶ payment_co
 
 **10-01**: **모든 이메일 발송에서 받는 사람(팀원) 직접 추가**(DB `team_emails`), 수기 등록 예약자 이메일 칸.
 
+**10-01 Codex 작업**: 사용자 선택 2안으로 관리자 공통 틀/예약내역/모바일 정보 배치를 정리하고 전체 손글씨 로고 적용. 기존 메뉴·서버 액션·기록표·이메일·수기 예약 기능 유지. 문항 조회 실패 시 필수 검증이 생략되는 경로 재현 및 차단, 성별 관련 회귀 테스트 추가. 공통 상세 패널 목록 복귀 날짜도 KST로 계산. 기존 린트 오류(테스트 이메일 결과 표시, 수기 예약 문항 로딩)를 정리하고 수기 상품 전환 시 오래된 조회 결과 반영 방지. DB 스키마 변경 없음. 운영 문항 설정/실예약은 클라우드 Supabase 환경변수 부재로 미확인. 타입 검사·린트(오류 0)·테스트 203개 및 임시 페이지 데스크톱/모바일 검증 완료. 사용자 배포 승인 후 master 반영 대상.
+
 ---
 
 ## 10. 최근 결정 · 되돌린 결정 (다시 하지 말 것)
@@ -935,12 +941,12 @@ requested ──(후보 확정)──▶ schedule_confirmed ──▶ payment_co
 
 ### 11-1. 즉시 정리하면 좋은 것
 
-1. **`app/dev-preview-history4/` 가 프로덕션에 배포되어 있다**(임시 미리보기 페이지, 예시 데이터만). 삭제 권장.
+1. (10-01 해결) 배포에 남아 있던 샘플 페이지 `app/dev-preview-history4/`를 제거했다. 이번 검증용 임시 페이지도 제거 완료.
 2. **`.env.example` 누락**: `GOOGLE_SHEETS_CLIENT_EMAIL`, `GOOGLE_SHEETS_PRIVATE_KEY`, `GOOGLE_SHEETS_SPREADSHEET_ID`, `GOOGLE_CALENDAR_ID`, `NEXT_PUBLIC_CLARITY_PROJECT_ID`, `SOLAPI_KAKAO_TEMPLATE_CUSTOMER_RESCHEDULED`.
 3. **README / ROADMAP이 오래됨**: README의 이중예약 설명(`requested/confirmed`), 진행상황 등이 현재와 다르다. 현재 기준은 이 문서.
-4. 예약내역 상태 변경 열의 안내 문구 "후보 확정 대기 — **예약번호를 눌러** 확정" → 예약번호 열이 없어졌으므로 "행을 눌러 확정"으로 고쳐야 함(`reservation-action-cell.tsx`).
+4. (10-01 해결) 예약내역 후보 대기 안내를 "행을 선택해 확정"으로 수정했다.
 5. 미사용 의존성 `docxtemplater`, `pizzip` 제거 후보. 레거시 테이블 `email_templates`, 미사용 컬럼 `products.gallery`(데이터 보존 중), `products.page_summary`(있다면) 정리 여부는 **사장님 확인 후**.
-6. 기존 린트 에러 1건: `manual-reservation-button.tsx`의 useEffect 안 동기 setState(`react-hooks/set-state-in-effect`). 경고 5건(`_prev` 미사용).
+6. (10-01 해결) 수기 예약/테스트 이메일의 useEffect 동기 setState 린트 오류를 정리했다. 기존 경고 6건(`_prev` 미사용 5건, 외부 폰트 링크 1건)은 남아 있다.
 
 ### 11-2. 동작상 의심되는 점
 

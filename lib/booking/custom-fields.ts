@@ -68,7 +68,7 @@ export async function loadActiveCustomFields(
   productId: string,
 ): Promise<CustomField[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("custom_fields")
     .select(
       "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
@@ -76,6 +76,13 @@ export async function loadActiveCustomFields(
     .eq("product_id", productId)
     .eq("active", true)
     .order("sort_order");
+  // 조회 오류를 빈 문항으로 넘기면 필수 성별을 포함한 모든 문항 검증이
+  // 사라진다. 실제 빈 목록과 실패를 반드시 구분한다.
+  if (error || data === null) {
+    throw new Error(
+      "예약 문항을 불러오지 못했습니다. 잠시 후 다시 시도해 주시기 바랍니다.",
+    );
+  }
   return data ?? [];
 }
 
@@ -122,14 +129,19 @@ export function extractReservationFormData(
     if (field.type === "name") {
       const raw = String(formData.get(name) ?? "").trim();
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"에 답변해 주시기 바랍니다.` };
+        return {
+          ok: false,
+          error: `"${field.label}"에 답변해 주시기 바랍니다.`,
+        };
       }
       if (raw) {
         const parsed = nameField.safeParse(raw);
         if (!parsed.success) {
           return {
             ok: false,
-            error: parsed.error.issues[0]?.message ?? "이름을 확인해 주시기 바랍니다.",
+            error:
+              parsed.error.issues[0]?.message ??
+              "이름을 확인해 주시기 바랍니다.",
           };
         }
         special.customerName = parsed.data;
@@ -140,14 +152,19 @@ export function extractReservationFormData(
     if (field.type === "phone") {
       const raw = String(formData.get(name) ?? "").trim();
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"에 답변해 주시기 바랍니다.` };
+        return {
+          ok: false,
+          error: `"${field.label}"에 답변해 주시기 바랍니다.`,
+        };
       }
       if (raw) {
         const parsed = phoneField.safeParse(raw);
         if (!parsed.success) {
           return {
             ok: false,
-            error: parsed.error.issues[0]?.message ?? "연락처를 확인해 주시기 바랍니다.",
+            error:
+              parsed.error.issues[0]?.message ??
+              "연락처를 확인해 주시기 바랍니다.",
           };
         }
         special.customerPhone = parsed.data;
@@ -158,13 +175,18 @@ export function extractReservationFormData(
     if (field.type === "email") {
       const raw = String(formData.get(name) ?? "").trim();
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"에 답변해 주시기 바랍니다.` };
+        return {
+          ok: false,
+          error: `"${field.label}"에 답변해 주시기 바랍니다.`,
+        };
       }
       const parsed = emailField.safeParse(raw);
       if (!parsed.success) {
         return {
           ok: false,
-          error: parsed.error.issues[0]?.message ?? "이메일을 확인해 주시기 바랍니다.",
+          error:
+            parsed.error.issues[0]?.message ??
+            "이메일을 확인해 주시기 바랍니다.",
         };
       }
       if (parsed.data) special.customerEmail = parsed.data;
@@ -174,12 +196,18 @@ export function extractReservationFormData(
     if (field.type === "gender") {
       const raw = formData.get(name);
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"을 선택해 주시기 바랍니다.` };
+        return {
+          ok: false,
+          error: `"${field.label}"을 선택해 주시기 바랍니다.`,
+        };
       }
       if (raw) {
         const parsed = genderField.safeParse(String(raw));
         if (!parsed.success) {
-          return { ok: false, error: `"${field.label}"을 선택해 주시기 바랍니다.` };
+          return {
+            ok: false,
+            error: `"${field.label}"을 선택해 주시기 바랍니다.`,
+          };
         }
         special.gender = parsed.data;
       }
@@ -189,7 +217,10 @@ export function extractReservationFormData(
     if (field.type === "birth_date") {
       const raw = String(formData.get(name) ?? "").trim();
       if (field.required && !raw) {
-        return { ok: false, error: `"${field.label}"을 입력해 주시기 바랍니다.` };
+        return {
+          ok: false,
+          error: `"${field.label}"을 입력해 주시기 바랍니다.`,
+        };
       }
       if (raw) {
         const parsed = birthDateField.safeParse(raw);
@@ -197,7 +228,8 @@ export function extractReservationFormData(
           return {
             ok: false,
             error:
-              parsed.error.issues[0]?.message ?? "생년월일을 확인해 주시기 바랍니다.",
+              parsed.error.issues[0]?.message ??
+              "생년월일을 확인해 주시기 바랍니다.",
           };
         }
         special.birthDate = parsed.data;
@@ -208,7 +240,10 @@ export function extractReservationFormData(
     if (field.type === "multi_choice") {
       const values = formData.getAll(name).map(String).filter(Boolean);
       if (field.required && values.length === 0) {
-        return { ok: false, error: `"${field.label}"에 답변해 주시기 바랍니다.` };
+        return {
+          ok: false,
+          error: `"${field.label}"에 답변해 주시기 바랍니다.`,
+        };
       }
       if (values.length > 0) {
         answers.push({ fieldId: field.id, value: JSON.stringify(values) });
@@ -219,7 +254,10 @@ export function extractReservationFormData(
     if (field.type === "checkbox") {
       const checked = formData.get(name) === "on";
       if (field.required && !checked) {
-        return { ok: false, error: `"${field.label}"에 동의해 주시기 바랍니다.` };
+        return {
+          ok: false,
+          error: `"${field.label}"에 동의해 주시기 바랍니다.`,
+        };
       }
       answers.push({ fieldId: field.id, value: checked ? "true" : "false" });
       continue;

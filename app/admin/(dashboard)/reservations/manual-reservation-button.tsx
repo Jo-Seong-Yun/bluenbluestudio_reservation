@@ -96,7 +96,12 @@ function ManualReservationDialogContent({
   const [teamEmails, setTeamEmails] = useState<string[]>(() =>
     initialTeamEmailRows([], products[0]?.max_people ?? null),
   );
-  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [loadedFields, setLoadedFields] = useState<{
+    productId: string;
+    fields: CustomField[];
+  }>({ productId: "", fields: [] });
+  const customFields =
+    loadedFields.productId === selectedProductId ? loadedFields.fields : [];
   // multi_choice 답변은 체크 상태를 state로 관리해야 price 계산이 가능하다.
   const [multiChoiceAnswers, setMultiChoiceAnswers] = useState<
     Record<string, string[]>
@@ -106,15 +111,17 @@ function ManualReservationDialogContent({
   >({});
 
   useEffect(() => {
-    if (!selectedProductId) {
-      setCustomFields([]);
-      return;
-    }
+    if (!selectedProductId) return;
+    let cancelled = false;
     getProductCustomFields(selectedProductId).then((fields) => {
-      setCustomFields(fields);
+      if (cancelled) return;
+      setLoadedFields({ productId: selectedProductId, fields });
       setMultiChoiceAnswers({});
       setSingleChoiceAnswers({});
     });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedProductId]);
 
   function close() {
@@ -180,7 +187,9 @@ function ManualReservationDialogContent({
           onChange={(e) => {
             setSelectedProductId(e.target.value);
             const product = products.find((p) => p.id === e.target.value);
-            setTeamEmails(initialTeamEmailRows([], product?.max_people ?? null));
+            setTeamEmails(
+              initialTeamEmailRows([], product?.max_people ?? null),
+            );
           }}
         >
           <option value="">선택해 주십시오</option>
@@ -285,7 +294,9 @@ function ManualReservationDialogContent({
               + {item.label} ₩{item.price.toLocaleString()}
             </p>
           ))}
-          <p className="mt-1 font-bold">합계 ₩{estimatedTotal.toLocaleString()}</p>
+          <p className="mt-1 font-bold">
+            합계 ₩{estimatedTotal.toLocaleString()}
+          </p>
         </div>
       )}
 
