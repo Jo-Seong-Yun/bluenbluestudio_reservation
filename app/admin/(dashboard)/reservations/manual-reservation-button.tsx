@@ -8,6 +8,8 @@ import {
 } from "@/app/admin/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
+import { TeamRecipientsField } from "@/components/team-recipients-field";
+import { initialTeamEmailRows } from "@/lib/notifications/team-emails";
 import {
   fieldFormName,
   selectedLabelsFromAnswers,
@@ -16,6 +18,14 @@ import {
 } from "@/lib/booking/custom-fields-shared";
 
 const initialState: ManualReservationState = { status: "idle" };
+
+type ManualProduct = {
+  id: string;
+  name: string;
+  price: number;
+  sale_price: number | null;
+  max_people: number | null;
+};
 
 /**
  * 전화·DM으로 받은 예약을 관리자가 직접 넣는 버튼 + 다이얼로그.
@@ -28,7 +38,7 @@ const initialState: ManualReservationState = { status: "idle" };
 export function ManualReservationButton({
   products,
 }: {
-  products: { id: string; name: string; price: number; sale_price: number | null }[];
+  products: ManualProduct[];
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [instance, setInstance] = useState(0);
@@ -70,7 +80,7 @@ function ManualReservationDialogContent({
   products,
   onClose,
 }: {
-  products: { id: string; name: string; price: number; sale_price: number | null }[];
+  products: ManualProduct[];
   onClose: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -82,6 +92,9 @@ function ManualReservationDialogContent({
 
   const [selectedProductId, setSelectedProductId] = useState(
     products[0]?.id ?? "",
+  );
+  const [teamEmails, setTeamEmails] = useState<string[]>(() =>
+    initialTeamEmailRows([], products[0]?.max_people ?? null),
   );
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   // multi_choice 답변은 체크 상태를 state로 관리해야 price 계산이 가능하다.
@@ -164,7 +177,11 @@ function ManualReservationDialogContent({
           required
           className={inputClass}
           value={selectedProductId}
-          onChange={(e) => setSelectedProductId(e.target.value)}
+          onChange={(e) => {
+            setSelectedProductId(e.target.value);
+            const product = products.find((p) => p.id === e.target.value);
+            setTeamEmails(initialTeamEmailRows([], product?.max_people ?? null));
+          }}
         >
           <option value="">선택해 주십시오</option>
           {products.map((p) => (
@@ -207,6 +224,24 @@ function ManualReservationDialogContent({
           className={inputClass}
         />
       </Field>
+
+      <Field
+        label="예약자 이메일 (선택)"
+        hint="적으면 '일정확정' 이메일 규칙이 있을 때 등록과 동시에 메일이 나갑니다."
+      >
+        <input
+          name="customerEmail"
+          type="email"
+          placeholder="customer@example.com"
+          className={inputClass}
+        />
+      </Field>
+
+      <TeamRecipientsField
+        value={teamEmails}
+        onChange={setTeamEmails}
+        note="팀원에게도 일정 확정 메일이 각각 따로 나가고, 이후 메일에도 함께 쓰입니다."
+      />
 
       <Field label="인원 (선택)">
         <input

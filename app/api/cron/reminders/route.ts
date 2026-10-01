@@ -129,7 +129,7 @@ async function sendRuleToTargetDay(
   let query = supabase
     .from("reservations")
     .select(
-      "id, code, customer_name, customer_phone, customer_email, shoot_start, shoot_location, product_id, estimated_amount",
+      "id, code, customer_name, customer_phone, customer_email, team_emails, shoot_start, shoot_location, product_id, estimated_amount",
     )
     .in("status", ["schedule_confirmed", "payment_confirmed"])
     .gte("shoot_start", rangeStart)
@@ -146,6 +146,7 @@ async function sendRuleToTargetDay(
     for (const to of ruleRecipientAddresses(rule.recipients, {
       customerEmail: reservation.customer_email,
       adminEmail,
+      teamEmails: reservation.team_emails ?? [],
     })) {
       if (!(await hasRuleEmailBeenSent(rule.id, reservation.id, to))) unsent.push(to);
     }

@@ -2,10 +2,17 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import {
+  loadReservationRecipientInfo,
   previewStatusChangeEmails,
   type EmailPreviewItem,
+  type ReservationRecipientInfo,
   type TransitionActionState,
 } from "@/app/admin/actions";
+import { initialTeamEmailRows } from "@/lib/notifications/team-emails";
+import {
+  recipientSummary,
+  TeamRecipientsField,
+} from "@/components/team-recipients-field";
 import { Button, ErrorText, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { RichTextEditor } from "@/components/rich-text-editor";
@@ -58,6 +65,9 @@ export function StatusTransitionModal({
   const [edited, setEdited] = useState<Record<string, EditedEmail>>({});
   const [loading, setLoading] = useState(false);
   const [previewVersion, setPreviewVersion] = useState(0);
+  const [recipientInfo, setRecipientInfo] =
+    useState<ReservationRecipientInfo | null>(null);
+  const [teamEmails, setTeamEmails] = useState<string[]>([]);
 
   const [state, action, pending] = useActionState<
     TransitionActionState,
@@ -90,7 +100,13 @@ export function StatusTransitionModal({
     setReason("");
     setItems(null);
     setEdited({});
+    setRecipientInfo(null);
+    setTeamEmails([]);
     void loadPreview("");
+    void loadReservationRecipientInfo(reservationId).then((info) => {
+      setRecipientInfo(info);
+      setTeamEmails(initialTeamEmailRows(info.teamEmails, info.productMaxPeople));
+    });
     dialogRef.current?.showModal();
   }
 
@@ -170,6 +186,14 @@ export function StatusTransitionModal({
             </div>
           ) : null}
 
+          {recipientInfo ? (
+            <TeamRecipientsField
+              customerEmail={recipientInfo.reservationEmail}
+              value={teamEmails}
+              onChange={setTeamEmails}
+            />
+          ) : null}
+
           <div>
             <p className="text-muted mb-1.5 text-xs font-medium">
               이 상태로 바뀌면 나갈 이메일{" "}
@@ -191,7 +215,16 @@ export function StatusTransitionModal({
                     className="border-border rounded-lg border p-3"
                   >
                     <p className="text-muted mb-2 text-xs font-medium">
-                      {item.recipientLabel}에게
+                      발송 대상 ·{" "}
+                      <span className="font-mono font-normal">
+                        {recipientInfo
+                          ? recipientSummary(item.recipients, {
+                              customerEmail: recipientInfo.reservationEmail,
+                              adminEmail: recipientInfo.adminEmail,
+                              teamEmails,
+                            })
+                          : item.recipientLabel}
+                      </span>
                     </p>
                     {requireReason && !item.usesCancelReason ? (
                       <p className="mb-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">

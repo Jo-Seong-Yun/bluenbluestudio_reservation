@@ -17,6 +17,7 @@ import {
 } from "@/lib/notifications/notify";
 import { getProductName } from "@/lib/notifications/product-name";
 import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
+import { getReservationTeamEmails } from "@/lib/notifications/team-emails-server";
 import {
   extractReservationFormData,
   loadActiveCustomFields,
@@ -369,7 +370,10 @@ export async function cancelReservation(
         birthDate: reservation.birth_date,
         email: reservation.customer_email,
       });
-      const adminEmail = await getAdminNotifyEmail();
+      const [adminEmail, teamEmails] = await Promise.all([
+        getAdminNotifyEmail(),
+        getReservationTeamEmails(reservation.id),
+      ]);
       await Promise.all([
         notifyCustomerCancelled({
           reservationId: reservation.id,
@@ -378,6 +382,7 @@ export async function cancelReservation(
           customerPhone: reservation.customer_phone,
           customerEmail: reservation.customer_email,
           adminEmail,
+          teamEmails,
           productName,
           shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
           code: reservation.code,
