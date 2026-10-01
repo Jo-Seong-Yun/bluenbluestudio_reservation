@@ -8,6 +8,7 @@ import { kstToInstant } from "@/lib/time";
 import {
   reservationSchema,
   lookupSchema,
+  codeLookupSchema,
   phoneLookupSchema,
 } from "@/lib/validation/reservation";
 import {
@@ -296,15 +297,16 @@ export type LookupState =
         customerName: string;
       };
       canCancel: boolean;
+      /** 예약번호 조회 후 기존 취소 RPC 인증에 사용합니다. */
+      phone?: string;
     };
 
 export async function lookupReservation(
   _prev: LookupState,
   formData: FormData,
 ): Promise<LookupState> {
-  const parsed = lookupSchema.safeParse({
+  const parsed = codeLookupSchema.safeParse({
     code: formData.get("code"),
-    phone: formData.get("phone"),
   });
   if (!parsed.success) {
     return {
@@ -315,9 +317,8 @@ export async function lookupReservation(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("lookup_reservation", {
+  const { data, error } = await supabase.rpc("lookup_reservation_by_code", {
     p_code: parsed.data.code,
-    p_phone: parsed.data.phone,
   });
 
   if (error) {
@@ -328,7 +329,7 @@ export async function lookupReservation(
   if (!reservation) {
     return {
       status: "error",
-      error: "예약번호와 연락처가 일치하는 예약을 찾지 못했습니다.",
+      error: "해당 예약번호의 예약을 찾지 못했습니다.",
     };
   }
 
@@ -340,6 +341,7 @@ export async function lookupReservation(
       shootStart: reservation.shoot_start,
       customerName: reservation.customer_name,
     },
+    phone: reservation.customer_phone,
     canCancel:
       reservation.status === "requested" ||
       reservation.status === "schedule_confirmed" ||
