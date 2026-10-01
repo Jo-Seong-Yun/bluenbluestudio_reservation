@@ -219,3 +219,46 @@
     word-break: keep-all;
   }
 }
+
+.booking-steps {
+  display: flex;
+  gap: 18px;
+  padding: 20px 0;
+  margin-bottom: 30px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+}
+.booking-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.booking-step-number {
+  width: 25px;
+  height: 25px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.booking-steps .active {
+  font-weight: 700;
+  color: var(--brand);
+}
+.booking-steps .active .booking-step-number {
+  background: var(--brand);
+  color: white;
+  border-color: var(--brand);
+}
+.booking-steps .done .booking-step-number {
+  background: var(--surface-subtle);
+  color: var(--brand);
+}
+
+@media (max-width: 600px) {
+  .booking-steps { gap: 6px; font-size: 10px; margin-bottom: 24px; }
+  .booking-steps li { flex-direction: column; gap: 6px; text-align: center; }
+}

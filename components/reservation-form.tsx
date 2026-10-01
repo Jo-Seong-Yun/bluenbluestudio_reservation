@@ -1,4 +1,5 @@
 "use client";
+import { BookingSteps } from "@/components/booking-shell";
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -219,6 +220,7 @@ export function ReservationForm({
   if (state.status === "success") {
     return (
       <div className="mx-auto max-w-3xl">
+        <BookingSteps stage="success" />
 
         <ReservationSuccessCard
           successHeading={successHeading}
@@ -234,7 +236,7 @@ export function ReservationForm({
   }
   return (
     <>
-
+      <BookingSteps stage={reviewing ? "review" : "form"} />
       <form
         ref={formRef}
         action={action}
