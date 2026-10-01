@@ -73,7 +73,7 @@ export default async function ApplyPage({
 
   if (!product) notFound();
 
-  const backHref = `/booking/${slug}`;
+  const backHref = `/booking/${slug}?step=times`;
   let customFields: Awaited<ReturnType<typeof loadActiveCustomFields>>;
   try {
     customFields = await loadActiveCustomFields(product.id);
@@ -82,7 +82,7 @@ export default async function ApplyPage({
       .map((c) => `${c.date}_${c.time.replace(":", "-")}`)
       .join(",");
     return (
-      <main className="mx-auto w-full max-w-xl px-6 py-12">
+      <main className="booking-page">
         <div className="border-border bg-surface rounded-xl border p-6">
           <h1 className="text-xl font-bold">신청서를 불러오지 못했습니다</h1>
           <p role="alert" className="text-muted mt-3 text-sm">
@@ -91,7 +91,7 @@ export default async function ApplyPage({
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <a
-              href={`${backHref}/apply?${new URLSearchParams({ slots: retrySlots })}`}
+              href={`/booking/${slug}/apply?${new URLSearchParams({ slots: retrySlots })}`}
               className="bg-brand text-brand-foreground rounded-full px-4 py-2 text-sm font-medium"
             >
               다시 불러오기
@@ -152,7 +152,7 @@ export default async function ApplyPage({
   // 2개짜리로 신청서를 보여주는 대신 처음부터 다시 고르게 한다.
   if (candidates.length < 3) {
     return (
-      <main className="mx-auto w-full max-w-xl px-6 py-12">
+      <main className="booking-page">
         <Link href={backHref}>
           <Button type="button" variant="ghost">
             ← 날짜·시간 다시 고르기
@@ -174,7 +174,7 @@ export default async function ApplyPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-xl px-6 py-12">
+    <main className="booking-page">
       <ApplyViewTracker productId={product.id} />
 
       <ReservationForm

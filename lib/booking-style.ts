@@ -26,11 +26,11 @@ export type BookingStyle = {
 };
 
 export const DEFAULT_BOOKING_STYLE: BookingStyle = {
-  accentColor: "#3d6fe0",
+  accentColor: "#173b67",
   saleColor: "#e11d48",
-  textColor: "#0b1b2b",
+  textColor: "#182c46",
   textSize: "md",
-  cardRadius: "xl",
+  cardRadius: "md",
   cardSize: "standard",
 };
 
@@ -51,8 +51,8 @@ export type BookingStyleTemplate = {
 export const BOOKING_STYLE_TEMPLATES: BookingStyleTemplate[] = [
   {
     id: "default",
-    label: "기본 블루",
-    description: "지금 브랜드 컬러 그대로",
+    label: "다크블루",
+    description: "선택한 1안의 네이비 톤",
     style: DEFAULT_BOOKING_STYLE,
   },
   {
@@ -102,7 +102,10 @@ export const TEXT_SIZE_OPTIONS: { value: BookingTextSize; label: string }[] = [
   { value: "lg", label: "크게" },
 ];
 
-export const CARD_RADIUS_OPTIONS: { value: BookingCardRadius; label: string }[] = [
+export const CARD_RADIUS_OPTIONS: {
+  value: BookingCardRadius;
+  label: string;
+}[] = [
   { value: "none", label: "각짐" },
   { value: "md", label: "기본" },
   { value: "xl", label: "둥글게" },
@@ -147,23 +150,36 @@ const PRICE_TEXT_CLASS: Record<BookingTextSize, string> = {
 };
 
 export function cardRadiusClass(radius: BookingCardRadius): string {
-  return CARD_RADIUS_CLASS[radius] ?? CARD_RADIUS_CLASS[DEFAULT_BOOKING_STYLE.cardRadius];
+  return (
+    CARD_RADIUS_CLASS[radius] ??
+    CARD_RADIUS_CLASS[DEFAULT_BOOKING_STYLE.cardRadius]
+  );
 }
 
 export function cardPaddingClass(size: BookingCardSize): string {
-  return CARD_PADDING_CLASS[size] ?? CARD_PADDING_CLASS[DEFAULT_BOOKING_STYLE.cardSize];
+  return (
+    CARD_PADDING_CLASS[size] ??
+    CARD_PADDING_CLASS[DEFAULT_BOOKING_STYLE.cardSize]
+  );
 }
 
 export function thumbnailSizeClass(size: BookingCardSize): string {
-  return THUMBNAIL_SIZE_CLASS[size] ?? THUMBNAIL_SIZE_CLASS[DEFAULT_BOOKING_STYLE.cardSize];
+  return (
+    THUMBNAIL_SIZE_CLASS[size] ??
+    THUMBNAIL_SIZE_CLASS[DEFAULT_BOOKING_STYLE.cardSize]
+  );
 }
 
 export function nameTextClass(size: BookingTextSize): string {
-  return NAME_TEXT_CLASS[size] ?? NAME_TEXT_CLASS[DEFAULT_BOOKING_STYLE.textSize];
+  return (
+    NAME_TEXT_CLASS[size] ?? NAME_TEXT_CLASS[DEFAULT_BOOKING_STYLE.textSize]
+  );
 }
 
 export function priceTextClass(size: BookingTextSize): string {
-  return PRICE_TEXT_CLASS[size] ?? PRICE_TEXT_CLASS[DEFAULT_BOOKING_STYLE.textSize];
+  return (
+    PRICE_TEXT_CLASS[size] ?? PRICE_TEXT_CLASS[DEFAULT_BOOKING_STYLE.textSize]
+  );
 }
 
 /** 할인 배지 배경 — 세일 색을 흰색과 섞어 옅은 톤을 만든다(브라우저 color-mix). */
@@ -195,6 +211,15 @@ export type RawBookingStyle = {
 export function resolveBookingStyle(
   raw: RawBookingStyle | null | undefined,
 ): BookingStyle {
+  // 예전 기본 조합만 새 승인 시안으로 전환하고, 직접 고른 색·크기는 보존한다.
+  const legacyDefault =
+    raw?.accentColor?.toLowerCase() === "#3d6fe0" &&
+    (!raw.saleColor || raw.saleColor.toLowerCase() === "#e11d48") &&
+    (!raw.textColor || raw.textColor.toLowerCase() === "#0b1b2b") &&
+    (!raw.textSize || raw.textSize === "md") &&
+    (!raw.cardRadius || raw.cardRadius === "xl") &&
+    (!raw.cardSize || raw.cardSize === "standard");
+  if (legacyDefault) return { ...DEFAULT_BOOKING_STYLE };
   return {
     accentColor:
       raw?.accentColor && isValidHexColor(raw.accentColor)

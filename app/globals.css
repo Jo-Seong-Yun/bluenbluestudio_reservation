@@ -2,7 +2,14 @@
 
 @custom-variant dark {
   @media (prefers-color-scheme: dark) {
-    &:not(:where(.admin-workspace, .admin-workspace *)) {
+    &:not(
+      :where(
+        .admin-workspace,
+        .admin-workspace *,
+        .booking-workspace,
+        .booking-workspace *
+      )
+    ) {
       @slot;
     }
   }

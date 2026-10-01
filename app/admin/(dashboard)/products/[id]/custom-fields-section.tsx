@@ -5,6 +5,7 @@ import { inputClass } from "@/components/ui";
 import { moveCustomField } from "@/app/admin/actions";
 import { FieldDescription } from "@/components/field-description";
 import { DeleteFieldButton } from "./delete-field-button";
+import { ApplicationPreview } from "./application-preview";
 import { FieldModal } from "./field-modal";
 import { ImportFieldsButton } from "./import-fields-button";
 import {
@@ -64,12 +65,12 @@ export function CustomFieldsSection({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold">신청서 문항</h2>
           <p className="text-muted mt-1 text-sm">
-            이 상품 예약 폼에 나갈 질문을 순서대로 관리합니다. 다른 상품에는
-            영향이 없습니다.
+            손님이 작성할 모든 문항을 여기서 관리합니다. 제목·설명·보기·필수
+            여부·추가 옵션 가격·표시 순서를 수정할 수 있습니다.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -81,6 +82,13 @@ export function CustomFieldsSection({
         </div>
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <ApplicationPreview fields={optimisticFields} />
+        <p className="text-muted text-xs">
+          질문별 저장으로 예약 신청서에 반영됩니다. 비활성 문항은 표시되지
+          않습니다.
+        </p>
+      </div>
       <div className="border-border bg-surface max-h-[600px] overflow-y-auto rounded-xl border">
         {optimisticFields.length === 0 ? (
           <p className="text-muted p-6 text-center text-sm">

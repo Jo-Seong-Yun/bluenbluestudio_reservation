@@ -4,12 +4,12 @@ import { LookupForm } from "./lookup-form";
 export const metadata: Metadata = { title: "예약 조회" };
 
 /**
- * 화면 구성(제목·설명·가운데 정렬 여부)은 조회 전/후로 다르게 가져가야
- * 해서 LookupForm이 통째로 결정한다. 자세한 이유는 lookup-form.tsx 참고.
+ * 조회 전에는 연락처/예약번호 입력, 조회 후에는 목록/상세 배치로
+ * 전환되므로 LookupForm이 화면 구성을 함께 관리한다.
  */
 export default function LookupPage() {
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-16">
+    <main className="booking-page">
       <LookupForm />
     </main>
   );
