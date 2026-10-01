@@ -92,7 +92,7 @@ export function ProductEditorPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="min-w-0">
           <ProductForm
             initial={{ ...initial, description }}
@@ -103,7 +103,10 @@ export function ProductEditorPanel({
         </div>
 
         <div className="min-w-0">
-          <DescriptionEditor initial={initialDescription} onChange={setDescription} />
+          <DescriptionEditor
+            initial={initialDescription}
+            onChange={setDescription}
+          />
         </div>
 
         <div className="min-w-0">{children}</div>

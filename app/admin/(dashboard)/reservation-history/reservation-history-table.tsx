@@ -61,8 +61,7 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   payment_confirmed: "bg-brand/15 text-brand",
   completed:
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  cancelled:
-    "bg-gray-100 text-gray-600 dark:bg-gray-800/60 dark:text-gray-300",
+  cancelled: "bg-gray-100 text-gray-600 dark:bg-gray-800/60 dark:text-gray-300",
   no_show: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
 };
 
@@ -123,7 +122,7 @@ type Row = {
  * 시작된 지점에서부터 가장 가까운 버튼/링크/폼 요소를 찾아, 있으면
  * 행 이동을 하지 않는다. */
 function isInteractiveTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
+  if (!(target instanceof Element)) return false;
   return Boolean(target.closest("button, a, input, select, textarea"));
 }
 
@@ -158,56 +157,115 @@ export function ReservationHistoryTable({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="이름, 연락처 또는 예약번호로 검색"
-            className={`${inputClass} max-w-xs`}
-          />
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className={`${inputClass} w-auto`}
-          >
-            <option value="all">전체 상태</option>
-            {Object.entries(STATUS_LABEL).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+      <dl className="admin-summary" aria-label="예약 현황">
+        <div>
+          <dt>전체 예약</dt>
+          <dd>
+            {rows.length}
+            <span className="text-muted ml-1 text-xs font-normal">건</span>
+          </dd>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortOption)}
-            className="border-border bg-surface text-muted rounded-full border px-2.5 py-1.5 text-xs outline-none"
-          >
-            {Object.entries(SORT_OPTIONS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <span className="border-border bg-surface-subtle text-muted shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium">
-            전체 {rows.length}건 · 검색결과 {filtered.length}건
-          </span>
+        <div>
+          <dt>일정 확인 대기</dt>
+          <dd>
+            {rows.filter((r) => r.status === "requested").length}
+            <span className="text-muted ml-1 text-xs font-normal">건</span>
+          </dd>
+        </div>
+        <div>
+          <dt>입금 확인 대기</dt>
+          <dd>
+            {rows.filter((r) => r.status === "schedule_confirmed").length}
+            <span className="text-muted ml-1 text-xs font-normal">건</span>
+          </dd>
+        </div>
+        <div>
+          <dt>촬영 완료</dt>
+          <dd>
+            {rows.filter((r) => r.status === "completed").length}
+            <span className="text-muted ml-1 text-xs font-normal">건</span>
+          </dd>
+        </div>
+      </dl>
+      <div className="border-border bg-surface rounded-xl border p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              aria-label="예약 검색"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="이름, 연락처 또는 예약번호로 검색"
+              className={`${inputClass} admin-history-search`}
+            />
+            <select
+              aria-label="예약 상태 필터"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className={`${inputClass} admin-history-status`}
+            >
+              <option value="all">전체 상태</option>
+              {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <select
+              aria-label="예약 정렬"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortOption)}
+              className="border-border bg-surface text-muted rounded-full border px-2.5 py-1.5 text-xs outline-none"
+            >
+              {Object.entries(SORT_OPTIONS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <span className="border-border bg-surface-subtle text-muted shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium">
+              전체 {rows.length}건 · 검색결과 {filtered.length}건
+            </span>
+          </div>
+        </div>
+
+        <div className="admin-status-tabs" aria-label="빠른 상태 필터">
+          {[["all", "전체"], ...Object.entries(STATUS_BADGE_LABEL)].map(
+            ([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={status === value}
+                onClick={() => setStatus(value)}
+              >
+                {label}{" "}
+                <span className="ml-1 opacity-70">
+                  {value === "all"
+                    ? rows.length
+                    : rows.filter((r) => r.status === value).length}
+                </span>
+              </button>
+            ),
+          )}
         </div>
       </div>
-
-      <div className="border-border bg-surface mt-3 rounded-xl border">
-        <table className="w-full table-fixed text-sm">
+      <div
+        className="admin-table-scroll border-border bg-surface mt-3 rounded-xl border"
+        role="region"
+        aria-label="예약내역 표, 좁은 화면에서는 좌우로 스크롤"
+        tabIndex={0}
+      >
+        <table className="admin-history-table w-full table-fixed text-sm">
           <colgroup>
             <col className="w-[9%]" />
             <col className="w-[12%]" />
             <col className="w-[15%]" />
-            <col className="w-[10%]" />
+            <col className="w-[11%]" />
             <col className="w-[12%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
+            <col className="w-[11%]" />
+            <col className="w-[11%]" />
             <col />
           </colgroup>
           <thead>
@@ -219,7 +277,7 @@ export function ReservationHistoryTable({
               <th className="px-3 py-3 font-medium">연락처</th>
               <th className="px-3 py-3 font-medium">결제금액</th>
               <th className="px-3 py-3 font-medium">접수일</th>
-              <th className="px-3 py-3 font-medium">상태 변경</th>
+              <th className="px-3 py-3 font-medium">예약 처리</th>
             </tr>
           </thead>
           <tbody>
@@ -235,20 +293,35 @@ export function ReservationHistoryTable({
               filtered.map((r) => (
                 <tr
                   key={r.id}
+                  tabIndex={0}
+                  aria-label={`${r.customerName} 예약 상세 보기`}
+                  data-selected={r.id === selectedId}
+                  onKeyDown={(e) => {
+                    if (
+                      e.target === e.currentTarget &&
+                      (e.key === "Enter" || e.key === " ")
+                    ) {
+                      e.preventDefault();
+                      router.push(`?id=${r.id}`, { scroll: false });
+                    }
+                  }}
                   onClick={(e) => {
                     // 상태 변경 열의 버튼·링크를 눌렀으면 그 동작만
                     // 실행되게 두고, 행 자체의 이동은 하지 않는다.
                     if (isInteractiveTarget(e.target)) return;
-                    router.push(`?id=${r.id}`);
+                    router.push(`?id=${r.id}`, { scroll: false });
                   }}
-                  className={`border-border hover:bg-surface-subtle border-t cursor-pointer ${
+                  className={`border-border hover:bg-surface-subtle cursor-pointer border-t ${
                     r.id === selectedId ? "bg-surface-subtle" : ""
                   }`}
                 >
-                  <td className="px-3 py-3">
+                  <td data-label="상태" className="px-3 py-3">
                     <StatusBadge status={r.status} />
                   </td>
-                  <td className="px-3 py-3 text-xs whitespace-nowrap">
+                  <td
+                    data-label="촬영일시"
+                    className="px-3 py-3 text-xs whitespace-nowrap"
+                  >
                     {r.shootStart ? (
                       <>
                         {kstDateString(new Date(r.shootStart))}
@@ -259,36 +332,50 @@ export function ReservationHistoryTable({
                       <span className="text-muted">확정 대기</span>
                     )}
                   </td>
-                  <td className="px-3 py-3">
+                  <td data-label="상품" className="px-3 py-3">
                     <ProductBadge
                       name={r.productName}
                       tagColor={r.productTagColor}
                     />
                   </td>
-                  <td className="truncate px-3 py-3" title={r.customerName}>
-                    {r.customerName}
+                  <td
+                    data-label="예약자"
+                    className="truncate px-3 py-3"
+                    title={r.customerName}
+                  >
+                    <span className="font-medium">{r.customerName}</span>
+                    <div className="admin-customer-code">{r.code}</div>
                   </td>
                   <td
+                    data-label="연락처"
                     className="truncate px-3 py-3 text-xs"
                     title={r.customerPhone}
                   >
                     {r.customerPhone}
                   </td>
-                  <td className="px-3 py-3 text-xs whitespace-nowrap">
+                  <td
+                    data-label="결제금액"
+                    className="px-3 py-3 text-xs whitespace-nowrap"
+                  >
                     {r.chargedAmount != null
                       ? `${r.chargedAmount.toLocaleString()}원`
                       : r.estimatedAmount != null
                         ? `${r.estimatedAmount.toLocaleString()}원 (예상)`
                         : "-"}
                   </td>
-                  <td className="px-3 py-3 text-xs whitespace-nowrap">
+                  <td
+                    data-label="접수일"
+                    className="px-3 py-3 text-xs whitespace-nowrap"
+                  >
                     {kstDateString(new Date(r.createdAt))}
                   </td>
-                  <td className="px-3 py-3">
+                  <td data-label="예약 처리" className="px-3 py-3">
                     <ReservationActionCell
                       reservationId={r.id}
                       status={r.status}
-                      isPending={r.shootStart === null && r.status === "requested"}
+                      isPending={
+                        r.shootStart === null && r.status === "requested"
+                      }
                       deliverableSent={r.deliverableSent}
                     />
                   </td>

@@ -56,7 +56,9 @@ export default async function ApplyPage({
   const [{ data: product }, { data: settings }] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, slug, duration_min, buffer_after_min, price, sale_price")
+      .select(
+        "id, name, slug, duration_min, buffer_after_min, price, sale_price",
+      )
       .eq("slug", slug)
       .eq("is_published", true)
       .maybeSingle(),
@@ -71,8 +73,40 @@ export default async function ApplyPage({
 
   if (!product) notFound();
 
-  const customFields = await loadActiveCustomFields(product.id);
   const backHref = `/booking/${slug}`;
+  let customFields: Awaited<ReturnType<typeof loadActiveCustomFields>>;
+  try {
+    customFields = await loadActiveCustomFields(product.id);
+  } catch {
+    const retrySlots = requested
+      .map((c) => `${c.date}_${c.time.replace(":", "-")}`)
+      .join(",");
+    return (
+      <main className="mx-auto w-full max-w-xl px-6 py-12">
+        <div className="border-border bg-surface rounded-xl border p-6">
+          <h1 className="text-xl font-bold">신청서를 불러오지 못했습니다</h1>
+          <p role="alert" className="text-muted mt-3 text-sm">
+            잠시 후 다시 시도해 주시기 바랍니다. 선택하신 날짜와 시간은 다시
+            불러올 때 유지됩니다.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <a
+              href={`${backHref}/apply?${new URLSearchParams({ slots: retrySlots })}`}
+              className="bg-brand text-brand-foreground rounded-full px-4 py-2 text-sm font-medium"
+            >
+              다시 불러오기
+            </a>
+            <Link
+              href={backHref}
+              className="border-border rounded-full border px-4 py-2 text-sm"
+            >
+              날짜·시간 다시 고르기
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   // 과거이거나 형식이 이상한 날짜가 섞여 들어온 경우 걸러낸다.
   const inWindow = requested.filter(

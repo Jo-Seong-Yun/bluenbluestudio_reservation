@@ -1,80 +1,164 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, type ReactNode } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui";
+import { usePathname } from "next/navigation";
+import {
+  CalendarDays,
+  ListOrdered,
+  Users,
+  Wallet,
+  ChartNoAxesCombined,
+  Package,
+  Clock3,
+  Palette,
+  Mail,
+  Settings,
+  Menu,
+  X,
+  LogOut,
+  ChevronRight,
+} from "lucide-react";
+import { PendingOverlay } from "@/components/pending-overlay";
 
-const NAV_ITEMS = [
-  { href: "/admin/products", label: "상품관리" },
-  { href: "/admin/reservations", label: "예약관리" },
-  { href: "/admin/reservation-history", label: "예약내역" },
-  { href: "/admin/customers", label: "고객DB" },
-  { href: "/admin/revenue", label: "매출관리" },
-  { href: "/admin/analytics", label: "통계" },
-  { href: "/admin/schedule", label: "스케줄관리" },
-  { href: "/admin/design", label: "디자인" },
-  { href: "/admin/emails", label: "이메일" },
-  { href: "/admin/settings", label: "설정" },
-] as const;
+const GROUPS = [
+  {
+    label: "스튜디오 운영",
+    items: [
+      { href: "/admin/reservations", label: "예약관리", icon: CalendarDays },
+      {
+        href: "/admin/reservation-history",
+        label: "예약내역",
+        icon: ListOrdered,
+      },
+      { href: "/admin/customers", label: "고객DB", icon: Users },
+      { href: "/admin/revenue", label: "매출관리", icon: Wallet },
+      { href: "/admin/analytics", label: "통계", icon: ChartNoAxesCombined },
+    ],
+  },
+  {
+    label: "사이트 관리",
+    items: [
+      { href: "/admin/products", label: "상품관리", icon: Package },
+      { href: "/admin/schedule", label: "스케줄관리", icon: Clock3 },
+      { href: "/admin/design", label: "디자인", icon: Palette },
+      { href: "/admin/emails", label: "이메일", icon: Mail },
+      { href: "/admin/settings", label: "설정", icon: Settings },
+    ],
+  },
+];
 
-/**
- * 관리자 헤더의 메뉴. 좁은 화면에서는 링크 5개 + 로그아웃 버튼이
- * 한 줄에 다 안 들어가 잘려나가므로, 화면 너비에 따라 가로 메뉴와
- * 햄버거 드롭다운을 바꿔가며 보여준다.
- */
-export function AdminNav({ signOutAction }: { signOutAction: () => void }) {
-  const [open, setOpen] = useState(false);
+export function AdminWorkspace({
+  children,
+  signOutAction,
+}: {
+  children: ReactNode;
+  signOutAction: () => void;
+}) {
+  const pathname = usePathname();
+  const drawer = useRef<HTMLDialogElement>(null);
+  const active = GROUPS.flatMap((group) => group.items).find(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
 
-  return (
-    <>
-      <nav className="hidden flex-1 gap-6 sm:flex">
-        {NAV_ITEMS.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="text-muted hover:text-foreground text-sm tracking-[0.4px]"
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-      <form action={signOutAction} className="hidden sm:block">
-        <Button variant="danger" type="submit">
-          로그아웃
-        </Button>
-      </form>
-
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label="메뉴 열기"
-        aria-expanded={open}
-        className="border-border hover:bg-surface-subtle ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-lg sm:hidden"
-      >
-        {open ? "✕" : "☰"}
-      </button>
-
-      {open ? (
-        <div className="border-border bg-surface absolute inset-x-0 top-full z-20 border-b p-3 shadow-sm sm:hidden">
-          <nav className="flex flex-col gap-1.5">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="hover:bg-surface-subtle rounded-lg px-3 py-2.5 text-sm font-medium tracking-[0.4px]"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <form action={signOutAction} className="mt-2">
-            <Button variant="danger" type="submit" className="w-full">
+  function navigation(mobile = false) {
+    return (
+      <>
+        <Link
+          href="/admin/products"
+          className="admin-brand"
+          onClick={() => drawer.current?.close()}
+        >
+          <span
+            className="admin-brand-mark"
+            role="img"
+            aria-label="푸르른 스튜디오"
+          />
+          <span>관리자 페이지</span>
+        </Link>
+        <nav
+          aria-label={mobile ? "모바일 관리자 메뉴" : "관리자 메뉴"}
+          className="admin-navigation"
+        >
+          {GROUPS.map((group) => (
+            <div key={group.label}>
+              <p className="admin-nav-group">{group.label}</p>
+              {group.items.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={active?.href === href ? "page" : undefined}
+                  onClick={() => drawer.current?.close()}
+                  className="admin-nav-link"
+                >
+                  <Icon size={17} strokeWidth={1.7} aria-hidden="true" />
+                  <span>{label}</span>
+                </Link>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="admin-sidebar-footer">
+          <span className="admin-studio-label">
+            <span aria-hidden="true" />
+            푸르른 스튜디오
+          </span>
+          <form action={signOutAction}>
+            <button type="submit" className="admin-logout">
+              <LogOut size={16} aria-hidden="true" />
               로그아웃
-            </Button>
+            </button>
           </form>
         </div>
-      ) : null}
-    </>
+      </>
+    );
+  }
+
+  return (
+    <div className="admin-workspace">
+      <aside className="admin-sidebar">{navigation()}</aside>
+      <dialog
+        ref={drawer}
+        id="admin-menu"
+        className="admin-mobile-drawer"
+        aria-label="관리자 메뉴"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) drawer.current?.close();
+        }}
+      >
+        <button
+          type="button"
+          className="admin-menu-close"
+          aria-label="메뉴 닫기"
+          onClick={() => drawer.current?.close()}
+        >
+          <X size={20} />
+        </button>
+        {navigation(true)}
+      </dialog>
+      <div className="admin-content">
+        <header className="admin-topbar">
+          <button
+            type="button"
+            className="admin-menu-toggle"
+            aria-label="관리자 메뉴 열기"
+            aria-controls="admin-menu"
+            onClick={() => drawer.current?.showModal()}
+          >
+            <Menu size={21} />
+          </button>
+          <div className="admin-breadcrumb">
+            <span>관리자</span>
+            <ChevronRight size={14} aria-hidden="true" />
+            <strong>{active?.label ?? "관리자 페이지"}</strong>
+          </div>
+          <span className="admin-workspace-label">STUDIO WORKSPACE</span>
+        </header>
+        <main className="admin-main">
+          {children}
+          <PendingOverlay />
+        </main>
+      </div>
+    </div>
   );
 }

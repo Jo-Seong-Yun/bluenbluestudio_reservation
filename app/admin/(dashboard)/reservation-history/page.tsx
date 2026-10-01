@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { AdminDetailRegion } from "@/components/admin-detail-region";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { ReservationHistoryTable } from "./reservation-history-table";
@@ -38,7 +40,9 @@ export default async function ReservationHistoryPage({
         )
         .order("created_at", { ascending: false }),
       supabase.from("products").select("id, name, tag_color"),
-      selectedId ? loadReservationDetail(selectedId) : Promise.resolve(undefined),
+      selectedId
+        ? loadReservationDetail(selectedId)
+        : Promise.resolve(undefined),
     ]);
 
   const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
@@ -62,23 +66,32 @@ export default async function ReservationHistoryPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">예약내역</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">예약내역</h1>
+        <Link
+          href="/admin/reservations"
+          className="border-border bg-surface hover:bg-surface-subtle rounded-md border px-3 py-2 text-xs font-medium"
+        >
+          달력으로 보기 →
+        </Link>
+      </div>
       <p className="text-muted mt-1 text-sm">
-        지금까지 접수된 모든 예약을 최근 접수순으로 모았습니다. 행을
-        누르면 오른쪽에서 상세 내용을 보고 처리할 수 있고, 상태 변경과
-        결과물 전송은 표의 버튼에서 바로 할 수 있습니다.
+        접수된 예약을 검색하고 처리합니다. 행을 선택하면 상세 정보와 메모·결제
+        내역을 확인할 수 있습니다.
       </p>
 
-      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className="admin-history-layout" data-has-detail={Boolean(selected)}>
         <ReservationHistoryTable rows={rows} selectedId={selectedId} />
-        <div>
-          <DetailPanel
-            selected={selected}
-            dayReservations={[]}
-            basePath="/admin/reservation-history"
-            emptyHint="표에서 행을 눌러 선택해 주시기 바랍니다."
-          />
-        </div>
+        {selected ? (
+          <AdminDetailRegion reservationId={selected.id}>
+            <DetailPanel
+              selected={selected}
+              dayReservations={[]}
+              basePath="/admin/reservation-history"
+              emptyHint="표에서 행을 눌러 선택해 주시기 바랍니다."
+            />
+          </AdminDetailRegion>
+        ) : null}
       </div>
     </div>
   );

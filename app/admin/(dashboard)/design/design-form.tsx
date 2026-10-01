@@ -33,7 +33,7 @@ export function DesignForm({ initial }: { initial: BookingStyle }) {
 
   return (
     <>
-      <div className="bg-background border-border sticky top-16 z-10 -mx-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b px-4 py-4 sm:-mx-[8.5%] sm:px-[8.5%]">
+      <div className="bg-background border-border sticky top-16 z-10 -mx-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b px-4 py-4 md:-mx-6 md:px-6">
         <Button type="submit" form={FORM_ID} disabled={pending}>
           {pending ? "저장 중…" : "저장"}
         </Button>
@@ -144,14 +144,18 @@ export function DesignForm({ initial }: { initial: BookingStyle }) {
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <span className="mb-1.5 block text-sm font-medium">텍스트 크기</span>
+                <span className="mb-1.5 block text-sm font-medium">
+                  텍스트 크기
+                </span>
                 <input type="hidden" name="textSize" value={style.textSize} />
                 <div className="flex flex-wrap gap-1.5">
                   {TEXT_SIZE_OPTIONS.map((opt) => (
                     <Button
                       key={opt.value}
                       type="button"
-                      variant={style.textSize === opt.value ? "primary" : "ghost"}
+                      variant={
+                        style.textSize === opt.value ? "primary" : "ghost"
+                      }
                       aria-pressed={style.textSize === opt.value}
                       className="text-xs"
                       onClick={() => patch({ textSize: opt.value })}
@@ -163,14 +167,22 @@ export function DesignForm({ initial }: { initial: BookingStyle }) {
               </div>
 
               <div>
-                <span className="mb-1.5 block text-sm font-medium">박스 모서리</span>
-                <input type="hidden" name="cardRadius" value={style.cardRadius} />
+                <span className="mb-1.5 block text-sm font-medium">
+                  박스 모서리
+                </span>
+                <input
+                  type="hidden"
+                  name="cardRadius"
+                  value={style.cardRadius}
+                />
                 <div className="flex flex-wrap gap-1.5">
                   {CARD_RADIUS_OPTIONS.map((opt) => (
                     <Button
                       key={opt.value}
                       type="button"
-                      variant={style.cardRadius === opt.value ? "primary" : "ghost"}
+                      variant={
+                        style.cardRadius === opt.value ? "primary" : "ghost"
+                      }
                       aria-pressed={style.cardRadius === opt.value}
                       className="text-xs"
                       onClick={() => patch({ cardRadius: opt.value })}
@@ -182,14 +194,18 @@ export function DesignForm({ initial }: { initial: BookingStyle }) {
               </div>
 
               <div>
-                <span className="mb-1.5 block text-sm font-medium">박스 크기</span>
+                <span className="mb-1.5 block text-sm font-medium">
+                  박스 크기
+                </span>
                 <input type="hidden" name="cardSize" value={style.cardSize} />
                 <div className="flex flex-wrap gap-1.5">
                   {CARD_SIZE_OPTIONS.map((opt) => (
                     <Button
                       key={opt.value}
                       type="button"
-                      variant={style.cardSize === opt.value ? "primary" : "ghost"}
+                      variant={
+                        style.cardSize === opt.value ? "primary" : "ghost"
+                      }
                       aria-pressed={style.cardSize === opt.value}
                       className="text-xs"
                       onClick={() => patch({ cardSize: opt.value })}

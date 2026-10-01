@@ -98,20 +98,33 @@ export async function createReservation(
   // 신청서를 여는 동안 lib/booking/ref-cookie.ts가 쿠키로 들고 다닌
   // 유입경로 값 — 조회 기록(product_views 등)과 같은 값이어야 "조회만
   // vs 실제 전환"을 채널별로 비교할 수 있다.
-  const ref = String(formData.get("ref") ?? "").trim().slice(0, 50) || null;
+  const ref =
+    String(formData.get("ref") ?? "")
+      .trim()
+      .slice(0, 50) || null;
 
   const parsed = reservationSchema.safeParse({ candidates });
 
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
+      error:
+        parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
   const input = parsed.data;
 
-  const customFields = await loadActiveCustomFields(productId);
+  let customFields: Awaited<ReturnType<typeof loadActiveCustomFields>>;
+  try {
+    customFields = await loadActiveCustomFields(productId);
+  } catch {
+    return {
+      status: "error",
+      error:
+        "예약 문항을 확인하지 못했습니다. 잠시 후 다시 신청해 주시기 바랍니다.",
+    };
+  }
   const extracted = extractReservationFormData(customFields, formData);
   if (!extracted.ok) {
     return { status: "error", error: extracted.error };
@@ -132,7 +145,9 @@ export async function createReservation(
   // 후보마다 다시 계산해서, 지금도 정말 예약 가능한 시간인지 확인한다.
   // 날짜가 다를 수 있어 후보별로 loadAvailableSlots를 따로 부른다.
   const slotsByDate = await Promise.all(
-    input.candidates.map((c) => loadAvailableSlots({ date: c.date, productId })),
+    input.candidates.map((c) =>
+      loadAvailableSlots({ date: c.date, productId }),
+    ),
   );
   const invalidIndex = input.candidates.findIndex(
     (c, i) => !slotsByDate[i].some((slot) => slot.time === c.time),
@@ -169,8 +184,12 @@ export async function createReservation(
         p_customer_email: special.customerEmail,
         p_gender: special.gender,
         p_birth_date: special.birthDate,
-        p_candidate_starts: candidateTimes.map((c) => c.shootStart.toISOString()),
-        p_candidate_ends: candidateTimes.map((c) => c.occupiesEnd.toISOString()),
+        p_candidate_starts: candidateTimes.map((c) =>
+          c.shootStart.toISOString(),
+        ),
+        p_candidate_ends: candidateTimes.map((c) =>
+          c.occupiesEnd.toISOString(),
+        ),
       },
     );
 
@@ -290,7 +309,8 @@ export async function lookupReservation(
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
+      error:
+        parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -338,7 +358,8 @@ export async function cancelReservation(
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
+      error:
+        parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
@@ -384,7 +405,9 @@ export async function cancelReservation(
           adminEmail,
           teamEmails,
           productName,
-          shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
+          shootStart: reservation.shoot_start
+            ? new Date(reservation.shoot_start)
+            : null,
           code: reservation.code,
           estimatedAmount: reservation.estimated_amount,
         }),
@@ -431,7 +454,8 @@ export async function lookupReservationsByPhone(
   if (!parsed.success) {
     return {
       status: "error",
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
+      error:
+        parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
   }
 
