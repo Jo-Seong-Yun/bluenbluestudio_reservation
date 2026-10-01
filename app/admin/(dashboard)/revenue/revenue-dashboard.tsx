@@ -78,11 +78,11 @@ function TableHead({ columns }: { columns: string[] }) {
   return (
     <thead className="text-muted bg-surface-subtle">
       <tr>
-        {columns.map((s) => (
+        {columns.map((s, index) => (
           <th
             key={s}
             scope="col"
-            className="px-3 py-3 text-left text-xs font-medium whitespace-nowrap"
+            className={`px-3 py-3 text-xs font-medium whitespace-nowrap ${index < 2 ? "text-left" : "text-right"}`}
           >
             {s}
           </th>
@@ -281,7 +281,7 @@ export function RevenueDashboard({
                           {Number(m.month.slice(5))}월 ↗
                         </Link>
                       </th>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 text-left whitespace-nowrap">
                         {m.count}건
                       </td>
                       <td className={moneyCell}>{won(m.revenue)}</td>
@@ -301,7 +301,7 @@ export function RevenueDashboard({
                     <th scope="row" className="px-3 py-3 text-left">
                       합계
                     </th>
-                    <td className="px-3 py-3">{totals.count}건</td>
+                    <td className="px-3 py-3 text-left">{totals.count}건</td>
                     <td className={moneyCell}>{won(totals.revenue)}</td>
                     <td className={moneyCell}>
                       {won(totals.cost + totals.other + totals.fixed)}
@@ -364,7 +364,7 @@ export function RevenueDashboard({
                     >
                       {row.name}
                     </th>
-                    <td className="px-3 py-3 whitespace-nowrap">
+                    <td className="px-3 py-3 text-left whitespace-nowrap">
                       {row.count}건
                     </td>
                     <td className={moneyCell}>{won(row.revenue)}</td>
@@ -387,7 +387,7 @@ export function RevenueDashboard({
                   <th scope="row" className="px-3 py-3 text-left">
                     합계
                   </th>
-                  <td className="px-3 py-3">{totals.count}건</td>
+                  <td className="px-3 py-3 text-left">{totals.count}건</td>
                   <td className={moneyCell}>{won(totals.revenue)}</td>
                   <td className={moneyCell}>{won(totals.cost)}</td>
                   <td className={moneyCell}>
