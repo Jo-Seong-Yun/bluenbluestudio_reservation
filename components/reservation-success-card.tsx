@@ -65,7 +65,7 @@ export function ReservationSuccessCard({
 }) {
   return (
     <div
-      className={`border-border bg-surface rounded-xl border p-6 ${animate ? "animate-fade-up" : ""}`}
+      className={`booking-success-card border-border bg-surface rounded-xl border p-6 ${animate ? "animate-fade-up" : ""}`}
     >
       <div
         className={`flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950 ${animate ? "animate-check-pop" : ""}`}

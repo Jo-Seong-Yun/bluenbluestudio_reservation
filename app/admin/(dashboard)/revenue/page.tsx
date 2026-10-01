@@ -1,288 +1,31 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { addMonths, kstMonthString } from "@/lib/time";
-import type { ReservationStatus } from "@/lib/supabase/database.types";
-import { ExpenseSection } from "./expense-section";
+import { loadRevenueSummary } from "@/lib/revenue/load";
+import {
+  parseRevenuePeriod,
+  selectedExpenseMonth,
+  type RevenueSummary,
+} from "@/lib/revenue/summary";
+import { RevenueDashboard } from "./revenue-dashboard";
 
 export const metadata: Metadata = { title: "매출관리" };
-
-/**
- * 매출로 치는 예약 상태.
- *
- * "신청만 됨"(requested)과 "일정확정"(schedule_confirmed, 시간만
- * 잡히고 입금 전)은 아직 입금이 확인되지 않았으니 빼고, "취소"
- * (cancelled)도 뺀다. "노쇼"(no_show)는 넣는다 — 예약금을 돌려주지
- * 않으니 매출로 잡는 게 맞다.
- *
- * 매출액은 상품 정가가 아니라 예약별로 관리자가 직접 입력하는 실제
- * 지불액(charged_amount) 기준이다 — 할인 이벤트 등으로 건마다 실제
- * 받는 금액이 다를 수 있어서다. 아직 입력하지 않은 예약은 0으로 본다.
- */
-const REVENUE_STATUSES: ReservationStatus[] = [
-  "payment_confirmed",
-  "completed",
-  "no_show",
-];
-
-const STATUS_LABELS: Record<string, string> = {
-  payment_confirmed: "입금확인/예약확정",
-  completed: "완료",
-  no_show: "노쇼",
-};
-
-/**
- * 수익률 = 순이익 ÷ 원가(지출) × 100. "지출 대비" 수익률이라 매출이
- * 아니라 원가를 기준으로 나눈다 — 같은 순이익이라도 원가를 적게 쓰고
- * 냈는지, 많이 쓰고 냈는지를 보여준다. 원가를 아직 안 쓴(0원) 상품은
- * 나눌 수가 없어 "-"로 표시한다.
- */
-function formatProfitRate(revenue: number, cost: number) {
-  if (cost === 0) return "-";
-  const rate = ((revenue - cost) / cost) * 100;
-  return `${rate.toFixed(1)}%`;
-}
 
 export default async function RevenuePage({
   searchParams,
 }: PageProps<"/admin/revenue">) {
-  const { month: monthParam } = await searchParams;
-  const month =
-    (Array.isArray(monthParam) ? monthParam[0] : monthParam) ??
-    kstMonthString(new Date());
-
-  const prevMonth = addMonths(month, -1);
-  const nextMonth = addMonths(month, 1);
-  const [year, m] = month.split("-").map(Number);
-
-  const supabase = await createClient();
-
-  const [{ data: reservations }, { data: products }, { data: expenses }] =
-    await Promise.all([
-      supabase
-        .from("reservations")
-        .select("id, status, product_id, charged_amount, cost")
-        .gte("shoot_start", `${month}-01T00:00:00+09:00`)
-        .lt("shoot_start", `${nextMonth}-01T00:00:00+09:00`)
-        .in("status", REVENUE_STATUSES),
-      supabase.from("products").select("id, name").order("sort_order"),
-      supabase
-        .from("monthly_expenses")
-        .select("id, date, label, amount, memo, kind")
-        .eq("month", month)
-        .order("date"),
-    ]);
-
-  const productById = new Map((products ?? []).map((p) => [p.id, p]));
-
-  const byProduct = new Map<
-    string,
-    { name: string; count: number; revenue: number; cost: number }
-  >();
-  const byStatus: Partial<Record<ReservationStatus, number>> = {};
-
-  for (const r of reservations ?? []) {
-    byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
-
-    const product = productById.get(r.product_id);
-    const entry = byProduct.get(r.product_id) ?? {
-      name: product?.name ?? "(삭제된 상품)",
-      count: 0,
-      revenue: 0,
-      cost: 0,
-    };
-    entry.count += 1;
-    entry.revenue += r.charged_amount ?? 0;
-    entry.cost += r.cost ?? 0;
-    byProduct.set(r.product_id, entry);
+  const params = await searchParams;
+  const period = parseRevenuePeriod(params);
+  const expenseMonth = selectedExpenseMonth(params.expenseMonth, period);
+  let data: RevenueSummary | undefined;
+  try {
+    data = await loadRevenueSummary(period);
+  } catch (error) {
+    // 조회 실패를 빈 배열/0원으로 바꾸면 실제 매출이 없는 것처럼 보인다.
+    console.error(
+      "매출 집계 조회 실패",
+      error instanceof Error ? error.message : "알 수 없는 오류",
+    );
   }
-
-  const rows = [...byProduct.entries()]
-    .map(([id, entry]) => ({ id, ...entry }))
-    .sort((a, b) => b.revenue - a.revenue);
-
-  const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
-  const totalCost = rows.reduce((sum, row) => sum + row.cost, 0);
-  const totalCount = reservations?.length ?? 0;
-  const unpricedCount = (reservations ?? []).filter(
-    (r) => r.charged_amount === null,
-  ).length;
-
-  const otherExpenses = (expenses ?? []).filter((e) => e.kind === "other");
-  const fixedExpenses = (expenses ?? []).filter((e) => e.kind === "fixed");
-  const totalOtherExpenses = otherExpenses.reduce(
-    (sum, e) => sum + e.amount,
-    0,
-  );
-  const totalFixedExpenses = fixedExpenses.reduce(
-    (sum, e) => sum + e.amount,
-    0,
-  );
-
-  const netProfit =
-    totalRevenue - totalCost - totalOtherExpenses - totalFixedExpenses;
-
   return (
-    <div>
-      <h1 className="text-2xl font-bold">매출관리</h1>
-      <p className="text-muted mt-1 text-sm">
-        확정·완료·노쇼 처리된 예약을 예약별 실제 지불액 기준으로 집계합니다.
-        취소된 예약과 입금 전 신청은 빠져 있습니다.
-      </p>
-
-      {unpricedCount > 0 ? (
-        <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          이 중 {unpricedCount}건은 아직 지불액이 입력되지 않아 0원으로
-          계산되었습니다. 예약 상세에서 실제 지불액을 입력해 주시기 바랍니다.
-        </p>
-      ) : null}
-
-      <div className="mt-6 mb-4 flex items-center justify-center gap-4">
-        <Link
-          href={`/admin/revenue?month=${prevMonth}`}
-          aria-label="이전 달"
-          className="hover:bg-surface-subtle rounded px-2 py-1 text-sm"
-        >
-          ←
-        </Link>
-        <p className="font-bold">
-          {year}년 {m}월
-        </p>
-        <Link
-          href={`/admin/revenue?month=${nextMonth}`}
-          aria-label="다음 달"
-          className="hover:bg-surface-subtle rounded px-2 py-1 text-sm"
-        >
-          →
-        </Link>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-sm">매출</p>
-          <p className="mt-1 text-2xl font-bold">
-            {totalRevenue.toLocaleString()}원
-          </p>
-          <p className="text-muted mt-1 text-xs">
-            {REVENUE_STATUSES.map(
-              (status) => `${STATUS_LABELS[status]} ${byStatus[status] ?? 0}건`,
-            ).join(" · ")}{" "}
-            · 총 {totalCount}건
-          </p>
-        </div>
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-sm">촬영 원가</p>
-          <p className="mt-1 text-2xl font-bold">
-            {totalCost.toLocaleString()}원
-          </p>
-          <p className="text-muted mt-1 text-xs">예약별로 입력한 원가 합계</p>
-        </div>
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-sm">기타지출</p>
-          <p className="mt-1 text-2xl font-bold">
-            {totalOtherExpenses.toLocaleString()}원
-          </p>
-          <p className="text-muted mt-1 text-xs">
-            일회성 지출 {otherExpenses.length}건
-          </p>
-        </div>
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-sm">고정지출</p>
-          <p className="mt-1 text-2xl font-bold">
-            {totalFixedExpenses.toLocaleString()}원
-          </p>
-          <p className="text-muted mt-1 text-xs">
-            임대료·장비·마케팅 등 {fixedExpenses.length}건
-          </p>
-        </div>
-        <div className="border-border bg-surface rounded-xl border p-4">
-          <p className="text-muted text-sm">순이익</p>
-          <p
-            className={`mt-1 text-2xl font-bold ${
-              netProfit < 0 ? "text-red-600 dark:text-red-400" : ""
-            }`}
-          >
-            {netProfit.toLocaleString()}원
-          </p>
-          <p className="text-muted mt-1 text-xs">
-            매출 − 원가 − 기타지출 − 고정지출
-          </p>
-        </div>
-      </div>
-
-      <div className="border-border bg-surface mt-6 overflow-x-auto rounded-xl border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-border text-muted border-b text-left">
-              <th className="px-4 py-3 font-medium">상품</th>
-              <th className="px-4 py-3 font-medium">건수</th>
-              <th className="px-4 py-3 font-medium">매출액</th>
-              <th className="px-4 py-3 font-medium">원가</th>
-              <th className="px-4 py-3 font-medium">순이익</th>
-              <th className="px-4 py-3 font-medium">수익률</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-muted px-4 py-8 text-center">
-                  이 달엔 집계할 예약이 없습니다.
-                </td>
-              </tr>
-            ) : (
-              rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-border border-b last:border-0"
-                >
-                  <td className="px-4 py-3">{row.name}</td>
-                  <td className="px-4 py-3">{row.count}건</td>
-                  <td className="px-4 py-3">
-                    {row.revenue.toLocaleString()}원
-                  </td>
-                  <td className="px-4 py-3">{row.cost.toLocaleString()}원</td>
-                  <td className="px-4 py-3 font-medium">
-                    {(row.revenue - row.cost).toLocaleString()}원
-                  </td>
-                  <td className="px-4 py-3">{formatProfitRate(row.revenue, row.cost)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-          {rows.length > 0 ? (
-            <tfoot>
-              <tr className="border-border border-t font-bold">
-                <td className="px-4 py-3">합계</td>
-                <td className="px-4 py-3">{totalCount}건</td>
-                <td className="px-4 py-3">{totalRevenue.toLocaleString()}원</td>
-                <td className="px-4 py-3">{totalCost.toLocaleString()}원</td>
-                <td className="px-4 py-3">
-                  {(totalRevenue - totalCost).toLocaleString()}원
-                </td>
-                <td className="px-4 py-3">
-                  {formatProfitRate(totalRevenue, totalCost)}
-                </td>
-              </tr>
-            </tfoot>
-          ) : null}
-        </table>
-      </div>
-
-      <ExpenseSection
-        kind="other"
-        title="이 달의 기타지출"
-        hint="촬영 건수와 무관하게 발생하는 일회성 지출입니다 (소모품, 수선, 잡비 등)."
-        emptyText="아직 등록한 기타지출이 없습니다."
-        expenses={otherExpenses}
-      />
-
-      <ExpenseSection
-        kind="fixed"
-        title="이 달의 고정지출"
-        hint="매달 정기적으로 나가는 지출입니다 (임대료, 구독료, 장비 할부, 마케팅 등)."
-        emptyText="아직 등록한 고정지출이 없습니다."
-        expenses={fixedExpenses}
-      />
-    </div>
+    <RevenueDashboard period={period} data={data} expenseMonth={expenseMonth} />
   );
 }

@@ -10,18 +10,20 @@ import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
 import { calculateAge, parseBirthDate8 } from "@/lib/age";
 import { FieldDescription } from "@/components/field-description";
+import { BookingSteps } from "@/components/booking-shell";
 import { ReservationSuccessCard } from "@/components/reservation-success-card";
 import {
   fieldFormName,
+  visibleBookingFields,
+  bookingReviewAnswers,
   selectedPricedOptions,
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
 import { readRefCookie } from "@/lib/booking/ref-cookie";
 
 /**
- * 손님용 신청서는 관리자 화면보다 훨씬 큰 글자로 보여준다 — 문항을
- * 놓치거나 실수로 건너뛰지 않도록, 라벨/보조설명 크기를 키우고
- * 문항마다 독립된 카드로 나눈다(아래 FIELD_WRAPPER_CLASS).
+ * 신청서 라벨과 보조 설명은 읽기 쉽게 키우고, 문항 사이를 구분선으로
+ * 나눠 긴 신청서에서도 문항을 건너뛰지 않게 한다.
  */
 const FIELD_LABEL_CLASS = "text-base font-semibold";
 const FIELD_HINT_CLASS = "text-sm";
@@ -30,7 +32,7 @@ const FIELD_HINT_CLASS = "text-sm";
 // 애매하다 — py-2로 줄 높이도 같이 키워 터치 영역을 넉넉히 한다.
 const OPTION_LABEL_CLASS = "flex items-center gap-2.5 py-2 text-base";
 const OPTION_INPUT_CLASS = "h-5 w-5 shrink-0";
-const FIELD_WRAPPER_CLASS = "border-border bg-surface rounded-xl border p-4";
+const FIELD_WRAPPER_CLASS = "booking-field";
 // 기본 버튼 높이(36px)는 관리자 화면 기준이라 모바일에서 엄지로 누르기
 // 빠듯하다 — 예약 흐름의 "신청하기" 버튼(booking-flow.tsx)과 같은
 // 54px로 맞춘다.
@@ -92,6 +94,11 @@ export function ReservationForm({
   successMessage: string;
   customFields: CustomField[];
 }) {
+  const fields = visibleBookingFields(customFields);
+  const [reviewing, setReviewing] = useState(false);
+  const [answers, setAnswers] = useState<
+    { id: string; label: string; value: string }[]
+  >([]);
   const boundAction = createReservation.bind(
     null,
     productId,
@@ -107,7 +114,7 @@ export function ReservationForm({
 
   // 유료 옵션이 하나도 없는 상품(대부분)은 이 박스를 아예 안 보여준다
   // — 매번 기본가만 덩그러니 보여주는 건 정보가 아니라 잡음이다.
-  const hasPricedFields = customFields.some(
+  const hasPricedFields = fields.some(
     (field) => field.option_prices && field.option_prices.length > 0,
   );
   const formRef = useRef<HTMLFormElement>(null);
@@ -135,7 +142,7 @@ export function ReservationForm({
     if (!formRef.current || !hasPricedFields) return;
     const form = formRef.current;
     const selected = new Map<string, string[]>();
-    for (const field of customFields) {
+    for (const field of fields) {
       if (!field.option_prices) continue;
       const name = fieldFormName(field.id);
       const inputs = form.querySelectorAll<HTMLInputElement>(
@@ -185,9 +192,35 @@ export function ReservationForm({
     nextBlock.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
+  function confirm() {
+    const form = formRef.current;
+    if (!form) return;
+    // 여러 개 선택은 HTML required가 그룹 전체에 적용되지 않아 직접 검사한다.
+    for (const field of fields.filter(
+      (f) => f.type === "multi_choice" && f.required,
+    )) {
+      const inputs = [
+        ...form.querySelectorAll<HTMLInputElement>(
+          `input[name="${CSS.escape(fieldFormName(field.id))}"]`,
+        ),
+      ];
+      inputs[0]?.setCustomValidity(
+        inputs.some((i) => i.checked) ? "" : "하나 이상 선택해 주십시오.",
+      );
+    }
+    if (!form.reportValidity()) return;
+    setAnswers(bookingReviewAnswers(fields, new FormData(form)));
+    setReviewing(true);
+    requestAnimationFrame(() =>
+      document.getElementById("booking-review-heading")?.focus(),
+    );
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   if (state.status === "success") {
     return (
-      <div className="mt-8">
+      <div className="mx-auto max-w-3xl">
+        <BookingSteps stage="success" />
         <ReservationSuccessCard
           successHeading={successHeading}
           successMessage={successMessage}
@@ -200,101 +233,186 @@ export function ReservationForm({
       </div>
     );
   }
-
   return (
-    <div className="border-border bg-surface mt-8 rounded-xl border p-5">
-      <Link href={backHref}>
-        <Button type="button" variant="ghost">
-          ← 날짜·시간 다시 고르기
-        </Button>
-      </Link>
-
-      <h1 className="mt-2 text-xl font-bold">신청 내용 작성</h1>
-      <p className="text-muted mt-1 text-sm">{productName}</p>
-      <ul className="text-muted mt-1 space-y-0.5 text-sm">
-        {candidates.map((c, i) => (
-          <li key={i}>
-            {i + 1}번째 · {c.date} {c.time}
-          </li>
-        ))}
-      </ul>
-
+    <>
+      <BookingSteps stage={reviewing ? "review" : "form"} />
       <form
         ref={formRef}
         action={action}
         onKeyDown={handleFieldKeyDown}
-        onChange={recomputeEstimate}
-        className="mt-6 space-y-6"
+        onChange={() => {
+          // 필수 다중선택 검증의 이전 오류를 값 수정 시 해제한다.
+          formRef.current
+            ?.querySelectorAll<HTMLInputElement>("input[type=checkbox]")
+            .forEach((i) => i.setCustomValidity(""));
+          recomputeEstimate();
+        }}
+        onSubmit={(event) => {
+          if (!reviewing) {
+            event.preventDefault();
+            confirm();
+          }
+        }}
+        className="booking-split"
       >
         {candidates.map((c, i) => (
-          <div key={i}>
+          <div key={i} hidden>
             <input type="hidden" name="candidateDate" value={c.date} />
             <input type="hidden" name="candidateTime" value={c.time} />
           </div>
         ))}
         <input type="hidden" name="ref" ref={refInputRef} defaultValue="" />
-
-        <div className="space-y-3">
-          {customFields.map((field) => (
-            <div
-              key={field.id}
-              data-field-block
-              className={FIELD_WRAPPER_CLASS}
+        <section className="booking-card" hidden={reviewing}>
+          <Link
+            href={backHref}
+            className="text-brand mb-5 inline-block text-sm"
+          >
+            ← 날짜·시간 다시 고르기
+          </Link>
+          <h1 className="text-2xl font-bold">신청 정보를 입력합니다</h1>
+          <p className="text-muted mt-2 mb-6 text-sm">
+            {productName} · 별표(*)는 필수 문항입니다.
+          </p>
+          <ReservationFields fields={fields} />
+        </section>
+        {reviewing ? (
+          <section className="booking-card">
+            <h1
+              id="booking-review-heading"
+              tabIndex={-1}
+              className="text-2xl font-bold"
             >
-              <ReservationFieldInput field={field} />
-            </div>
-          ))}
-        </div>
-
-        <ErrorText>{state.status === "error" ? state.error : null}</ErrorText>
-
-        <Button type="submit" disabled={pending} className={PRIMARY_CTA_CLASS}>
-          {pending ? "접수 중…" : "예약 신청"}
-        </Button>
-
-        {/* 아래 고정 바에 가려지지 않게 미리 자리를 비워둔다 — 바 높이가
-            내용(옵션 몇 개를 골랐는지)에 따라 달라지니 넉넉히 잡는다. */}
-        {hasPricedFields ? <div aria-hidden className="h-48" /> : null}
-      </form>
-
-      {hasPricedFields ? (
-        // 유료 옵션(체크박스)이 아래 문항 어딘가에 있는 상품에서만
-        // 보여준다. 화면 맨 아래 불투명한 바로 고정해서, 스크롤 중인
-        // 문항 위를 반투명하게 덮어 글자가 겹쳐 보이는 일 없이, 바
-        // 아래쪽에서 늘 총액을 확인할 수 있게 한다.
-        <div className="border-border bg-surface fixed inset-x-0 bottom-0 z-20 border-t shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
-          <div className="mx-auto w-full max-w-xl px-6 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">예상 금액</span>
-              <span className="text-xl font-bold">
-                {estimatedTotal.toLocaleString()}원
-              </span>
-            </div>
-            {pricedItems.length > 0 ? (
-              // 항목이 늘어날 때마다 박스 자체가 위로 커지면 페이지
-              // 내용을 점점 더 가리게 된다 — max-h(늘어나다 어느
-              // 시점부터 스크롤) 대신 h(고정 높이)로 둬서 항목이
-              // 하나든 여러 개든 박스 높이는 항상 똑같고, 넘치는
-              // 부분만 이 목록 안에서 스크롤된다.
-              <ul className="text-muted mt-2 h-20 space-y-0.5 overflow-y-auto border-t border-inherit pt-2 text-xs">
-                <li className="flex justify-between">
-                  <span>기본 요금</span>
-                  <span>{basePrice.toLocaleString()}원</span>
-                </li>
-                {pricedItems.map((item, i) => (
-                  <li key={i} className="flex justify-between">
-                    <span>{item.label}</span>
-                    <span>+{item.price.toLocaleString()}원</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted mt-1 text-xs">기본 요금</p>
-            )}
+              신청 내용을 확인합니다
+            </h1>
+            <p className="text-muted mt-2 text-sm">
+              입력한 정보와 희망 시간을 확인한 후 신청해 주십시오.
+            </p>
+            <dl className="mt-5">
+              {answers.map((a) => (
+                <div key={a.id} className="booking-review-answer">
+                  <dt>{a.label}</dt>
+                  <dd>{a.value}</dd>
+                </div>
+              ))}
+            </dl>
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-5"
+              onClick={() => setReviewing(false)}
+            >
+              ← 신청 정보 수정하기
+            </Button>
+          </section>
+        ) : null}
+        <aside className="booking-card booking-summary" aria-label="예약 요약">
+          <p className="text-brand text-xs font-bold">예약 요약</p>
+          <h2>{productName}</h2>
+          <p className="text-muted text-sm">촬영 {durationMin}분</p>
+          <ul className="booking-summary-list">
+            {candidates.map((c, i) => (
+              <li key={i}>
+                {i + 1}번째 · {c.date} {c.time}
+              </li>
+            ))}
+          </ul>
+          <Link href={backHref} className="text-brand text-sm underline">
+            희망 시간 다시 선택하기
+          </Link>
+          <div className="booking-summary-total">
+            <span>예상 금액</span>
+            <strong>{estimatedTotal.toLocaleString()}원</strong>
           </div>
+          {pricedItems.length > 0 ? (
+            <ul className="text-muted mt-3 space-y-2 text-xs">
+              <li className="flex justify-between gap-3">
+                <span>기본 요금</span>
+                <span>{basePrice.toLocaleString()}원</span>
+              </li>
+              {pricedItems.map((p, i) => (
+                <li key={i} className="flex justify-between gap-3">
+                  <span>{p.label}</span>
+                  <span>+{p.price.toLocaleString()}원</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <div role="alert" className="mt-4">
+            <ErrorText>
+              {state.status === "error" ? state.error : null}
+            </ErrorText>
+          </div>
+          {reviewing ? (
+            <Button
+              key="submit-reservation"
+              type="submit"
+              disabled={pending}
+              className={`${PRIMARY_CTA_CLASS} mt-4`}
+            >
+              {pending ? "접수 중…" : "예약 신청하기"}
+            </Button>
+          ) : (
+            <Button
+              key="confirm-reservation"
+              type="button"
+              onClick={(event) => {
+                // 확인 버튼이 제출 버튼으로 바뀌는 클릭에서 바로 접수되지 않게 한다.
+                event.preventDefault();
+                confirm();
+              }}
+              className={`${PRIMARY_CTA_CLASS} mt-4`}
+            >
+              신청 내용 확인하기 →
+            </Button>
+          )}
+          <p className="text-muted mt-4 text-xs leading-relaxed">
+            신청 후 스튜디오에서 일정 확정 안내를 드립니다. 확정 안내 전에는
+            입금하지 않습니다.
+          </p>
+        </aside>
+      </form>
+    </>
+  );
+}
+
+/** 상품 문항 설정을 고객 신청서와 관리자 미리보기에서 똑같이 렌더링한다. */
+export function ReservationFields({ fields }: { fields: CustomField[] }) {
+  return (
+    <div>
+      {visibleBookingFields(fields).map((field) => (
+        <div
+          key={field.id}
+          data-field-block
+          data-field-id={field.id}
+          className={FIELD_WRAPPER_CLASS}
+        >
+          <ReservationFieldInput field={field} />
         </div>
-      ) : null}
+      ))}
     </div>
+  );
+}
+
+/** 보기 여러 개를 하나의 label 안에 중첩하지 않고 접근 가능한 그룹으로 묶는다. */
+function ChoiceField({
+  label,
+  required,
+  hint,
+  children,
+  labelClassName,
+  hintClassName,
+}: React.ComponentProps<typeof Field>) {
+  return (
+    <fieldset className="min-w-0">
+      <legend className={`${labelClassName} mb-1`}>
+        {label}
+        {required ? <span className="ml-0.5 text-red-600">*</span> : null}
+      </legend>
+      {hint ? (
+        <div className={`text-muted mb-2 ${hintClassName}`}>{hint}</div>
+      ) : null}
+      {children}
+    </fieldset>
   );
 }
 
@@ -371,7 +489,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
 
   if (field.type === "gender") {
     return (
-      <Field
+      <ChoiceField
         label={field.label}
         required={field.required}
         hint={descriptionHint(field)}
@@ -401,7 +519,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
             여성
           </label>
         </div>
-      </Field>
+      </ChoiceField>
     );
   }
 
@@ -432,7 +550,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
 
   if (field.type === "single_choice") {
     return (
-      <Field
+      <ChoiceField
         label={field.label}
         required={field.required}
         hint={descriptionHint(field)}
@@ -462,13 +580,13 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
             );
           })}
         </div>
-      </Field>
+      </ChoiceField>
     );
   }
 
   if (field.type === "multi_choice") {
     return (
-      <Field
+      <ChoiceField
         label={field.label}
         required={field.required}
         hint={descriptionHint(field)}
@@ -497,7 +615,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
             );
           })}
         </div>
-      </Field>
+      </ChoiceField>
     );
   }
 

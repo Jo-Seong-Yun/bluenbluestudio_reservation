@@ -2,6 +2,7 @@ import { inputClass } from "@/components/ui";
 import { SubmitButton, PendingSubmit } from "@/components/submit-button";
 import { addMonthlyExpense, deleteMonthlyExpense } from "@/app/admin/actions";
 import { MoneyInput } from "@/components/money-input";
+import { ExpenseDateInput } from "./expense-date-input";
 
 type Expense = {
   id: string;
@@ -9,6 +10,7 @@ type Expense = {
   label: string;
   amount: number;
   memo: string | null;
+  month?: string;
 };
 
 /**
@@ -22,15 +24,19 @@ export function ExpenseSection({
   hint,
   emptyText,
   expenses,
+  defaultDate,
+  periodPrefix,
 }: {
   kind: "other" | "fixed";
   title: string;
   hint: string;
   emptyText: string;
   expenses: Expense[];
+  defaultDate?: string;
+  periodPrefix?: string;
 }) {
   return (
-    <div className="border-border bg-surface mt-6 rounded-xl border p-4">
+    <div className="border-border bg-surface mt-6 min-w-0 rounded-xl border p-4">
       <p className="font-medium">{title}</p>
       <p className="text-muted mt-0.5 text-sm">{hint}</p>
 
@@ -53,15 +59,13 @@ export function ExpenseSection({
                   className="border-border border-b last:border-0"
                 >
                   <td className="py-2 pr-3 whitespace-nowrap">
-                    {expense.date ?? "-"}
+                    {expense.date ?? `${expense.month ?? ""} · 일자 미입력`}
                   </td>
                   <td className="py-2 pr-3">{expense.label}</td>
                   <td className="py-2 pr-3 font-medium whitespace-nowrap">
                     {expense.amount.toLocaleString()}원
                   </td>
-                  <td className="text-muted py-2 pr-3">
-                    {expense.memo ?? ""}
-                  </td>
+                  <td className="text-muted py-2 pr-3">{expense.memo ?? ""}</td>
                   <td className="py-2 pr-3 text-right">
                     <form action={deleteMonthlyExpense}>
                       <input type="hidden" name="id" value={expense.id} />
@@ -84,10 +88,11 @@ export function ExpenseSection({
         className="mt-4 flex flex-wrap items-end gap-2"
       >
         <input type="hidden" name="kind" value={kind} />
-        <label className="w-40">
-          <span className="text-muted mb-1 block text-xs">일자</span>
-          <input name="date" type="date" required className={inputClass} />
-        </label>
+        <ExpenseDateInput
+          key={`${periodPrefix}-${defaultDate}`}
+          defaultDate={defaultDate}
+          periodPrefix={periodPrefix}
+        />
         <label className="flex-1 basis-40">
           <span className="text-muted mb-1 block text-xs">항목</span>
           <input

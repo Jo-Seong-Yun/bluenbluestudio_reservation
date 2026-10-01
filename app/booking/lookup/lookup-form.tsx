@@ -1,9 +1,9 @@
 "use client";
-
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import {
   lookupReservationsByPhone,
+  lookupReservation,
   cancelReservation,
   type PhoneLookupState,
   type PhoneReservation,
@@ -11,303 +11,386 @@ import {
 } from "@/lib/booking/actions";
 import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
-
-const initialPhoneState: PhoneLookupState = { status: "idle" };
-const initialCancelState: LookupState = { status: "idle" };
-
 const STATUS_LABEL: Record<string, string> = {
-  requested: "접수됨 (확정 대기)",
-  schedule_confirmed: "일정확정됨",
-  payment_confirmed: "입금확인/예약확정됨",
+  requested: "접수 · 일정 확인 대기",
+  schedule_confirmed: "일정 확정",
+  payment_confirmed: "입금 확인 · 예약 확정",
   completed: "촬영 완료",
-  cancelled: "취소됨",
-  no_show: "노쇼 처리됨",
+  cancelled: "취소 완료",
+  no_show: "노쇼",
 };
-
-/**
- * 화면은 크게 세 칸으로 나눈다. requested(접수 대기)는 사장님이 아직
- * 확정하지 않은 신청 단계라 "완료된 예약" 칸에 먼저 들어가고, 사장님이
- * 일정확정/입금확인 처리하면 그때 "확정된 예약" 칸으로 넘어간다.
- * no_show는 촬영이 성사되지 않았다는 점에서 "취소된 예약" 칸에 함께
- * 둔다.
- */
-const GROUPS = [
-  {
-    key: "completed",
-    title: "완료된 예약",
-    statuses: ["completed", "requested"],
-  },
-  {
-    key: "confirmed",
-    title: "확정된 예약",
-    statuses: ["schedule_confirmed", "payment_confirmed"],
-  },
-  {
-    key: "cancelled",
-    title: "취소된 예약",
-    statuses: ["cancelled", "no_show"],
-  },
-] as const;
-
-function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })} ${d.toLocaleTimeString(
-    "ko-KR",
-    {
-      timeZone: "Asia/Seoul",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    },
-  )}`;
-}
-
+const idle: LookupState = { status: "idle" };
+const phoneIdle: PhoneLookupState = { status: "idle" };
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 export function LookupForm() {
-  const [lookupState, lookupAction, lookupPending] = useActionState(
+  const [mode, setMode] = useState("phone");
+  const [phoneState, phoneAction, phonePending] = useActionState(
     lookupReservationsByPhone,
-    initialPhoneState,
+    phoneIdle,
   );
-  useReportPending(lookupPending);
-
-  // 조회 결과를 별도 상태로 들고 있는다 — 취소 성공 시 그 한 건의 상태만
-  // 바로 바꿔서 보여줘야 해서(전체를 다시 조회하지 않고).
+  const [codeState, codeAction, codePending] = useActionState(
+    lookupReservation,
+    idle,
+  );
   const [list, setList] = useState<PhoneReservation[] | null>(null);
   const [phone, setPhone] = useState("");
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
-
-  // 렌더링 중 상태 조정: lookupState가 새로 바뀐 시점에만(effect 없이) 한 번
-  // list/phone에 옮겨 담는다. useEffect로 하면 렌더 한 번을 더 쓰게 되고,
-  // React 자체가 이 경우엔 렌더링 중 조정을 권장한다.
-  const [handledLookupState, setHandledLookupState] = useState(lookupState);
-  if (lookupState !== handledLookupState) {
-    setHandledLookupState(lookupState);
-    if (lookupState.status === "found") {
-      setList(lookupState.reservations);
-      setPhone(lookupState.phone);
+  const [filter, setFilter] = useState("all");
+  const [cancelCode, setCancelCode] = useState<string | null>(null);
+  const phoneInput = useRef<HTMLInputElement>(null);
+  const [handledPhone, setHandledPhone] = useState(phoneState);
+  const [handledCode, setHandledCode] = useState(codeState);
+  if (phoneState !== handledPhone) {
+    setHandledPhone(phoneState);
+    if (phoneState.status === "found") {
+      setList(phoneState.reservations);
+      setPhone(phoneState.phone);
+      setSelectedCode(phoneState.reservations[0]?.code ?? null);
+      setFilter("all");
     }
   }
-
+  if (codeState !== handledCode) {
+    setHandledCode(codeState);
+    if (codeState.status === "found") {
+      const r = codeState.reservation;
+      setList([{ ...r, shootEnd: null, productName: "예약 상세" }]);
+      setSelectedCode(r.code);
+      setFilter("all");
+    }
+  }
   const [cancelState, cancelAction, cancelPending] = useActionState(
-    async (_prev: LookupState, formData: FormData) => {
-      const result = await cancelReservation(_prev, formData);
+    async (prev: LookupState, data: FormData) => {
+      setCancelCode(String(data.get("code") ?? ""));
+      const result = await cancelReservation(prev, data);
       if (
         result.status === "found" &&
         result.reservation.status === "cancelled"
-      ) {
-        setList((prev) =>
-          prev
-            ? prev.map((item) =>
-                item.code === result.reservation.code
-                  ? { ...item, status: "cancelled" }
-                  : item,
-              )
-            : prev,
+      )
+        setList(
+          (prev) =>
+            prev?.map((r) =>
+              r.code === result.reservation.code
+                ? { ...r, status: "cancelled" }
+                : r,
+            ) ?? null,
         );
-      }
       return result;
     },
-    initialCancelState,
+    idle,
   );
-  useReportPending(cancelPending);
-
-  if (list) {
-    // 결과는 3단으로 넓게 펼쳐야 하니 폭 제한 없이, 페이지 컨테이너
-    // (max-w-4xl)를 그대로 쓴다.
+  useReportPending(phonePending || codePending || cancelPending);
+  function matches(r: PhoneReservation, key: string) {
     return (
-      <div>
-        <Header />
-
-        <div className="mt-8 grid gap-6 sm:grid-cols-3">
-          {GROUPS.map((group) => {
-            // 칸 안에서는 이른 시간이 위로 오게 정렬한다. shootStart는
-            // ISO 문자열이라 그냥 문자열 비교로도 시간 순서와 같다.
-            const items = list
-              .filter((r) =>
-                (group.statuses as readonly string[]).includes(r.status),
-              )
-              // 아직 확정 전(후보만 낸 상태)이라 shootStart가 없는 건
-              // 맨 뒤로 보낸다 — 정해진 시간이 없어 다른 것과 비교할
-              // 기준이 없다.
-              .sort((a, b) =>
-                (a.shootStart ?? "9999-99-99").localeCompare(
-                  b.shootStart ?? "9999-99-99",
-                ),
-              );
-            return (
-              <div key={group.key}>
-                <h2 className="text-muted mb-2 text-xs font-bold tracking-wide uppercase">
-                  {group.title} ({items.length})
-                </h2>
-                {items.length === 0 ? (
-                  <p className="text-muted text-sm">없습니다.</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {items.map((reservation) => (
-                      <ReservationCard
-                        key={reservation.code}
-                        reservation={reservation}
-                        isOpen={selectedCode === reservation.code}
-                        onToggle={() =>
-                          setSelectedCode((prev) =>
-                            prev === reservation.code ? null : reservation.code,
-                          )
-                        }
-                        phone={phone}
-                        cancelAction={cancelAction}
-                        cancelPending={cancelPending}
-                        cancelState={cancelState}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => {
-            setList(null);
-            setSelectedCode(null);
-          }}
-          className="mt-8"
-        >
-          ← 다른 번호로 다시 조회
-        </Button>
-      </div>
+      key === "all" ||
+      (key === "pending" && r.status === "requested") ||
+      (key === "confirmed" &&
+        ["schedule_confirmed", "payment_confirmed"].includes(r.status)) ||
+      (key === "completed" && r.status === "completed") ||
+      (key === "cancelled" && ["cancelled", "no_show"].includes(r.status))
     );
   }
-
+  if (!list)
+    return (
+      <div className="mx-auto max-w-xl">
+        <Link href="/booking" className="text-muted text-sm">
+          ← 상품 목록
+        </Link>
+        <section className="booking-card mt-5">
+          <h1 className="text-2xl font-bold">예약 조회</h1>
+          <p className="text-muted mt-3 text-sm">
+            예약할 때 입력한 연락처로 예약 상태를 확인합니다.
+          </p>
+          <div
+            className="border-border mt-6 mb-6 flex gap-4 border-b"
+            role="group"
+            aria-label="예약 조회 방식"
+          >
+            {[
+              ["phone", "연락처로 조회"],
+              ["code", "예약번호로 조회"],
+            ].map(([key, label]) => (
+              <button
+                type="button"
+                key={key}
+                aria-pressed={mode === key}
+                onClick={() => setMode(key)}
+                className={`border-b-2 pb-3 text-sm ${mode === key ? "border-brand text-brand font-bold" : "text-muted border-transparent"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <form
+            action={mode === "phone" ? phoneAction : codeAction}
+            className="space-y-5"
+            key={mode}
+            onSubmit={() => {
+              if (mode === "code") setPhone(phoneInput.current?.value ?? "");
+            }}
+          >
+            {mode === "code" ? (
+              <Field label="예약번호">
+                <input
+                  name="code"
+                  required
+                  autoCapitalize="characters"
+                  className={inputClass}
+                  placeholder="예약번호를 입력합니다"
+                />
+              </Field>
+            ) : null}
+            <Field label="연락처" hint="예약할 때 입력한 번호입니다.">
+              <input
+                ref={phoneInput}
+                name="phone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                required
+                className={inputClass}
+                placeholder="01012345678"
+              />
+            </Field>
+            <div role="alert">
+              <ErrorText>
+                {mode === "phone"
+                  ? phoneState.status === "error"
+                    ? phoneState.error
+                    : null
+                  : codeState.status === "error"
+                    ? codeState.error
+                    : null}
+              </ErrorText>
+            </div>
+            <Button
+              type="submit"
+              disabled={phonePending || codePending}
+              className="min-h-12 w-full"
+            >
+              {phonePending || codePending ? "조회 중…" : "예약 조회하기"}
+            </Button>
+          </form>
+        </section>
+      </div>
+    );
+  const visible = list.filter((r) => matches(r, filter));
+  const selected = visible.find((r) => r.code === selectedCode) ?? visible[0];
   return (
-    // 조회 전에는 입력칸 하나뿐이라, 좁은 카드를 페이지 가운데 놓는다.
-    // 결과가 나오면(위 분기) 이 폭 제한 없이 페이지 전체를 쓴다.
-    <div className="mx-auto max-w-sm">
-      <Header />
-
-      <form action={lookupAction} className="mt-8 space-y-4">
-        <Field label="연락처" hint="예약하실 때 입력하신 번호입니다.">
-          <input
-            name="phone"
-            type="tel"
-            inputMode="numeric"
-            placeholder="01012345678"
-            required
-            className={inputClass}
+    <div>
+      <h1 className="text-3xl font-bold">예약 내역</h1>
+      <p className="text-muted mt-2 text-sm">
+        예약을 선택하면 상태와 상세 내용을 확인합니다.
+      </p>
+      <div
+        className="mt-6 mb-6 flex flex-wrap gap-2"
+        role="group"
+        aria-label="예약 상태 필터"
+      >
+        {[
+          ["all", "전체"],
+          ["pending", "확정 대기"],
+          ["confirmed", "확정"],
+          ["completed", "촬영 완료"],
+          ["cancelled", "취소·노쇼"],
+        ].map(([key, label]) => (
+          <button
+            type="button"
+            key={key}
+            aria-pressed={filter === key}
+            onClick={() => setFilter(key)}
+            className={`rounded-md border px-3 py-2 text-sm ${filter === key ? "border-brand bg-brand text-white" : "border-border bg-surface"}`}
+          >
+            {label} {list.filter((r) => matches(r, key)).length}
+          </button>
+        ))}
+      </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="booking-card">
+          <h2 className="mb-4 font-bold">예약 목록</h2>
+          {visible.length ? (
+            <ul className="space-y-3">
+              {visible.map((r) => (
+                <li key={r.code}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCode(r.code)}
+                    aria-pressed={selected?.code === r.code}
+                    className={`border-border w-full rounded-md border p-4 text-left ${selected?.code === r.code ? "bg-surface-subtle" : "bg-surface"}`}
+                  >
+                    <span className="text-brand text-xs font-semibold">
+                      {STATUS_LABEL[r.status] ?? r.status}
+                    </span>
+                    <h3 className="mt-2 font-bold">{r.productName}</h3>
+                    <p className="text-muted mt-2 text-xs">
+                      {r.shootStart
+                        ? formatDate(r.shootStart)
+                        : "희망 시간 확인 후 확정"}
+                    </p>
+                    <p className="text-muted mt-2 font-mono text-xs">
+                      {r.code}
+                    </p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted text-sm">이 상태의 예약이 없습니다.</p>
+          )}
+        </aside>
+        {selected ? (
+          <LookupReservationDetail
+            key={selected.code}
+            reservation={selected}
+            phone={phone}
+            cancelAction={cancelAction}
+            cancelPending={cancelPending}
+            cancelState={cancelCode === selected.code ? cancelState : idle}
           />
-        </Field>
-
-        <ErrorText>
-          {lookupState.status === "error" ? lookupState.error : null}
-        </ErrorText>
-
-        <Button type="submit" disabled={lookupPending} className="w-full">
-          {lookupPending ? "조회 중…" : "조회하기"}
-        </Button>
-      </form>
+        ) : (
+          <section className="booking-card">
+            <p className="text-muted">확인할 예약을 선택합니다.</p>
+          </section>
+        )}
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        className="mt-6"
+        onClick={() => {
+          setList(null);
+          setSelectedCode(null);
+        }}
+      >
+        ← 다른 예약 조회하기
+      </Button>
     </div>
   );
 }
 
-function Header() {
-  return (
-    <>
-      <Link href="/booking">
-        <Button type="button" variant="ghost">
-          ← 상품 목록
-        </Button>
-      </Link>
-      <h1 className="mt-2 text-2xl font-bold">예약 조회</h1>
-      <p className="text-muted mt-2 text-sm">
-        예약하실 때 입력하신 연락처를 넣으시면 예약 내역을 볼 수 있습니다.
-      </p>
-    </>
-  );
-}
-
-function ReservationCard({
-  reservation,
-  isOpen,
-  onToggle,
+export function LookupReservationDetail({
+  reservation: r,
   phone,
   cancelAction,
   cancelPending,
   cancelState,
 }: {
   reservation: PhoneReservation;
-  isOpen: boolean;
-  onToggle: () => void;
   phone: string;
-  cancelAction: (formData: FormData) => void;
+  cancelAction: (data: FormData) => void;
   cancelPending: boolean;
   cancelState: LookupState;
 }) {
-  const cancellable =
-    reservation.status === "requested" ||
-    reservation.status === "schedule_confirmed" ||
-    reservation.status === "payment_confirmed";
-
+  const dialog = useRef<HTMLDialogElement>(null);
+  const cancellable = [
+    "requested",
+    "schedule_confirmed",
+    "payment_confirmed",
+  ].includes(r.status);
   return (
-    <li className="border-border bg-surface rounded-xl border p-4">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-start justify-between gap-3 text-left"
-      >
+    <section className="booking-card">
+      <span className="bg-surface-subtle text-brand inline-block rounded-md px-3 py-1 text-xs font-bold">
+        {STATUS_LABEL[r.status] ?? r.status}
+      </span>
+      <h2 className="mt-3 text-2xl font-bold">{r.productName}</h2>
+      <p className="text-muted mt-2 font-mono text-sm">{r.code}</p>
+      <dl className="border-border mt-6 grid gap-5 border-t pt-6 text-sm">
         <div>
-          <p className="font-medium">{reservation.productName}</p>
-          <p className="text-muted mt-0.5 text-sm">
-            {reservation.shootStart
-              ? formatDateTime(reservation.shootStart)
-              : "확정 대기 중 (희망 시간 중 선택 예정)"}
-          </p>
+          <dt className="text-muted">예약자</dt>
+          <dd className="mt-1 font-semibold">{r.customerName}</dd>
         </div>
-        <span className="text-muted shrink-0 text-xs">
-          {STATUS_LABEL[reservation.status] ?? reservation.status}
-        </span>
-      </button>
-
-      {isOpen ? (
-        <div className="border-border mt-3 border-t pt-3">
-          <p className="text-muted text-sm">
-            예약번호 <span className="font-mono">{reservation.code}</span>
-          </p>
-
-          {cancellable ? (
-            <form action={cancelAction} className="mt-3">
-              <input type="hidden" name="code" value={reservation.code} />
-              <input type="hidden" name="phone" value={phone} />
-              <Button variant="danger" type="submit" disabled={cancelPending}>
-                {cancelPending ? "취소하는 중…" : "이 예약 취소하기"}
-              </Button>
-
-              {/* 이 예약에 대한 취소 시도 결과만 여기 보여준다. 성공(=상태가
-                  cancelled로 바뀜)이면 이 조건 자체가 false가 되어
-                  아래의 "변경할 수 없습니다" 문구로 자연스럽게 바뀐다. */}
-              <div className="mt-2">
-                {cancelState.status === "error" ? (
-                  <ErrorText>{cancelState.error}</ErrorText>
-                ) : null}
-                {cancelState.status === "found" &&
-                cancelState.reservation.code === reservation.code &&
-                cancelState.reservation.status !== "cancelled" ? (
-                  <ErrorText>
-                    취소 기한이 지났거나 이미 처리된 예약이라 취소할 수 없습니다.
-                    스튜디오로 문의해 주시기 바랍니다.
-                  </ErrorText>
-                ) : null}
-              </div>
-            </form>
-          ) : (
-            <p className="text-muted mt-2 text-sm">
-              {reservation.status === "cancelled"
-                ? "이미 취소된 예약입니다."
-                : "이 예약은 더 이상 변경할 수 없습니다."}
-            </p>
-          )}
+        <div>
+          <dt className="text-muted">촬영 일시</dt>
+          <dd className="mt-1">
+            {r.shootStart
+              ? formatDate(r.shootStart)
+              : "확정 대기 중입니다. 신청한 희망 시간 중 하나로 확정해 드립니다."}
+          </dd>
+          {r.shootEnd ? (
+            <dd className="text-muted mt-1">종료: {formatDate(r.shootEnd)}</dd>
+          ) : null}
+        </div>
+      </dl>
+      {cancelState.status === "error" ? (
+        <div role="alert" className="mt-5">
+          <ErrorText>{cancelState.error}</ErrorText>
         </div>
       ) : null}
-    </li>
+      {cancelState.status === "found" &&
+      cancelState.reservation.code === r.code &&
+      cancelState.reservation.status !== "cancelled" ? (
+        <div role="alert" className="mt-5">
+          <ErrorText>
+            취소 기한이 지났거나 이미 처리된 예약이라 취소할 수 없습니다.
+            스튜디오로 문의해 주십시오.
+          </ErrorText>
+        </div>
+      ) : null}
+      {cancellable ? (
+        <div className="border-border mt-8 flex flex-wrap items-center justify-between gap-4 border-t pt-6">
+          <div>
+            <h3 className="font-bold">예약 취소</h3>
+            <p className="text-muted mt-1 text-xs">
+              취소 가능 기한 이내에 취소할 수 있습니다.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => dialog.current?.showModal()}
+          >
+            예약 취소하기
+          </Button>
+        </div>
+      ) : (
+        <p
+          role="status"
+          className="bg-surface-subtle mt-6 rounded-md p-4 text-sm"
+        >
+          {r.status === "cancelled"
+            ? "예약이 취소되었습니다."
+            : "이 예약은 더 이상 변경할 수 없습니다."}
+        </p>
+      )}
+      <dialog
+        ref={dialog}
+        className="border-border bg-surface text-foreground w-[calc(100%-2rem)] max-w-md rounded-xl border p-6 backdrop:bg-black/50"
+        aria-label="예약 취소 확인"
+      >
+        <h3 className="text-xl font-bold">예약을 취소하시겠습니까?</h3>
+        <p className="text-muted mt-3 text-sm">
+          {r.productName} · {r.code}
+        </p>
+        <p className="text-muted mt-2 text-sm">
+          취소한 예약은 새로 신청해야 합니다.
+        </p>
+        <form
+          action={cancelAction}
+          className="mt-6 flex flex-wrap gap-3"
+          onSubmit={() => dialog.current?.close()}
+        >
+          <input type="hidden" name="code" value={r.code} />
+          <input type="hidden" name="phone" value={phone} />
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => dialog.current?.close()}
+          >
+            유지하기
+          </Button>
+          <Button type="submit" disabled={cancelPending}>
+            {cancelPending ? "취소하는 중…" : "취소하기"}
+          </Button>
+        </form>
+      </dialog>
+    </section>
   );
 }

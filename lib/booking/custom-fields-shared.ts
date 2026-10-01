@@ -157,3 +157,33 @@ export function selectedLabelsFromAnswers(
 
   return result;
 }
+
+/** 관리자 미리보기와 고객 신청서가 같은 공개 문항과 순서를 사용한다. */
+export function visibleBookingFields(fields: CustomField[]): CustomField[] {
+  return fields
+    .filter((field) => field.active)
+    .sort((a, b) => a.sort_order - b.sort_order);
+}
+
+/** 확인 단계는 실제 제출될 FormData를 읽는다. 보기 변경/추가 문항도 그대로 표시한다. */
+export function bookingReviewAnswers(fields: CustomField[], data: FormData) {
+  return visibleBookingFields(fields).map((field) => {
+    const values = data.getAll(fieldFormName(field.id)).map(String);
+    return {
+      id: field.id,
+      label: field.label,
+      value:
+        field.type === "checkbox"
+          ? values.length
+            ? "확인함"
+            : "선택하지 않음"
+          : field.type === "gender"
+            ? values[0] === "male"
+              ? "남성"
+              : values[0] === "female"
+                ? "여성"
+                : "입력하지 않음"
+            : values.filter(Boolean).join(", ") || "입력하지 않음",
+    };
+  });
+}
