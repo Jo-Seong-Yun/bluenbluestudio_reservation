@@ -6,6 +6,7 @@ import {
   type SendCustomerEmailState,
 } from "@/app/admin/actions";
 import { Button, ErrorText, inputClass } from "@/components/ui";
+import { TeamRecipientsField } from "@/components/team-recipients-field";
 import { SubmitButton } from "@/components/submit-button";
 import {
   EMAIL_VARIABLES,
@@ -64,8 +65,10 @@ export function SendCustomerEmailButton({
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
   const lastFocused = useRef<"subject" | "body">("body");
   const [epoch, setEpoch] = useState(0);
+  const [extraEmails, setExtraEmails] = useState<string[]>([]);
 
   const withEmail = customers.filter((c) => c.email);
+  const extraCount = extraEmails.filter((e) => e.trim()).length;
   const withoutEmailCount = customers.length - withEmail.length;
   const isCustom = selectedValue === CUSTOM_VALUE;
   const selectedRule = !isCustom
@@ -84,6 +87,7 @@ export function SendCustomerEmailButton({
     setSubject("");
     setBody(toEditorHtml(""));
     setCtas([]);
+    setExtraEmails([]);
     setEpoch((n) => n + 1);
     dialogRef.current?.showModal();
   }
@@ -174,11 +178,19 @@ export function SendCustomerEmailButton({
               ) : null}
 
               <div className="border-border bg-surface-subtle rounded-lg border px-3 py-2 text-xs">
-                받는 사람 {withEmail.length}명
+                받는 사람 {withEmail.length + extraCount}명
                 {withoutEmailCount > 0
                   ? ` (이메일 주소가 없는 ${withoutEmailCount}명은 자동으로 제외됩니다)`
                   : ""}
               </div>
+
+              <TeamRecipientsField
+                heading="받는 사람 직접 추가"
+                rowLabel="추가"
+                value={extraEmails}
+                onChange={setExtraEmails}
+                note="고객DB에 없는 주소도 적을 수 있습니다. 이 주소들에는 {{이름}}·{{연락처}}가 빈 칸으로 나갑니다."
+              />
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium" htmlFor="mailKind">

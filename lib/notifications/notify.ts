@@ -308,6 +308,8 @@ async function sendTriggerEmails(params: {
   reservationId?: string | null;
   customerEmail?: string | null;
   adminEmail?: string | null;
+  /** 손님용 규칙을 각각 따로 받을 팀원 주소들(예약에 저장된 값). */
+  teamEmails?: readonly string[];
   variables: Record<string, string>;
   /** 상태 변경 확인모달에서 수기로 고친 내용 — 규칙 id를 키로 한다. */
   overrides?: Record<string, { subject: string; body: string }>;
@@ -347,6 +349,7 @@ export async function notifyEmailOnlyEvent(params: {
   productId: string;
   customerEmail?: string | null;
   adminEmail?: string | null;
+  teamEmails?: readonly string[];
   variables: Record<string, string>;
   overrides?: Record<string, { subject: string; body: string }>;
 }): Promise<void> {
@@ -356,6 +359,7 @@ export async function notifyEmailOnlyEvent(params: {
     reservationId: params.reservationId,
     customerEmail: params.customerEmail,
     adminEmail: params.adminEmail,
+    teamEmails: params.teamEmails,
     variables: params.variables,
     overrides: params.overrides,
   });
@@ -422,6 +426,8 @@ type CustomerContact = {
   customerEmail?: string | null;
   /** 이 이벤트에 사장님용 이메일 규칙이 걸려 있을 수 있어 항상 같이 넘긴다. */
   adminEmail?: string | null;
+  /** 손님용 이메일을 각각 따로 받을 팀원 주소들. */
+  teamEmails?: readonly string[];
   /** 상품 필터가 걸린 이메일 규칙을 가려내는 데 쓴다. */
   productId: string;
   /** {{예상금액}} 변수용 — 기본가+선택한 유료 옵션 합계. */
@@ -485,6 +491,7 @@ async function notifyCustomer(params: {
         reservationId: params.info.reservationId,
         customerEmail: params.info.customerEmail,
         adminEmail: params.info.adminEmail,
+        teamEmails: params.info.teamEmails,
         variables: params.email.variables,
         overrides: params.email.overrides,
       }),

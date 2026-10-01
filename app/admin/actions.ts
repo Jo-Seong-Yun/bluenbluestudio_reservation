@@ -54,6 +54,7 @@ import {
   renderEmailHtml,
 } from "@/lib/notifications/email-html";
 import { getAdminNotifyEmail } from "@/lib/notifications/admin-contact";
+import { readTeamEmailsFromForm } from "@/lib/notifications/team-emails";
 import {
   sendAdHocEmail,
   sendRuleTestEmail,
@@ -603,6 +604,25 @@ function parseEmailOverrides(
 
 export type TransitionActionState = { error?: string } | null;
 
+type TeamEmailsResolution =
+  | { ok: true; emails: string[]; fromForm: boolean }
+  | { ok: false; error: string };
+
+/**
+ * 발송 확인창의 팀원 칸을 읽는다. 칸이 있으면 정리된 목록(이 값으로 예약의
+ * team_emails를 덮어쓴다), 칸이 없는 폼이면 예약에 저장된 목록을 그대로 쓴다.
+ */
+function resolveTeamEmails(
+  formData: FormData,
+  customerEmail: string | null,
+  saved: string[] | null,
+): TeamEmailsResolution {
+  const result = readTeamEmailsFromForm(formData, customerEmail);
+  if (result === null) return { ok: true, emails: saved ?? [], fromForm: false };
+  if (!result.ok) return result;
+  return { ok: true, emails: result.emails, fromForm: true };
+}
+
 /**
  * 확인모달을 거쳐 상태를 다음 단계로만 넘긴다(일정확정→입금확인→
  * 완료|노쇼). 모달이 보여준 이메일(관리자가 고쳤으면 고친 내용)을
@@ -630,11 +650,18 @@ export async function applyReservationTransition(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id, estimated_amount",
+      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id, estimated_amount, team_emails",
     )
     .eq("id", id)
     .single();
   if (!reservation) return { error: "예약을 찾을 수 없습니다." };
+
+  const team = resolveTeamEmails(
+    formData,
+    reservation.customer_email,
+    reservation.team_emails,
+  );
+  if (!team.ok) return { error: team.error };
 
   const allowed = ALLOWED_FORWARD_TRANSITIONS[reservation.status] ?? [];
   const nextStatus = allowed.find((value) => value === rawNextStatus);
@@ -658,7 +685,10 @@ export async function applyReservationTransition(
 
   const { error } = await supabase
     .from("reservations")
-    .update({ status: nextStatus })
+    .update({
+      status: nextStatus,
+      ...(team.fromForm ? { team_emails: team.emails } : {}),
+    })
     .eq("id", id);
 
   if (error) {
@@ -701,6 +731,7 @@ export async function applyReservationTransition(
     customerName: reservation.customer_name,
     customerPhone: reservation.customer_phone,
     customerEmail: reservation.customer_email,
+    teamEmails: team.emails,
     productName: product?.name ?? "촬영",
     code: reservation.code,
     estimatedAmount: reservation.estimated_amount,
@@ -735,6 +766,7 @@ export async function applyReservationTransition(
       productId: reservation.product_id,
       customerEmail: reservation.customer_email,
       adminEmail,
+      teamEmails: team.emails,
       variables: buildEmailVariables({ ...base, shootStart, selectedOptions }),
       overrides,
     });
@@ -771,11 +803,18 @@ export async function cancelReservationWithReason(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id, estimated_amount",
+      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id, estimated_amount, team_emails",
     )
     .eq("id", id)
     .single();
   if (!reservation) return { error: "예약을 찾을 수 없습니다." };
+
+  const team = resolveTeamEmails(
+    formData,
+    reservation.customer_email,
+    reservation.team_emails,
+  );
+  if (!team.ok) return { error: team.error };
 
   if (
     reservation.status !== "requested" &&
@@ -791,6 +830,7 @@ export async function cancelReservationWithReason(
       status: "cancelled",
       cancel_reason: cancelReason,
       status_before_cancel: reservation.status,
+      ...(team.fromForm ? { team_emails: team.emails } : {}),
     })
     .eq("id", id);
   if (error) return { error: `취소하지 못했습니다: ${error.message}` };
@@ -830,6 +870,7 @@ export async function cancelReservationWithReason(
       customerPhone: reservation.customer_phone,
       customerEmail: reservation.customer_email,
       adminEmail,
+      teamEmails: team.emails,
       productName: product?.name ?? "촬영",
       shootStart: reservation.shoot_start ? new Date(reservation.shoot_start) : null,
       code: reservation.code,
@@ -1001,35 +1042,39 @@ export type SendDeliverableState =
   | { status: "success" }
   | { status: "error"; error: string };
 
-export type DeliverableEmailInfo = {
+export type ReservationRecipientInfo = {
   /** 예약건 자체에 적힌 이메일 (신청서에 적혔거나 수기 예약에 입력한 값). */
   reservationEmail: string | null;
   /** 고객DB(전화번호로 찾은)에 저장된 이메일. */
   customerDbEmail: string | null;
-  /** 실제로 결과물 메일을 보낼 주소 — 고객DB 쪽을 우선한다. */
+  /** 결과물 메일을 보낼 주소 — 고객DB 쪽을 우선한다. */
   sendTo: string | null;
   /** 설정에 등록된 사장님 알림 이메일 — "사장님에게" 수신자의 실제 주소. */
   adminEmail: string | null;
+  /** 상품관리에 정한 최대 인원. 저장된 팀원이 없을 때 빈 팀원 칸 수를 정한다. */
+  productMaxPeople: number | null;
+  /** 이 예약에 저장된 팀원 이메일. */
+  teamEmails: string[];
 };
 
 /**
- * 결과물 전송 모달이 열리는 순간 불러온다. 예약건에 적힌 이메일과
+ * 이메일 발송 확인창이 열리는 순간 불러온다. 예약건에 적힌 이메일과
  * 고객DB(전화번호로 찾은)에 저장된 이메일이 다를 수 있다 — 고객DB의
  * email은 한 번 채워지면 새 예약이 들어와도 절대 안 덮어써지므로,
  * 관리자가 고객DB에서 직접 고친 주소가 예약건 자체보다 최신일 수
- * 있다. 실제 발송은 고객DB 주소를 우선하고(sendDeliverableEmail도
- * 같은 규칙), 여기서는 두 값을 다 알려줘서 다르면 모달이 경고할 수
- * 있게 한다.
+ * 있다. 결과물 전송은 고객DB 주소를 우선하고(sendDeliverableEmail도
+ * 같은 규칙), 여기서는 두 값을 다 알려줘서 다르면 확인창이 경고할 수
+ * 있게 한다. 저장된 팀원과 상품 최대 인원으로 팀원 칸도 미리 채운다.
  */
-export async function loadDeliverableEmailInfo(
+export async function loadReservationRecipientInfo(
   reservationId: string,
-): Promise<DeliverableEmailInfo> {
+): Promise<ReservationRecipientInfo> {
   await requireAdmin();
 
   const supabase = await createClient();
   const { data: reservation } = await supabase
     .from("reservations")
-    .select("customer_phone, customer_email")
+    .select("customer_phone, customer_email, product_id, team_emails")
     .eq("id", reservationId)
     .single();
   if (!reservation) {
@@ -1038,18 +1083,27 @@ export async function loadDeliverableEmailInfo(
       customerDbEmail: null,
       sendTo: null,
       adminEmail: null,
+      productMaxPeople: null,
+      teamEmails: [],
     };
   }
 
-  const [customerDbEmail, adminEmail] = await Promise.all([
+  const [customerDbEmail, adminEmail, { data: product }] = await Promise.all([
     getCustomerEmailByPhone(reservation.customer_phone),
     getAdminNotifyEmail(),
+    supabase
+      .from("products")
+      .select("max_people")
+      .eq("id", reservation.product_id)
+      .maybeSingle(),
   ]);
   return {
     reservationEmail: reservation.customer_email,
     customerDbEmail,
     sendTo: customerDbEmail || reservation.customer_email || null,
     adminEmail,
+    productMaxPeople: product?.max_people ?? null,
+    teamEmails: reservation.team_emails ?? [],
   };
 }
 
@@ -1062,7 +1116,7 @@ export async function loadDeliverableEmailInfo(
  * 받는 주소는 예약건 자체의 customer_email이 아니라 고객DB(전화번호로
  * 찾은) 쪽을 우선한다 — 예약건에는 이메일을 안 적었어도 고객DB에는
  * 관리자가 수기로 채워둔 경우가 있어, 그쪽이 없을 때만 예약건 값으로
- * 넘어간다(loadDeliverableEmailInfo와 같은 규칙).
+ * 넘어간다(loadReservationRecipientInfo와 같은 규칙).
  */
 export async function sendDeliverableEmail(
   _prev: SendDeliverableState,
@@ -1086,7 +1140,7 @@ export async function sendDeliverableEmail(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, customer_name, customer_phone, customer_email, product_id, estimated_amount",
+      "code, customer_name, customer_phone, customer_email, product_id, estimated_amount, team_emails",
     )
     .eq("id", id)
     .single();
@@ -1100,6 +1154,9 @@ export async function sendDeliverableEmail(
       getCustomerEmailByPhone(reservation.customer_phone),
     ]);
   const recipientEmail = customerDbEmail || reservation.customer_email;
+
+  const team = resolveTeamEmails(formData, recipientEmail, reservation.team_emails);
+  if (!team.ok) return { status: "error", error: team.error };
 
   const variables = buildEmailVariables({
     customerName: reservation.customer_name,
@@ -1117,6 +1174,7 @@ export async function sendDeliverableEmail(
     productId: reservation.product_id,
     customerEmail: recipientEmail,
     adminEmail,
+    teamEmails: team.emails,
     variables,
     overrides,
   });
@@ -1125,7 +1183,10 @@ export async function sendDeliverableEmail(
   // 기준으로 쓴다 — 화면에 이 시각 자체를 보여주지는 않는다.
   await supabase
     .from("reservations")
-    .update({ deliverable_sent_at: new Date().toISOString() })
+    .update({
+      deliverable_sent_at: new Date().toISOString(),
+      ...(team.fromForm ? { team_emails: team.emails } : {}),
+    })
     .eq("id", id);
 
   revalidatePath("/admin/reservations");
@@ -1171,6 +1232,18 @@ export async function confirmReservationCandidate(
     return { error: "그 후보를 찾을 수 없습니다." };
   }
 
+  const { data: before } = await supabase
+    .from("reservations")
+    .select("customer_email, team_emails")
+    .eq("id", id)
+    .single();
+  const team = resolveTeamEmails(
+    formData,
+    before?.customer_email ?? null,
+    before?.team_emails ?? [],
+  );
+  if (!team.ok) return { error: team.error };
+
   const period = toTstzRange({
     start: new Date(candidate.shoot_start),
     end: new Date(candidate.shoot_end),
@@ -1184,6 +1257,7 @@ export async function confirmReservationCandidate(
       shoot_start: candidate.shoot_start,
       shoot_end: candidate.shoot_end,
       confirmed_candidate_rank: rank,
+      ...(team.fromForm ? { team_emails: team.emails } : {}),
     })
     .eq("id", id)
     .select(
@@ -1234,6 +1308,7 @@ export async function confirmReservationCandidate(
           customerPhone: reservation.customer_phone,
           customerEmail: reservation.customer_email,
           adminEmail,
+          teamEmails: team.emails,
           productName: product?.name ?? "촬영",
           shootStart: new Date(candidate.shoot_start),
           code: reservation.code,
@@ -1694,6 +1769,7 @@ export async function createManualReservation(
     time: formData.get("time"),
     customerName: formData.get("customerName"),
     customerPhone: formData.get("customerPhone"),
+    customerEmail: formData.get("customerEmail") ?? "",
     peopleCount: formData.get("peopleCount"),
     memo: formData.get("memo"),
   });
@@ -1780,6 +1856,14 @@ export async function createManualReservation(
     if (val) customAnswers.push({ fieldId: field.id, value: val });
   }
 
+  // 수기 등록 폼의 "받는 사람"에 적은 예약자 이메일. 이메일 문항이 있는
+  // 상품이면 그 답변을 우선한다.
+  extraEmail = extraEmail ?? input.customerEmail ?? null;
+
+  const team = readTeamEmailsFromForm(formData, extraEmail);
+  if (team && !team.ok) return { status: "error", error: team.error };
+  const teamEmails = team?.ok ? team.emails : [];
+
   // 예상금액 계산 (기본가 + 유료 옵션)
   const basePrice = product.sale_price ?? product.price;
   const selectedLabels = selectedLabelsFromAnswers(
@@ -1833,6 +1917,7 @@ export async function createManualReservation(
         people_count: input.peopleCount,
         memo: input.memo || null,
         estimated_amount: estimatedAmount,
+        team_emails: teamEmails,
       })
       .select("id")
       .single();
@@ -1868,7 +1953,9 @@ export async function createManualReservation(
             productId: input.productId,
             customerName: input.customerName,
             customerPhone: input.customerPhone,
+            customerEmail: extraEmail,
             adminEmail,
+            teamEmails,
             productName: product.name,
             shootStart,
             code,
@@ -1941,12 +2028,18 @@ export async function rescheduleReservation(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, shoot_start, customer_name, customer_phone, customer_email, gender, birth_date, product_id, estimated_amount",
+      "code, status, shoot_start, customer_name, customer_phone, customer_email, gender, birth_date, product_id, estimated_amount, team_emails",
     )
     .eq("id", input.id)
     .single();
 
   if (!reservation) return { error: "예약을 찾을 수 없습니다." };
+  const team = resolveTeamEmails(
+    formData,
+    reservation.customer_email,
+    reservation.team_emails,
+  );
+  if (!team.ok) return { error: team.error };
   if (
     reservation.status !== "schedule_confirmed" &&
     reservation.status !== "payment_confirmed"
@@ -1980,6 +2073,7 @@ export async function rescheduleReservation(
       period,
       shoot_start: newShootStart.toISOString(),
       shoot_end: newShootEnd.toISOString(),
+      ...(team.fromForm ? { team_emails: team.emails } : {}),
     })
     .eq("id", input.id);
 
@@ -2013,6 +2107,7 @@ export async function rescheduleReservation(
         customerPhone: reservation.customer_phone,
         customerEmail: reservation.customer_email,
         adminEmail,
+        teamEmails: team.emails,
         productName: product.name,
         oldShootStart,
         newShootStart,
@@ -3134,7 +3229,10 @@ export async function sendCustomerEmails(
     .getAll("phones")
     .map((v) => String(v))
     .filter(Boolean);
-  if (phones.length === 0) {
+  const extra = readTeamEmailsFromForm(formData);
+  if (extra && !extra.ok) return { status: "error", error: extra.error };
+  const extraEmails = extra?.ok ? extra.emails : [];
+  if (phones.length === 0 && extraEmails.length === 0) {
     return { status: "error", error: "받는 손님을 선택해 주시기 바랍니다." };
   }
 
@@ -3200,9 +3298,20 @@ export async function sendCustomerEmails(
     .select("phone, name, email")
     .in("phone", phones);
 
-  const recipients = (customers ?? []).filter(
+  const customerRecipients = (customers ?? []).filter(
     (c): c is { phone: string; name: string; email: string } => Boolean(c.email),
   );
+  // 직접 추가한 주소는 고객DB에 없는 사람일 수 있어 {{이름}}/{{연락처}}를
+  // 빈 칸으로 채운다. 이미 선택한 손님과 같은 주소면 두 번 보내지 않는다.
+  const customerAddresses = new Set(
+    customerRecipients.map((c) => c.email.trim().toLowerCase()),
+  );
+  const recipients = [
+    ...customerRecipients,
+    ...extraEmails
+      .filter((email) => !customerAddresses.has(email))
+      .map((email) => ({ phone: "", name: "", email })),
+  ];
   if (recipients.length === 0) {
     return {
       status: "error",

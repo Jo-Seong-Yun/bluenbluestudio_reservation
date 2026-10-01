@@ -83,6 +83,20 @@ describe("이메일 규칙 받는 사람(중복 선택)", () => {
     ).toEqual(["same@x.test"]);
   });
 
+  it("팀원 주소는 손님이 받는 규칙에만 붙는다", () => {
+    const emails = {
+      customerEmail: "c@x.test",
+      adminEmail: "a@x.test",
+      teamEmails: ["t1@x.test", "t2@x.test"],
+    };
+    expect(ruleRecipientAddresses(["customer"], emails)).toEqual([
+      "c@x.test",
+      "t1@x.test",
+      "t2@x.test",
+    ]);
+    expect(ruleRecipientAddresses(["admin"], emails)).toEqual(["a@x.test"]);
+  });
+
   it("라벨은 고른 순서와 상관없이 손님·사장님 순으로 보여준다", () => {
     expect(formatRecipients(["admin", "customer"])).toBe("손님·사장님");
     expect(formatRecipients(["admin"])).toBe("사장님");

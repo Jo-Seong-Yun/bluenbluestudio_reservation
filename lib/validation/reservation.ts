@@ -104,6 +104,7 @@ export const manualReservationSchema = z.object({
   time: z.string().regex(/^\d{2}:\d{2}$/, "시간 형식이 올바르지 않습니다."),
   customerName: nameField,
   customerPhone: phoneField,
+  customerEmail: emailField.optional(),
   peopleCount: z
     .union([z.literal(""), z.coerce.number().int().min(1).max(100)])
     .transform((value) => (value === "" ? null : value)),

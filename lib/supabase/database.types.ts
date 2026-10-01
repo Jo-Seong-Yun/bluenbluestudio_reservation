@@ -204,6 +204,8 @@ export interface Database {
            * 이 값의 유무로 "결과물 전송" 버튼과 "작업종료" 텍스트를
            * 가른다 — 화면에 시각 자체를 보여주지는 않는다. */
           deliverable_sent_at: string | null;
+          /** 예약자 외에 손님용 메일을 각각 따로 받을 팀원 이메일들. */
+          team_emails: string[];
           created_at: string;
           updated_at: string;
         };

@@ -76,10 +76,19 @@ export function formatRecipients(recipients: readonly EmailRecipient[]): string 
  */
 export function ruleRecipientAddresses(
   recipients: readonly EmailRecipient[],
-  emails: { customerEmail?: string | null; adminEmail?: string | null },
+  emails: {
+    customerEmail?: string | null;
+    adminEmail?: string | null;
+    /** 손님이 받는 규칙이면 같은 메일을 각각 따로 받을 팀원 주소들. */
+    teamEmails?: readonly string[];
+  },
 ): string[] {
   const addresses = recipients
-    .map((r) => (r === "admin" ? emails.adminEmail : emails.customerEmail))
+    .flatMap((r) =>
+      r === "admin"
+        ? [emails.adminEmail]
+        : [emails.customerEmail, ...(emails.teamEmails ?? [])],
+    )
     .filter((to): to is string => Boolean(to));
   return [...new Set(addresses)];
 }

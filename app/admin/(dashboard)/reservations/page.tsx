@@ -62,7 +62,10 @@ export default async function ReservationsPage({
       .gte("shoot_start", `${grid[0]}T00:00:00+09:00`)
       .lt("shoot_start", `${grid[grid.length - 1]}T24:00:00+09:00`)
       .order("shoot_start"),
-    supabase.from("products").select("id, name, price, sale_price, tag_color").order("sort_order"),
+    supabase
+      .from("products")
+      .select("id, name, price, sale_price, tag_color, max_people")
+      .order("sort_order"),
     supabase
       .from("reservations")
       .select(RESERVATION_COLUMNS)
