@@ -10,7 +10,6 @@ import { Button, ErrorText, Field, inputClass } from "@/components/ui";
 import { useReportPending } from "@/components/pending-overlay";
 import { calculateAge, parseBirthDate8 } from "@/lib/age";
 import { FieldDescription } from "@/components/field-description";
-import { BookingSteps } from "@/components/booking-shell";
 import { ReservationSuccessCard } from "@/components/reservation-success-card";
 import {
   fieldFormName,
@@ -220,7 +219,7 @@ export function ReservationForm({
   if (state.status === "success") {
     return (
       <div className="mx-auto max-w-3xl">
-        <BookingSteps stage="success" />
+
         <ReservationSuccessCard
           successHeading={successHeading}
           successMessage={successMessage}
@@ -235,7 +234,7 @@ export function ReservationForm({
   }
   return (
     <>
-      <BookingSteps stage={reviewing ? "review" : "form"} />
+
       <form
         ref={formRef}
         action={action}

@@ -3,7 +3,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { tagColorDotClass } from "@/lib/product-tag-colors";
 import { Camera, Clock, Users } from "lucide-react";
-import { BookingSteps } from "./booking-shell";
 import {
   cardRadiusClass,
   cardPaddingClass,
@@ -42,16 +41,8 @@ export function BookingProducts({
   );
   return (
     <main className="booking-page">
-      <BookingSteps stage="products" />
-      <div className="border-border mb-6 border-b pb-6">
-        <p className="text-brand mb-2 text-xs font-bold tracking-widest">
-          BLUE N BLUE STUDIO
-        </p>
-        <h1 className="text-3xl font-bold">촬영 상품을 선택합니다</h1>
-        <p className="text-muted mt-3 text-sm">
-          상품의 구성과 가격을 확인하고 원하는 촬영을 신청합니다.
-        </p>
-      </div>
+      <h1 className="sr-only">촬영 상품</h1>
+      <div className="booking-product-content">
       {products.length > 0 ? (
         <>
           <div
@@ -96,9 +87,10 @@ export function BookingProducts({
           현재 예약 가능한 상품이 없습니다. 곧 준비하겠습니다.
         </p>
       )}
-      <div className="border-border bg-surface-subtle mt-8 flex flex-wrap items-center justify-between gap-4 rounded-md border p-6">
+      </div>
+      <div className="booking-lookup-help border-border bg-surface-subtle mt-8 flex flex-wrap items-center justify-between gap-4 rounded-md border p-6">
         <div>
-          <h2 className="font-bold">이미 촬영을 신청하셨습니까?</h2>
+          <h2 className="font-bold">이미 촬영을 신청하셨나요?</h2>
           <p className="text-muted mt-1 text-sm">
             예약 상태와 희망 시간을 예약 조회에서 확인합니다.
           </p>
@@ -208,7 +200,7 @@ export function BookingProductCard({
           href={`/booking/${p.slug}`}
           className="bg-brand hover:bg-brand-hover mt-1 flex min-h-12 items-center justify-center gap-2 rounded-md px-4 py-3 text-sm font-bold text-white"
         >
-          상세 보기 <span aria-hidden>→</span>
+          지금 신청하기 <span aria-hidden>→</span>
         </Link>
       </div>
     </li>

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { RichText } from "@/components/rich-text";
-import { BookingSteps } from "@/components/booking-shell";
 export type BookingDetailProduct = {
   name: string;
   slug: string;
@@ -25,7 +24,7 @@ export function BookingDetail({
       <Link href="/booking" className="text-muted mb-4 inline-block text-sm">
         ← 상품 목록
       </Link>
-      <BookingSteps stage="products" />
+
       <div className="booking-split">
         <article className="booking-card">
           <p className="text-brand text-xs font-bold">촬영 상품 안내</p>

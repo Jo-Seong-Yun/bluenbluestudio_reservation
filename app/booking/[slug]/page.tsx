@@ -8,7 +8,6 @@ import {
 } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
 import { BookingDetail } from "@/components/booking-detail";
-import { BookingSteps } from "@/components/booking-shell";
 import { BookingFlow } from "@/components/booking-flow";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
 import { ProductViewTracker } from "./product-view-tracker";
@@ -109,7 +108,7 @@ export default async function ProductDetailPage({
         >
           ← 상품 상세
         </Link>
-        <BookingSteps stage="times" />
+
         <BookingFlow
           productId={product.id}
           productName={product.name}
