@@ -1,3 +1,4 @@
+import { BookingSteps } from "@/components/booking-shell";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -109,6 +110,7 @@ export default async function ProductDetailPage({
           ← 상품 상세
         </Link>
 
+        <BookingSteps stage="times" />
         <BookingFlow
           productId={product.id}
           productName={product.name}

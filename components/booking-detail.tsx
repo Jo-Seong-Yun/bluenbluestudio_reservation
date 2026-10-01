@@ -1,3 +1,4 @@
+import { BookingSteps } from "@/components/booking-shell";
 import Link from "next/link";
 import { RichText } from "@/components/rich-text";
 export type BookingDetailProduct = {
@@ -25,6 +26,7 @@ export function BookingDetail({
         ← 상품 목록
       </Link>
 
+      <BookingSteps stage="products" />
       <div className="booking-split">
         <article className="booking-card">
           <p className="text-brand text-xs font-bold">촬영 상품 안내</p>

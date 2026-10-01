@@ -55,3 +55,38 @@ export function BookingShell({
     </div>
   );
 }
+
+export type BookingStage = "products" | "times" | "form" | "review" | "success";
+const stages: BookingStage[] = [
+  "products",
+  "times",
+  "form",
+  "review",
+  "success",
+];
+const labels = [
+  "상품 선택",
+  "희망 시간",
+  "신청 정보",
+  "내용 확인",
+  "접수 완료",
+];
+export function BookingSteps({ stage }: { stage: BookingStage }) {
+  const current = stages.indexOf(stage);
+  return (
+    <ol className="booking-steps" aria-label="예약 진행 단계">
+      {stages.map((s, i) => (
+        <li
+          key={s}
+          aria-current={s === stage ? "step" : undefined}
+          className={i === current ? "active" : i < current ? "done" : ""}
+        >
+          <span className="booking-step-number" aria-hidden>
+            {i < current ? "✓" : i + 1}
+          </span>
+          <span>{labels[i]}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
