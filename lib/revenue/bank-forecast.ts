@@ -1,3 +1,4 @@
+import { bankReceiptAmount } from "./bank-balance";
 import { parseBirthDate8 } from "@/lib/age";
 import { kstDateString } from "@/lib/time";
 import {
@@ -15,7 +16,7 @@ export type BankForecastDay = {
   shootingCosts: number;
   expenses: number;
   unpaidCount: number;
-  prepaidCount: number;
+  recognizedCount: number;
   missingIncomeCount: number;
   missingCostCount: number;
 };
@@ -39,7 +40,7 @@ export function validBankForecastDate(value: string): boolean {
   );
 }
 
-/** 이미 입금된 예약은 다시 더하지 않고 미입금 확정 예약만 촬영일에 입금된다고 가정합니다. */
+/** 미래 촬영의 모든 확정 예약 금액은 상태와 관계없이 촬영일에 입금된다고 가정합니다. */
 export function buildBankForecast(
   reservations: ForecastReservation[],
   expenses: RevenueExpense[],
@@ -62,7 +63,7 @@ export function buildBankForecast(
         shootingCosts: 0,
         expenses: 0,
         unpaidCount: 0,
-        prepaidCount: 0,
+        recognizedCount: 0,
         missingIncomeCount: 0,
         missingCostCount: 0,
       };
@@ -91,19 +92,25 @@ export function buildBankForecast(
     }
     if (date === today && paid) continue;
     const item = day(date);
-    if (paid) item.prepaidCount++;
-    else {
-      item.unpaidCount++;
-      // 명시적인 0원은 유지하며, 미입력일 때만 신청 시점 예상 금액을 사용합니다.
-      const amount = reservation.charged_amount ?? reservation.estimated_amount;
-      if (amount === null) item.missingIncomeCount++;
-      else item.income += amount;
-    }
+    if (paid) item.recognizedCount++;
+    else item.unpaidCount++;
+    const amount = bankReceiptAmount(reservation);
+    if (amount === null) item.missingIncomeCount++;
+    else item.income += amount;
     // 오늘 원가는 오늘 장부에 이미 반영되어 있으므로 미래 날짜만 추가 차감합니다.
     if (date > today) {
       if (reservation.cost === null) item.missingCostCount++;
-      else item.shootingCosts += reservation.cost;
     }
+  }
+  // 등록 원가는 상태와 무관하게 오늘 장부와 동일한 기준으로 반영합니다.
+  for (const reservation of reservations) {
+    const instant = reservation.shoot_start
+      ? new Date(reservation.shoot_start)
+      : null;
+    if (!instant || !Number.isFinite(instant.getTime())) continue;
+    const date = kstDateString(instant);
+    if (date > today && (reservation.cost ?? 0) > 0)
+      day(date).shootingCosts += reservation.cost ?? 0;
   }
   for (const expense of expenses) {
     if (
@@ -133,7 +140,7 @@ export function summarizeBankForecastAt(
     shootingCosts: 0,
     expenses: 0,
     unpaidCount: 0,
-    prepaidCount: 0,
+    recognizedCount: 0,
     missingIncomeCount: 0,
     missingCostCount: 0,
     change: 0,
@@ -144,7 +151,7 @@ export function summarizeBankForecastAt(
     result.shootingCosts += day.shootingCosts;
     result.expenses += day.expenses;
     result.unpaidCount += day.unpaidCount;
-    result.prepaidCount += day.prepaidCount;
+    result.recognizedCount += day.recognizedCount;
     result.missingIncomeCount += day.missingIncomeCount;
     result.missingCostCount += day.missingCostCount;
   }

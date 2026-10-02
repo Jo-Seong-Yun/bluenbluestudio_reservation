@@ -9,7 +9,7 @@ import {
   type BankForecastData,
 } from "@/lib/revenue/bank-forecast";
 
-const won = (n: number) => `${n.toLocaleString()}원`;
+const won = (n: number) => `${(n === 0 ? 0 : n).toLocaleString()}원`;
 const signed = (n: number) => `${n > 0 ? "+" : ""}${won(n)}`;
 
 export function BankForecastPanel({
@@ -110,8 +110,8 @@ export function BankForecastPanel({
                 : won(balance)}
             </p>
             <p className="text-muted mt-2 text-xs">
-              오늘 대비 예정 변동 {signed(summary.change)} · 미입금 확정 예약{" "}
-              {summary.unpaidCount}건
+              오늘 대비 예정 변동 {signed(summary.change)} · 예정 촬영 예약{" "}
+              {summary.unpaidCount + summary.recognizedCount}건
             </p>
             <dl className="border-border mt-4 grid grid-cols-1 gap-3 border-t pt-3 sm:grid-cols-3">
               {[
@@ -159,10 +159,10 @@ export function BankForecastPanel({
                       입금 {won(day.income)} · 촬영 원가{" "}
                       {won(day.shootingCosts)} · 지출 {won(day.expenses)}
                     </p>
-                    {day.prepaidCount > 0 ? (
+                    {day.recognizedCount > 0 ? (
                       <p className="text-muted mt-1">
-                        입금 확인된 예약 {day.prepaidCount}건의 입금액은 오늘
-                        잔액에 포함되어 다시 더하지 않습니다.
+                        입금확인·완료·노쇼 예약 {day.recognizedCount}건도 미래
+                        촬영일의 예정 입금에 포함합니다.
                       </p>
                     ) : null}
                   </li>
@@ -177,8 +177,8 @@ export function BankForecastPanel({
         </>
       )}
       <p className="text-muted mt-4 text-xs leading-relaxed">
-        미입금 확정 예약은 촬영일까지 입금된다고 가정합니다. 실제 지불액이
-        입력되어 있으면 그 금액을, 미입력이라면 신청 당시 예상 금액을
+        확정 예약의 금액은 입금 처리 상태와 관계없이 촬영일에 반영합니다. 실제
+        지불액이 입력되어 있으면 그 금액을, 미입력이라면 신청 당시 예상 금액을
         사용합니다. 촬영 원가는 촬영일, 지출은 등록된 날짜에 반영합니다. 미등록
         반복 지출·추가 입출금은 포함하지 않습니다.
       </p>
@@ -188,8 +188,9 @@ export function BankForecastPanel({
       0 ? (
         <p className="text-muted mt-2 text-xs">
           일정 미확정 신청 {forecast.unconfirmedCount}건 · 촬영일 없는 확정 예약{" "}
-          {forecast.undatedReservationCount}건은 전망에서 제외합니다. 취소
-          예약도 제외합니다.
+          {forecast.undatedReservationCount}건 · 지난 촬영일의 미입금 예약{" "}
+          {forecast.overdueUnpaidCount}건은 예정 입금에서 제외합니다. 취소
+          예약의 입금도 제외하지만, 등록된 원가는 촬영일에 반영합니다.
         </p>
       ) : null}
     </section>
