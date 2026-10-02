@@ -53,6 +53,18 @@ describe("통장 장부 조회", () => {
   it("월/연/촬영일 필터 없이 전체 입금 및 지출을 조회하고 관리자 기준을 가져온다", async () => {
     const data = await loadBankBalanceData();
     expect(data.reference?.balance).toBe(100_000);
+    expect(data.forecast).toMatchObject({
+      today: data.book.today,
+      days: [],
+      unconfirmedCount: 0,
+      undatedReservationCount: 0,
+      overdueUnpaidCount: 0,
+    });
+    expect(
+      mocks.calls.find(
+        (c) => c.table === "reservations" && c.method === "select",
+      )?.args[0],
+    ).toContain("estimated_amount");
     expect(
       mocks.calls.filter((c) => c.method === "select").map((c) => c.table),
     ).toEqual(["reservations", "monthly_expenses"]);

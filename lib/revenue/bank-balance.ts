@@ -1,3 +1,4 @@
+import type { BankForecastData } from "./bank-forecast";
 import { kstDateString } from "@/lib/time";
 import {
   REVENUE_STATUSES,
@@ -26,6 +27,7 @@ export type BankReference = {
 export type BankBalanceData = {
   book: BankBookSummary;
   reference: BankReference | null;
+  forecast?: BankForecastData;
 };
 export const BANK_REFERENCE_KEY = "bluenblue_bank_reference_v1";
 export const BANK_MONEY_LIMIT = 1_000_000_000_000;
