@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { buildBankForecast } from "./bank-forecast";
 import { readAllRevenueRows } from "./pagination";
 import {
   BANK_REFERENCE_KEY,
@@ -14,9 +15,12 @@ export async function loadBankBalanceData(): Promise<BankBalanceData> {
     readAllRevenueRows((from, to) =>
       supabase
         .from("reservations")
-        .select("id, status, product_id, shoot_start, charged_amount, cost", {
-          count: "exact",
-        })
+        .select(
+          "id, status, product_id, shoot_start, charged_amount, cost, estimated_amount",
+          {
+            count: "exact",
+          },
+        )
         .order("id")
         .range(from, to),
     ),
@@ -33,8 +37,10 @@ export async function loadBankBalanceData(): Promise<BankBalanceData> {
   ]);
   if (auth.error || !auth.data.user)
     throw new Error("잔액 설정을 불러오지 못했습니다.");
+  const book = summarizeBankBook(reservations, expenses);
   return {
-    book: summarizeBankBook(reservations, expenses),
+    book,
+    forecast: buildBankForecast(reservations, expenses, book.today),
     reference: readBankReference(
       auth.data.user.user_metadata[BANK_REFERENCE_KEY],
     ),
