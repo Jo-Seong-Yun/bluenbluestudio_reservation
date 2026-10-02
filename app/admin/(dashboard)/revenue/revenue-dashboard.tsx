@@ -8,6 +8,8 @@ import {
   type RevenuePeriod,
   type RevenueSummary,
 } from "@/lib/revenue/summary";
+import type { BankBalanceData } from "@/lib/revenue/bank-balance";
+import { BankBalanceCard } from "./bank-balance-card";
 import { ExpenseSection } from "./expense-section";
 import { MonthlyRevenueChart } from "./monthly-chart";
 import {
@@ -96,11 +98,13 @@ export function RevenueDashboard({
   period,
   data,
   expenseMonth,
+  bankData,
   basePath = "/admin/revenue",
 }: {
   period: RevenuePeriod;
   data?: RevenueSummary;
   expenseMonth?: string;
+  bankData?: BankBalanceData;
   basePath?: string;
 }) {
   const yearly = period.view === "year";
@@ -135,6 +139,7 @@ export function RevenueDashboard({
     return (
       <div data-revenue-view={period.view}>
         {heading}
+        <BankBalanceCard data={bankData} />
         <div
           role="alert"
           className="border-border bg-surface rounded-xl border p-6"
@@ -197,6 +202,7 @@ export function RevenueDashboard({
   return (
     <div data-revenue-view={period.view}>
       {heading}
+      <BankBalanceCard data={bankData} />
       <section
         aria-label={yearly ? "연간 매출 요약" : "월별 매출 요약"}
         className="grid grid-cols-2 gap-3 xl:grid-cols-5"
