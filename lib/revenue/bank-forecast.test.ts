@@ -31,17 +31,17 @@ const expense = (patch: Partial<RevenueExpense> = {}): RevenueExpense => ({
 });
 const today = "2026-10-02";
 describe("날짜별 통장 잔액 전망", () => {
-  it("이미 입금된 미래 예약은 입금을 중복 더하지 않고 미래 원가만 차감한다", () => {
+  it("입금 처리 상태인 미래 예약도 촬영일의 입금과 원가를 반영한다", () => {
     const f = buildBankForecast(
       [reservation({ status: "payment_confirmed", charged_amount: 100_000 })],
       [],
       today,
     );
     expect(summarizeBankForecastAt(f, "2026-10-05")).toMatchObject({
-      income: 0,
+      income: 100_000,
       shootingCosts: 20_000,
-      change: -20_000,
-      prepaidCount: 1,
+      change: 80_000,
+      recognizedCount: 1,
       unpaidCount: 0,
     });
   });
@@ -148,8 +148,8 @@ describe("날짜별 통장 잔액 전망", () => {
   it("미확정·취소·일자 없는 예약과 연체 미입금은 제외하고 확인할 건수를 남긴다", () => {
     const f = buildBankForecast(
       [
-        reservation({ status: "requested" }),
-        reservation({ status: "cancelled" }),
+        reservation({ status: "requested", cost: 0 }),
+        reservation({ status: "cancelled", cost: 0 }),
         reservation({ shoot_start: null }),
         reservation({ shoot_start: "2026-10-01T03:00:00Z" }),
       ],
@@ -207,5 +207,52 @@ describe("날짜별 통장 잔액 전망", () => {
       expect(summarizeBankForecastAt(f, date)).toBeNull();
     expect(validBankForecastDate("2028-02-29")).toBe(true);
     expect(validBankForecastDate("2027-02-29")).toBe(false);
+  });
+});
+
+describe("입금 누락 및 날짜 전환 회귀", () => {
+  it("10월 8일 85,000원과 원가 19,800원을 선택일까지 반영한다", () => {
+    const rows = [
+      reservation({
+        status: "payment_confirmed",
+        shoot_start: "2026-10-08T03:00:00Z",
+        charged_amount: 85000,
+        cost: 19800,
+      }),
+    ];
+    const f = buildBankForecast(rows, [], today);
+    expect(summarizeBankForecastAt(f, "2026-10-07")?.change).toBe(0);
+    expect(summarizeBankForecastAt(f, "2026-10-08")).toMatchObject({
+      income: 85000,
+      shootingCosts: 19800,
+      change: 65200,
+    });
+    const ref = {
+      balance: 100000,
+      bookNet: 0,
+      date: today,
+      adjustment: 0,
+      memo: "",
+    };
+    for (const date of [today, "2026-10-08", "2026-10-09"]) {
+      const book = summarizeBankBook(rows, [], new Date(date + "T03:00:00Z"));
+      expect(
+        expectedBankBalance(book, ref) +
+          summarizeBankForecastAt(
+            buildBankForecast(rows, [], date),
+            "2026-11-01",
+          )!.change,
+      ).toBe(165200);
+    }
+  });
+  it("취소·미확정 예약의 등록 원가도 날짜 경과 전후에 중복이나 누락이 없다", () => {
+    for (const status of ["cancelled", "requested"] as const) {
+      const rows = [reservation({ status })];
+      const f = buildBankForecast(rows, [], today);
+      expect(summarizeBankForecastAt(f, "2026-10-05")?.change).toBe(-20000);
+      expect(
+        summarizeBankBook(rows, [], new Date("2026-10-05T03:00:00Z")).net,
+      ).toBe(-20000);
+    }
   });
 });

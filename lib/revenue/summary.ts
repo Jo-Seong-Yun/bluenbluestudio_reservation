@@ -95,6 +95,7 @@ export type RevenueReservation = {
   product_id: string;
   shoot_start: string | null;
   charged_amount: number | null;
+  estimated_amount?: number | null;
   cost: number | null;
 };
 export type RevenueProduct = { id: string; name: string };

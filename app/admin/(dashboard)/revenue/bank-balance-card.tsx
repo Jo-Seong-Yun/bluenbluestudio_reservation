@@ -17,7 +17,8 @@ import {
 import { BankForecastPanel } from "./bank-forecast-panel";
 import { RevenueRetryButton } from "./period-controls";
 
-const won = (value: number) => `${value.toLocaleString()}원`;
+const won = (value: number) =>
+  `${(value === 0 ? 0 : value).toLocaleString()}원`;
 const signedWon = (value: number) => `${value > 0 ? "+" : ""}${won(value)}`;
 
 function BalanceSettingsForm({
@@ -216,7 +217,7 @@ export function BankBalanceCard({
               </p>
               <p className="text-muted mt-2 text-xs leading-relaxed">
                 {reference
-                  ? `${reference.date}에 설정한 실제 잔액 + 이후 장부 변동 + 미등록 입출금 보정`
+                  ? `${reference.date} 기준 잔액 + 이후 장부 변동 + 미등록 입출금 보정`
                   : "현재 통장 잔액을 한 번 입력하면 이후 등록 내역의 변동을 반영합니다."}
               </p>
             </div>
@@ -288,14 +289,16 @@ export function BankBalanceCard({
             {book.missingAmounts +
               book.undatedExpenses +
               book.cancelledPayments +
-              book.futureCosts >
+              book.futureCosts +
+              (book.undatedReceipts ?? 0) >
             0 ? (
               <span className="ml-2 inline-block font-semibold text-amber-800 dark:text-amber-200">
                 확인{" "}
                 {book.missingAmounts +
                   book.undatedExpenses +
                   book.cancelledPayments +
-                  book.futureCosts}
+                  book.futureCosts +
+                  (book.undatedReceipts ?? 0)}
                 건
               </span>
             ) : null}
@@ -303,7 +306,7 @@ export function BankBalanceCard({
           <div className="mt-3 text-xs leading-relaxed">
             <dl className="grid gap-2 sm:grid-cols-3">
               {[
-                { label: "입금 확인된 누적 금액", amount: book.receipts },
+                { label: "오늘까지 촬영일 기준 금액", amount: book.receipts },
                 {
                   label: "오늘까지 촬영한 예약의 등록 원가",
                   amount: book.shootingCosts,
@@ -322,10 +325,10 @@ export function BankBalanceCard({
               ))}
             </dl>
             <p className="text-muted mt-3">
-              입금확인·촬영완료·노쇼의 실제 지불액을 포함하며, 앞으로 촬영할
-              예약도 이미 입금 확인되었다면 포함합니다. 미래 날짜 지출은
-              제외합니다. 촬영 원가의 지급일은 저장돼 있지 않아 촬영일을
-              기준으로 차감합니다.
+              오늘까지 촬영일이 있는 입금확인·촬영완료·노쇼 예약의 금액을
+              포함합니다. 실제 지불액 미입력 시 신청 예상액을 사용합니다. 미래
+              촬영의 금액과 지출은 날짜별 전망에 반영합니다. 입금일·원가
+              지급일이 저장되어 있지 않아 촬영일을 기준으로 계산합니다.
             </p>
             <p className="text-muted mt-2">
               은행 거래내역과 자동 연동되지는 않습니다. 선지급 원가, 별도 이체,
@@ -335,13 +338,21 @@ export function BankBalanceCard({
             {book.missingAmounts +
               book.undatedExpenses +
               book.cancelledPayments +
-              book.futureCosts >
+              book.futureCosts +
+              (book.undatedReceipts ?? 0) >
             0 ? (
               <ul className="mt-3 space-y-1 text-amber-800 dark:text-amber-200">
                 {book.missingAmounts > 0 ? (
                   <li>
-                    실제 지불액 미입력 {book.missingAmounts}건: 입금액을 입력해
-                    주세요.
+                    실제 지불액 미입력 {book.missingAmounts}건: 신청 예상액을
+                    대신 반영하며, 예상액도 없으면 제외합니다. 실제 지불액을
+                    확인해 주세요.
+                  </li>
+                ) : null}
+                {(book.undatedReceipts ?? 0) > 0 ? (
+                  <li>
+                    촬영일 없는 입금 처리 예약 {book.undatedReceipts}건:
+                    입금에서 제외했습니다. 날짜를 확인해 주세요.
                   </li>
                 ) : null}
                 {book.undatedExpenses > 0 ? (
