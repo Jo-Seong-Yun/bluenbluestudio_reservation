@@ -19,12 +19,10 @@ import {
   selectedPricedOptions,
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
+import { bookingFieldError } from "@/lib/booking/field-validation";
 import { readRefCookie } from "@/lib/booking/ref-cookie";
 
-/**
- * 신청서 라벨과 보조 설명은 읽기 쉽게 키우고, 문항 사이를 구분선으로
- * 나눠 긴 신청서에서도 문항을 건너뛰지 않게 한다.
- */
+/** 상품별 문항과 입력 컴포넌트를 유지하며 진행선이 있는 아코디언으로 표시합니다. */
 const FIELD_LABEL_CLASS = "text-base font-semibold";
 const FIELD_HINT_CLASS = "text-sm";
 // 라디오/체크박스는 라벨 전체(원·네모 + 글자)가 다 눌리긴 하지만, 기본
@@ -96,6 +94,17 @@ export function ReservationForm({
 }) {
   const fields = visibleBookingFields(customFields);
   const [reviewing, setReviewing] = useState(false);
+  const [activeFieldId, setActiveFieldId] = useState<string | null>(
+    fields[0]?.id ?? null,
+  );
+  const [passedFieldIds, setPassedFieldIds] = useState<string[]>([]);
+  const [fieldSnapshots, setFieldSnapshots] = useState<
+    Record<string, { value: string; answered: boolean; valid: boolean }>
+  >({});
+  const [fieldError, setFieldError] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
   const [answers, setAnswers] = useState<
     { id: string; label: string; value: string }[]
   >([]);
@@ -160,55 +169,121 @@ export function ReservationForm({
   // 그대로 복원해 주는 경우(bfcache) 초기 렌더에는 아직 반영이 안 돼서다.
   useEffect(() => {
     recomputeEstimate();
+    syncFieldSnapshots();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addonTotal = pricedItems.reduce((sum, item) => sum + item.price, 0);
   const estimatedTotal = basePrice + addonTotal;
 
-  // 한 줄짜리 텍스트 입력(이름/연락처/이메일/생년월일/단답형)에서 Enter를
-  // 치면, 기본 동작인 "폼 즉시 제출" 대신 바로 다음 문항 칸으로
-  // 이동해서 커서를 놓는다 — 문항을 한 번에 하나씩 빠르게 채워나갈 수
-  // 있게 하기 위해서다. 여러 개를 고를 수 있는 체크박스(multi_choice)는
-  // Enter 한 번에 넘어가버리면 나머지를 못 고르니 손대지 않고, 서술형
-  // (textarea)은 Enter가 줄바꿈이어야 하므로 애초에 대상에서 뺀다.
+  const requiredCount = fields.filter((field) => field.required).length;
+  const completedRequiredCount = fields.filter(
+    (field) =>
+      field.required &&
+      fieldSnapshots[field.id]?.answered &&
+      fieldSnapshots[field.id]?.valid,
+  ).length;
+
+  function syncFieldSnapshots() {
+    if (!formRef.current) return;
+    const data = new FormData(formRef.current);
+    const summaries = bookingReviewAnswers(fields, data);
+    setFieldSnapshots(
+      Object.fromEntries(
+        fields.map((field, index) => [
+          field.id,
+          {
+            value: summaries[index].value,
+            answered: data
+              .getAll(fieldFormName(field.id))
+              .some((v) => String(v).trim().length > 0),
+            valid: bookingFieldError(field, data) === null,
+          },
+        ]),
+      ),
+    );
+  }
+
+  function revealField(id: string, reportError = false) {
+    setActiveFieldId(id);
+    requestAnimationFrame(() => {
+      const block = formRef.current?.querySelector<HTMLElement>(
+        `[data-field-id="${CSS.escape(id)}"]`,
+      );
+      const input = block?.querySelector<
+        HTMLInputElement | HTMLTextAreaElement
+      >("input, textarea");
+      (input ?? block?.querySelector<HTMLButtonElement>("button"))?.focus({
+        preventScroll: true,
+      });
+      if (reportError) input?.reportValidity();
+      block?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
+  function validateField(field: CustomField) {
+    const form = formRef.current;
+    if (!form) return false;
+    const block = form.querySelector<HTMLElement>(
+      `[data-field-id="${CSS.escape(field.id)}"]`,
+    );
+    const inputs = [
+      ...(block?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+        "input, textarea",
+      ) ?? []),
+    ];
+    inputs.forEach((input) => input.setCustomValidity(""));
+    let error = bookingFieldError(field, new FormData(form));
+    if (!error)
+      error =
+        inputs.find((input) => !input.validity.valid)?.validationMessage ??
+        null;
+    if (error) {
+      inputs[0]?.setCustomValidity(error);
+      setFieldError({ id: field.id, message: error });
+      revealField(field.id, true);
+      return false;
+    }
+    return true;
+  }
+
+  // 입력 시간이나 선택 변경으로 이동하지 않습니다. Enter로만 다음 문항에 이동합니다.
   function handleFieldKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
-    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
-    const target = e.target;
-    if (!(target instanceof HTMLInputElement)) return;
     if (
-      target.type !== "text" &&
-      target.type !== "tel" &&
-      target.type !== "email"
+      reviewing ||
+      e.key !== "Enter" ||
+      e.nativeEvent.isComposing ||
+      e.nativeEvent.keyCode === 229
     )
       return;
-
-    const currentBlock = target.closest("[data-field-block]");
-    const nextBlock = currentBlock?.nextElementSibling;
-    if (!(nextBlock instanceof HTMLElement)) return; // 마지막 문항이면 기본 제출 동작에 맡긴다.
-
+    const target = e.target;
+    if (!(
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement
+    ))
+      return;
+    // 장문형도 Enter로 이동합니다. Shift+Enter로 줄바꿈을 유지합니다.
+    if (target instanceof HTMLTextAreaElement && e.shiftKey) return;
+    if (target instanceof HTMLInputElement && target.type === "hidden") return;
     e.preventDefault();
-    nextBlock.querySelector<HTMLElement>("input, textarea")?.focus();
-    nextBlock.scrollIntoView({ behavior: "smooth", block: "center" });
+    const id = target.closest<HTMLElement>("[data-field-id]")?.dataset.fieldId;
+    const index = fields.findIndex((field) => field.id === id);
+    if (index < 0 || !validateField(fields[index])) return;
+    syncFieldSnapshots();
+    setFieldError(null);
+    setPassedFieldIds((prev) =>
+      prev.includes(fields[index].id) ? prev : [...prev, fields[index].id],
+    );
+    if (fields[index + 1]) revealField(fields[index + 1].id);
+    else confirm();
   }
 
   function confirm() {
     const form = formRef.current;
     if (!form) return;
-    // 여러 개 선택은 HTML required가 그룹 전체에 적용되지 않아 직접 검사한다.
-    for (const field of fields.filter(
-      (f) => f.type === "multi_choice" && f.required,
-    )) {
-      const inputs = [
-        ...form.querySelectorAll<HTMLInputElement>(
-          `input[name="${CSS.escape(fieldFormName(field.id))}"]`,
-        ),
-      ];
-      inputs[0]?.setCustomValidity(
-        inputs.some((i) => i.checked) ? "" : "하나 이상 선택해 주십시오.",
-      );
-    }
-    if (!form.reportValidity()) return;
+    for (const field of fields) if (!validateField(field)) return;
+    setFieldError(null);
+    syncFieldSnapshots();
     setAnswers(bookingReviewAnswers(fields, new FormData(form)));
     setReviewing(true);
     requestAnimationFrame(() =>
@@ -241,11 +316,16 @@ export function ReservationForm({
         ref={formRef}
         action={action}
         onKeyDown={handleFieldKeyDown}
-        onChange={() => {
-          // 필수 다중선택 검증의 이전 오류를 값 수정 시 해제한다.
-          formRef.current
-            ?.querySelectorAll<HTMLInputElement>("input[type=checkbox]")
-            .forEach((i) => i.setCustomValidity(""));
+        onChange={(event) => {
+          const target = event.target as HTMLElement;
+          const block = target.closest<HTMLElement>("[data-field-id]");
+          block
+            ?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+              "input, textarea",
+            )
+            .forEach((input) => input.setCustomValidity(""));
+          if (block?.dataset.fieldId === fieldError?.id) setFieldError(null);
+          syncFieldSnapshots();
           recomputeEstimate();
         }}
         onSubmit={(event) => {
@@ -254,7 +334,7 @@ export function ReservationForm({
             confirm();
           }
         }}
-        className="booking-split"
+        className="booking-split booking-reservation-form"
       >
         {candidates.map((c, i) => (
           <div key={i} hidden>
@@ -263,18 +343,72 @@ export function ReservationForm({
           </div>
         ))}
         <input type="hidden" name="ref" ref={refInputRef} defaultValue="" />
-        <section className="booking-card" hidden={reviewing}>
+        <section
+          className="booking-card booking-questionnaire"
+          hidden={reviewing}
+        >
           <Link
             href={backHref}
             className="text-brand mb-5 inline-block text-sm"
           >
             ← 날짜·시간 다시 고르기
           </Link>
-          <h1 className="text-2xl font-bold">신청 정보를 입력합니다</h1>
-          <p className="text-muted mt-2 mb-6 text-sm">
-            {productName} · 별표(*)는 필수 문항입니다.
+          <h1 className="text-2xl font-bold">신청 정보</h1>
+          <p className="booking-form-help">
+            Enter로 다음 문항에 이동합니다. 문항 제목을 눌러 직접 이동할 수도
+            있습니다.
           </p>
-          <ReservationFields fields={fields} />
+          <div className="booking-form-product">
+            <div>
+              <strong>{productName}</strong>
+              <p>
+                촬영 {durationMin}분 · 희망 시간 {candidates.length}개
+              </p>
+            </div>
+            <strong>{estimatedTotal.toLocaleString()}원</strong>
+          </div>
+          <div className="booking-form-progress" aria-live="polite">
+            <span>작성 진행</span>
+            <span>
+              필수 문항{" "}
+              {
+                fields.filter(
+                  (f) =>
+                    f.required &&
+                    fieldSnapshots[f.id]?.answered &&
+                    fieldSnapshots[f.id]?.valid,
+                ).length
+              }
+              /{fields.filter((f) => f.required).length}
+            </span>
+          </div>
+          <div
+            className="booking-form-progress-track"
+            role="progressbar"
+            aria-label="필수 문항 작성 진행"
+            aria-valuemin={0}
+            aria-valuemax={Math.max(requiredCount, 1)}
+            aria-valuenow={requiredCount ? completedRequiredCount : 1}
+          >
+            <span
+              style={{
+                width: `${requiredCount ? (completedRequiredCount / requiredCount) * 100 : 100}%`,
+              }}
+            />
+          </div>
+          <ReservationFields
+            fields={fields}
+            accordion={{
+              activeId: activeFieldId,
+              onToggle: (id) => {
+                syncFieldSnapshots();
+                setActiveFieldId(id === activeFieldId ? null : id);
+              },
+              snapshots: fieldSnapshots,
+              passedIds: passedFieldIds,
+              error: fieldError,
+            }}
+          />
         </section>
         {reviewing ? (
           <section className="booking-card">
@@ -343,29 +477,35 @@ export function ReservationForm({
               {state.status === "error" ? state.error : null}
             </ErrorText>
           </div>
-          {reviewing ? (
-            <Button
-              key="submit-reservation"
-              type="submit"
-              disabled={pending}
-              className={`${PRIMARY_CTA_CLASS} mt-4`}
-            >
-              {pending ? "접수 중…" : "예약 신청하기"}
-            </Button>
-          ) : (
-            <Button
-              key="confirm-reservation"
-              type="button"
-              onClick={(event) => {
-                // 확인 버튼이 제출 버튼으로 바뀌는 클릭에서 바로 접수되지 않게 한다.
-                event.preventDefault();
-                confirm();
-              }}
-              className={`${PRIMARY_CTA_CLASS} mt-4`}
-            >
-              신청 내용 확인하기 →
-            </Button>
-          )}
+          <div className="booking-form-actions">
+            <div className="booking-form-mobile-total">
+              <span>예상 금액</span>
+              <strong>{estimatedTotal.toLocaleString()}원</strong>
+            </div>
+            {reviewing ? (
+              <Button
+                key="submit-reservation"
+                type="submit"
+                disabled={pending}
+                className={`${PRIMARY_CTA_CLASS} mt-4`}
+              >
+                {pending ? "접수 중…" : "예약 신청하기"}
+              </Button>
+            ) : (
+              <Button
+                key="confirm-reservation"
+                type="button"
+                onClick={(event) => {
+                  // 확인 버튼이 제출 버튼으로 바뀌는 클릭에서 바로 접수되지 않게 한다.
+                  event.preventDefault();
+                  confirm();
+                }}
+                className={`${PRIMARY_CTA_CLASS} mt-4`}
+              >
+                신청 내용 확인하기 →
+              </Button>
+            )}
+          </div>
           <p className="text-muted mt-4 text-xs leading-relaxed">
             신청 후 스튜디오에서 일정 확정 안내를 드립니다. 확정 안내 전에는
             입금하지 않습니다.
@@ -377,19 +517,116 @@ export function ReservationForm({
 }
 
 /** 상품 문항 설정을 고객 신청서와 관리자 미리보기에서 똑같이 렌더링한다. */
-export function ReservationFields({ fields }: { fields: CustomField[] }) {
+type AccordionFields = {
+  activeId: string | null;
+  onToggle: (id: string) => void;
+  snapshots: Record<
+    string,
+    { value: string; answered: boolean; valid: boolean }
+  >;
+  passedIds: string[];
+  error: { id: string; message: string } | null;
+};
+export function ReservationFields({
+  fields,
+  accordion,
+}: {
+  fields: CustomField[];
+  accordion?: AccordionFields;
+}) {
   return (
-    <div>
-      {visibleBookingFields(fields).map((field) => (
-        <div
-          key={field.id}
-          data-field-block
-          data-field-id={field.id}
-          className={FIELD_WRAPPER_CLASS}
-        >
-          <ReservationFieldInput field={field} />
-        </div>
-      ))}
+    <div className={accordion ? "booking-question-list" : undefined}>
+      {visibleBookingFields(fields).map((field, index) => {
+        const open = accordion?.activeId === field.id;
+        const snapshot = accordion?.snapshots[field.id];
+        const complete =
+          snapshot?.valid &&
+          (snapshot.answered || accordion?.passedIds.includes(field.id));
+        const error =
+          accordion?.error?.id === field.id ? accordion.error.message : null;
+        const headingId = `question-heading-${field.id}`;
+        const panelId = `question-panel-${field.id}`;
+        return (
+          <div
+            key={field.id}
+            data-field-block
+            data-field-id={field.id}
+            className={[
+              FIELD_WRAPPER_CLASS,
+              accordion ? "booking-question" : "",
+              accordion && open ? "is-open" : "",
+              accordion && complete ? "is-complete" : "",
+              accordion && error ? "has-error" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {accordion ? (
+              <>
+                <button
+                  id={headingId}
+                  type="button"
+                  className="booking-question-heading"
+                  aria-expanded={open}
+                  aria-controls={panelId}
+                  onClick={() => accordion.onToggle(field.id)}
+                >
+                  <span className="booking-question-dot" aria-hidden>
+                    {complete && !open
+                      ? "✓"
+                      : String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="booking-question-heading-copy">
+                    <span className="booking-question-title">
+                      {field.label}
+                      {field.required ? (
+                        <span className="booking-question-required">필수</span>
+                      ) : null}
+                      {open ? (
+                        <span className="booking-question-current">
+                          작성 중
+                        </span>
+                      ) : null}
+                    </span>
+                    {!open ? (
+                      <span className="booking-question-value">
+                        {snapshot?.answered || complete
+                          ? snapshot?.value
+                          : field.required
+                            ? "입력 대기"
+                            : "선택 입력"}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="booking-question-chevron" aria-hidden>
+                    {open ? "⌃" : "⌄"}
+                  </span>
+                </button>
+                <div
+                  id={panelId}
+                  hidden={!open}
+                  aria-labelledby={headingId}
+                  className="booking-question-panel"
+                >
+                  <ReservationFieldInput field={field} />
+                  {error ? (
+                    <p className="booking-question-error" role="alert">
+                      {error}
+                    </p>
+                  ) : null}
+                  <p className="booking-question-key-hint">
+                    {field.type === "long_text"
+                      ? "Enter는 다음 문항 · Shift+Enter는 줄바꿈"
+                      : "Enter로 다음 문항 · 제목을 눌러 이동할 수도 있습니다."}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <ReservationFieldInput field={field} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -434,6 +671,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       >
         <input
           name={name}
+          enterKeyHint="next"
           required={field.required}
           maxLength={50}
           className={inputClass}
@@ -454,6 +692,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       >
         <input
           name={name}
+          enterKeyHint="next"
           type="tel"
           inputMode="numeric"
           placeholder="01012345678"
@@ -479,6 +718,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       >
         <input
           name={name}
+          enterKeyHint="next"
           type="email"
           placeholder="you@example.com"
           required={field.required}
@@ -503,6 +743,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
             <input
               type="radio"
               name={name}
+              enterKeyHint="next"
               value="male"
               required={field.required}
               className={OPTION_INPUT_CLASS}
@@ -513,6 +754,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
             <input
               type="radio"
               name={name}
+              enterKeyHint="next"
               value="female"
               required={field.required}
               className={OPTION_INPUT_CLASS}
@@ -540,6 +782,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       >
         <textarea
           name={name}
+          enterKeyHint="next"
           rows={3}
           maxLength={1000}
           required={field.required}
@@ -567,6 +810,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
                 <input
                   type="radio"
                   name={name}
+                  enterKeyHint="next"
                   value={option}
                   required={field.required}
                   className={OPTION_INPUT_CLASS}
@@ -603,6 +847,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
                 <input
                   type="checkbox"
                   name={name}
+                  enterKeyHint="next"
                   value={option}
                   className={OPTION_INPUT_CLASS}
                 />
@@ -626,6 +871,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
         <input
           type="checkbox"
           name={name}
+          enterKeyHint="next"
           required={field.required}
           className="mt-0.5 h-5 w-5 shrink-0"
         />
@@ -656,6 +902,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
     >
       <input
         name={name}
+        enterKeyHint="next"
         type="text"
         maxLength={200}
         required={field.required}
@@ -685,6 +932,7 @@ function BirthDateInput({ field, name }: { field: CustomField; name: string }) {
     >
       <input
         name={name}
+        enterKeyHint="next"
         type="text"
         inputMode="numeric"
         placeholder="19990101"
