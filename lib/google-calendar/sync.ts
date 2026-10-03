@@ -1,4 +1,5 @@
 import "server-only";
+import { loadCalendarAddonLines } from "./addons";
 import { createClient } from "@/lib/supabase/server";
 import type { ReservationStatus } from "@/lib/supabase/database.types";
 import { googleCalendarColorId } from "@/lib/product-tag-colors";
@@ -42,11 +43,13 @@ function buildEvent(
   },
   productName: string,
   productTagColor: string | null,
+  addons: string[],
 ): CalendarEventInput {
   const lines = [
     `연락처: ${reservation.customer_phone}`,
     reservation.people_count ? `인원: ${reservation.people_count}명` : null,
     `예약번호: ${reservation.code}`,
+    addons.length ? `추가옵션:\n${addons.map((line) => `- ${line}`).join("\n")}` : "추가옵션: 없음",
     reservation.memo ? `손님 요청사항: ${reservation.memo}` : null,
     reservation.admin_memo ? `사장님 메모: ${reservation.admin_memo}` : null,
   ].filter((line): line is string => Boolean(line));
@@ -127,6 +130,7 @@ async function syncOneReservationToCalendar(
     { ...reservation, shoot_start: reservation.shoot_start, shoot_end: reservation.shoot_end },
     product?.name ?? "촬영",
     product?.tag_color ?? null,
+    await loadCalendarAddonLines(reservationId),
   );
 
   if (reservation.google_calendar_event_id) {
