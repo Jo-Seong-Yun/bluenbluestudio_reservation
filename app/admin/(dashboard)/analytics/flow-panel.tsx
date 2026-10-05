@@ -93,8 +93,8 @@ export function FlowPanel({
         <p className="text-muted mt-2 text-xs leading-relaxed">
           답변 내용은 저장하지 않습니다. 문항별 수치는 예약 시도 수이며, 유효
           답변은 마지막 기록 상태를 사용합니다. 마지막 도달은 접수 없이 30분
-          이상 지난 시도의 마지막으로 펼친 문항입니다. 시간은 선택 문항을 펼친
-          뒤 유효 답변까지의 경과 시간입니다.
+          이상 지난 시도의 마지막으로 진입한 문항입니다. 시간은 선택 문항에
+          진입한 뒤 유효 답변까지의 경과 시간입니다.
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[650px] text-sm">
@@ -102,7 +102,7 @@ export function FlowPanel({
               <tr>
                 {[
                   "상품 / 버전 / 문항",
-                  "펼침",
+                  "문항 진입",
                   "유효 답변",
                   "검증 오류",
                   "마지막 도달",

@@ -442,6 +442,12 @@ export function ReservationForm({
         ref={formRef}
         action={action}
         onKeyDown={handleFieldKeyDown}
+        onFocusCapture={(event) => {
+          const id = (event.target as HTMLElement).closest<HTMLElement>(
+            "[data-field-id]",
+          )?.dataset.fieldId;
+          if (id) setActiveFieldId(id);
+        }}
         onChange={(event) => {
           const target = event.target as HTMLElement;
           const block = target.closest<HTMLElement>("[data-field-id]");
@@ -524,12 +530,9 @@ export function ReservationForm({
           </div>
           <ReservationFields
             fields={fields}
-            accordion={{
+            navigation={{
               activeId: activeFieldId,
-              onToggle: (id) => {
-                syncFieldSnapshots();
-                setActiveFieldId(id === activeFieldId ? null : id);
-              },
+              onSelect: (id) => revealField(id),
               snapshots: fieldSnapshots,
               passedIds: passedFieldIds,
               error: fieldError,
@@ -643,9 +646,9 @@ export function ReservationForm({
 }
 
 /** 상품 문항 설정을 고객 신청서와 관리자 미리보기에서 똑같이 렌더링한다. */
-type AccordionFields = {
+type QuestionNavigation = {
   activeId: string | null;
-  onToggle: (id: string) => void;
+  onSelect: (id: string) => void;
   snapshots: Record<
     string,
     { value: string; answered: boolean; valid: boolean }
@@ -655,21 +658,21 @@ type AccordionFields = {
 };
 export function ReservationFields({
   fields,
-  accordion,
+  navigation,
 }: {
   fields: CustomField[];
-  accordion?: AccordionFields;
+  navigation?: QuestionNavigation;
 }) {
   return (
-    <div className={accordion ? "booking-question-list" : undefined}>
+    <div className={navigation ? "booking-question-list" : undefined}>
       {visibleBookingFields(fields).map((field, index) => {
-        const open = accordion?.activeId === field.id;
-        const snapshot = accordion?.snapshots[field.id];
+        const active = navigation?.activeId === field.id;
+        const snapshot = navigation?.snapshots[field.id];
         const complete =
           snapshot?.valid &&
-          (snapshot.answered || accordion?.passedIds.includes(field.id));
+          (snapshot.answered || navigation?.passedIds.includes(field.id));
         const error =
-          accordion?.error?.id === field.id ? accordion.error.message : null;
+          navigation?.error?.id === field.id ? navigation.error.message : null;
         const headingId = `question-heading-${field.id}`;
         const panelId = `question-panel-${field.id}`;
         return (
@@ -679,26 +682,25 @@ export function ReservationFields({
             data-field-id={field.id}
             className={[
               FIELD_WRAPPER_CLASS,
-              accordion ? "booking-question" : "",
-              accordion && open ? "is-open" : "",
-              accordion && complete ? "is-complete" : "",
-              accordion && error ? "has-error" : "",
+              navigation ? "booking-question" : "",
+              navigation && active ? "is-active" : "",
+              navigation && complete ? "is-complete" : "",
+              navigation && error ? "has-error" : "",
             ]
               .filter(Boolean)
               .join(" ")}
           >
-            {accordion ? (
+            {navigation ? (
               <>
                 <button
                   id={headingId}
                   type="button"
                   className="booking-question-heading"
-                  aria-expanded={open}
                   aria-controls={panelId}
-                  onClick={() => accordion.onToggle(field.id)}
+                  onClick={() => navigation.onSelect(field.id)}
                 >
                   <span className="booking-question-dot" aria-hidden>
-                    {complete && !open
+                    {complete && !active
                       ? "✓"
                       : String(index + 1).padStart(2, "0")}
                   </span>
@@ -708,29 +710,16 @@ export function ReservationFields({
                       {field.required ? (
                         <span className="booking-question-required">필수</span>
                       ) : null}
-                      {open ? (
+                      {active ? (
                         <span className="booking-question-current">
                           작성 중
                         </span>
                       ) : null}
                     </span>
-                    {!open ? (
-                      <span className="booking-question-value">
-                        {snapshot?.answered || complete
-                          ? snapshot?.value
-                          : field.required
-                            ? "입력 대기"
-                            : "선택 입력"}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="booking-question-chevron" aria-hidden>
-                    {open ? "⌃" : "⌄"}
                   </span>
                 </button>
                 <div
                   id={panelId}
-                  hidden={!open}
                   aria-labelledby={headingId}
                   className="booking-question-panel"
                 >
