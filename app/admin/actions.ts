@@ -1370,6 +1370,7 @@ export async function saveShootLocation(formData: FormData) {
 // 추가한 memo 컬럼) kind로 분기한다. "reset" 줄은 실제 행이 아니라
 // 애초에 이 액션을 호출하는 폼 자체가 없다.
 const ACTIVITY_MEMO_TABLE = {
+  booking_event: "booking_events",
   list_view: "booking_list_views",
   product_view: "product_views",
   apply_view: "apply_views",
@@ -1904,6 +1905,7 @@ export async function createManualReservation(
       .from("reservations")
       .insert({
         code,
+        booking_origin: "admin",
         product_id: input.productId,
         period,
         shoot_start: shootStart.toISOString(),

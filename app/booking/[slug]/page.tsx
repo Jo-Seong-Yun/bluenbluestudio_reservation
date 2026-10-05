@@ -100,7 +100,7 @@ export default async function ProductDetailPage({
 
   return (
     <>
-      <ProductViewTracker productId={product.id} />
+      <ProductViewTracker productId={product.id} stage="times_view" />
 
       <main className="booking-page">
         <Link

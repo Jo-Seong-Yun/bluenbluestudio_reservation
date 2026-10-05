@@ -1,4 +1,6 @@
 import "server-only";
+import { readAllRevenueRows } from "@/lib/revenue/pagination";
+import { summarizeFlow, type FlowAnalytics } from "@/lib/analytics/summary";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, kstDateString, kstToday, type DateString } from "@/lib/time";
 
@@ -19,9 +21,16 @@ export type DailyAnalyticsPoint = {
 
 export type ActivityLogEntry = {
   id: string;
+  eventLabel?: string;
   /** ISO 문자열. */
   occurredAt: string;
-  kind: "list_view" | "product_view" | "apply_view" | "reservation" | "reset";
+  kind:
+    | "list_view"
+    | "product_view"
+    | "apply_view"
+    | "reservation"
+    | "reset"
+    | "booking_event";
   /** 목록 진입·리셋은 특정 상품이 없어 null. */
   productName: string | null;
   /** 관리자가 이 기록에 남긴 메모. 리셋 줄은 실제 행이 아니라 항상 null. */
@@ -56,6 +65,13 @@ export type ProductAnalyticsSnapshot = {
 };
 
 export type ProductAnalytics = {
+  flow: FlowAnalytics;
+  legacyCounts: {
+    list: number;
+    detail: number;
+    form: number;
+    reservations: number;
+  };
   rows: ProductAnalyticsRow[];
   /** 최근 trendDays일, 전 상품 합계(사이트 전체 동향용). 날짜 오름차순. */
   daily: DailyAnalyticsPoint[];
@@ -80,385 +96,295 @@ export type ProductAnalytics = {
   previous: ProductAnalyticsSnapshot | null;
 };
 
-/** 상세 로그에 보여줄 최근 이벤트 개수. */
-const ACTIVITY_LOG_LIMIT = 100;
-
-/** cutoff 이전(포함) 항목만 골라 keyOf 기준으로 개수를 센다 — "지난번
- * 확인 시점까지는 몇 건이었나"를 상품별/채널별로 구할 때 쓴다. */
-function countByKeyUpTo<T>(
-  items: T[],
-  cutoff: string,
-  keyOf: (item: T) => string,
-  timeOf: (item: T) => string,
-): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const item of items) {
-    if (timeOf(item) > cutoff) continue;
-    const key = keyOf(item);
-    map.set(key, (map.get(key) ?? 0) + 1);
-  }
-  return map;
-}
-
-/**
- * 상품별 조회수·신청수·전환율과, 최근 며칠간의 사이트 전체 동향을
- * 계산한다. product_views/reservations 둘 다 행 수가 아직은 (스튜디오
- * 하나 규모라) 많지 않아, DB에서 GROUP BY로 집계하는 대신 필요한
- * 컬럼만 뽑아 와서 여기서 직접 센다 — 나중에 행이 아주 많아지면 그때
- * DB 집계 함수로 옮기면 된다.
- *
- * "통계 리셋"은 행을 지우지 않고 settings.analytics_reset_at에 시점만
- * 남긴다(상세 로그를 보존하려고 — resetAnalytics 참고) — 그래서 집계용
- * 쿼리들은 그 시점 이후 것만 세도록 조건을 하나 더 건다. 상세 로그
- * (recentActivity)만은 이 조건을 안 걸어 리셋 이전 기록도 계속 보인다.
- */
 export async function loadProductAnalytics(
   trendDays = 14,
 ): Promise<ProductAnalytics> {
-  const supabase = await createClient();
-  const since = addDays(kstToday(), -(trendDays - 1));
-  const sinceInstant = `${since}T00:00:00+09:00`;
-
-  const { data: settingsRow } = await supabase
+  const db = await createClient();
+  const settings = await db
     .from("settings")
-    .select("analytics_reset_at, analytics_last_seen_at")
+    .select("analytics_reset_at,analytics_last_seen_at,analytics_v2_started_at")
     .eq("id", 1)
     .single();
-  const resetAt = settingsRow?.analytics_reset_at ?? null;
-  // 리셋 이전 값과는 비교할 대상이 없으니, 지난 확인 시점이 리셋보다
-  // 이르면(또는 아예 없으면) 변동치를 보여줄 기준이 없는 것으로 친다.
-  const lastSeenAt =
-    settingsRow?.analytics_last_seen_at &&
-    (!resetAt || settingsRow.analytics_last_seen_at > resetAt)
-      ? settingsRow.analytics_last_seen_at
-      : null;
-
-  // 동향 그래프의 하한은 "최근 N일 시작"과 "마지막 리셋 시점" 중 더
-  // 늦은 쪽 — 리셋이 그 안에 있으면 리셋 이전 날짜는 0으로 보인다.
-  const trendSinceInstant =
-    resetAt && resetAt > sinceInstant ? resetAt : sinceInstant;
-
-  const viewRowsQuery = supabase
-    .from("product_views")
-    .select("product_id, viewed_at")
-    .gte("viewed_at", trendSinceInstant);
-  const reservationRowsQuery = supabase
-    .from("reservations")
-    .select("product_id, created_at")
-    .gte("created_at", trendSinceInstant);
-
-  const [{ data: products }, { data: viewRows }, { data: reservationRows }] =
+  if (settings.error || !settings.data)
+    throw new Error("통계 설정을 불러오지 못했습니다.");
+  const all = <T>(
+    fetch: (
+      from: number,
+      to: number,
+    ) => PromiseLike<{
+      data: T[] | null;
+      count: number | null;
+      error: unknown;
+    }>,
+  ) => readAllRevenueRows(fetch);
+  const [products, list, detail, form, reservations, events] =
     await Promise.all([
-      supabase
-        .from("products")
-        .select("id, name")
-        .order("sort_order")
-        .order("created_at"),
-      viewRowsQuery,
-      reservationRowsQuery,
+      all((f, t) =>
+        db
+          .from("products")
+          .select("id,name", { count: "exact" })
+          .order("id")
+          .range(f, t),
+      ),
+      all((f, t) =>
+        db
+          .from("booking_list_views")
+          .select("id,ref,memo,viewed_at", { count: "exact" })
+          .order("id")
+          .range(f, t),
+      ),
+      all((f, t) =>
+        db
+          .from("product_views")
+          .select("id,product_id,ref,memo,viewed_at", { count: "exact" })
+          .order("id")
+          .range(f, t),
+      ),
+      all((f, t) =>
+        db
+          .from("apply_views")
+          .select("id,product_id,ref,memo,viewed_at", { count: "exact" })
+          .order("id")
+          .range(f, t),
+      ),
+      all((f, t) =>
+        db
+          .from("reservations")
+          .select("id,product_id,ref,admin_memo,created_at,booking_origin", {
+            count: "exact",
+          })
+          .order("id")
+          .range(f, t),
+      ),
+      all((f, t) =>
+        db
+          .from("booking_events")
+          .select("*", { count: "exact" })
+          .order("id")
+          .range(f, t),
+      ),
     ]);
-
-  // 상품별 전체 조회수·신청수는 위 동향 범위와 별개로, "마지막 리셋
-  // 이후(없으면 전체 기간)" 누적을 다시 센다 — 표에는 이 누적 기준을
-  // 보여주고, 동향 그래프만 최근 N일로 좁힌다. 목록 진입 수는 상품별로
-  // 쪼갤 수 없는(특정 상품에 딸린 게 아닌) 숫자라 전체 개수만 센다.
-  let allViewRowsQuery = supabase
-    .from("product_views")
-    .select("product_id, ref, viewed_at");
-  let allReservationRowsQuery = supabase
-    .from("reservations")
-    .select("product_id, ref, created_at");
-  // 유입경로별 집계(channelBreakdown)에 목록 진입·신청서 진입도 같이
-  // 세야 한다 — 상품 상세까지 못 가고 목록만 보고 이탈한 방문(예: ref만
-  // 남기고 상세는 안 들어간 경우)도 그 채널의 실적이니, 상품 상세
-  // 조회(product_views)만 세면 상세 로그에는 찍히는데 이 집계표에는
-  // 아예 안 잡히는 채널이 생긴다.
-  let allListViewRowsQuery = supabase
-    .from("booking_list_views")
-    .select("ref, viewed_at");
-  let allApplyViewRowsQuery = supabase
-    .from("apply_views")
-    .select("ref, viewed_at");
-  let listViewCountQuery = supabase
-    .from("booking_list_views")
-    .select("*", { count: "exact", head: true });
-  let applyViewCountQuery = supabase
-    .from("apply_views")
-    .select("*", { count: "exact", head: true });
-  if (resetAt) {
-    allViewRowsQuery = allViewRowsQuery.gte("viewed_at", resetAt);
-    allReservationRowsQuery = allReservationRowsQuery.gte(
-      "created_at",
-      resetAt,
+  const reset = settings.data.analytics_reset_at;
+  const afterReset = (time: string) =>
+    !reset || Date.parse(time) >= Date.parse(reset);
+  const filteredEvents = events.filter((e) => afterReset(e.occurred_at));
+  const first =
+    settings.data.analytics_v2_started_at ??
+    events.reduce<string | null>(
+      (min, e) =>
+        !min || Date.parse(e.occurred_at) < Date.parse(min)
+          ? e.occurred_at
+          : min,
+      null,
     );
-    allListViewRowsQuery = allListViewRowsQuery.gte("viewed_at", resetAt);
-    allApplyViewRowsQuery = allApplyViewRowsQuery.gte("viewed_at", resetAt);
-    listViewCountQuery = listViewCountQuery.gte("viewed_at", resetAt);
-    applyViewCountQuery = applyViewCountQuery.gte("viewed_at", resetAt);
-  }
-
-  const [
-    { data: allViewRows },
-    { data: allReservationRows },
-    { data: allListViewRows },
-    { data: allApplyViewRows },
-    { count: listViewCount },
-    { count: applyViewCount },
-    { data: recentListViews },
-    { data: recentProductViews },
-    { data: recentApplyViews },
-    { data: recentReservations },
-  ] = await Promise.all([
-    allViewRowsQuery,
-    allReservationRowsQuery,
-    allListViewRowsQuery,
-    allApplyViewRowsQuery,
-    listViewCountQuery,
-    applyViewCountQuery,
-    supabase
-      .from("booking_list_views")
-      .select("id, viewed_at, memo, ref")
-      .order("viewed_at", { ascending: false })
-      .limit(ACTIVITY_LOG_LIMIT),
-    supabase
-      .from("product_views")
-      .select("id, viewed_at, product_id, memo, ref")
-      .order("viewed_at", { ascending: false })
-      .limit(ACTIVITY_LOG_LIMIT),
-    supabase
-      .from("apply_views")
-      .select("id, viewed_at, product_id, memo, ref")
-      .order("viewed_at", { ascending: false })
-      .limit(ACTIVITY_LOG_LIMIT),
-    supabase
-      .from("reservations")
-      .select("id, created_at, product_id, admin_memo, ref")
-      .order("created_at", { ascending: false })
-      .limit(ACTIVITY_LOG_LIMIT),
-  ]);
-
-  const viewCountByProduct = new Map<string, number>();
-  for (const row of allViewRows ?? []) {
-    viewCountByProduct.set(
-      row.product_id,
-      (viewCountByProduct.get(row.product_id) ?? 0) + 1,
+  const legacyReservations = reservations.filter(
+    (r) => (r.booking_origin ?? "legacy") === "legacy",
+  );
+  const byReservation = new Map(reservations.map((r) => [r.id, r]));
+  const eventIds = new Set(events.map((e) => e.id));
+  const completed = new Set(
+    events
+      .filter((e) => e.event_kind === "completed")
+      .map((e) => e.reservation_id),
+  );
+  // 예약 저장은 성공했지만 이벤트가 없는 건도 실제 접수 건수에서 빠뜨리지 않습니다.
+  const customerFallback = reservations.filter(
+    (r) => r.booking_origin === "customer" && !completed.has(r.id),
+  );
+  const sourceViews = [
+    ...list.map((r) => ({
+      ...r,
+      product_id: null as string | null,
+      kind: "list_view" as const,
+    })),
+    ...detail.map((r) => ({ ...r, kind: "product_view" as const })),
+    ...form.map((r) => ({ ...r, kind: "apply_view" as const })),
+    ...events
+      .filter((e) =>
+        ["list_view", "detail_view", "times_view", "form_view"].includes(
+          e.event_kind,
+        ),
+      )
+      .map((e) => ({
+        id: e.id,
+        product_id: e.product_id,
+        ref: e.ref,
+        memo: e.memo,
+        viewed_at: e.occurred_at,
+        kind: (e.event_kind === "list_view"
+          ? "list_view"
+          : e.event_kind === "form_view"
+            ? "apply_view"
+            : "product_view") as "list_view" | "apply_view" | "product_view",
+      })),
+  ];
+  const apps = [...legacyReservations, ...customerFallback].map((r) => ({
+    id: r.id,
+    product_id: r.product_id,
+    ref: r.ref,
+    memo: r.admin_memo,
+    created_at: r.created_at,
+  }));
+  apps.push(
+    ...events
+      .filter((e) => e.event_kind === "completed")
+      .map((e) => ({
+        id: e.reservation_id ?? e.id,
+        product_id: e.product_id ?? "",
+        ref: e.ref,
+        memo:
+          (e.reservation_id
+            ? byReservation.get(e.reservation_id)?.admin_memo
+            : null) ?? e.memo,
+        created_at: e.occurred_at,
+      })),
+  );
+  const catalog = new Map(products.map((p) => [p.id, p.name]));
+  for (const id of [
+    ...sourceViews
+      .filter((r) => r.kind === "product_view")
+      .map((r) => r.product_id ?? ""),
+    ...apps.map((r) => r.product_id),
+  ])
+    if (!catalog.has(id)) catalog.set(id, "(삭제된 상품)");
+  const countAt = (cutoff: string | null) => {
+    const views = sourceViews.filter(
+      (r) =>
+        afterReset(r.viewed_at) &&
+        (!cutoff || Date.parse(r.viewed_at) <= Date.parse(cutoff)),
     );
-  }
-
-  const applicationCountByProduct = new Map<string, number>();
-  for (const row of allReservationRows ?? []) {
-    applicationCountByProduct.set(
-      row.product_id,
-      (applicationCountByProduct.get(row.product_id) ?? 0) + 1,
+    const submitted = apps.filter(
+      (r) =>
+        afterReset(r.created_at) &&
+        (!cutoff || Date.parse(r.created_at) <= Date.parse(cutoff)),
     );
-  }
-
-  // 채널(ref)별 조회·신청 집계 — 값이 없는 방문은 "(직접 방문)"으로
-  // 묶는다. 인스타그램/공지 링크 등 병렬로 돌리는 홍보 채널을 서로
-  // 비교하려는 목적이라, 상품별이 아니라 사이트 전체로 한 번만 센다.
-  //
-  // "조회"에 해당하는 원본 이벤트가 세 종류(목록 진입/상품 상세 진입/
-  // 신청서 진입)나 있다 — 예전엔 이 중 상품 상세 진입(product_views)만
-  // 셌는데, 그러면 목록만 보고 상세까지 못 간 방문(예: 홍보 링크를
-  // 눌렀지만 목록에서 이탈)의 ref는 상세 로그에는 찍히면서도 이
-  // 집계표에는 그 채널 자체가 아예 나타나지 않는 문제가 있었다.
-  // 상세 로그(recentActivity)와 똑같이 세 소스를 다 합쳐야 "상세
-  // 로그엔 있는데 집계엔 없다"는 불일치가 안 생긴다.
-  const DIRECT_CHANNEL = "(직접 방문)";
-  const channelViews = new Map<string, number>();
-  for (const row of [
-    ...(allListViewRows ?? []),
-    ...(allViewRows ?? []),
-    ...(allApplyViewRows ?? []),
-  ]) {
-    const channel = row.ref?.trim() || DIRECT_CHANNEL;
-    channelViews.set(channel, (channelViews.get(channel) ?? 0) + 1);
-  }
-  const channelApplications = new Map<string, number>();
-  for (const row of allReservationRows ?? []) {
-    const channel = row.ref?.trim() || DIRECT_CHANNEL;
-    channelApplications.set(
-      channel,
-      (channelApplications.get(channel) ?? 0) + 1,
-    );
-  }
-  // 시간대별(KST 0~23시) 접속자 수 — 같은 이유로 목록·상세·신청서
-  // 진입을 모두 합쳐서 센다(상품 상세 진입만 세면 실제 트래픽보다
-  // 적게 보인다).
-  const hourlyMap = Array.from({ length: 24 }, (_, h) => ({ hour: h, views: 0 }));
-  for (const row of [
-    ...(allListViewRows ?? []),
-    ...(allViewRows ?? []),
-    ...(allApplyViewRows ?? []),
-  ]) {
-    const kstHour = (new Date(row.viewed_at).getUTCHours() + 9) % 24;
-    hourlyMap[kstHour].views += 1;
-  }
-  const hourly: HourlyPoint[] = hourlyMap;
-
-  const channelBreakdown: ChannelBreakdownRow[] = Array.from(
-    new Set([...channelViews.keys(), ...channelApplications.keys()]),
-  )
-    .map((channel) => {
-      const views = channelViews.get(channel) ?? 0;
-      const applications = channelApplications.get(channel) ?? 0;
-      return {
-        channel,
-        views,
-        applications,
-        conversionRate: views > 0 ? (applications / views) * 100 : null,
-      };
-    })
-    .sort((a, b) => b.views - a.views);
-
-  const rows: ProductAnalyticsRow[] = (products ?? []).map((p) => {
-    const views = viewCountByProduct.get(p.id) ?? 0;
-    const applications = applicationCountByProduct.get(p.id) ?? 0;
-    return {
-      productId: p.id,
-      productName: p.name,
-      views,
-      applications,
-      conversionRate: views > 0 ? (applications / views) * 100 : null,
-    };
-  });
-
-  // 지난번 확인(lastSeenAt) 시점까지는 각 숫자가 몇이었는지 — 지금 값과의
-  // 차이가 화면에 빨간 글씨로 보여줄 변동치다. 기준이 없으면(한 번도
-  // 연 적 없으면) 아예 계산하지 않는다.
-  let previous: ProductAnalyticsSnapshot | null = null;
-  if (lastSeenAt) {
-    const viewCountByProductPrev = countByKeyUpTo(
-      allViewRows ?? [],
-      lastSeenAt,
-      (r) => r.product_id,
-      (r) => r.viewed_at,
-    );
-    const applicationCountByProductPrev = countByKeyUpTo(
-      allReservationRows ?? [],
-      lastSeenAt,
-      (r) => r.product_id,
-      (r) => r.created_at,
-    );
-    const previousRows: ProductAnalyticsRow[] = (products ?? []).map((p) => {
-      const views = viewCountByProductPrev.get(p.id) ?? 0;
-      const applications = applicationCountByProductPrev.get(p.id) ?? 0;
+    const rows = [...catalog].map(([id, name]) => {
+      const p = { id, name };
+      const count = views.filter(
+        (r) => (r.product_id ?? "") === p.id && r.kind === "product_view",
+      ).length;
+      const applications = submitted.filter(
+        (r) => r.product_id === p.id,
+      ).length;
       return {
         productId: p.id,
         productName: p.name,
-        views,
+        views: count,
         applications,
-        conversionRate: views > 0 ? (applications / views) * 100 : null,
+        conversionRate: count ? (applications / count) * 100 : null,
       };
     });
-
-    const channelViewsPrev = countByKeyUpTo(
-      [
-        ...(allListViewRows ?? []),
-        ...(allViewRows ?? []),
-        ...(allApplyViewRows ?? []),
-      ],
-      lastSeenAt,
-      (r) => r.ref?.trim() || DIRECT_CHANNEL,
-      (r) => r.viewed_at,
-    );
-    const channelApplicationsPrev = countByKeyUpTo(
-      allReservationRows ?? [],
-      lastSeenAt,
-      (r) => r.ref?.trim() || DIRECT_CHANNEL,
-      (r) => r.created_at,
-    );
-    const previousChannelBreakdown: ChannelBreakdownRow[] = channelBreakdown.map(
-      (row) => {
-        const views = channelViewsPrev.get(row.channel) ?? 0;
-        const applications = channelApplicationsPrev.get(row.channel) ?? 0;
-        return {
-          channel: row.channel,
-          views,
-          applications,
-          conversionRate: views > 0 ? (applications / views) * 100 : null,
-        };
-      },
-    );
-
-    previous = {
-      listViews: (allListViewRows ?? []).filter((r) => r.viewed_at <= lastSeenAt)
-        .length,
-      applyViews: (allApplyViewRows ?? []).filter((r) => r.viewed_at <= lastSeenAt)
-        .length,
-      rows: previousRows,
-      channelBreakdown: previousChannelBreakdown,
+    const channels = [
+      ...new Set([
+        ...views.map((r) => r.ref?.trim() || "(직접 방문)"),
+        ...submitted.map((r) => r.ref?.trim() || "(직접 방문)"),
+      ]),
+    ];
+    return {
+      listViews: views.filter((r) => r.kind === "list_view").length,
+      applyViews: views.filter((r) => r.kind === "apply_view").length,
+      rows,
+      channelBreakdown: channels
+        .map((channel) => {
+          const count = views.filter(
+            (r) => (r.ref?.trim() || "(직접 방문)") === channel,
+          ).length;
+          const applications = submitted.filter(
+            (r) => (r.ref?.trim() || "(직접 방문)") === channel,
+          ).length;
+          return {
+            channel,
+            views: count,
+            applications,
+            conversionRate: count ? (applications / count) * 100 : null,
+          };
+        })
+        .sort((a, b) => b.views - a.views),
     };
-  }
-
-  const dailyMap = new Map<DateString, { views: number; applications: number }>();
-  for (let i = 0; i < trendDays; i++) {
-    dailyMap.set(addDays(since, i), { views: 0, applications: 0 });
-  }
-  for (const row of viewRows ?? []) {
-    const date = kstDateString(new Date(row.viewed_at));
-    const bucket = dailyMap.get(date);
-    if (bucket) bucket.views += 1;
-  }
-  for (const row of reservationRows ?? []) {
-    const date = kstDateString(new Date(row.created_at));
-    const bucket = dailyMap.get(date);
-    if (bucket) bucket.applications += 1;
-  }
-
-  const daily: DailyAnalyticsPoint[] = Array.from(
-    dailyMap.entries(),
-    ([date, counts]) => ({ date, ...counts }),
-  );
-
-  // 각 소스별로 최근 ACTIVITY_LOG_LIMIT건씩 따로 가져온 뒤 합쳐서 다시
-  // 최근순으로 자른다 — 한쪽 소스가 훨씬 자주 발생해도(예: 목록 진입이
-  // 상품 상세 진입보다 훨씬 많음) 다른 소스가 로그에서 밀려나지 않는다.
-  const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
+  };
+  const snapshot = countAt(null);
+  const lastSeenAt =
+    settings.data.analytics_last_seen_at &&
+    (!reset ||
+      Date.parse(settings.data.analytics_last_seen_at) > Date.parse(reset))
+      ? settings.data.analytics_last_seen_at
+      : null;
+  const since = addDays(kstToday(), -(trendDays - 1));
+  const daily = Array.from({ length: trendDays }, (_, i) => {
+    const date = addDays(since, i);
+    return {
+      date,
+      views: sourceViews.filter(
+        (r) =>
+          afterReset(r.viewed_at) &&
+          kstDateString(new Date(r.viewed_at)) === date,
+      ).length,
+      applications: apps.filter(
+        (r) =>
+          afterReset(r.created_at) &&
+          kstDateString(new Date(r.created_at)) === date,
+      ).length,
+    };
+  });
+  const hourly = Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    views: sourceViews.filter(
+      (r) =>
+        afterReset(r.viewed_at) &&
+        (new Date(r.viewed_at).getUTCHours() + 9) % 24 === hour,
+    ).length,
+  }));
+  const names = catalog;
   const recentActivity: ActivityLogEntry[] = [
-    ...(recentListViews ?? []).map((row) => ({
-      id: row.id,
-      occurredAt: row.viewed_at,
-      kind: "list_view" as const,
-      productName: null,
-      memo: row.memo,
-      ref: row.ref,
-    })),
-    ...(recentProductViews ?? []).map((row) => ({
-      id: row.id,
-      occurredAt: row.viewed_at,
-      kind: "product_view" as const,
-      productName: productNameById.get(row.product_id) ?? null,
-      memo: row.memo,
-      ref: row.ref,
-    })),
-    ...(recentApplyViews ?? []).map((row) => ({
-      id: row.id,
-      occurredAt: row.viewed_at,
-      kind: "apply_view" as const,
-      productName: productNameById.get(row.product_id) ?? null,
-      memo: row.memo,
-      ref: row.ref,
-    })),
-    ...(recentReservations ?? []).map((row) => ({
-      id: row.id,
-      occurredAt: row.created_at,
+    ...sourceViews
+      .filter((r) => !eventIds.has(r.id))
+      .map((r) => ({
+        id: r.id,
+        occurredAt: r.viewed_at,
+        kind: r.kind,
+        productName: r.product_id ? (names.get(r.product_id) ?? null) : null,
+        memo: r.memo,
+        ref: r.ref,
+      })),
+    ...events
+      .filter((e) => e.event_kind !== "completed")
+      .map((e) => ({
+        id: e.id,
+        occurredAt: e.occurred_at,
+        kind: "booking_event" as const,
+        eventLabel:
+          (
+            {
+              list_view: "상품 목록",
+              detail_view: "상품 상세",
+              times_view: "희망 시간",
+              form_view: "신청서 진입",
+              review_view: "내용 확인",
+              field_view: "문항 펼침",
+              field_valid: "유효 답변",
+              field_invalid: "답변 미완료",
+              field_error: "문항 오류",
+              submit_attempt: "제출 시도",
+              submit_error: "제출 실패",
+            } as Record<string, string>
+          )[e.event_kind] ?? "예약 진행",
+        productName: e.product_id ? (names.get(e.product_id) ?? null) : null,
+        memo: e.memo,
+        ref: e.ref,
+      })),
+    ...reservations.map((r) => ({
+      id: r.id,
+      occurredAt: r.created_at,
       kind: "reservation" as const,
-      productName: productNameById.get(row.product_id) ?? null,
-      // 예약 상세 화면의 "사장님 메모"(admin_memo)와 같은 값 — 예약
-      // 상세에서 고친 메모가 여기 로그에도 그대로 보인다.
-      memo: row.admin_memo,
-      ref: row.ref,
+      productName: names.get(r.product_id) ?? null,
+      memo: r.admin_memo,
+      ref: r.ref,
     })),
-    // 리셋 자체도 로그에서 사라지면 안 되니(로그는 남겨두는 게 이
-    // 기능의 요점이다) 한 줄로 끼워 넣는다 — 집계가 이 지점부터
-    // 다시 시작됐다는 걸 로그만 보고도 알 수 있다. 실제 행이 아니라
-    // 메모를 남길 대상이 없다.
-    ...(resetAt
+    ...(reset
       ? [
           {
             id: "reset",
-            occurredAt: resetAt,
+            occurredAt: reset,
             kind: "reset" as const,
             productName: null,
             memo: null,
@@ -467,18 +393,26 @@ export async function loadProductAnalytics(
         ]
       : []),
   ]
-    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
-    .slice(0, ACTIVITY_LOG_LIMIT);
-
+    .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
+    .slice(0, 100);
   return {
-    rows,
+    ...snapshot,
     daily,
     hourly,
-    listViews: listViewCount ?? 0,
-    applyViews: applyViewCount ?? 0,
-    channelBreakdown,
     recentActivity,
     lastSeenAt,
-    previous,
+    previous: lastSeenAt ? countAt(lastSeenAt) : null,
+    legacyCounts: {
+      list: list.filter((r) => afterReset(r.viewed_at)).length,
+      detail: detail.filter((r) => afterReset(r.viewed_at)).length,
+      form: form.filter((r) => afterReset(r.viewed_at)).length,
+      reservations: legacyReservations.filter((r) => afterReset(r.created_at))
+        .length,
+    },
+    flow: summarizeFlow(
+      filteredEvents,
+      first,
+      legacyReservations.filter((r) => afterReset(r.created_at)).length,
+    ),
   };
 }
