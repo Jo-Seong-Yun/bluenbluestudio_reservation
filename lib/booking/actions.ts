@@ -1,4 +1,6 @@
 "use server";
+import { z } from "zod";
+import { bookingFormVersion } from "@/lib/analytics/shared";
 
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -34,6 +36,11 @@ import {
 import { upsertCustomerFromReservation } from "@/lib/customers-db";
 import { syncReservationToCalendar } from "@/lib/google-calendar/sync";
 
+function analyticsUUID(value: unknown): string | null {
+  const parsed = z.uuid().safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 /**
  * 달력에서 날짜를 고른 순간 그 날의 시간 슬롯을 가져온다.
  *
@@ -55,7 +62,11 @@ export async function loadSlotsForDate(
 
 export type ReservationActionState =
   | { status: "idle" }
-  | { status: "error"; error: string }
+  | {
+      status: "error";
+      error: string;
+      errorCode?: "validation" | "availability" | "server";
+    }
   | {
       status: "success";
       code: string;
@@ -109,6 +120,7 @@ export async function createReservation(
   if (!parsed.success) {
     return {
       status: "error",
+      errorCode: "validation",
       error:
         parsed.error.issues[0]?.message ?? "입력값을 확인해 주시기 바랍니다.",
     };
@@ -128,7 +140,7 @@ export async function createReservation(
   }
   const extracted = extractReservationFormData(customFields, formData);
   if (!extracted.ok) {
-    return { status: "error", error: extracted.error };
+    return { status: "error", error: extracted.error, errorCode: "validation" };
   }
   const { special, answers: customAnswers } = extracted;
 
@@ -156,6 +168,7 @@ export async function createReservation(
   if (invalidIndex !== -1) {
     return {
       status: "error",
+      errorCode: "availability",
       error:
         `${invalidIndex + 1}번째로 고르신 시간은 예약할 수 없게 되었습니다. ` +
         "이미 확정되었거나 예약 가능 시간이 아닙니다. 뒤로 가서 다시 선택해 주시기 바랍니다.",
@@ -176,8 +189,15 @@ export async function createReservation(
     const code = generateReservationCode();
 
     const { data, error } = await supabase.rpc(
-      "create_reservation_with_candidates",
+      "create_reservation_with_analytics",
       {
+        p_session_id: analyticsUUID(formData.get("analyticsSessionId")),
+        p_attempt_id: analyticsUUID(formData.get("analyticsAttemptId")),
+        p_device:
+          formData.get("analyticsDevice") === "mobile" ? "mobile" : "desktop",
+        p_form_version: bookingFormVersion(customFields),
+        p_estimated_amount: estimatedAmount,
+        p_ref: ref,
         p_code: code,
         p_product_id: productId,
         p_customer_name: special.customerName,

@@ -1,7 +1,14 @@
 "use client";
+import {
+  analyticsContext,
+  trackBooking,
+  flushAnalytics,
+  finishAnalyticsAttempt,
+} from "@/lib/analytics/client";
+import { bookingFormVersion } from "@/lib/analytics/shared";
 import { BookingSteps } from "@/components/booking-shell";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   createReservation,
@@ -92,7 +99,10 @@ export function ReservationForm({
   successMessage: string;
   customFields: CustomField[];
 }) {
-  const fields = visibleBookingFields(customFields);
+  const fields = useMemo(
+    () => visibleBookingFields(customFields),
+    [customFields],
+  );
   const [reviewing, setReviewing] = useState(false);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(
     fields[0]?.id ?? null,
@@ -118,7 +128,44 @@ export function ReservationForm({
     bankAccount,
     notice,
   );
-  const [state, action, pending] = useActionState(boundAction, initialState);
+  async function trackedAction(
+    previous: ReservationActionState,
+    data: FormData,
+  ) {
+    try {
+      const context = analyticsContext(productId);
+      data.set("analyticsSessionId", context.sessionId);
+      data.set("analyticsAttemptId", context.attemptId ?? "");
+      data.set("analyticsDevice", context.device);
+      data.set("ref", context.ref ?? "");
+      trackBooking("submit_attempt", productId, {
+        formVersion: bookingFormVersion(fields),
+      });
+      flushAnalytics();
+    } catch {
+      /* 통계 실패가 접수를 막지 않습니다. */
+    }
+    try {
+      const result = await boundAction(previous, data);
+      if (result.status === "error")
+        trackBooking("submit_error", productId, {
+          formVersion: bookingFormVersion(fields),
+          errorCode: result.errorCode ?? "server",
+        });
+      if (result.status === "success") {
+        flushAnalytics();
+        finishAnalyticsAttempt(productId);
+      }
+      return result;
+    } catch (error) {
+      trackBooking("submit_error", productId, {
+        formVersion: bookingFormVersion(fields),
+        errorCode: "server",
+      });
+      throw error;
+    }
+  }
+  const [state, action, pending] = useActionState(trackedAction, initialState);
   useReportPending(pending);
 
   // 유료 옵션이 하나도 없는 상품(대부분)은 이 박스를 아예 안 보여준다
@@ -127,6 +174,48 @@ export function ReservationForm({
     (field) => field.option_prices && field.option_prices.length > 0,
   );
   const formRef = useRef<HTMLFormElement>(null);
+  const analyticsVisited = useRef<string | null>(null);
+  const analyticsOpenedAt = useRef(0);
+  const analyticsValidity = useRef(new Map<string, boolean>());
+  const formVersion = bookingFormVersion(fields);
+  useEffect(() => {
+    if (reviewing || !activeFieldId || state.status === "success") return;
+    if (analyticsVisited.current !== activeFieldId) {
+      analyticsVisited.current = activeFieldId;
+      analyticsOpenedAt.current = Date.now();
+      trackBooking("field_view", productId, {
+        fieldId: activeFieldId,
+        formVersion,
+      });
+    }
+  }, [activeFieldId, reviewing, productId, formVersion, state.status]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      for (const field of fields) {
+        const snapshot = fieldSnapshots[field.id];
+        if (!snapshot) continue;
+        const valid = snapshot.answered && snapshot.valid;
+        if (
+          analyticsValidity.current.get(field.id) === valid ||
+          (!valid && !analyticsValidity.current.has(field.id))
+        )
+          continue;
+        analyticsValidity.current.set(field.id, valid);
+        trackBooking(valid ? "field_valid" : "field_invalid", productId, {
+          fieldId: field.id,
+          formVersion,
+          durationMs:
+            field.id === activeFieldId
+              ? Math.min(
+                  86400000,
+                  Math.max(0, Date.now() - analyticsOpenedAt.current),
+                )
+              : null,
+        });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [fieldSnapshots, formVersion, productId, activeFieldId, fields]);
   const [pricedItems, setPricedItems] = useState<
     { fieldId: string; label: string; price: number }[]
   >([]);
@@ -239,6 +328,11 @@ export function ReservationForm({
         inputs.find((input) => !input.validity.valid)?.validationMessage ??
         null;
     if (error) {
+      trackBooking("field_error", productId, {
+        fieldId: field.id,
+        formVersion,
+        errorCode: "validation",
+      });
       inputs[0]?.setCustomValidity(error);
       setFieldError({ id: field.id, message: error });
       revealField(field.id, true);
@@ -269,6 +363,23 @@ export function ReservationForm({
     const id = target.closest<HTMLElement>("[data-field-id]")?.dataset.fieldId;
     const index = fields.findIndex((field) => field.id === id);
     if (index < 0 || !validateField(fields[index])) return;
+    const submittedValues = new FormData(formRef.current!);
+    if (
+      submittedValues
+        .getAll(fieldFormName(fields[index].id))
+        .some((v) => String(v).trim().length > 0) &&
+      analyticsValidity.current.get(fields[index].id) !== true
+    ) {
+      analyticsValidity.current.set(fields[index].id, true);
+      trackBooking("field_valid", productId, {
+        fieldId: fields[index].id,
+        formVersion,
+        durationMs: Math.min(
+          86400000,
+          Math.max(0, Date.now() - analyticsOpenedAt.current),
+        ),
+      });
+    }
     syncFieldSnapshots();
     setFieldError(null);
     setPassedFieldIds((prev) =>
@@ -283,8 +394,23 @@ export function ReservationForm({
     if (!form) return;
     for (const field of fields) if (!validateField(field)) return;
     setFieldError(null);
+    const analyticsData = new FormData(form);
+    for (const field of fields) {
+      const answered = analyticsData
+        .getAll(fieldFormName(field.id))
+        .some((v) => String(v).trim().length > 0);
+      if (answered && analyticsValidity.current.get(field.id) !== true) {
+        analyticsValidity.current.set(field.id, true);
+        trackBooking("field_valid", productId, {
+          fieldId: field.id,
+          formVersion,
+        });
+      }
+    }
     syncFieldSnapshots();
     setAnswers(bookingReviewAnswers(fields, new FormData(form)));
+    trackBooking("review_view", productId, { formVersion });
+    flushAnalytics();
     setReviewing(true);
     requestAnimationFrame(() =>
       document.getElementById("booking-review-heading")?.focus(),

@@ -30,9 +30,40 @@ export type CustomFieldType =
   | "gender"
   | "birth_date";
 
+export type BookingEventRow = {
+  id: string;
+  session_id: string;
+  attempt_id: string | null;
+  product_id: string | null;
+  reservation_id: string | null;
+  event_kind: string;
+  ref: string | null;
+  device: string;
+  form_version: string | null;
+  field_id: string | null;
+  field_label: string | null;
+  field_order: number | null;
+  duration_ms: number | null;
+  error_code: string | null;
+  memo: string | null;
+  occurred_at: string;
+  created_at: string;
+};
+
 export interface Database {
   public: {
     Tables: {
+      booking_events: {
+        Row: BookingEventRow;
+        Insert: Partial<BookingEventRow> & {
+          session_id: string;
+          event_kind: string;
+          device: string;
+        };
+        Update: Partial<BookingEventRow>;
+        Relationships: [];
+      };
+
       products: {
         Row: {
           id: string;
@@ -104,9 +135,7 @@ export interface Database {
           memo: string | null;
           viewed_at: string;
         };
-        Insert: Partial<
-          Database["public"]["Tables"]["apply_views"]["Row"]
-        > & {
+        Insert: Partial<Database["public"]["Tables"]["apply_views"]["Row"]> & {
           product_id: string;
         };
         Update: Partial<Database["public"]["Tables"]["apply_views"]["Row"]>;
@@ -192,6 +221,7 @@ export interface Database {
           confirmed_candidate_rank: number | null;
           /** 구글 캘린더에 만든 이벤트 id. 동기화된 적 없으면 null. */
           google_calendar_event_id: string | null;
+          booking_origin?: "legacy" | "customer" | "admin";
           /** 신청 시점에 링크에 붙어 있던 ?ref=... 값(유입경로). */
           ref: string | null;
           /** 관리자가 예약 상세에서 직접 입력하는 촬영 장소. */
@@ -281,6 +311,7 @@ export interface Database {
           /** 통계 화면을 마지막으로 연 시점. 다음에 열 때 이 시점 이후
            * 변동치를 빨간 글씨로 보여주는 데 쓴다. 연 적 없으면 null. */
           analytics_last_seen_at: string | null;
+          analytics_v2_started_at?: string | null;
           /** lib/booking-style.ts의 BookingStyle 그대로. */
           booking_style: {
             accentColor: string;
@@ -517,6 +548,18 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      create_reservation_with_analytics: {
+        Args: Database["public"]["Functions"]["create_reservation_with_candidates"]["Args"] & {
+          p_session_id: string | null;
+          p_attempt_id: string | null;
+          p_ref: string | null;
+          p_device: string;
+          p_form_version: string | null;
+          p_estimated_amount: number;
+        };
+        Returns: Database["public"]["Tables"]["reservations"]["Row"];
+      };
+
       lookup_reservation_by_code: {
         Args: { p_code: string };
         Returns: {
