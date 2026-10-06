@@ -1,4 +1,5 @@
 "use server";
+import { parseEmailSchedule } from "@/lib/notifications/email-schedule";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -2323,7 +2324,6 @@ export async function saveEmailRule(
     ...new Set(formData.getAll("recipients").map((v) => String(v))),
   ];
   const triggerType = String(formData.get("triggerType") ?? "");
-  const dayOffsetRaw = String(formData.get("dayOffset") ?? "").trim();
   const productId = String(formData.get("productId") ?? "").trim();
   const subject = String(formData.get("subject") ?? "").trim();
   // 본문은 서식 에디터가 만든 HTML — 상품 설명과 같은 허용 목록으로
@@ -2347,13 +2347,8 @@ export async function saveEmailRule(
   const isDayOffsetTrigger = DAY_OFFSET_TRIGGER_TYPES.has(
     triggerType as EmailTriggerType,
   );
-  let dayOffset: number | null = null;
-  if (isDayOffsetTrigger) {
-    dayOffset = Number(dayOffsetRaw);
-    if (!Number.isInteger(dayOffset) || dayOffset < 1) {
-      return { error: "며칠 전/후인지 1 이상의 숫자로 입력해 주시기 바랍니다." };
-    }
-  }
+  const schedule = parseEmailSchedule(formData, isDayOffsetTrigger);
+  if ("error" in schedule) return { error: schedule.error };
 
   const supabase = await createClient();
 
@@ -2366,7 +2361,9 @@ export async function saveEmailRule(
     const text = String(formData.get(`ctaText${suffix}`) ?? "").trim();
     const url = String(formData.get(`ctaUrl${suffix}`) ?? "").trim();
     if (text && url && !/^https?:\/\//.test(url)) {
-      return { error: "CTA 버튼 URL은 http:// 또는 https://로 시작해야 합니다." };
+      return {
+        error: "CTA 버튼 URL은 http:// 또는 https://로 시작해야 합니다.",
+      };
     }
     const columnSuffix = suffix ? `_${suffix}` : "";
     ctaColumns[`cta_text${columnSuffix}`] = text || null;
@@ -2377,16 +2374,44 @@ export async function saveEmailRule(
     name,
     recipients: recipients as EmailRecipient[],
     trigger_type: triggerType as EmailTriggerType,
-    day_offset: dayOffset,
+    day_offset: schedule.dayOffset,
+    timing_mode: schedule.timingMode,
+    send_time: schedule.sendTime,
+    hour_offset: schedule.hourOffset,
     product_id: productId || null,
     subject,
     body,
     ...ctaColumns,
   };
 
+  // 제목/본문만 수정할 때는 예약된 발송 기준을 초기화하지 않습니다.
+  let timingChanged = true;
+  if (id) {
+    const { data: previous, error: readError } = await supabase
+      .from("email_rules")
+      .select(
+        "trigger_type,day_offset,timing_mode,send_time,hour_offset,product_id",
+      )
+      .eq("id", id)
+      .single();
+    if (readError) return { error: "기존 발송 설정을 불러오지 못했습니다." };
+    timingChanged =
+      previous.trigger_type !== row.trigger_type ||
+      previous.day_offset !== row.day_offset ||
+      previous.timing_mode !== row.timing_mode ||
+      previous.send_time !== row.send_time ||
+      previous.hour_offset !== row.hour_offset ||
+      previous.product_id !== row.product_id;
+  }
+  const savedRow = timingChanged
+    ? { ...row, scheduling_started_at: new Date().toISOString() }
+    : row;
   let error;
   if (id) {
-    ({ error } = await supabase.from("email_rules").update(row).eq("id", id));
+    ({ error } = await supabase
+      .from("email_rules")
+      .update(savedRow)
+      .eq("id", id));
   } else {
     // 새 규칙은 목록 맨 끝에 붙인다(customFields의 addCustomField와
     // 같은 방식) — 관리자가 직접 정한 순서를 건드리지 않는다.
@@ -2399,7 +2424,7 @@ export async function saveEmailRule(
     const nextOrder = (existing?.sort_order ?? -1) + 1;
     ({ error } = await supabase
       .from("email_rules")
-      .insert({ ...row, sort_order: nextOrder }));
+      .insert({ ...savedRow, sort_order: nextOrder }));
   }
 
   if (error) {

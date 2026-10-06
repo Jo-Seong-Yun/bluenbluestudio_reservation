@@ -8,7 +8,7 @@
  * 규칙(이름·트리거 조건·수신자·제목·본문)을 화면에서 자유롭게 추가·
  * 수정·삭제한다. 트리거는 실제로 코드가 이메일을 보낼 수 있는 지점
  * (예약 접수/일정확정/입금확인/완료/노쇼/취소/일정변경/관리자 신규알림)
- * 더하기, 촬영일 기준 며칠 전/후까지 지원한다 — 후자는 매일 도는
+ * 더하기, 촬영일 기준 며칠 전/후 지정 시각 또는 몇 시간 전/후까지 지원한다 — 후자는 매분 도는
  * 크론이 훑어 발송한다.
  *
  * 예약 상태(reservations.status)는 "확정" 한 단계가 아니라
@@ -43,8 +43,8 @@ export const EMAIL_TRIGGER_LABELS: Record<EmailTriggerType, string> = {
   on_rescheduled: "예약 일정 변경 시",
   on_admin_new_request: "새 예약 신청 시",
   on_deliverable_sent: "결과물 전송 시",
-  days_before_shoot: "촬영 며칠 전",
-  days_after_shoot: "촬영 며칠 후",
+  days_before_shoot: "촬영 전 예약 발송",
+  days_after_shoot: "촬영 후 예약 발송",
 };
 
 /** 이 트리거들만 촬영일 기준 날짜 오프셋(day_offset)이 필요하다. */
@@ -62,7 +62,9 @@ export const EMAIL_RECIPIENT_LABELS: Record<EmailRecipient, string> = {
 };
 
 /** 받는 사람 목록을 "손님·사장님"처럼 화면에 보여줄 글자로 — 순서는 EMAIL_RECIPIENTS 기준. */
-export function formatRecipients(recipients: readonly EmailRecipient[]): string {
+export function formatRecipients(
+  recipients: readonly EmailRecipient[],
+): string {
   return EMAIL_RECIPIENTS.filter((r) => recipients.includes(r))
     .map((r) => EMAIL_RECIPIENT_LABELS[r])
     .join("·");
@@ -108,6 +110,10 @@ export type EmailRule = {
   triggerType: EmailTriggerType;
   /** days_before_shoot/days_after_shoot 트리거에서만 쓰는 날짜 수. */
   dayOffset: number | null;
+  timingMode?: "calendar" | "hours";
+  sendTime?: string;
+  hourOffset?: number | null;
+  schedulingStartedAt?: string;
   /** null이면 전체 상품에 적용. */
   productId: string | null;
   subject: string;
@@ -147,7 +153,10 @@ export function ctasFromColumns(row: {
  */
 export const EMAIL_VARIABLES: { key: string; description: string }[] = [
   { key: "이름", description: "손님 이름" },
-  { key: "연락처", description: "손님 연락처 (관리자 신규알림에서만 값이 채워짐)" },
+  {
+    key: "연락처",
+    description: "손님 연락처 (관리자 신규알림에서만 값이 채워짐)",
+  },
   { key: "상품명", description: "촬영 상품 이름" },
   { key: "일시", description: "확정된 촬영 일시 (확정 전이면 빈 값)" },
   {
@@ -155,15 +164,30 @@ export const EMAIL_VARIABLES: { key: string; description: string }[] = [
     description: "예약관리에서 관리자가 입력한 촬영 장소 (안 넣었으면 빈 값)",
   },
   { key: "예약번호", description: "예약 조회용 번호" },
-  { key: "계좌", description: "설정에 입력해둔 입금 계좌 (접수 시에만 값이 채워짐)" },
-  { key: "공지", description: "설정에 입력해둔 예약 공지 (접수 시에만 값이 채워짐)" },
+  {
+    key: "계좌",
+    description: "설정에 입력해둔 입금 계좌 (접수 시에만 값이 채워짐)",
+  },
+  {
+    key: "공지",
+    description: "설정에 입력해둔 예약 공지 (접수 시에만 값이 채워짐)",
+  },
   {
     key: "후보목록",
     description: "손님이 낸 희망 시간 1~3개 나열 (접수·관리자 신규알림에서만 값이 채워짐)",
   },
-  { key: "기존일시", description: "변경 전 촬영 일시 (일정 변경에서만 값이 채워짐)" },
-  { key: "변경일시", description: "변경된 촬영 일시 (일정 변경에서만 값이 채워짐)" },
-  { key: "취소사유", description: "취소 시 관리자가 입력한 사유 (취소 시에만 값이 채워짐)" },
+  {
+    key: "기존일시",
+    description: "변경 전 촬영 일시 (일정 변경에서만 값이 채워짐)",
+  },
+  {
+    key: "변경일시",
+    description: "변경된 촬영 일시 (일정 변경에서만 값이 채워짐)",
+  },
+  {
+    key: "취소사유",
+    description: "취소 시 관리자가 입력한 사유 (취소 시에만 값이 채워짐)",
+  },
   {
     key: "예상금액",
     description: "그 예약건의 기본가+선택한 유료 옵션 합계 (일정 변경·취소에서는 빈 값)",
@@ -179,7 +203,7 @@ export const EMAIL_VARIABLES: { key: string; description: string }[] = [
   {
     key: "결과물링크",
     description:
-      "예약관리의 \"결과물 전송\" 버튼에서 고른 구글 드라이브 파일/폴더 링크 (결과물 전송에서만 값이 채워짐)",
+      '예약관리의 "결과물 전송" 버튼에서 고른 구글 드라이브 파일/폴더 링크 (결과물 전송에서만 값이 채워짐)',
   },
 ];
 

@@ -367,7 +367,7 @@ export async function notifyEmailOnlyEvent(params: {
 
 /**
  * 촬영일 기준 며칠 전/후 규칙 하나를 특정 예약에 보낸다. 크론
- * (app/api/cron/reminders/route.ts)이 매일 규칙 전체를 훑으며 이
+ * (app/api/cron/reminders/route.ts)이 매분 규칙 전체를 훑으며 이
  * 함수를 부른다. 받는 주소(to)는 크론이 이미 보낸 적 없는 곳만 골라
  * 넘겨준다(hasRuleEmailBeenSent).
  */
@@ -398,7 +398,7 @@ export async function sendDayOffsetRuleEmail(params: {
 /**
  * 이 규칙이 이 예약의 이 주소로 이미 발송됐는지(성공 기준) — 크론의
  * 중복 발송 방지용. 받는 사람이 여럿인 규칙은 한쪽만 실패했을 때 그쪽만
- * 다음 날 다시 시도하도록 주소별로 따진다.
+ * 다음 실행에서 다시 시도하도록 주소별로 따진다.
  */
 export async function hasRuleEmailBeenSent(
   ruleId: string,
@@ -406,7 +406,7 @@ export async function hasRuleEmailBeenSent(
   to: string,
 ): Promise<boolean> {
   const supabase = createAdminClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("notification_logs")
     .select("id")
     .eq("channel", "email")
@@ -416,6 +416,7 @@ export async function hasRuleEmailBeenSent(
     .eq("success", true)
     .limit(1)
     .maybeSingle();
+  if (error) throw error;
   return !!data;
 }
 

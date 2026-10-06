@@ -505,6 +505,10 @@ export interface Database {
             | "days_before_shoot"
             | "days_after_shoot";
           day_offset: number | null;
+          timing_mode: "calendar" | "hours";
+          send_time: string;
+          hour_offset: number | null;
+          scheduling_started_at: string;
           product_id: string | null;
           subject: string;
           body: string;
@@ -548,6 +552,8 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      claim_reminder_cron: { Args: { p_token: string }; Returns: boolean };
+      release_reminder_cron: { Args: { p_token: string }; Returns: undefined };
       create_reservation_with_analytics: {
         Args: Database["public"]["Functions"]["create_reservation_with_candidates"]["Args"] & {
           p_session_id: string | null;

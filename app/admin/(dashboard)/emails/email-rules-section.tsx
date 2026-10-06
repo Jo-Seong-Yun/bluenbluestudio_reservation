@@ -1,5 +1,6 @@
 "use client";
 
+import { formatEmailSchedule } from "@/lib/notifications/email-schedule";
 import { useOptimistic, useTransition } from "react";
 import { moveEmailRule, toggleEmailRule } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/submit-button";
@@ -120,8 +121,10 @@ export function EmailRulesSection({
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="font-medium">{rule.name}</span>
                     <span className="bg-surface-subtle rounded-full px-2 py-0.5 text-xs">
-                      {EMAIL_TRIGGER_LABELS[rule.triggerType]}
-                      {rule.dayOffset ? ` ${rule.dayOffset}일` : ""}
+                      {rule.triggerType === "days_before_shoot" ||
+                      rule.triggerType === "days_after_shoot"
+                        ? formatEmailSchedule(rule)
+                        : EMAIL_TRIGGER_LABELS[rule.triggerType]}
                     </span>
                     <span className="bg-surface-subtle rounded-full px-2 py-0.5 text-xs">
                       {formatRecipients(rule.recipients)}에게

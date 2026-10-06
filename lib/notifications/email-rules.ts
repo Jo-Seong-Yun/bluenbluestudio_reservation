@@ -21,7 +21,12 @@ export {
   renderEmailTemplate,
   ruleRecipientAddresses,
 } from "./email-rules-shared";
-export type { CtaButton, EmailRecipient, EmailRule, EmailTriggerType } from "./email-rules-shared";
+export type {
+  CtaButton,
+  EmailRecipient,
+  EmailRule,
+  EmailTriggerType,
+} from "./email-rules-shared";
 
 type EmailRuleRow = {
   id: string;
@@ -30,6 +35,10 @@ type EmailRuleRow = {
   recipients: string[];
   trigger_type: string;
   day_offset: number | null;
+  timing_mode: "calendar" | "hours";
+  send_time: string;
+  hour_offset: number | null;
+  scheduling_started_at: string;
   product_id: string | null;
   subject: string;
   body: string;
@@ -42,7 +51,7 @@ type EmailRuleRow = {
 };
 
 const EMAIL_RULE_COLUMNS =
-  "id, name, enabled, recipients, trigger_type, day_offset, product_id, subject, body, cta_text, cta_url, cta_text_2, cta_url_2, cta_text_3, cta_url_3";
+  "id, name, enabled, recipients, trigger_type, day_offset, timing_mode, send_time, hour_offset, scheduling_started_at, product_id, subject, body, cta_text, cta_url, cta_text_2, cta_url_2, cta_text_3, cta_url_3";
 
 function mapRow(row: EmailRuleRow): EmailRule {
   return {
@@ -52,6 +61,10 @@ function mapRow(row: EmailRuleRow): EmailRule {
     recipients: row.recipients as EmailRecipient[],
     triggerType: row.trigger_type as EmailTriggerType,
     dayOffset: row.day_offset,
+    timingMode: row.timing_mode,
+    sendTime: row.send_time,
+    hourOffset: row.hour_offset,
+    schedulingStartedAt: row.scheduling_started_at,
     productId: row.product_id,
     subject: row.subject,
     body: row.body,
@@ -82,14 +95,15 @@ export async function loadEmailRulesForTrigger(
     .map(mapRow);
 }
 
-/** 촬영일 기준 며칠 전/후 규칙 전체 — 크론이 매일 훑을 때 쓴다. */
+/** 촬영일 기준 며칠 전/후 규칙 전체 — 크론이 매분 훑을 때 쓴다. */
 export async function loadDayOffsetEmailRules(): Promise<EmailRule[]> {
   const supabase = createAdminClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("email_rules")
     .select(EMAIL_RULE_COLUMNS)
     .in("trigger_type", ["days_before_shoot", "days_after_shoot"])
     .eq("enabled", true);
+  if (error) throw error;
   return (data ?? []).map(mapRow);
 }
 
