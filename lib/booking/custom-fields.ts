@@ -39,21 +39,24 @@ export type { SpecialFieldType } from "./custom-fields-shared";
  */
 export async function loadSelectedPricedOptions(
   reservationId: string,
+  options: { strict?: boolean } = {},
 ): Promise<PricedSelection[]> {
   const supabase = createAdminClient();
-  const { data: answers } = await supabase
+  const { data: answers, error: answersError } = await supabase
     .from("reservation_answers")
     .select("field_id, value")
     .eq("reservation_id", reservationId);
+  if (options.strict && answersError) throw answersError;
   if (!answers || answers.length === 0) return [];
 
   const fieldIds = [...new Set(answers.map((a) => a.field_id))];
-  const { data: fields } = await supabase
+  const { data: fields, error: fieldsError } = await supabase
     .from("custom_fields")
     .select(
       "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
     )
     .in("id", fieldIds);
+  if (options.strict && fieldsError) throw fieldsError;
   if (!fields || fields.length === 0) return [];
 
   const selectedLabels = selectedLabelsFromAnswers(
