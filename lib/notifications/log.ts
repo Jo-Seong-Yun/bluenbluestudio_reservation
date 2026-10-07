@@ -18,7 +18,7 @@ export async function logNotification(params: {
   error?: string | null;
 }): Promise<void> {
   const supabase = createAdminClient();
-  await supabase.from("notification_logs").insert({
+  const {error}=await supabase.from("notification_logs").insert({
     channel: params.channel,
     purpose: params.purpose,
     recipient: params.recipient,
@@ -26,4 +26,5 @@ export async function logNotification(params: {
     success: params.success,
     error: params.error ?? null,
   });
+  if(error)throw error;
 }

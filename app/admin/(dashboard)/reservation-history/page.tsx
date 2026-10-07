@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminDetailRegion } from "@/components/admin-detail-region";
+import {loadAllEmailRules} from "@/lib/notifications/email-rules";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { ReservationHistoryTable } from "./reservation-history-table";
@@ -31,18 +32,20 @@ export default async function ReservationHistoryPage({
   const selectedId = Array.isArray(id) ? id[0] : id;
 
   const supabase = await createClient();
-  const [{ data: reservations }, { data: products }, selected] =
+  const [{ data: reservations }, { data: products }, selected, {rules}, {data:mailSettings}] =
     await Promise.all([
       supabase
         .from("reservations")
         .select(
-          "id, code, status, shoot_start, customer_name, customer_phone, charged_amount, estimated_amount, product_id, created_at, deliverable_sent_at",
+          "id, code, status, shoot_start, customer_name, customer_phone, customer_email, charged_amount, estimated_amount, product_id, created_at, deliverable_sent_at",
         )
         .order("created_at", { ascending: false }),
       supabase.from("products").select("id, name, tag_color"),
       selectedId
         ? loadReservationDetail(selectedId)
         : Promise.resolve(undefined),
+      loadAllEmailRules(),
+      supabase.from("settings").select("bank_account,notice").eq("id",1).maybeSingle(),
     ]);
 
   const productNameById = new Map((products ?? []).map((p) => [p.id, p.name]));
@@ -56,6 +59,7 @@ export default async function ReservationHistoryPage({
     shootStart: r.shoot_start,
     customerName: r.customer_name,
     customerPhone: r.customer_phone,
+    customerEmail:r.customer_email,
     chargedAmount: r.charged_amount,
     estimatedAmount: r.estimated_amount,
     productName: productNameById.get(r.product_id) ?? "",
@@ -81,7 +85,7 @@ export default async function ReservationHistoryPage({
       </p>
 
       <div className="admin-history-layout" data-has-detail={Boolean(selected)}>
-        <ReservationHistoryTable rows={rows} selectedId={selectedId} />
+        <ReservationHistoryTable rows={rows} selectedId={selectedId} emailRules={rules} siteVariables={{계좌:mailSettings?.bank_account??"",공지:mailSettings?.notice??""}} />
         {selected ? (
           <AdminDetailRegion reservationId={selected.id}>
             <DetailPanel

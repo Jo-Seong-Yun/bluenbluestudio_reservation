@@ -24,7 +24,7 @@ export async function loadCustomerEmailContexts(
     const { data, error } = await db
       .from("reservations")
       .select(
-        "id,code,customer_phone,product_id,shoot_start,shoot_location,estimated_amount,cancel_reason,created_at",
+        "id,code,customer_name,customer_email,customer_phone,product_id,shoot_start,shoot_location,estimated_amount,cancel_reason,created_at",
       )
       .in("customer_phone", unique)
       .order("created_at", { ascending: false })
@@ -33,6 +33,10 @@ export async function loadCustomerEmailContexts(
     if (error) throw error;
     rows.push(...(data ?? []));
     if (!data || data.length < 500) break;
+  }
+  // 고객DB 생성 이전 예약도 예약내역에서 수동 발송할 수 있습니다.
+  for (const row of rows) {
+    if (!customers?.some(c=>c.phone===row.customer_phone)) customers?.push({phone:row.customer_phone,name:row.customer_name,email:row.customer_email});
   }
   const productIds = [...new Set(rows.map((r) => r.product_id))];
   const products = productIds.length

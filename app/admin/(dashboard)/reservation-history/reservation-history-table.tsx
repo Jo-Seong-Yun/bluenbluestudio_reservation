@@ -1,4 +1,6 @@
 "use client";
+import {ReservationMailButton} from "./reservation-mail-button";
+import type {EmailRule} from "@/lib/notifications/email-rules-shared";
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -107,6 +109,7 @@ type Row = {
   shootStart: string | null;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string | null;
   chargedAmount: number | null;
   estimatedAmount: number | null;
   productName: string;
@@ -129,8 +132,12 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
 export function ReservationHistoryTable({
   rows,
   selectedId,
+  emailRules = [],
+  siteVariables = {},
 }: {
   rows: Row[];
+  emailRules?: EmailRule[];
+  siteVariables?: Record<string,string>;
   /** 지금 오른쪽 상세 패널에 열려 있는 예약 — 그 줄을 표에서도
    * 강조해준다. */
   selectedId?: string;
@@ -370,6 +377,7 @@ export function ReservationHistoryTable({
                     {kstDateString(new Date(r.createdAt))}
                   </td>
                   <td data-label="예약 처리" className="px-3 py-3">
+                    <div className="mb-2"><ReservationMailButton reservationId={r.id} phone={r.customerPhone} name={r.customerName} email={r.customerEmail??null} rules={emailRules} siteVariables={siteVariables} /></div>
                     <ReservationActionCell
                       reservationId={r.id}
                       status={r.status}

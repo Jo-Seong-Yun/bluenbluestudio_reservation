@@ -5,6 +5,7 @@ import { inputClass } from "@/components/ui";
 import type { CustomerSummary } from "@/lib/customers";
 import type { EmailRule } from "@/lib/notifications/email-rules-shared";
 import { kstDateString } from "@/lib/time";
+import { EmailHistoryButton } from "./email-history-button";
 import { CustomerEditModal } from "./customer-edit-modal";
 import { DeleteCustomersButton } from "./delete-customers-button";
 import { SendCustomerEmailButton } from "./send-customer-email-button";
@@ -175,7 +176,7 @@ export function CustomerTable({
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <CustomerEditModal customer={c} />
+                    <div className="flex items-center gap-2"><CustomerEditModal customer={c} /><EmailHistoryButton phone={c.phone} name={c.name} /></div>
                   </td>
                 </tr>
               ))

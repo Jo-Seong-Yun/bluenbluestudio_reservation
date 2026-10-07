@@ -1,4 +1,5 @@
 "use server";
+import { loadCustomerEmailHistory } from "@/lib/notifications/customer-email-history";
 import { loadCustomerEmailContexts } from "@/lib/notifications/customer-email-contexts";
 import { customerEmailValues, parseCustomerVariableOverrides, renderCustomerCtas } from "@/lib/notifications/customer-email-shared";
 import { parseEmailSchedule } from "@/lib/notifications/email-schedule";
@@ -3338,6 +3339,14 @@ export async function sendCustomerEmails(
   if (customerError)
     return { status: "error", error: "고객 정보를 불러오지 못했습니다." };
 
+  const boundId=String(formData.get("boundReservationId")??"");
+  if(boundId) {
+    const {data:bound,error}=await supabase.from("reservations").select("id,customer_name,customer_phone,customer_email").eq("id",boundId).single();
+    if(error || !bound || phones.length!==1 || phones[0]!==bound.customer_phone || String(formData.get(`reservation_${bound.customer_phone}`)??"")!==bound.id)
+      return {status:"error",error:"예약 정보를 다시 확인해 주세요."};
+    customers?.splice(0,customers.length,{phone:bound.customer_phone,name:bound.customer_name,email:bound.customer_email});
+  }
+
   const customerRecipients = (customers ?? []).filter(
     (c): c is { phone: string; name: string; email: string } =>
       Boolean(c.email),
@@ -3395,6 +3404,7 @@ export async function sendCustomerEmails(
         ctas: buttons,
         to: c.email,
         purpose,
+        reservationId: boundId || String(formData.get(`reservation_${c.phone}`) ?? "") || null,
       };
     });
   } catch (error) {
@@ -3585,4 +3595,10 @@ export async function saveRecordSheetTemplate(
   revalidatePath("/admin/reservations");
   revalidatePath("/admin/reservation-history");
   return {};
+}
+
+export async function customerEmailHistory(phone:string) {
+  await requireAdmin();
+  try{return {rows:await loadCustomerEmailHistory(phone),error:null};}
+  catch{return {rows:[],error:"메일 발송 기록을 불러오지 못했습니다."};}
 }
