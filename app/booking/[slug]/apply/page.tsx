@@ -1,3 +1,5 @@
+import { ConfigNotice } from "@/components/config-notice";
+import { missingServerEnv } from "@/lib/supabase/env";
 import { productCopy } from "@/lib/booking/copy";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -47,6 +49,8 @@ export default async function ApplyPage({
   params,
   searchParams,
 }: PageProps<"/booking/[slug]/apply">) {
+  const missing = missingServerEnv();
+  if (missing.length) return <ConfigNotice missing={missing} />;
   const { slug } = await params;
   const { slots: slotsParam } = await searchParams;
   const requested = parseSlotsParam(
