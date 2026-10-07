@@ -52,7 +52,7 @@ export function EmailHistoryButton({
           </button>
         </div>
         <p className="text-muted mt-2 text-xs">
-          예약 연결 기록과 현재·과거 예약의 이메일 주소를 기준으로 표시합니다.
+          연락처로 구분한 고객의 현재·과거 이메일 주소로 발송된 기록만 표시합니다.
           성공은 메일 서버 접수 기준이며 열람 여부는 확인하지 않습니다.
         </p>
         <div className="mt-4 max-h-[65vh] space-y-3 overflow-auto">

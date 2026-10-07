@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   saveAdminMemo,
@@ -71,6 +72,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function DetailPanel({
+  recordActions,
   selectedDate,
   dayReservations,
   selected,
@@ -78,6 +80,7 @@ export function DetailPanel({
   basePath = "/admin/reservations",
   emptyHint = "달력에서 날짜나 예약을 선택해 주시기 바랍니다.",
 }: {
+  recordActions?: ReactNode;
   selectedDate?: string;
   dayReservations: ReservationRow[];
   selected?: ReservationRow;
@@ -105,6 +108,7 @@ export function DetailPanel({
       <ReservationDetail
         key={selected.id}
         reservation={selected}
+        recordActions={recordActions}
         month={month}
         basePath={basePath}
       />
@@ -150,10 +154,12 @@ export function DetailPanel({
 }
 
 function ReservationDetail({
+  recordActions,
   reservation,
   month,
   basePath,
 }: {
+  recordActions?: ReactNode;
   reservation: ReservationRow;
   month?: string;
   basePath: string;
@@ -296,9 +302,10 @@ function ReservationDetail({
 
       {/* 날짜가 확정된 예약만 촬영 기록표를 만들 수 있다 — 아직 후보만
           낸 상태(isPending)는 촬영일시 자체가 없다. */}
-      {start ? (
-        <div className="border-border mt-4 border-t pt-4">
-          <RecordSheetButton reservationId={reservation.id} />
+      {start || recordActions ? (
+        <div className="border-border mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
+          {start ? <RecordSheetButton reservationId={reservation.id} /> : null}
+          {recordActions}
         </div>
       ) : null}
 

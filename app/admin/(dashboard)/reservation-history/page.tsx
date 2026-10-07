@@ -1,3 +1,4 @@
+import { ReservationMailButton } from "./reservation-mail-button";
 import Link from "next/link";
 import { AdminDetailRegion } from "@/components/admin-detail-region";
 import {loadAllEmailRules} from "@/lib/notifications/email-rules";
@@ -85,11 +86,21 @@ export default async function ReservationHistoryPage({
       </p>
 
       <div className="admin-history-layout" data-has-detail={Boolean(selected)}>
-        <ReservationHistoryTable rows={rows} selectedId={selectedId} emailRules={rules} siteVariables={{계좌:mailSettings?.bank_account??"",공지:mailSettings?.notice??""}} />
+        <ReservationHistoryTable rows={rows} selectedId={selectedId} />
         {selected ? (
           <AdminDetailRegion reservationId={selected.id}>
             <DetailPanel
               selected={selected}
+              recordActions={
+                <ReservationMailButton
+                  reservationId={selected.id}
+                  phone={selected.customer_phone}
+                  name={selected.customer_name}
+                  email={rows.find((row) => row.id === selected.id)?.customerEmail ?? null}
+                  rules={rules}
+                  siteVariables={{계좌:mailSettings?.bank_account??"",공지:mailSettings?.notice??""}}
+                />
+              }
               dayReservations={[]}
               basePath="/admin/reservation-history"
               emptyHint="표에서 행을 눌러 선택해 주시기 바랍니다."
