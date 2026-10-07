@@ -3602,3 +3602,170 @@ export async function customerEmailHistory(phone:string) {
   try{return {rows:await loadCustomerEmailHistory(phone),error:null};}
   catch{return {rows:[],error:"메일 발송 기록을 불러오지 못했습니다."};}
 }
+
+/** 예약 수정 창의 원본 정보. 내부 연동 id는 편집 창에 노출하지 않습니다. */
+export async function loadReservationForEdit(id: string) {
+  await requireAdmin();
+  const db = await createClient();
+  const results = await Promise.all([
+    db.from("reservations").select("*").eq("id", id).single(),
+    db
+      .from("products")
+      .select("id,name,duration_min,buffer_after_min")
+      .order("name"),
+    db
+      .from("custom_fields")
+      .select("id,product_id,label,type,options,required,active")
+      .order("sort_order"),
+    db
+      .from("reservation_answers")
+      .select("field_id,value")
+      .eq("reservation_id", id),
+    db
+      .from("reservation_candidates")
+      .select("rank,shoot_start,shoot_end")
+      .eq("reservation_id", id)
+      .order("rank"),
+  ]);
+  const error = results.find((r) => r.error)?.error;
+  if (error || !results[0].data)
+    return { data: null, error: "예약 수정 정보를 불러오지 못했습니다." };
+  return {
+    data: {
+      reservation: results[0].data,
+      products: results[1].data ?? [],
+      fields: results[2].data ?? [],
+      answers: results[3].data ?? [],
+      candidates: results[4].data ?? [],
+    },
+    error: null,
+  };
+}
+
+export async function saveReservationEdit(
+  _prev: { error?: string; success?: boolean } | null,
+  form: FormData,
+): Promise<{ error?: string; success?: boolean }> {
+  await requireAdmin();
+  const { reservationEditSchema, toLocalInput } =
+    await import("@/lib/reservations/edit-shared");
+  let raw: unknown;
+  try {
+    raw = JSON.parse(String(form.get("payload")));
+  } catch {
+    return { error: "수정 내용을 확인해 주세요." };
+  }
+  const parsed = reservationEditSchema.safeParse(raw);
+  if (!parsed.success)
+    return {
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
+    };
+  const { id, expectedUpdatedAt, answers, candidates, ...record } = parsed.data;
+  const db = await createClient();
+  const { data: original, error: originalError } = await db
+    .from("reservations")
+    .select(
+      "customer_phone,product_id,created_at,deliverable_sent_at,reminded_at,shoot_start,shoot_end",
+    )
+    .eq("id", id)
+    .single();
+  if (originalError || !original) return { error: "예약을 찾을 수 없습니다." };
+  for (const key of [
+    "created_at",
+    "deliverable_sent_at",
+    "reminded_at",
+    "shoot_start",
+    "shoot_end",
+  ] as const) {
+    if (
+      original[key] !== null &&
+      (raw as Record<string, unknown>)[key] === toLocalInput(original[key])
+    )
+      record[key] = original[key];
+  }
+  const [
+    { data: fields, error: fieldsError },
+    { data: oldAnswers, error: answersError },
+  ] = await Promise.all([
+    db
+      .from("custom_fields")
+      .select("id,product_id,type,options")
+      .in(
+        "id",
+        answers.map((a) => a.field_id).length
+          ? answers.map((a) => a.field_id)
+          : ["00000000-0000-0000-0000-000000000000"],
+      ),
+    db.from("reservation_answers").select("field_id").eq("reservation_id", id),
+  ]);
+  if (fieldsError || answersError)
+    return { error: "문항을 확인하지 못했습니다." };
+  const oldIds = new Set((oldAnswers ?? []).map((a) => a.field_id));
+  for (const answer of answers) {
+    const field = fields?.find((f) => f.id === answer.field_id);
+    if (
+      !field ||
+      (field.product_id !== null &&
+        field.product_id !== record.product_id &&
+        !oldIds.has(answer.field_id))
+    )
+      return { error: "이 예약의 문항만 수정할 수 있습니다." };
+    if (field.type === "multi_choice" && answer.value) {
+      try {
+        const value = JSON.parse(answer.value);
+        if (!Array.isArray(value) || value.some((v) => typeof v !== "string"))
+          throw Error();
+      } catch {
+        return { error: "복수 선택 답변을 확인해 주세요." };
+      }
+    }
+  }
+  const { error } = await db.rpc("admin_edit_reservation", {
+    p_id: id,
+    p_expected_updated_at: expectedUpdatedAt,
+    p_record: {
+      ...record,
+      charged_amount_breakdown: record.charged_amount_breakdown.length
+        ? record.charged_amount_breakdown
+        : null,
+    },
+    p_answers: answers,
+    p_candidates: candidates,
+  });
+  if (error)
+    return {
+      error:
+        error.code === "23P01"
+          ? "다른 예약과 시간이 겹칩니다."
+          : error.code === "23505"
+            ? "예약번호가 중복됩니다."
+            : error.message,
+    };
+  for (const path of [
+    "/admin/reservations",
+    "/admin/reservation-history",
+    "/admin/customers",
+    "/admin/revenue",
+    "/admin/analytics",
+    "/booking/lookup",
+  ])
+    revalidatePath(path);
+  after(async () => {
+    await upsertCustomerFromReservation({
+      phone: record.customer_phone,
+      name: record.customer_name,
+      email: record.customer_email,
+      gender: record.gender,
+      birthDate: record.birth_date,
+    });
+    await Promise.all([
+      syncReservationToSheet(id),
+      syncReservationToCalendar(id),
+      syncCustomerToSheet(record.customer_phone),
+      ...(original.customer_phone !== record.customer_phone
+        ? [syncCustomerToSheet(original.customer_phone)]
+        : []),
+    ]);
+  });
+  return { success: true };
+}
