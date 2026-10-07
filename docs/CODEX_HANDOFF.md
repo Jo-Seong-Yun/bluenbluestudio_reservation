@@ -1181,3 +1181,9 @@ dev-preview 페이지로 데스크톱·모바일 스크린샷만 보여준 뒤 �
 - 매분 중첩 실행은 DB의 service_role 전용 claim_reminder_cron/release_reminder_cron 토큰 잠금으로 방지하며 최대 300초 함수 실행/10분 잠금 만료를 사용합니다. 익명·로그인 사용자는 잠금 RPC를 실행할 수 없습니다. CRON_SECRET 누락 시도 차단합니다. 기존 SMS/알림톡은 19:00 이후에만 처리하고 이메일의 사용자 설정 시각에는 영향을 주지 않습니다.
 - `vercel.json` Cron을 `* * * * *`로 설정했습니다. Vercel Hobby에서는 매분 Cron을 사용할 수 없으므로 Pro 여부 또는 외부 매분 스케줄러가 필요합니다. 요금제 확인 질문을 전달했으며 답변은 아직 없습니다. 현재 작업 브랜치만 푸시하고 SQL 적용 및 스케줄러 확인 전에는 master에 병합하지 않습니다.
 - 적용 SQL: `supabase/migrations/20261028000100_email_rule_scheduling.sql`. 재실행 안전성, 기존 19:00/본문/시작 기준 보존, 잠금 중첩/다른 토큰 해제 차단/만료 복구, 함수 기본 실행 권한이 넓은 DB에서도 anon/authenticated 차단을 로컬 PostgreSQL로 검증했습니다. 317개 테스트, 린트/타입/빌드와 실제 규칙 수정 모달의 390/1440px 날짜·시각/시간 방식 전환, 활성 필드만 FormData에 포함, 즉시 발송 시 숨김, 가로 넘침 없음 확인. 운영 메일·문자·DB 쓰기는 하지 않았습니다.
+
+### 2026-10-07 Hobby 매분 발송 스케줄러 — Supabase 설정 확인 대기
+- 사용자 확인: Vercel Hobby, `20261028000100_email_rule_scheduling.sql` 실행 완료. Vercel Cron은 기존 하루 1회(KST 19:00)로 복원하여 Hobby 배포 제약을 피합니다.
+- Supabase pg_cron + pg_net이 `/api/cron/scheduled-emails`를 매분 호출하도록 `docs/sql/supabase-minute-email-scheduler.sql`을 준비했습니다. 이 새 주소는 기존 운영 배포에는 없어 스케줄러를 먼저 등록해도 과거 날짜 발송 로직을 매분 실행하지 않습니다. 새 배포에서 기존 발송 처리/인증/잠금을 공유합니다.
+- Supabase Vault에 `reservation_cron_secret`(Vercel CRON_SECRET과 동일), `reservation_site_url`(https 운영 주소)을 등록해야 합니다. 값은 채팅이나 SQL 파일에 넣지 않습니다. 두 확장 활성화·Secret 등록·스케줄러 SQL 실행 확인 이후 master 배포합니다. Supabase 스케줄러를 등록하지 않으면 지정 시각 발송은 하루 1회 점검으로 늦어질 수 있으므로 정확한 시각 기능 완료로 안내하지 않습니다.
+- 스케줄러 등록 SQL은 같은 작업 이름으로 갱신하며 비밀값을 cron.job에 저장하지 않습니다. 함수는 anon/authenticated 실행을 명시적으로 차단하고 기존 DB 발송 잠금은 매분/하루 작업 중첩을 방지합니다. Supabase HTTP 요청은 비동기라 cron 성공만으로 메일 발송 성공을 보장하지 않으며 운영 점검 시 net._http_response/발송 로그를 함께 확인해야 합니다. 로컬에서 실제 스케줄러·메일·DB 쓰기를 실행하지 않습니다.
