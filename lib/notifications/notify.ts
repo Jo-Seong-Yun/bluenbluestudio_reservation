@@ -188,6 +188,7 @@ export async function sendAdHocEmail(params: {
   to: string;
   /** 로그 purpose 접미사 — 프리셋이면 규칙 id, 직접입력이면 "custom". */
   purpose: string;
+  reservationId?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
   try {
     const brand = await loadBrandSettings();
@@ -198,6 +199,7 @@ export async function sendAdHocEmail(params: {
       channel: "email",
       purpose: `customer-email:${params.purpose}`,
       recipient: params.to,
+      reservationId: params.reservationId,
       success: true,
     }).catch(() => {});
     return { ok: true };
@@ -207,6 +209,7 @@ export async function sendAdHocEmail(params: {
       channel: "email",
       purpose: `customer-email:${params.purpose}`,
       recipient: params.to,
+      reservationId: params.reservationId,
       success: false,
       error: message,
     }).catch(() => {});

@@ -42,11 +42,19 @@ export function SendCustomerEmailButton({
   rules,
   siteVariables,
   onSent,
+  reservationId,
+  buttonLabel,
+  autoOpen = false,
+  onClosed,
 }: {
   customers: SelectedCustomer[];
   rules: EmailRule[];
   siteVariables: Record<string, string>;
   onSent: () => void;
+  reservationId?: string;
+  buttonLabel?: string;
+  autoOpen?: boolean;
+  onClosed?: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, action, pending] = useActionState<
@@ -88,6 +96,9 @@ export function SendCustomerEmailButton({
     }
   }, [state, onSent]);
 
+  const autoOpened = useRef(false);
+
+
   function selectTemplate(value: string) {
     setSelectedValue(value);
     const rule = rules.find((r) => r.id === value);
@@ -113,11 +124,18 @@ export function SendCustomerEmailButton({
         customers.map((c) => c.phone),
       );
       if (version !== loadVersion.current) return;
+      if(reservationId && !result.contexts.some(c=>c.reservations.some(r=>r.id===reservationId))) {
+        setLoadError("해당 예약을 불러오지 못했습니다. 예약내역을 새로고침해 주세요.");
+        return;
+      }
       setContexts(result.contexts);
       setLoadError(result.error);
       setReservationIds(
         Object.fromEntries(
-          result.contexts.map((c) => [c.phone, c.reservations[0]?.id ?? ""]),
+          result.contexts.map((c) => [
+            c.phone,
+            reservationId ?? c.reservations[0]?.id ?? "",
+          ]),
         ),
       );
     } catch {
@@ -132,6 +150,15 @@ export function SendCustomerEmailButton({
     ++loadVersion.current;
     dialogRef.current?.close();
   }
+
+  useEffect(() => {
+    if (autoOpen && !autoOpened.current) {
+      autoOpened.current = true;
+      void open();
+    }
+    // 자동 열기는 마운트 때 한 번만 실행합니다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen]);
 
   function insertVariable(key: string) {
     const placeholder = `{{${key}}}`;
@@ -189,13 +216,14 @@ export function SendCustomerEmailButton({
         type="button"
         onClick={open}
         disabled={customers.length === 0}
-        className="text-xs"
+        className={autoOpen ? "hidden" : "text-xs"}
       >
-        메일 발송 ({customers.length})
+        {buttonLabel ?? `메일 발송 (${customers.length})`}
       </Button>
 
       <dialog
         ref={dialogRef}
+        onClose={onClosed}
         className="email-modal-dialog border-border bg-surface text-foreground rounded-xl border p-0 backdrop:bg-black/50"
         style={{
           width: "calc(100vw - 2rem)",
@@ -227,6 +255,13 @@ export function SendCustomerEmailButton({
                 />
               ))}
               <input type="hidden" name="mode" value="custom" />
+              {reservationId ? (
+                <input
+                  type="hidden"
+                  name="boundReservationId"
+                  value={reservationId}
+                />
+              ) : null}
               {contexts.map((c) => (
                 <input
                   key={`reservation-${c.phone}`}
@@ -312,7 +347,7 @@ export function SendCustomerEmailButton({
                     <select
                       aria-label="변수에 사용할 예약"
                       value={reservationIds[previewPhone] ?? ""}
-                      disabled={loading}
+                      disabled={loading || Boolean(reservationId)}
                       onChange={(e) => {
                         setReservationIds((prev) => ({
                           ...prev,
