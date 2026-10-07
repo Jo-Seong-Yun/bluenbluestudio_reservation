@@ -1,3 +1,4 @@
+type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 /**
  * Supabase 테이블 타입.
  *
@@ -552,6 +553,7 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      admin_edit_reservation: { Args: {p_id:string;p_expected_updated_at:string;p_record:Json;p_answers:Json;p_candidates:Json}; Returns: undefined };
       claim_reminder_cron: { Args: { p_token: string }; Returns: boolean };
       release_reminder_cron: { Args: { p_token: string }; Returns: undefined };
       create_reservation_with_analytics: {

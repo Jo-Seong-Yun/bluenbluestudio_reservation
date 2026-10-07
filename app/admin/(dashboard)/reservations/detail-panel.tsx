@@ -1,3 +1,4 @@
+import { ReservationEditModal } from "./reservation-edit-modal";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -302,12 +303,11 @@ function ReservationDetail({
 
       {/* 날짜가 확정된 예약만 촬영 기록표를 만들 수 있다 — 아직 후보만
           낸 상태(isPending)는 촬영일시 자체가 없다. */}
-      {start || recordActions ? (
-        <div className="border-border mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
-          {start ? <RecordSheetButton reservationId={reservation.id} /> : null}
-          {recordActions}
-        </div>
-      ) : null}
+      <div className="border-border mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
+        {start ? <RecordSheetButton reservationId={reservation.id} /> : null}
+        {recordActions}
+        <ReservationEditModal reservationId={reservation.id} />
+      </div>
 
       {/* 촬영이 실제로 끝난 뒤 편집본을 넘기는 단계라, 날짜가 확정된
           예약(start 있음)에서만 보여준다 — 취소된 예약엔 보낼 일이
