@@ -1187,3 +1187,5 @@ dev-preview 페이지로 데스크톱·모바일 스크린샷만 보여준 뒤 �
 - Supabase pg_cron + pg_net이 `/api/cron/scheduled-emails`를 매분 호출하도록 `docs/sql/supabase-minute-email-scheduler.sql`을 준비했습니다. 이 새 주소는 기존 운영 배포에는 없어 스케줄러를 먼저 등록해도 과거 날짜 발송 로직을 매분 실행하지 않습니다. 새 배포에서 기존 발송 처리/인증/잠금을 공유합니다.
 - Supabase Vault에 `reservation_cron_secret`(Vercel CRON_SECRET과 동일), `reservation_site_url`(https 운영 주소)을 등록해야 합니다. 값은 채팅이나 SQL 파일에 넣지 않습니다. 두 확장 활성화·Secret 등록·스케줄러 SQL 실행 확인 이후 master 배포합니다. Supabase 스케줄러를 등록하지 않으면 지정 시각 발송은 하루 1회 점검으로 늦어질 수 있으므로 정확한 시각 기능 완료로 안내하지 않습니다.
 - 스케줄러 등록 SQL은 같은 작업 이름으로 갱신하며 비밀값을 cron.job에 저장하지 않습니다. 함수는 anon/authenticated 실행을 명시적으로 차단하고 기존 DB 발송 잠금은 매분/하루 작업 중첩을 방지합니다. Supabase HTTP 요청은 비동기라 cron 성공만으로 메일 발송 성공을 보장하지 않으며 운영 점검 시 net._http_response/발송 로그를 함께 확인해야 합니다. 로컬에서 실제 스케줄러·메일·DB 쓰기를 실행하지 않습니다.
+
+- 2026-10-07 사장님이 Supabase 스케줄러 설정 완료를 확인했습니다. 기존 발송 설정 SQL과 Hobby용 매분 스케줄러 선행 조건이 충족되어 master에 병합·푸시합니다. Vercel Ready 이후 새 발송 주소의 HTTP 응답과 이메일 발송 로그를 운영에서 확인해야 합니다. 운영 메일을 로컬에서 직접 발송하지 않습니다.
