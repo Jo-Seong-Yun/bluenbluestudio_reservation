@@ -212,14 +212,14 @@ export function SendCustomerEmailButton({
 
   return (
     <>
-      <Button
+      {!autoOpen ? <Button
         type="button"
         onClick={open}
         disabled={customers.length === 0}
-        className={autoOpen ? "hidden" : "text-xs"}
+        className="text-xs"
       >
         {buttonLabel ?? `메일 발송 (${customers.length})`}
-      </Button>
+      </Button> : null}
 
       <dialog
         ref={dialogRef}

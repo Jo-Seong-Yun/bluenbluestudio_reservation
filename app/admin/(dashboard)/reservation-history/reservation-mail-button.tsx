@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui";
 import { useState } from "react";
 import { SendCustomerEmailButton } from "../customers/send-customer-email-button";
 import type { EmailRule } from "@/lib/notifications/email-rules-shared";
@@ -21,13 +22,13 @@ export function ReservationMailButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
+      <Button
         type="button"
-        className="border-border rounded-md border px-3 py-2 text-xs"
+        variant="ghost"
         onClick={() => setOpen(true)}
       >
         수동 메일
-      </button>
+      </Button>
       {open ? (
         <SendCustomerEmailButton
           customers={[{ phone, name, email }]}

@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui";
 import { useRef, useState } from "react";
 import { customerEmailHistory } from "@/app/admin/actions";
 import type { CustomerEmailLog } from "@/lib/notifications/customer-email-history";
@@ -30,13 +31,14 @@ export function EmailHistoryButton({
   }
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={open}
-        className="border-border rounded-md border px-3 py-2 text-xs whitespace-nowrap"
+        variant="ghost"
+        className="whitespace-nowrap"
       >
         메일 기록
-      </button>
+      </Button>
       <dialog
         ref={dialog}
         className="bg-surface text-foreground m-auto w-[calc(100%-2rem)] max-w-3xl rounded-xl border p-5 backdrop:bg-black/50"
