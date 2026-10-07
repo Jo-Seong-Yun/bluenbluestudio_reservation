@@ -1,10 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import {
-  saveEmailRule,
-  type EmailRuleActionState,
-} from "@/app/admin/actions";
+import { saveEmailRule, type EmailRuleActionState } from "@/app/admin/actions";
 import { Button, ErrorText, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -27,6 +24,7 @@ import {
   renderEmailHtml,
   toEditorHtml,
 } from "@/lib/notifications/email-html";
+import { EmailScheduleFields } from "./schedule-fields";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import type { Editor } from "@tiptap/react";
 import type { ProductOption } from "./email-rules-section";
@@ -103,7 +101,9 @@ export function RuleModal({
     if (!target) return;
     const start = target.selectionStart ?? target.value.length;
     const end = target.selectionEnd ?? target.value.length;
-    setSubject(target.value.slice(0, start) + placeholder + target.value.slice(end));
+    setSubject(
+      target.value.slice(0, start) + placeholder + target.value.slice(end),
+    );
     requestAnimationFrame(() => {
       target.focus();
       const cursor = start + placeholder.length;
@@ -201,7 +201,11 @@ export function RuleModal({
       <dialog
         ref={dialogRef}
         className="email-modal-dialog border-border bg-surface text-foreground rounded-xl border p-0 backdrop:bg-black/50"
-        style={{ width: "calc(100vw - 2rem)", maxWidth: "64rem", margin: "auto" }}
+        style={{
+          width: "calc(100vw - 2rem)",
+          maxWidth: "64rem",
+          margin: "auto",
+        }}
       >
         {/* 헤더 */}
         <div className="flex shrink-0 items-center justify-between border-b border-inherit px-5 py-4">
@@ -231,8 +235,12 @@ export function RuleModal({
               ) : null}
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium" htmlFor="name">
-                  규칙 이름 <span className="text-red-600 dark:text-red-400">*</span>
+                <label
+                  className="mb-1.5 block text-sm font-medium"
+                  htmlFor="name"
+                >
+                  규칙 이름{" "}
+                  <span className="text-red-600 dark:text-red-400">*</span>
                 </label>
                 <input
                   id="name"
@@ -251,7 +259,8 @@ export function RuleModal({
                     className="mb-1.5 block text-sm font-medium"
                     htmlFor="triggerType"
                   >
-                    보낼 시점 <span className="text-red-600 dark:text-red-400">*</span>
+                    보낼 시점{" "}
+                    <span className="text-red-600 dark:text-red-400">*</span>
                   </label>
                   <select
                     id="triggerType"
@@ -272,25 +281,11 @@ export function RuleModal({
                 </div>
 
                 {needsDayOffset ? (
-                  <div>
-                    <label
-                      className="mb-1.5 block text-sm font-medium"
-                      htmlFor="dayOffset"
-                    >
-                      며칠{" "}
-                      {triggerType === "days_before_shoot" ? "전" : "후"}{" "}
-                      <span className="text-red-600 dark:text-red-400">*</span>
-                    </label>
-                    <input
-                      id="dayOffset"
-                      name="dayOffset"
-                      type="number"
-                      min={1}
-                      required
-                      defaultValue={rule?.dayOffset ?? 1}
-                      className={inputClass}
-                    />
-                  </div>
+                  <EmailScheduleFields
+                    key={`${epoch}:${triggerType}`}
+                    rule={rule}
+                    triggerType={triggerType}
+                  />
                 ) : (
                   <RecipientPicker selected={recipients} onChange={setRecipients} />
                 )}
@@ -388,7 +383,11 @@ export function RuleModal({
                         <span className="text-muted text-xs font-medium">버튼 {i + 1}</span>
                         <button
                           type="button"
-                          onClick={() => setCtas((prev) => prev.filter((_, idx) => idx !== i))}
+                          onClick={() =>
+                            setCtas((prev) =>
+                              prev.filter((_, idx) => idx !== i),
+                            )
+                          }
                           className="text-xs text-red-600 hover:underline dark:text-red-400"
                         >
                           삭제
@@ -399,7 +398,9 @@ export function RuleModal({
                         value={cta.text}
                         onChange={(e) =>
                           setCtas((prev) =>
-                            prev.map((c, idx) => (idx === i ? { ...c, text: e.target.value } : c)),
+                            prev.map((c, idx) =>
+                              idx === i ? { ...c, text: e.target.value } : c,
+                            ),
                           )
                         }
                         placeholder="버튼 텍스트 (예: 예약 확인하기)"
@@ -410,7 +411,9 @@ export function RuleModal({
                         value={cta.url}
                         onChange={(e) =>
                           setCtas((prev) =>
-                            prev.map((c, idx) => (idx === i ? { ...c, url: e.target.value } : c)),
+                            prev.map((c, idx) =>
+                              idx === i ? { ...c, url: e.target.value } : c,
+                            ),
                           )
                         }
                         placeholder="https://..."
@@ -462,7 +465,7 @@ export function RuleModal({
             </p>
             <div className="border-border bg-surface-subtle mb-2 rounded-lg border px-3 py-2 text-sm">
               <p className="text-muted text-xs">제목</p>
-              <p className="font-medium leading-snug">
+              <p className="leading-snug font-medium">
                 {renderEmailTemplate(subject, previewValues)}
               </p>
             </div>
