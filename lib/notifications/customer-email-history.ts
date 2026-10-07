@@ -23,7 +23,7 @@ export async function loadCustomerEmailHistory(
   for (let from = 0; ; from += 500) {
     const { data, error } = await db
       .from("reservations")
-      .select("id,customer_email,team_emails")
+      .select("id,customer_email")
       .eq("customer_phone", phone)
       .order("id")
       .range(from, from + 499);
@@ -35,10 +35,7 @@ export async function loadCustomerEmailHistory(
   const addresses = new Set(
     [
       customer?.email,
-      ...reservations.flatMap((r) => [
-        r.customer_email,
-        ...(r.team_emails ?? []),
-      ]),
+      ...reservations.map((r) => r.customer_email),
     ]
       .filter((v): v is string => Boolean(v))
       .map((v) => v.trim().toLowerCase()),
@@ -55,9 +52,8 @@ export async function loadCustomerEmailHistory(
     if (error) throw error;
     result.push(
       ...(data ?? []).filter((r) =>
-        r.reservation_id
-          ? ids.has(r.reservation_id)
-          : addresses.has(r.recipient.trim().toLowerCase()),
+        addresses.has(r.recipient.trim().toLowerCase()) &&
+        (!r.reservation_id || ids.has(r.reservation_id)),
       ),
     );
     if (!data || data.length < 500) break;
