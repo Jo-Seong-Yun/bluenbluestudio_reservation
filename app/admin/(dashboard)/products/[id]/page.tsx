@@ -1,3 +1,5 @@
+import { BookingCopyEditor } from "./booking-copy-editor";
+import { productCopy } from "@/lib/booking/copy";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -33,6 +35,11 @@ export default async function EditProductPage({
     ]);
 
   if (!product) notFound();
+  const { data: copySettings } = await supabase
+    .from("settings")
+    .select("booking_style")
+    .eq("id", 1)
+    .single();
 
   return (
     <div>
@@ -67,6 +74,11 @@ export default async function EditProductPage({
           otherProducts={allProducts ?? []}
         />
       </ProductEditorPanel>
+      <BookingCopyEditor
+        fields={customFields ?? []}
+        product={product}
+        initial={productCopy(copySettings?.booking_style, product.id)}
+      />
     </div>
   );
 }

@@ -31,8 +31,8 @@ const formatDate = (iso: string) =>
     minute: "2-digit",
     hour12: false,
   });
-export function LookupForm() {
-  const [mode, setMode] = useState("phone");
+export function LookupForm({ initialCode = "" }: { initialCode?: string }) {
+  const [mode, setMode] = useState(initialCode ? "code" : "phone");
   const [phoneState, phoneAction, phonePending] = useActionState(
     lookupReservationsByPhone,
     phoneIdle,
@@ -138,6 +138,7 @@ export function LookupForm() {
               <Field label="예약번호">
                 <input
                   name="code"
+                  defaultValue={initialCode}
                   required
                   autoCapitalize="characters"
                   className={inputClass}

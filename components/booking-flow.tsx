@@ -1,4 +1,5 @@
 "use client";
+import { resolveCopy, type BookingCopy } from "@/lib/booking/copy";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -14,12 +15,15 @@ import {
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_CANDIDATES = 3;
 type Candidate = { date: DateString; time: string };
+// 후보 선택은 같은 탭의 이전/다음 단계 이동 동안만 메모리에 유지합니다.
+const timeDrafts = new Map<string, Candidate[]>();
 function formatCandidate({ date, time }: Candidate) {
   const [, month, day] = date.split("-").map(Number);
   return `${month}월 ${day}일(${WEEKDAY_LABELS[weekdayOf(date)]}) ${time}`;
 }
 
 export function BookingFlow({
+  copy: rawCopy,
   productId,
   productName,
   basePrice,
@@ -31,6 +35,7 @@ export function BookingFlow({
   maxMonth,
   loadSlots,
 }: {
+  copy?: BookingCopy;
   productId: string;
   productName: string;
   basePrice: number;
@@ -42,8 +47,11 @@ export function BookingFlow({
   maxMonth: string;
   loadSlots?: (date: DateString) => Promise<string[]>;
 }) {
+  const copy = resolveCopy(rawCopy);
   const router = useRouter();
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>(
+    () => timeDrafts.get(productId) ?? [],
+  );
   const [selectedDate, setSelectedDate] = useState<DateString | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -73,14 +81,17 @@ export function BookingFlow({
   }
   function toggle(time: string) {
     if (!selectedDate || pending) return;
-    setCandidates((prev) =>
-      prev.some((c) => c.date === selectedDate && c.time === time)
+    setCandidates((prev) => {
+      const next = prev.some((c) => c.date === selectedDate && c.time === time)
         ? prev.filter((c) => !(c.date === selectedDate && c.time === time))
         : prev.length < MAX_CANDIDATES
           ? [...prev, { date: selectedDate, time }]
-          : prev,
-    );
+          : prev;
+      timeDrafts.set(productId, next);
+      return next;
+    });
   }
+
   function apply() {
     if (!isFull) return;
     const slots = candidates
@@ -89,12 +100,16 @@ export function BookingFlow({
     router.push(`${basePath}/apply?${new URLSearchParams({ slots })}`);
   }
   return (
-    <div className="booking-split">
+    <div className="booking-split booking-modern-times">
       <section className="booking-card">
-        <h1 className="text-2xl font-bold">희망 시간을 선택합니다</h1>
-        <p className="text-muted mt-2 mb-6 text-sm">
-          희망 시간을 3개 선택하면 그중 하나로 예약을 확정해 드립니다.
-        </p>
+        <div className="booking-time-product">
+          <strong>
+            {productName} · {durationMin}분
+          </strong>
+          <span>{basePrice.toLocaleString()}원</span>
+        </div>
+        <h1 className="text-2xl font-bold">{copy.timesTitle}</h1>
+        <p className="text-muted mt-2 mb-6 text-sm">{copy.timesIntro}</p>
         <div className="grid gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <CalendarGrid
             month={month}
@@ -179,9 +194,11 @@ export function BookingFlow({
                   type="button"
                   aria-label={`${i + 1}번째 희망 시간 삭제`}
                   onClick={() =>
-                    setCandidates((prev) =>
-                      prev.filter((_, index) => index !== i),
-                    )
+                    setCandidates((prev) => {
+                      const next = prev.filter((_, index) => index !== i);
+                      timeDrafts.set(productId, next);
+                      return next;
+                    })
                   }
                   className="shrink-0 px-1"
                 >
@@ -195,14 +212,22 @@ export function BookingFlow({
           <span>기본 요금</span>
           <strong>{basePrice.toLocaleString()}원</strong>
         </div>
-        <Button
-          type="button"
-          onClick={apply}
-          disabled={!isFull}
-          className="mt-5 min-h-12 w-full text-base"
-        >
-          신청 정보 입력하기 →
-        </Button>
+        <div className="booking-primary-dock">
+          <Button
+            type="button"
+            onClick={apply}
+            disabled={!isFull}
+            className="mt-5 min-h-12 w-full text-base"
+          >
+            신청서 작성하기 →
+          </Button>
+          <p>
+            {isFull
+              ? "희망 시간 3개를 선택했습니다."
+              : `희망 시간을 ${MAX_CANDIDATES - candidates.length}개 더 선택합니다.`}
+          </p>
+        </div>
+        <p className="booking-small-copy">{copy.timesNote}</p>
         <p className="text-muted mt-4 text-xs leading-relaxed">
           확정 안내 전에는 입금하지 않습니다. 추가 옵션은 신청서에서 선택합니다.
         </p>

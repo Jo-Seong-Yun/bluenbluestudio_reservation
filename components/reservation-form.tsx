@@ -1,5 +1,11 @@
 "use client";
 import {
+  resolveCopy,
+  fieldGroup,
+  GROUP_COPY_KEYS,
+  type BookingCopy,
+} from "@/lib/booking/copy";
+import {
   analyticsContext,
   trackBooking,
   flushAnalytics,
@@ -55,6 +61,7 @@ function descriptionHint(
   );
 }
 
+const answerDrafts = new Map<string, Record<string, string[]>>();
 const initialState: ReservationActionState = { status: "idle" };
 
 /**
@@ -70,6 +77,7 @@ const initialState: ReservationActionState = { status: "idle" };
  * 상품에 기본으로 5개를 만들어 둔다).
  */
 export function ReservationForm({
+  copy: rawCopy,
   productId,
   productName,
   durationMin,
@@ -83,6 +91,7 @@ export function ReservationForm({
   successMessage,
   customFields,
 }: {
+  copy?: BookingCopy;
   productId: string;
   productName: string;
   durationMin: number;
@@ -103,7 +112,35 @@ export function ReservationForm({
     () => visibleBookingFields(customFields),
     [customFields],
   );
+  const [initialAnswers] = useState(() => answerDrafts.get(productId) ?? {});
+  const copy = useMemo(() => resolveCopy(rawCopy), [rawCopy]);
+  const groups = useMemo(
+    () =>
+      [0, 1, 2, 3].filter((group) =>
+        fields.some((field) => fieldGroup(field, copy) === group),
+      ),
+    [fields, copy],
+  );
+  const [currentGroup, setCurrentGroup] = useState(groups[0] ?? 0);
   const [reviewing, setReviewing] = useState(false);
+  const visibleIds = fields
+    .filter((field) => fieldGroup(field, copy) === currentGroup)
+    .map((field) => field.id);
+  function nextGroup() {
+    for (const field of fields.filter(
+      (field) => fieldGroup(field, copy) === currentGroup,
+    ))
+      if (!validateField(field)) return;
+    const next = groups[groups.indexOf(currentGroup) + 1];
+    if (next === undefined) {
+      confirm();
+      return;
+    }
+    setCurrentGroup(next);
+    const first = fields.find((field) => fieldGroup(field, copy) === next);
+    if (first) revealField(first.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   const [activeFieldId, setActiveFieldId] = useState<string | null>(
     fields[0]?.id ?? null,
   );
@@ -153,6 +190,7 @@ export function ReservationForm({
           errorCode: result.errorCode ?? "server",
         });
       if (result.status === "success") {
+        answerDrafts.delete(productId);
         flushAnalytics();
         finishAnalyticsAttempt(productId);
       }
@@ -294,6 +332,8 @@ export function ReservationForm({
   }
 
   function revealField(id: string, reportError = false) {
+    const groupField = fields.find((field) => field.id === id);
+    if (groupField) setCurrentGroup(fieldGroup(groupField, copy));
     setActiveFieldId(id);
     requestAnimationFrame(() => {
       const block = formRef.current?.querySelector<HTMLElement>(
@@ -341,6 +381,8 @@ export function ReservationForm({
     return true;
   }
 
+  // 이전 단계로 돌아갔을 때 입력값을 유지합니다. 민감한 답변은 저장소에 남기지 않고,
+  // 신청서의 모든 페이지 입력을 마운트한 채 hidden으로 표시만 전환합니다.
   // 입력 시간이나 선택 변경으로 이동하지 않습니다. Enter로만 다음 문항에 이동합니다.
   function handleFieldKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
     if (
@@ -385,8 +427,13 @@ export function ReservationForm({
     setPassedFieldIds((prev) =>
       prev.includes(fields[index].id) ? prev : [...prev, fields[index].id],
     );
-    if (fields[index + 1]) revealField(fields[index + 1].id);
-    else confirm();
+    const groupFields = fields.filter(
+      (field) => fieldGroup(field, copy) === currentGroup,
+    );
+    const next =
+      groupFields[groupFields.findIndex((field) => field.id === id) + 1];
+    if (next) revealField(next.id);
+    else nextGroup();
   }
 
   function confirm() {
@@ -424,8 +471,11 @@ export function ReservationForm({
         <BookingSteps stage="success" />
 
         <ReservationSuccessCard
-          successHeading={successHeading}
-          successMessage={successMessage}
+          successHeading={rawCopy?.successTitle ?? successHeading}
+          successMessage={rawCopy?.successIntro ?? successMessage}
+          copy={copy}
+          estimatedTotal={estimatedTotal}
+          durationMin={durationMin}
           code={state.code}
           productName={productName}
           candidates={state.candidates}
@@ -457,6 +507,18 @@ export function ReservationForm({
             )
             .forEach((input) => input.setCustomValidity(""));
           if (block?.dataset.fieldId === fieldError?.id) setFieldError(null);
+          if (formRef.current) {
+            const data = new FormData(formRef.current);
+            answerDrafts.set(
+              productId,
+              Object.fromEntries(
+                fields.map((field) => [
+                  field.id,
+                  data.getAll(fieldFormName(field.id)).map(String),
+                ]),
+              ),
+            );
+          }
           syncFieldSnapshots();
           recomputeEstimate();
         }}
@@ -466,7 +528,7 @@ export function ReservationForm({
             confirm();
           }
         }}
-        className="booking-split booking-reservation-form"
+        className="booking-split booking-reservation-form booking-modern-form"
       >
         {candidates.map((c, i) => (
           <div key={i} hidden>
@@ -485,7 +547,35 @@ export function ReservationForm({
           >
             ← 날짜·시간 다시 고르기
           </Link>
-          <h1 className="text-2xl font-bold">신청 정보</h1>
+          <div className="booking-group-navigation">
+            <button
+              type="button"
+              onClick={() => {
+                const prev = groups[groups.indexOf(currentGroup) - 1];
+                if (prev !== undefined) setCurrentGroup(prev);
+              }}
+              disabled={groups.indexOf(currentGroup) === 0}
+            >
+              ← 이전
+            </button>
+            <span>
+              신청서 {groups.indexOf(currentGroup) + 1} / {groups.length}
+            </span>
+          </div>
+          <div className="booking-group-progress">
+            {groups.map((group) => (
+              <span
+                key={group}
+                className={group <= currentGroup ? "done" : ""}
+              />
+            ))}
+          </div>
+          <h1 className="text-2xl font-bold">
+            {copy[GROUP_COPY_KEYS[currentGroup][0]]}
+          </h1>
+          <p className="booking-lead">
+            {copy[GROUP_COPY_KEYS[currentGroup][1]]}
+          </p>
           <p className="booking-form-help">
             Enter로 다음 문항에 이동합니다. 문항 제목을 눌러 직접 이동할 수도
             있습니다.
@@ -530,7 +620,10 @@ export function ReservationForm({
           </div>
           <ReservationFields
             fields={fields}
+            initialAnswers={initialAnswers}
+            placeholders={copy}
             navigation={{
+              visibleIds,
               activeId: activeFieldId,
               onSelect: (id) => revealField(id),
               snapshots: fieldSnapshots,
@@ -546,11 +639,9 @@ export function ReservationForm({
               tabIndex={-1}
               className="text-2xl font-bold"
             >
-              신청 내용을 확인합니다
+              {copy.reviewTitle}
             </h1>
-            <p className="text-muted mt-2 text-sm">
-              입력한 정보와 희망 시간을 확인한 후 신청해 주십시오.
-            </p>
+            <p className="text-muted mt-2 text-sm">{copy.reviewIntro}</p>
             <dl className="mt-5">
               {answers.map((a) => (
                 <div key={a.id} className="booking-review-answer">
@@ -627,11 +718,13 @@ export function ReservationForm({
                 onClick={(event) => {
                   // 확인 버튼이 제출 버튼으로 바뀌는 클릭에서 바로 접수되지 않게 한다.
                   event.preventDefault();
-                  confirm();
+                  nextGroup();
                 }}
                 className={`${PRIMARY_CTA_CLASS} mt-4`}
               >
-                신청 내용 확인하기 →
+                {groups.indexOf(currentGroup) === groups.length - 1
+                  ? "신청 내용 확인하기 →"
+                  : "다음 단계로 →"}
               </Button>
             )}
           </div>
@@ -647,6 +740,7 @@ export function ReservationForm({
 
 /** 상품 문항 설정을 고객 신청서와 관리자 미리보기에서 똑같이 렌더링한다. */
 type QuestionNavigation = {
+  visibleIds?: string[];
   activeId: string | null;
   onSelect: (id: string) => void;
   snapshots: Record<
@@ -659,8 +753,12 @@ type QuestionNavigation = {
 export function ReservationFields({
   fields,
   navigation,
+  initialAnswers = {},
+  placeholders = {},
 }: {
   fields: CustomField[];
+  initialAnswers?: Record<string, string[]>;
+  placeholders?: BookingCopy;
   navigation?: QuestionNavigation;
 }) {
   return (
@@ -678,6 +776,11 @@ export function ReservationFields({
         return (
           <div
             key={field.id}
+            hidden={
+              navigation?.visibleIds
+                ? !navigation.visibleIds.includes(field.id)
+                : false
+            }
             data-field-block
             data-field-id={field.id}
             className={[
@@ -723,7 +826,11 @@ export function ReservationFields({
                   aria-labelledby={headingId}
                   className="booking-question-panel"
                 >
-                  <ReservationFieldInput field={field} />
+                  <ReservationFieldInput
+                    field={field}
+                    values={initialAnswers[field.id] ?? []}
+                    placeholderText={placeholders[`placeholder:${field.id}`]}
+                  />
                   {error ? (
                     <p className="booking-question-error" role="alert">
                       {error}
@@ -737,7 +844,11 @@ export function ReservationFields({
                 </div>
               </>
             ) : (
-              <ReservationFieldInput field={field} />
+              <ReservationFieldInput
+                field={field}
+                values={initialAnswers[field.id] ?? []}
+                placeholderText={placeholders[`placeholder:${field.id}`]}
+              />
             )}
           </div>
         );
@@ -770,7 +881,15 @@ function ChoiceField({
 }
 
 /** 문항 하나를 타입에 맞는 입력으로 그린다. */
-function ReservationFieldInput({ field }: { field: CustomField }) {
+function ReservationFieldInput({
+  field,
+  values = [],
+  placeholderText,
+}: {
+  field: CustomField;
+  values?: string[];
+  placeholderText?: string;
+}) {
   const name = fieldFormName(field.id);
   const options = field.options ?? [];
 
@@ -786,6 +905,8 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       >
         <input
           name={name}
+          defaultValue={values[0] ?? ""}
+          placeholder={placeholderText || undefined}
           enterKeyHint="next"
           required={field.required}
           maxLength={50}
@@ -807,10 +928,11 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       >
         <input
           name={name}
+          defaultValue={values[0] ?? ""}
           enterKeyHint="next"
           type="tel"
           inputMode="numeric"
-          placeholder="01012345678"
+          placeholder={placeholderText || "01012345678"}
           required={field.required}
           className={inputClass}
         />
@@ -833,9 +955,10 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       >
         <input
           name={name}
+          defaultValue={values[0] ?? ""}
           enterKeyHint="next"
           type="email"
-          placeholder="you@example.com"
+          placeholder={placeholderText || "you@example.com"}
           required={field.required}
           className={inputClass}
         />
@@ -860,6 +983,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
               name={name}
               enterKeyHint="next"
               value="male"
+              defaultChecked={values.includes("male")}
               required={field.required}
               className={OPTION_INPUT_CLASS}
             />
@@ -871,6 +995,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
               name={name}
               enterKeyHint="next"
               value="female"
+              defaultChecked={values.includes("female")}
               required={field.required}
               className={OPTION_INPUT_CLASS}
             />
@@ -882,7 +1007,14 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
   }
 
   if (field.type === "birth_date") {
-    return <BirthDateInput field={field} name={name} />;
+    return (
+      <BirthDateInput
+        field={field}
+        name={name}
+        initialValue={values[0] ?? ""}
+        placeholderText={placeholderText}
+      />
+    );
   }
 
   if (field.type === "long_text") {
@@ -897,6 +1029,8 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       >
         <textarea
           name={name}
+          defaultValue={values[0] ?? ""}
+          placeholder={placeholderText || undefined}
           enterKeyHint="next"
           rows={3}
           maxLength={1000}
@@ -927,6 +1061,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
                   name={name}
                   enterKeyHint="next"
                   value={option}
+                  defaultChecked={values.includes(option)}
                   required={field.required}
                   className={OPTION_INPUT_CLASS}
                 />
@@ -964,6 +1099,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
                   name={name}
                   enterKeyHint="next"
                   value={option}
+                  defaultChecked={values.includes(option)}
                   className={OPTION_INPUT_CLASS}
                 />
                 {option}
@@ -985,6 +1121,7 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
       <label className="flex items-start gap-2 text-base">
         <input
           type="checkbox"
+          defaultChecked={values.length > 0}
           name={name}
           enterKeyHint="next"
           required={field.required}
@@ -1017,8 +1154,10 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
     >
       <input
         name={name}
+        defaultValue={values[0] ?? ""}
         enterKeyHint="next"
         type="text"
+        placeholder={placeholderText || undefined}
         maxLength={200}
         required={field.required}
         className={inputClass}
@@ -1028,8 +1167,18 @@ function ReservationFieldInput({ field }: { field: CustomField }) {
 }
 
 /** 생년월일 입력. 8자리를 타이핑하는 대로 만나이/한국나이/미성년자를 보여준다. */
-function BirthDateInput({ field, name }: { field: CustomField; name: string }) {
-  const [value, setValue] = useState("");
+function BirthDateInput({
+  field,
+  name,
+  initialValue = "",
+  placeholderText,
+}: {
+  field: CustomField;
+  name: string;
+  initialValue?: string;
+  placeholderText?: string;
+}) {
+  const [value, setValue] = useState(initialValue);
   const parsedDate = parseBirthDate8(value);
   const ageInfo = parsedDate ? calculateAge(parsedDate) : null;
 
@@ -1050,7 +1199,7 @@ function BirthDateInput({ field, name }: { field: CustomField; name: string }) {
         enterKeyHint="next"
         type="text"
         inputMode="numeric"
-        placeholder="19990101"
+        placeholder={placeholderText || "19990101"}
         maxLength={8}
         required={field.required}
         value={value}

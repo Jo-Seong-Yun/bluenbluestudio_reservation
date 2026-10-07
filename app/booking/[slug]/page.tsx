@@ -1,3 +1,4 @@
+import { productCopy } from "@/lib/booking/copy";
 import { BookingSteps } from "@/components/booking-shell";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -44,7 +45,9 @@ export default async function ProductDetailPage({
       .maybeSingle(),
     supabase
       .from("settings")
-      .select("slot_interval_min, min_lead_days, max_advance_days")
+      .select(
+        "slot_interval_min, min_lead_days, max_advance_days, booking_style",
+      )
       .eq("id", 1)
       .single(),
   ]);
@@ -67,6 +70,7 @@ export default async function ProductDetailPage({
       <>
         <ProductViewTracker productId={product.id} />
         <BookingDetail
+          copy={productCopy(settings?.booking_style, product.id)}
           product={product}
           earliestBookable={earliestBookable}
           latestBookable={latestBookable}
@@ -112,6 +116,7 @@ export default async function ProductDetailPage({
 
         <BookingSteps stage="times" />
         <BookingFlow
+          copy={productCopy(settings?.booking_style, product.id)}
           productId={product.id}
           productName={product.name}
           basePrice={product.sale_price ?? product.price}

@@ -1,4 +1,5 @@
 "use server";
+import { updateBookingSettings } from "@/lib/booking/style-storage";
 import { loadCustomerEmailHistory } from "@/lib/notifications/customer-email-history";
 import { loadCustomerEmailContexts } from "@/lib/notifications/customer-email-contexts";
 import { customerEmailValues, parseCustomerVariableOverrides, renderCustomerCtas } from "@/lib/notifications/customer-email-shared";
@@ -2272,23 +2273,12 @@ export async function saveBookingStyle(
     return { error: "텍스트 크기·박스 모양 값을 다시 확인해 주시기 바랍니다." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("settings")
-    .update({
-      booking_style: {
-        accentColor,
-        saleColor,
-        textColor,
-        textSize,
-        cardRadius,
-        cardSize,
-      },
-    })
-    .eq("id", 1);
-
-  if (error) {
-    return { error: `저장하지 못했습니다: ${error.message}` };
+  try {
+    await updateBookingSettings((current) => ({
+      ...current, accentColor, saleColor, textColor, textSize, cardRadius, cardSize,
+    }));
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "저장하지 못했습니다." };
   }
 
   revalidatePath("/admin/design");

@@ -315,6 +315,7 @@ export interface Database {
           analytics_v2_started_at?: string | null;
           /** lib/booking-style.ts의 BookingStyle 그대로. */
           booking_style: {
+            productCopies?: Record<string, Record<string, string>>;
             accentColor: string;
             saleColor: string;
             textColor: string;

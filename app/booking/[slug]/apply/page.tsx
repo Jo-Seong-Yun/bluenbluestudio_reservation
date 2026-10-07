@@ -1,3 +1,4 @@
+import { productCopy } from "@/lib/booking/copy";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -65,7 +66,7 @@ export default async function ApplyPage({
     supabase
       .from("settings")
       .select(
-        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice, reservation_success_heading, reservation_success_message",
+        "slot_interval_min, min_lead_days, max_advance_days, bank_account, notice, reservation_success_heading, reservation_success_message, booking_style",
       )
       .eq("id", 1)
       .single(),
@@ -178,6 +179,7 @@ export default async function ApplyPage({
       <ApplyViewTracker productId={product.id} />
 
       <ReservationForm
+        copy={productCopy(settings?.booking_style, product.id)}
         productId={product.id}
         productName={product.name}
         durationMin={product.duration_min}
