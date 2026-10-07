@@ -1,4 +1,6 @@
 "use server";
+import { loadCustomerEmailContexts } from "@/lib/notifications/customer-email-contexts";
+import { customerEmailValues, parseCustomerVariableOverrides, renderCustomerCtas } from "@/lib/notifications/customer-email-shared";
 import { parseEmailSchedule } from "@/lib/notifications/email-schedule";
 
 import { revalidatePath } from "next/cache";
@@ -3230,21 +3232,24 @@ export async function deleteCustomers(
   return { status: "success", count: phones.length };
 }
 
-/**
- * 고객DB에서 선택한 손님들에게 메일을 보낸다. "이메일" 페이지에 이미
- * 만들어둔 규칙(프리셋)을 그대로 골라 보내거나, 그 자리에서 제목·본문을
- * 직접 써서(규칙 모달과 같은 에디터) 보낼 수 있다 — 어느 쪽이든 특정
- * 예약에 매인 게 아니라 손님에게 곧장 나가는 메일이라 트리거·수신자
- * 설정을 타지 않고 이 액션이 바로 발송한다. {{이름}}/{{연락처}}와
- * 사이트 설정값({{계좌}}/{{공지}})만 채워지고, 예약이 있어야 아는 값
- * (상품명·일시 등)은 채울 예약이 없어 빈 칸으로 남는다 — 프리셋이
- * 트리거 이메일용으로 그런 변수를 쓰고 있으면 관리자가 화면에서
- * 그대로 드러난 것을 보고 알 수 있다.
- */
+/** 고객별 선택한 예약과 직접 편집한 변수로 이번 발송용 메일을 만듭니다.
+ * 예약의 고객 소속을 서버에서 다시 확인하며 원본 이메일 규칙은 변경하지 않습니다. */
 export type SendCustomerEmailState =
   | { status: "idle" }
   | { status: "error"; error: string }
   | { status: "success"; sent: number; skipped: number };
+
+export async function previewCustomerEmailContexts(phones: string[]) {
+  await requireAdmin();
+  try {
+    return { contexts: await loadCustomerEmailContexts(phones), error: null };
+  } catch {
+    return {
+      contexts: [],
+      error: "고객 예약 정보를 불러오지 못했습니다. 다시 시도해 주세요.",
+    };
+  }
+}
 
 export async function sendCustomerEmails(
   _prev: SendCustomerEmailState,
@@ -3273,7 +3278,8 @@ export async function sendCustomerEmails(
 
   if (mode === "preset") {
     const ruleId = String(formData.get("ruleId") ?? "").trim();
-    if (!ruleId) return { status: "error", error: "보낼 메일을 선택해 주시기 바랍니다." };
+    if (!ruleId)
+      return { status: "error", error: "보낼 메일을 선택해 주시기 바랍니다." };
     const { data: rule } = await supabase
       .from("email_rules")
       .select(
@@ -3281,16 +3287,20 @@ export async function sendCustomerEmails(
       )
       .eq("id", ruleId)
       .single();
-    if (!rule) return { status: "error", error: "선택한 메일을 찾을 수 없습니다." };
+    if (!rule)
+      return { status: "error", error: "선택한 메일을 찾을 수 없습니다." };
     subjectTemplate = rule.subject;
     bodyTemplate = rule.body;
     ctas = ctasFromColumns(rule);
     purpose = `rule:${ruleId}`;
   } else if (mode === "custom") {
     const subject = String(formData.get("subject") ?? "").trim();
-    if (!subject) return { status: "error", error: "제목을 입력해 주시기 바랍니다." };
+    if (!subject)
+      return { status: "error", error: "제목을 입력해 주시기 바랍니다." };
     const rawBody = String(formData.get("body") ?? "").trim();
-    const body = isHtmlBody(rawBody) ? sanitizeDescriptionHtml(rawBody) : rawBody;
+    const body = isHtmlBody(rawBody)
+      ? sanitizeDescriptionHtml(rawBody)
+      : rawBody;
     if (isEmptyEmailBody(body)) {
       return { status: "error", error: "본문을 입력해 주시기 바랍니다." };
     }
@@ -3302,7 +3312,7 @@ export async function sendCustomerEmails(
       const text = String(formData.get(`ctaText${suffix}`) ?? "").trim();
       const url = String(formData.get(`ctaUrl${suffix}`) ?? "").trim();
       if (text && url) {
-        if (!/^https?:\/\//.test(url)) {
+        if (!/^https?:\/\//.test(url) && !url.includes("{{")) {
           return {
             status: "error",
             error: "CTA 버튼 URL은 http:// 또는 https://로 시작해야 합니다.",
@@ -3320,13 +3330,17 @@ export async function sendCustomerEmails(
     return { status: "error", error: "잘못된 요청입니다." };
   }
 
-  const { data: customers } = await supabase
+  const { data: customers, error: customerError } = await supabase
     .from("customers")
     .select("phone, name, email")
     .in("phone", phones);
 
+  if (customerError)
+    return { status: "error", error: "고객 정보를 불러오지 못했습니다." };
+
   const customerRecipients = (customers ?? []).filter(
-    (c): c is { phone: string; name: string; email: string } => Boolean(c.email),
+    (c): c is { phone: string; name: string; email: string } =>
+      Boolean(c.email),
   );
   // 직접 추가한 주소는 고객DB에 없는 사람일 수 있어 {{이름}}/{{연락처}}를
   // 빈 칸으로 채운다. 이미 선택한 손님과 같은 주소면 두 번 보내지 않는다.
@@ -3346,15 +3360,54 @@ export async function sendCustomerEmails(
     };
   }
 
-  const siteOverrides = await siteVariableOverrides();
-
+  let prepared;
+  try {
+    const contexts = await loadCustomerEmailContexts(phones);
+    const site = await siteVariableOverrides();
+    prepared = recipients.map((c) => {
+      const context = contexts.find((ctx) => ctx.phone === c.phone) ?? {
+        phone: c.phone,
+        name: c.name,
+        reservations: [],
+        variables: {
+          ...buildEmailVariables({
+            customerName: c.name,
+            customerPhone: c.phone,
+          }),
+          ...site,
+        },
+      };
+      const variables = customerEmailValues(
+        context,
+        String(formData.get(`reservation_${c.phone}`) ?? ""),
+        parseCustomerVariableOverrides(
+          String(formData.get(`variables_${c.phone || "extra"}`) ?? "{}"),
+        ),
+      );
+      const buttons = renderCustomerCtas(ctas, variables);
+      if (buttons.some((button) => !/^https?:\/\//.test(button.url)))
+        throw new Error(
+          "버튼 링크에 사용할 변수 값을 입력하거나 올바른 URL을 입력해 주세요.",
+        );
+      return {
+        subject: renderEmailTemplate(subjectTemplate, variables),
+        body: renderEmailHtml(bodyTemplate, variables),
+        ctas: buttons,
+        to: c.email,
+        purpose,
+      };
+    });
+  } catch (error) {
+    return {
+      status: "error",
+      error:
+        error instanceof Error
+          ? error.message
+          : "메일 변수 정보를 불러오지 못했습니다.",
+    };
+  }
   const results = await Promise.all(
-    recipients.map((c) => {
-      const variables = { 이름: c.name, 연락처: c.phone, ...siteOverrides };
-      const subject = renderEmailTemplate(subjectTemplate, variables);
-      const html = renderEmailHtml(bodyTemplate, variables);
-      return sendAdHocEmail({ subject, body: html, ctas, to: c.email, purpose });
-    }),
+    prepared.map((params) => sendAdHocEmail(params)),
   );
 
   const failed = results.filter((r) => !r.ok).length;
@@ -3365,7 +3418,7 @@ export async function sendCustomerEmails(
   return {
     status: "success",
     sent: results.length - failed,
-    skipped: phones.length - recipients.length,
+    skipped: Math.max(0, phones.length - customerRecipients.length),
   };
 }
 
