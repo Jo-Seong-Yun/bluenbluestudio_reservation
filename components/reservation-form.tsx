@@ -13,6 +13,7 @@ import {
 } from "@/lib/analytics/client";
 import { bookingFormVersion } from "@/lib/analytics/shared";
 import { useBookingKeyboard } from "@/components/use-booking-keyboard";
+import { BookingContactInput } from "@/components/booking-contact-input";
 import { BirthDateSlots } from "@/components/birth-date-slots";
 import { BookingCTA } from "@/components/booking-cta";
 import { BookingSteps } from "@/components/booking-shell";
@@ -1042,13 +1043,13 @@ function ReservationFieldInput({
         hintClassName={FIELD_HINT_CLASS}
         hintPosition="before"
       >
-        <input
+        <BookingContactInput
+          label={field.label}
           name={name}
           defaultValue={values[0] ?? ""}
           enterKeyHint="next"
           type="tel"
-          inputMode="numeric"
-          placeholder={placeholderText || "01012345678"}
+          placeholder={placeholderText || "010-0000-0000"}
           required={field.required}
           className={inputClass}
         />
@@ -1069,7 +1070,8 @@ function ReservationFieldInput({
         hintClassName={FIELD_HINT_CLASS}
         hintPosition="before"
       >
-        <input
+        <BookingContactInput
+          label={field.label}
           name={name}
           defaultValue={values[0] ?? ""}
           enterKeyHint="next"

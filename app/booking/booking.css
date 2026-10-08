@@ -1350,3 +1350,9 @@
     display: none !important;
   }
 }
+
+/* Shared outlined contact fields, matching phone and email on every product. */
+.booking-contact-outline { display: block; position: relative; margin-top: 16px; }
+.booking-contact-label { position: absolute; top: -9px; left: 12px; padding: 0 5px; background: white; color: #044aad; font-size: 12px; line-height: 18px; z-index: 1; }
+.booking-modern-form .booking-question-panel .booking-contact-outline input { border: 1px solid #044aad; border-radius: 9px; padding: 14px 12px; min-height: 54px; font-size: 16px; background: white; }
+.booking-modern-form .booking-question-panel .booking-contact-outline input:focus { box-shadow: 0 0 0 2px #044aad15; }
