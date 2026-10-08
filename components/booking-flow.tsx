@@ -63,7 +63,7 @@ export function BookingFlow({
   useReportPending(pending);
   const isFull = candidates.length === MAX_CANDIDATES;
   const timeSection = useRef<HTMLDivElement>(null);
-  const summarySection = useRef<HTMLElement>(null);
+  const summarySection = useRef<HTMLUListElement>(null);
   const cancelScroll = useRef<(() => void) | null>(null);
   useEffect(() => () => cancelScroll.current?.(), []);
   function guideTo(target: HTMLElement | null) {
@@ -100,6 +100,7 @@ export function BookingFlow({
     setCandidates(next);
     timeDrafts.set(productId,next);
     if (!picked && candidates.length === 2 && next.length === MAX_CANDIDATES) guideTo(summarySection.current);
+    else if (!picked && next !== candidates) guideTo(timeSection.current);
   }
 
   function apply() {
@@ -131,12 +132,13 @@ export function BookingFlow({
             minMonth={minMonth}
             maxMonth={maxMonth}
           />
-          <div ref={timeSection} className="booking-time-choice min-w-0">
+          <div className="booking-time-choice min-w-0">
             <h2 className="mb-3 font-bold">
               {selectedDate
                 ? `${Number(selectedDate.slice(5, 7))}월 ${Number(selectedDate.slice(8))}일 시간 선택`
                 : "시간 선택"}
             </h2>
+            <div ref={timeSection} className="booking-time-actions">
             {slotsError ? (
               <p role="alert" className="text-sm text-red-700">
                 {slotsError}
@@ -154,7 +156,7 @@ export function BookingFlow({
                 이 날짜는 예약할 수 있는 시간이 없습니다.
               </p>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid w-full grid-cols-2 gap-2">
                 {slots.map((time) => {
                   const picked = candidates.some(
                     (c) => c.date === selectedDate && c.time === time,
@@ -174,10 +176,11 @@ export function BookingFlow({
                 })}
               </div>
             )}
+            </div>
           </div>
         </div>
       </section>
-      <aside ref={summarySection} className="booking-card booking-summary" aria-label="예약 요약">
+      <aside className="booking-card booking-summary" aria-label="예약 요약">
         <p className="text-brand text-xs font-bold tracking-wider">예약 요약</p>
         <h2>{productName}</h2>
         <p className="text-muted text-sm">촬영 {durationMin}분</p>
@@ -193,7 +196,7 @@ export function BookingFlow({
             {candidates.length}/3개 선택
           </span>
         </div>
-        <ul className="booking-summary-list">
+        <ul ref={summarySection} className="booking-summary-list">
           {Array.from({ length: 3 }, (_, i) => (
             <li key={i}>
               <span>

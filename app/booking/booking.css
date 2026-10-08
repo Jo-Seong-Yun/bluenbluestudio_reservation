@@ -1172,3 +1172,10 @@
 
 .booking-time-choice { min-height: 190px; scroll-margin-top: 24px; }
 .booking-modern-times .booking-summary { scroll-margin-top: 24px; }
+
+.booking-time-actions {
+  display: flex;
+  align-items: center;
+  min-height: 190px;
+}
+.booking-modern-times .booking-summary { position: static; }

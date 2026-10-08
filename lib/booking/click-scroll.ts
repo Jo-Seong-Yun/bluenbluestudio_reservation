@@ -19,16 +19,19 @@ export function scrollAfterClick(target: HTMLElement | null): () => void {
   frame = requestAnimationFrame(() => {
     if (cancelled || !target.isConnected) return stop();
     const rect = target.getBoundingClientRect();
-    if (rect.top >= 24 && rect.bottom <= window.innerHeight - 110)
-      return stop();
+    const viewport = window.visualViewport;
+    const height = viewport?.height ?? window.innerHeight;
+    const center = (viewport?.offsetTop ?? 0) + height / 2;
     const start = window.scrollY;
-    const end = Math.max(
-      0,
-      Math.min(
-        start + rect.top - 24,
-        document.documentElement.scrollHeight - window.innerHeight,
-      ),
-    );
+    const desired = Math.max(0, start + rect.top + rect.height / 2 - center);
+    // Add only the missing bottom room so the last observation target can center.
+    const room = desired + window.innerHeight - document.documentElement.scrollHeight;
+    const flow = target.closest<HTMLElement>(".booking-modern-times");
+    if (room > 0 && flow) {
+      const padding = parseFloat(getComputedStyle(flow).paddingBottom) || 0;
+      flow.style.paddingBottom = `${padding + room}px`;
+    }
+    const end = Math.min(desired, document.documentElement.scrollHeight - window.innerHeight);
     if (Math.abs(end - start) < 2) return stop();
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       window.scrollTo({ top: end, behavior: "instant" });
