@@ -12,6 +12,7 @@ import {
   finishAnalyticsAttempt,
 } from "@/lib/analytics/client";
 import { bookingFormVersion } from "@/lib/analytics/shared";
+import { useBookingKeyboard } from "@/components/use-booking-keyboard";
 import { BirthDateSlots } from "@/components/birth-date-slots";
 import { BookingCTA } from "@/components/booking-cta";
 import { BookingSteps } from "@/components/booking-shell";
@@ -234,6 +235,7 @@ export function ReservationForm({
     (field) => field.option_prices && field.option_prices.length > 0,
   );
   const formRef = useRef<HTMLFormElement>(null);
+  useBookingKeyboard(formRef);
   const analyticsVisited = useRef<string | null>(null);
   const analyticsOpenedAt = useRef(0);
   const analyticsValidity = useRef(new Map<string, boolean>());
@@ -505,26 +507,26 @@ export function ReservationForm({
       nextGroup();
       return;
     }
+    focusActorBirth(target);
+  }
+
+  function focusActorBirth(target: HTMLElement) {
     if (
-      target instanceof HTMLInputElement &&
-      target.type === "radio" &&
-      target.name === fieldFormName(actorGender.id)
-    ) {
-      setActiveFieldId(actorBirth.id);
-      requestAnimationFrame(() => {
-        const block = formRef.current?.querySelector<HTMLElement>(
-          `[data-field-id="${CSS.escape(actorBirth.id)}"]`,
-        );
-        block
-          ?.querySelector<HTMLInputElement>("input")
-          ?.focus({ preventScroll: true });
-        if (
-          block &&
-          block.getBoundingClientRect().bottom > window.innerHeight - 140
-        )
-          block.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    }
+      currentGroup !== 0 ||
+      reviewing ||
+      !actorGender ||
+      !actorBirth ||
+      !(target instanceof HTMLInputElement) ||
+      target.type !== "radio" ||
+      target.name !== fieldFormName(actorGender.id)
+    )
+      return;
+    const input = formRef.current?.querySelector<HTMLInputElement>(
+      `[name="${CSS.escape(fieldFormName(actorBirth.id))}"]`,
+    );
+    // Focus during the native click, before iOS clears its keyboard gesture permission.
+    if (input && document.activeElement !== input)
+      input.focus({ preventScroll: true });
   }
 
   function confirm() {
@@ -586,6 +588,7 @@ export function ReservationForm({
         ref={formRef}
         action={action}
         onKeyDown={handleFieldKeyDown}
+        onClickCapture={(event) => focusActorBirth(event.target as HTMLElement)}
         onCompositionEnd={(event) => {
           requestAnimationFrame(() =>
             guideActorChange(event.target as HTMLElement),
@@ -629,7 +632,12 @@ export function ReservationForm({
             confirm();
           }
         }}
-        className={["booking-split booking-reservation-form booking-modern-form", compactActor ? "booking-actor-compact" : ""].filter(Boolean).join(" ")}
+        className={[
+          "booking-split booking-reservation-form booking-modern-form",
+          compactActor ? "booking-actor-compact" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
       >
         {candidates.map((c, i) => (
           <div key={i} hidden>

@@ -1342,3 +1342,11 @@
 @media (max-width: 767px) {
   .booking-actor-compact .booking-question-heading { min-height: 0; }
 }
+@media (max-width: 767px) {
+  .booking-reservation-form[data-keyboard-open=true] {
+    padding-bottom: calc(140px + var(--booking-keyboard-room, 0px));
+  }
+  .booking-reservation-form[data-keyboard-open=true] .booking-form-actions {
+    display: none !important;
+  }
+}
