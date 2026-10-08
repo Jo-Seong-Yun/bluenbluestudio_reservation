@@ -1311,3 +1311,8 @@ dev-preview 페이지로 데스크톱·모바일 스크린샷만 보여준 뒤 �
 ### 2026-10-08 — 요청 페이지 키패드 종료 후 스크롤 재보정
 - group2 진입 뒤 visualViewport resize/scroll과 window resize에 최상단을 다시 맞춰, 키패드가 늦게 닫히며 이전 스크롤 위치로 복원되는 상황 대응. 사용자가 pointer/touch/wheel/key로 조작하면 보정 중단, 입력에 초점이 있으면 보정 생략. 다른 그룹 진입/언마운트 때 리스너 정리.
 - 실제 공통 컴포넌트 모바일 전환 녹화 + 뒤늦은 viewport resize/pan 모의 검증: 연락 완료 → 요청 페이지 scrollY=0, 직접 문항 클릭 초점 유지. 영상은 `/workspace/.reviews/contact-design/page-2-to-3.mp4`/GIF. 실제 iPhone 키패드 동작은 여전히 직접 검증하지 못함.
+
+### 2026-10-08 — 새로고침 신청서 복원
+- 메모리 answerDrafts에 더해 productId별 sessionStorage `booking-draft:v1:*`에 답변과 현재 그룹을 입력마다 저장. hydration 후 한 번 복원하고 문항 영역을 remount해 native defaultValue, Code Slots, 체크/라디오를 동기화. 완료 시 메모리/세션 제거, 24시간 지난 draft 삭제. 저장소 접근 불가 시 메모리 방식 유지.
+- 전체 신청서 동일 적용, 문항ID 기준 복원하며 삭제 문항은 제외. 같은 탭 새로고침을 위한 저장이고 장기 localStorage 저장은 하지 않음.
+- 실제 모바일 컴포넌트 reload 테스트: 이름/성별/생년월일/하이픈 연락처/이메일/여러 줄 요청/동의/현재 그룹 복원, 만료 시 초기화 통과.

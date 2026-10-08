@@ -65,6 +65,7 @@ function descriptionHint(
   );
 }
 
+const draftStorageKey = (productId: string) => `booking-draft:v1:${productId}`;
 const answerDrafts = new Map<string, Record<string, string[]>>();
 const initialState: ReservationActionState = { status: "idle" };
 
@@ -118,7 +119,10 @@ export function ReservationForm({
     () => visibleBookingFields(customFields),
     [customFields],
   );
-  const [initialAnswers] = useState(() => answerDrafts.get(productId) ?? {});
+  const [initialAnswers, setInitialAnswers] = useState(
+    () => answerDrafts.get(productId) ?? {},
+  );
+  const [draftRestored, setDraftRestored] = useState(false);
   const copy = useMemo(() => resolveCopy(rawCopy), [rawCopy]);
   const groups = useMemo(
     () =>
@@ -178,6 +182,54 @@ export function ReservationForm({
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(draftStorageKey(productId));
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (
+          typeof saved.savedAt === "number" &&
+          Date.now() - saved.savedAt < 86400000 &&
+          saved.answers &&
+          typeof saved.answers === "object"
+        ) {
+          const answers: Record<string, string[]> = {};
+          for (const field of fields) {
+            const values = saved.answers[field.id];
+            if (
+              Array.isArray(values) &&
+              values.every((v: unknown) => typeof v === "string")
+            )
+              answers[field.id] = values;
+          }
+          answerDrafts.set(productId, answers);
+          setInitialAnswers(answers);
+          if (groups.includes(saved.group)) setCurrentGroup(saved.group);
+        } else sessionStorage.removeItem(draftStorageKey(productId));
+      }
+    } catch {
+      /* Storage may be unavailable in a restricted browser. */
+    }
+    setDraftRestored(true);
+    // A draft is restored once per mounted product, after hydration.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
+  useEffect(() => {
+    if (!draftRestored) return;
+    syncFieldSnapshots();
+    recomputeEstimate();
+    try {
+      const answers = answerDrafts.get(productId);
+      if (answers)
+        sessionStorage.setItem(
+          draftStorageKey(productId),
+          JSON.stringify({ answers, group: currentGroup, savedAt: Date.now() }),
+        );
+    } catch {
+      /* Keep the in-memory draft if sessionStorage is unavailable. */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftRestored, initialAnswers, currentGroup, productId]);
   // Mobile browsers may restore the old scroll position after the keyboard closes.
   // Keep the page entry at the top through viewport resize/pan, until the visitor acts.
   useEffect(() => {
@@ -272,6 +324,9 @@ export function ReservationForm({
         });
       if (result.status === "success") {
         answerDrafts.delete(productId);
+        try {
+          sessionStorage.removeItem(draftStorageKey(productId));
+        } catch {}
         flushAnalytics();
         finishAnalyticsAttempt(productId);
       }
@@ -479,7 +534,7 @@ export function ReservationForm({
     return true;
   }
 
-  // 이전 단계로 돌아갔을 때 입력값을 유지합니다. 민감한 답변은 저장소에 남기지 않고,
+  // 이전 단계와 새로고침에서 입력값을 유지합니다. 임시 답변은 탭별 sessionStorage에 저장하고,
   // 신청서의 모든 페이지 입력을 마운트한 채 hidden으로 표시만 전환합니다.
   // Enter 이동을 유지하고, 배우 정보 세 항목의 완료 시에만 자동으로 다음 페이지로 이동합니다.
   function handleFieldKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
@@ -723,6 +778,18 @@ export function ReservationForm({
               ),
             );
           }
+          try {
+            sessionStorage.setItem(
+              draftStorageKey(productId),
+              JSON.stringify({
+                answers: answerDrafts.get(productId),
+                group: currentGroup,
+                savedAt: Date.now(),
+              }),
+            );
+          } catch {
+            /* Browser storage is optional; input must remain usable. */
+          }
           syncFieldSnapshots();
           recomputeEstimate();
           if (!(event.nativeEvent as InputEvent).isComposing) {
@@ -751,6 +818,7 @@ export function ReservationForm({
         ))}
         <input type="hidden" name="ref" ref={refInputRef} defaultValue="" />
         <section
+          key={draftRestored ? "draft-restored" : "draft-initial"}
           className="booking-card booking-questionnaire"
           hidden={reviewing}
         >
