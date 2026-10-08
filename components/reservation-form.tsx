@@ -12,6 +12,7 @@ import {
   finishAnalyticsAttempt,
 } from "@/lib/analytics/client";
 import { bookingFormVersion } from "@/lib/analytics/shared";
+import { BirthDateSlots } from "@/components/birth-date-slots";
 import { BookingCTA } from "@/components/booking-cta";
 import { BookingSteps } from "@/components/booking-shell";
 
@@ -125,7 +126,25 @@ export function ReservationForm({
     [fields, copy],
   );
   const [currentGroup, setCurrentGroup] = useState(groups[0] ?? 0);
+  const actorFields = fields.filter((field) => fieldGroup(field, copy) === 0);
+  const actorName = actorFields.find((field) => field.type === "name");
+  const actorGender = actorFields.find(
+    (field) =>
+      field.type === "gender" ||
+      (field.type === "single_choice" && /성별/.test(field.label)),
+  );
+  const actorBirth = actorFields.find((field) => field.type === "birth_date");
+
+  const actorAutoArmed = useRef(true);
+
   const [reviewing, setReviewing] = useState(false);
+  const compactActor =
+    currentGroup === 0 &&
+    !reviewing &&
+    actorFields.length === 3 &&
+    !!actorName &&
+    !!actorGender &&
+    !!actorBirth;
   const visibleIds = fields
     .filter((field) => fieldGroup(field, copy) === currentGroup)
     .map((field) => field.id);
@@ -402,7 +421,7 @@ export function ReservationForm({
 
   // 이전 단계로 돌아갔을 때 입력값을 유지합니다. 민감한 답변은 저장소에 남기지 않고,
   // 신청서의 모든 페이지 입력을 마운트한 채 hidden으로 표시만 전환합니다.
-  // 입력 시간이나 선택 변경으로 이동하지 않습니다. Enter로만 다음 문항에 이동합니다.
+  // Enter 이동을 유지하고, 배우 정보 세 항목의 완료 시에만 자동으로 다음 페이지로 이동합니다.
   function handleFieldKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
     if (
       reviewing ||
@@ -453,6 +472,59 @@ export function ReservationForm({
       groupFields[groupFields.findIndex((field) => field.id === id) + 1];
     if (next) revealField(next.id);
     else nextGroup();
+  }
+
+  function guideActorChange(target: HTMLElement) {
+    if (
+      currentGroup !== 0 ||
+      reviewing ||
+      !actorName ||
+      !actorGender ||
+      !actorBirth ||
+      !formRef.current
+    )
+      return;
+    const data = new FormData(formRef.current);
+    const complete =
+      actorFields.every(
+        (field) =>
+          bookingFieldError(field, data) === null &&
+          Array.from(
+            formRef.current!.querySelectorAll<
+              HTMLInputElement | HTMLTextAreaElement
+            >(`[name="${CSS.escape(fieldFormName(field.id))}"]`),
+          ).every((input) => input.validity.valid),
+      ) &&
+      [actorName, actorGender, actorBirth].every(
+        (field) =>
+          String(data.get(fieldFormName(field.id)) ?? "").trim().length > 0,
+      );
+    if (!complete) actorAutoArmed.current = true;
+    if (complete && actorAutoArmed.current) {
+      actorAutoArmed.current = false;
+      nextGroup();
+      return;
+    }
+    if (
+      target instanceof HTMLInputElement &&
+      target.type === "radio" &&
+      target.name === fieldFormName(actorGender.id)
+    ) {
+      setActiveFieldId(actorBirth.id);
+      requestAnimationFrame(() => {
+        const block = formRef.current?.querySelector<HTMLElement>(
+          `[data-field-id="${CSS.escape(actorBirth.id)}"]`,
+        );
+        block
+          ?.querySelector<HTMLInputElement>("input")
+          ?.focus({ preventScroll: true });
+        if (
+          block &&
+          block.getBoundingClientRect().bottom > window.innerHeight - 140
+        )
+          block.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
   }
 
   function confirm() {
@@ -507,11 +579,18 @@ export function ReservationForm({
   }
   return (
     <>
-      <BookingSteps stage={reviewing ? "review" : "form"} />
+      <div className={compactActor ? "booking-actor-steps" : undefined}>
+        <BookingSteps stage={reviewing ? "review" : "form"} />
+      </div>
       <form
         ref={formRef}
         action={action}
         onKeyDown={handleFieldKeyDown}
+        onCompositionEnd={(event) => {
+          requestAnimationFrame(() =>
+            guideActorChange(event.target as HTMLElement),
+          );
+        }}
         onFocusCapture={(event) => {
           const id = (event.target as HTMLElement).closest<HTMLElement>(
             "[data-field-id]",
@@ -541,6 +620,8 @@ export function ReservationForm({
           }
           syncFieldSnapshots();
           recomputeEstimate();
+          if (!(event.nativeEvent as InputEvent).isComposing)
+            guideActorChange(target);
         }}
         onSubmit={(event) => {
           if (!reviewing) {
@@ -548,7 +629,7 @@ export function ReservationForm({
             confirm();
           }
         }}
-        className="booking-split booking-reservation-form booking-modern-form"
+        className={["booking-split booking-reservation-form booking-modern-form", compactActor ? "booking-actor-compact" : ""].filter(Boolean).join(" ")}
       >
         {candidates.map((c, i) => (
           <div key={i} hidden>
@@ -685,9 +766,13 @@ export function ReservationForm({
           </section>
         ) : null}
         <aside className="booking-card booking-summary" aria-label="예약 요약">
-          <p className="booking-form-summary-detail text-brand text-xs font-bold">예약 요약</p>
+          <p className="booking-form-summary-detail text-brand text-xs font-bold">
+            예약 요약
+          </p>
           <h2 className="booking-form-summary-detail">{productName}</h2>
-          <p className="booking-form-summary-detail text-muted text-sm">촬영 {durationMin}분</p>
+          <p className="booking-form-summary-detail text-muted text-sm">
+            촬영 {durationMin}분
+          </p>
           <div className="booking-form-summary-detail booking-summary-total">
             <span>예상 금액</span>
             <strong>{estimatedTotal.toLocaleString()}원</strong>
@@ -798,6 +883,13 @@ export function ReservationFields({
                 : false
             }
             data-field-block
+            data-field-type={field.type}
+            data-gender={
+              field.type === "gender" ||
+              (field.type === "single_choice" && /성별/.test(field.label))
+                ? "true"
+                : undefined
+            }
             data-field-id={field.id}
             className={[
               FIELD_WRAPPER_CLASS,
@@ -1204,23 +1296,18 @@ function BirthDateInput({
       required={field.required}
       hint={descriptionHint(
         field,
-        "8자리 숫자로 입력해 주십시오. 예: 19990101",
+        placeholderText || "태어난 연도·월·일을 8자리로 입력해주세요",
       )}
       labelClassName={FIELD_LABEL_CLASS}
       hintClassName={FIELD_HINT_CLASS}
       hintPosition="before"
     >
-      <input
+      <BirthDateSlots
         name={name}
-        enterKeyHint="next"
-        type="text"
-        inputMode="numeric"
-        placeholder={placeholderText || "19990101"}
-        maxLength={8}
+        label={field.label}
         required={field.required}
-        value={value}
-        onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ""))}
-        className={inputClass}
+        initialValue={initialValue}
+        onValueChange={setValue}
       />
       {ageInfo ? (
         <p className="text-muted mt-1 text-xs">
