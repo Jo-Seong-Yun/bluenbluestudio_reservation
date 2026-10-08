@@ -105,9 +105,9 @@ export function BookingDetail({
       <div className="booking-primary-dock">
         <Link
           href={`/booking/${product.slug}?step=times`}
-          className="booking-primary"
+          className="booking-primary booking-cta-ripple"
         >
-          예약 가능한 날짜 확인하기 →
+          <span className="relative z-[1]">촬영 일정 선택하기 →</span>
         </Link>
         <p>날짜 확인만으로 예약이 확정되지는 않습니다.</p>
       </div>
