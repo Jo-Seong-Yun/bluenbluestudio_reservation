@@ -132,6 +132,7 @@ export function ReservationForm({
     [fields, copy],
   );
   const [currentGroup, setCurrentGroup] = useState(groups[0] ?? 0);
+  const entryGroupRef = useRef(currentGroup);
   const actorFields = fields.filter((field) => fieldGroup(field, copy) === 0);
   const actorName = actorFields.find((field) => field.type === "name");
   const actorGender = actorFields.find(
@@ -176,34 +177,37 @@ export function ReservationForm({
     );
   }
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(draftStorageKey(productId));
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (
-          typeof saved.savedAt === "number" &&
-          Date.now() - saved.savedAt < 86400000 &&
-          saved.answers &&
-          typeof saved.answers === "object"
-        ) {
-          const answers: Record<string, string[]> = {};
-          for (const field of fields) {
-            const values = saved.answers[field.id];
-            if (
-              Array.isArray(values) &&
-              values.every((v: unknown) => typeof v === "string")
-            )
-              answers[field.id] = values;
-          }
-          answerDrafts.set(productId, answers);
-          setInitialAnswers(answers);
-          if (groups.includes(saved.group)) setCurrentGroup(saved.group);
-        } else sessionStorage.removeItem(draftStorageKey(productId));
+    const restoreFrame = requestAnimationFrame(() => {
+      try {
+        const raw = sessionStorage.getItem(draftStorageKey(productId));
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (
+            typeof saved.savedAt === "number" &&
+            Date.now() - saved.savedAt < 86400000 &&
+            saved.answers &&
+            typeof saved.answers === "object"
+          ) {
+            const answers: Record<string, string[]> = {};
+            for (const field of fields) {
+              const values = saved.answers[field.id];
+              if (
+                Array.isArray(values) &&
+                values.every((v: unknown) => typeof v === "string")
+              )
+                answers[field.id] = values;
+            }
+            answerDrafts.set(productId, answers);
+            setInitialAnswers(answers);
+            if (groups.includes(saved.group)) setCurrentGroup(saved.group);
+          } else sessionStorage.removeItem(draftStorageKey(productId));
+        }
+      } catch {
+        /* Storage may be unavailable in a restricted browser. */
       }
-    } catch {
-      /* Storage may be unavailable in a restricted browser. */
-    }
-    setDraftRestored(true);
+      setDraftRestored(true);
+    });
+    return () => cancelAnimationFrame(restoreFrame);
     // A draft is restored once per mounted product, after hydration.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
@@ -240,10 +244,69 @@ export function ReservationForm({
   // Mobile browsers may restore the old scroll position after the keyboard closes.
   // Keep the page entry at the top through viewport resize/pan, until the visitor acts.
   useEffect(() => {
+    const entryForm = formRef.current;
     let frame = 0;
+    let scrollFrame = 0;
+    let moving = false;
     let interrupted = false;
+    const changed = entryGroupRef.current !== currentGroup;
+    entryGroupRef.current = currentGroup;
     const viewport = window.visualViewport;
+    let waited = 0;
+    const scrollFirst = () => {
+      if (interrupted || reviewing) return;
+      const height = viewport?.height ?? window.innerHeight;
+      // Let the keyboard close before measuring the new page's visible area.
+      if (
+        Math.max(window.innerHeight, document.documentElement.clientHeight) -
+          height >
+          120 &&
+        waited++ < 60
+      ) {
+        scrollFrame = requestAnimationFrame(scrollFirst);
+        return;
+      }
+      const question = formRef.current?.querySelector<HTMLElement>(
+        ".booking-questionnaire:not([hidden]) [data-field-id]:not([hidden])",
+      );
+      if (!question) return;
+      if (
+        question
+          .closest(".booking-questionnaire")
+          ?.getAnimations()
+          .some((animation) => animation.playState === "running")
+      ) {
+        scrollFrame = requestAnimationFrame(scrollFirst);
+        return;
+      }
+      moving = true;
+      const dock =
+        formRef.current
+          ?.querySelector<HTMLElement>(".booking-form-actions")
+          ?.getBoundingClientRect().height ?? 0;
+      const available = height - dock;
+      if (formRef.current) {
+        formRef.current.dataset.entryScroll = "true";
+        formRef.current.style.setProperty(
+          "--booking-entry-space",
+          `${available / 2}px`,
+        );
+      }
+      const rect = question.getBoundingClientRect();
+      const offset =
+        rect.height <= available - 32 ? (available - rect.height) / 2 : 16;
+      window.scrollTo({
+        top: Math.max(
+          0,
+          window.scrollY + rect.top - (viewport?.offsetTop ?? 0) - offset,
+        ),
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
+    };
     const restoreTop = () => {
+      if (moving) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const active = document.activeElement;
@@ -255,11 +318,17 @@ export function ReservationForm({
         )
           return;
         window.scrollTo({ top: 0, behavior: "instant" });
+        if (changed && !reviewing && !scrollFrame)
+          scrollFrame = requestAnimationFrame(() => {
+            scrollFrame = requestAnimationFrame(scrollFirst);
+          });
       });
     };
     const interrupt = () => {
       interrupted = true;
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(scrollFrame);
+      if (moving) window.scrollTo({ top: window.scrollY, behavior: "instant" });
     };
     restoreTop();
     viewport?.addEventListener("resize", restoreTop);
@@ -275,6 +344,11 @@ export function ReservationForm({
     return () => {
       cancelAnimationFrame(frame);
       cancelAnimationFrame(listenFrame);
+      cancelAnimationFrame(scrollFrame);
+      if (entryForm) {
+        delete entryForm.dataset.entryScroll;
+        entryForm.style.removeProperty("--booking-entry-space");
+      }
       viewport?.removeEventListener("resize", restoreTop);
       viewport?.removeEventListener("scroll", restoreTop);
       window.removeEventListener("resize", restoreTop);

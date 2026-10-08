@@ -1366,3 +1366,7 @@
 .booking-modern-form .booking-question-panel textarea { padding: 14px; }
 .booking-modern-form .booking-question-panel .booking-contact-outline input:not([type=checkbox]):not([type=radio]) { padding:14px; border:1px solid #044aad; border-radius:9px; }
 .booking-modern-form .booking-question-panel .booking-birth-slots > input:not([type=checkbox]):not([type=radio]):not([type=hidden]) { padding:0; }
+
+@media(max-width:767px){
+  .booking-modern-form[data-entry-scroll=true]:not([data-keyboard-open=true]) { padding-bottom:calc(155px + var(--booking-entry-space, 0px)); }
+}

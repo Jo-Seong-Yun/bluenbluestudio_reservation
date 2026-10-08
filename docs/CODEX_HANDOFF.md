@@ -1327,3 +1327,8 @@ dev-preview 페이지로 데스크톱·모바일 스크린샷만 보여준 뒤 �
 - 모든 그룹/최종 확인/뒤로 이동에서 자동 입력 focus를 없애고 헤더부터 시작. viewport 종료 후 최상단 재보정 공통 적용. 전환을 발생시킨 Enter/click이 새 페이지 보정을 중단시키지 않도록 조작 취소 리스너를 다음 frame에 설치.
 - 기존 input :not 선택자의 specificity가 새 contact outline보다 높아 좌우 padding 0과 사각 테두리가 남았음. 우선순위 수정, 실제 text/tel/email/textarea 내부 padding 14px 균등화. 생년월일의 투명 overlay는 padding 0 유지.
 - 실제375px 공통 컴포넌트 검증: 모든 그룹과 확인 페이지 scrollY=0, 페이지 진입 자동 focus 없음, 키패드 영역 입력 노출, 연락처 자동 focus, 이메일 상하/좌우14px·radius9px, 이전 이동 최상단. 실기기 동작의 수정 후 직접 검증은 못 했고 키패드는 모의 검증. 영상 `/workspace/.reviews/mobile-transition-fix/fixed.mp4`.
+
+### 2026-10-08 — 페이지 진입 후 첫 문항 스크롤
+- 첫 최초 진입은 최상단 유지, 그룹 변경(앞/뒤 이동) 시 헤더를 먼저 보여준 뒤 280ms 페이지 등장 애니메이션 완료 및 키패드 종료를 기다려 첫 문항으로 smooth scroll. 입력 autofocus 없음. 첫 문항이 화면에 들어갈 크기면 하단 버튼을 제외한 영역 중앙, 큰 문항은 상단16px 기준. 짧은 페이지도 중앙 배치 가능하도록 임시 하단 scroll 여유 추가.
+- 스크롤 시작 후 최상단 재보정 비활성화해 중복 이동 방지. 사용자 pointer/touch/wheel/key 조작 시 자동 이동 취소; reduced-motion이면 즉시 이동. 최종 확인은 최상단 유지.
+- 공통 모바일 컴포넌트에서 연락/요청/동의와 이전 이동의 첫 문항 중앙 배치, 자동 입력 focus 없음 검증 통과. `/workspace/.reviews/contact-design/entry-*.png`.
