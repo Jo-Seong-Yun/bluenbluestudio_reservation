@@ -35,8 +35,7 @@ export function useBookingKeyboard(formRef: RefObject<HTMLFormElement | null>) {
     );
     let width = window.innerWidth;
     let frame = 0;
-    let settle: ReturnType<typeof setTimeout> | undefined;
-    const sync = () => {
+    const sync = (focusChange = false) => {
       const mobile = window.matchMedia("(max-width: 767px)").matches;
       const height = viewport?.height ?? window.innerHeight;
       const layoutHeight = Math.max(
@@ -59,8 +58,13 @@ export function useBookingKeyboard(formRef: RefObject<HTMLFormElement | null>) {
       else form.style.removeProperty("--booking-keyboard-room");
       const input = document.activeElement;
       if (!mobile || !isTextInput(input) || !form.contains(input)) return;
-      const target =
+      const inputTarget =
         input.closest<HTMLElement>(".booking-birth-slots") ?? input;
+      const question = input.closest<HTMLElement>("[data-field-id]");
+      const target =
+        question && question.getBoundingClientRect().height < height - 40
+          ? question
+          : inputTarget;
       const rect = target.getBoundingClientRect();
       const top = viewport?.offsetTop ?? 0;
       const dock = keyboard
@@ -70,7 +74,7 @@ export function useBookingKeyboard(formRef: RefObject<HTMLFormElement | null>) {
             ?.getBoundingClientRect().height ?? 0);
       const bottom = top + height - dock;
       // Keep the action centered when keyboard resize/pan changes the visible area.
-      if (keyboard || rect.bottom > bottom - 16 || rect.top < top + 16) {
+      if (focusChange || rect.bottom > bottom - 16 || rect.top < top + 16) {
         const desired = Math.max(
           0,
           window.scrollY +
@@ -82,18 +86,16 @@ export function useBookingKeyboard(formRef: RefObject<HTMLFormElement | null>) {
           window.scrollTo({
             top: desired,
             behavior:
-              keyboard ||
+              !focusChange ||
               window.matchMedia("(prefers-reduced-motion: reduce)").matches
                 ? "instant"
                 : "smooth",
           });
       }
     };
-    const schedule = () => {
+    const schedule = (event: Event) => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(sync);
-      clearTimeout(settle);
-      settle = setTimeout(sync, 350); // Safari may pan after the keyboard resize event.
+      frame = requestAnimationFrame(() => sync(event.type === "focusin"));
     };
     form.addEventListener("focusin", schedule);
     form.addEventListener("focusout", schedule);
@@ -101,7 +103,6 @@ export function useBookingKeyboard(formRef: RefObject<HTMLFormElement | null>) {
     window.addEventListener("resize", schedule);
     return () => {
       cancelAnimationFrame(frame);
-      clearTimeout(settle);
       form.removeEventListener("focusin", schedule);
       form.removeEventListener("focusout", schedule);
       viewport?.removeEventListener("resize", schedule);

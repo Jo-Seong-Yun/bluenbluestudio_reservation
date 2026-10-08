@@ -1321,3 +1321,9 @@ dev-preview 페이지로 데스크톱·모바일 스크린샷만 보여준 뒤 �
 - 다음 문항으로 이동할 때 smooth scroll + 활성 문항 테두리/배경/그림자 280ms transition. 키패드가 닫힌 경우 viewport 위치 보정도 smooth; 키패드가 열린 경우 입력 가림 방지를 위한 즉시 보정 유지.
 - 그룹/확인 페이지 전환에 DOM 교체 없이 Web Animations 280ms fade + translateY(12px→0). 입력값 remount 없이 유지, 요청 페이지 최상단 진입 보정 유지. reduced-motion에서 이동/강조 애니메이션 생략.
 - 사용자 승인 영상 `/workspace/.reviews/question-motion/demo.mp4`를 기준으로 반영. 실제 모바일 컴포넌트 영상 검증에서 연락처→이메일→요청 페이지 이동 및 데이터 보존 확인.
+
+### 2026-10-08 — iPhone 첨부 영상 기준 이동·여백 수정
+- 사용자 실기기 영상(연락처→이메일) 확인: 문항 scrollIntoView와 키패드 hook 보정이 중복되어 위치 변경이 여러 번 발생. 모든 문항 이동은 focus-driven 키패드 hook 하나가 담당. focus 이동은 smooth, viewport resize는 실제 가림 때만 즉시 보정; focusout/resize마다 350ms 뒤 반복 보정하던 타이머 제거. 작은 문항은 박스 전체 기준, 큰 문항은 실제 입력 기준으로 위치 계산.
+- 모든 그룹/최종 확인/뒤로 이동에서 자동 입력 focus를 없애고 헤더부터 시작. viewport 종료 후 최상단 재보정 공통 적용. 전환을 발생시킨 Enter/click이 새 페이지 보정을 중단시키지 않도록 조작 취소 리스너를 다음 frame에 설치.
+- 기존 input :not 선택자의 specificity가 새 contact outline보다 높아 좌우 padding 0과 사각 테두리가 남았음. 우선순위 수정, 실제 text/tel/email/textarea 내부 padding 14px 균등화. 생년월일의 투명 overlay는 padding 0 유지.
+- 실제375px 공통 컴포넌트 검증: 모든 그룹과 확인 페이지 scrollY=0, 페이지 진입 자동 focus 없음, 키패드 영역 입력 노출, 연락처 자동 focus, 이메일 상하/좌우14px·radius9px, 이전 이동 최상단. 실기기 동작의 수정 후 직접 검증은 못 했고 키패드는 모의 검증. 영상 `/workspace/.reviews/mobile-transition-fix/fixed.mp4`.

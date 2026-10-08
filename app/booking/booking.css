@@ -1360,3 +1360,9 @@
 .booking-modern-form .booking-question { transition: border-color 280ms ease, background-color 280ms ease, box-shadow 280ms ease; }
 .booking-modern-form .booking-question.is-active { background-color: #f8fbff; box-shadow: 0 0 0 2px #044aad08; }
 @media(prefers-reduced-motion:reduce){.booking-modern-form .booking-question{transition:none}}
+
+/* Equal inner padding: override earlier :not selectors that zeroed horizontal inset. */
+.booking-modern-form .booking-question-panel input:not([type=checkbox]):not([type=radio]):not([type=hidden]),
+.booking-modern-form .booking-question-panel textarea { padding: 14px; }
+.booking-modern-form .booking-question-panel .booking-contact-outline input:not([type=checkbox]):not([type=radio]) { padding:14px; border:1px solid #044aad; border-radius:9px; }
+.booking-modern-form .booking-question-panel .booking-birth-slots > input:not([type=checkbox]):not([type=radio]):not([type=hidden]) { padding:0; }

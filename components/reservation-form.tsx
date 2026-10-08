@@ -167,20 +167,13 @@ export function ReservationForm({
     }
     setCurrentGroup(next);
     const first = fields.find((field) => fieldGroup(field, copy) === next);
-    if (next === 2) {
-      // Show the request page from its heading; focusing its first input opens the
-      // keyboard and recenters the viewport before the visitor can read it.
-      setActiveFieldId(first?.id ?? null);
-      const focused = document.activeElement;
-      if (focused instanceof HTMLElement && formRef.current?.contains(focused))
-        focused.blur();
-      requestAnimationFrame(() =>
-        window.scrollTo({ top: 0, behavior: "instant" }),
-      );
-    } else {
-      if (first) revealField(first.id);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    setActiveFieldId(first?.id ?? null);
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && formRef.current?.contains(focused))
+      focused.blur();
+    requestAnimationFrame(() =>
+      window.scrollTo({ top: 0, behavior: "instant" }),
+    );
   }
   useEffect(() => {
     try {
@@ -247,7 +240,6 @@ export function ReservationForm({
   // Mobile browsers may restore the old scroll position after the keyboard closes.
   // Keep the page entry at the top through viewport resize/pan, until the visitor acts.
   useEffect(() => {
-    if (currentGroup !== 2 || reviewing) return;
     let frame = 0;
     let interrupted = false;
     const viewport = window.visualViewport;
@@ -273,12 +265,16 @@ export function ReservationForm({
     viewport?.addEventListener("resize", restoreTop);
     viewport?.addEventListener("scroll", restoreTop);
     window.addEventListener("resize", restoreTop);
-    window.addEventListener("pointerdown", interrupt, { passive: true });
-    window.addEventListener("touchstart", interrupt, { passive: true });
-    window.addEventListener("wheel", interrupt, { passive: true });
-    window.addEventListener("keydown", interrupt);
+    // Ignore the Enter/click event that opened this page; only subsequent actions cancel entry positioning.
+    const listenFrame = requestAnimationFrame(() => {
+      window.addEventListener("pointerdown", interrupt, { passive: true });
+      window.addEventListener("touchstart", interrupt, { passive: true });
+      window.addEventListener("wheel", interrupt, { passive: true });
+      window.addEventListener("keydown", interrupt);
+    });
     return () => {
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(listenFrame);
       viewport?.removeEventListener("resize", restoreTop);
       viewport?.removeEventListener("scroll", restoreTop);
       window.removeEventListener("resize", restoreTop);
@@ -513,12 +509,6 @@ export function ReservationForm({
         preventScroll: true,
       });
       if (reportError) input?.reportValidity();
-      block?.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "instant"
-          : "smooth",
-        block: "center",
-      });
     });
   }
 
@@ -678,15 +668,6 @@ export function ReservationForm({
         `[name="${CSS.escape(fieldFormName(next.id))}"]`,
       );
       input?.focus({ preventScroll: true });
-      input
-        ?.closest<HTMLElement>("[data-field-id]")
-        ?.scrollIntoView({
-          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-            .matches
-            ? "instant"
-            : "smooth",
-          block: "center",
-        });
       return;
     }
     if (groupFields.every(valid)) nextGroup();
@@ -861,7 +842,11 @@ export function ReservationForm({
               type="button"
               onClick={() => {
                 const prev = groups[groups.indexOf(currentGroup) - 1];
-                if (prev !== undefined) setCurrentGroup(prev);
+                if (prev !== undefined) {
+                  const focused = document.activeElement;
+                  if (focused instanceof HTMLElement) focused.blur();
+                  setCurrentGroup(prev);
+                }
               }}
               disabled={groups.indexOf(currentGroup) === 0}
             >
