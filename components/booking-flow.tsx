@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loadSlotsForDate } from "@/lib/booking/actions";
 import { useReportPending } from "@/components/pending-overlay";
-import { Button } from "@/components/ui";
+import { BookingCTA } from "@/components/booking-cta";
 import {
   addMonths,
   monthGridDates,
@@ -227,14 +227,16 @@ export function BookingFlow({
           <strong>{basePrice.toLocaleString()}원</strong>
         </div>
         <div className="booking-primary-dock">
-          <Button
+          <BookingCTA
+            ready={isFull && !pending}
+            waitForScroll
             type="button"
             onClick={apply}
-            disabled={!isFull}
+            disabled={!isFull || pending}
             className="mt-5 min-h-12 w-full text-base"
           >
             신청서 작성하기 →
-          </Button>
+          </BookingCTA>
           <p>
             {isFull
               ? "희망 시간 3개를 선택했습니다."

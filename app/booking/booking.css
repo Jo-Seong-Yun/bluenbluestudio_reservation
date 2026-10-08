@@ -1179,3 +1179,42 @@
   min-height: 190px;
 }
 .booking-modern-times .booking-summary { position: static; }
+
+/* Internal ripple: valid forward actions only, with a pause in each 1.3s cycle. */
+.booking-cta-ripple {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.booking-cta-ripple::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  left: 50%;
+  top: 50%;
+  width: 130%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  animation: booking-cta-ripple 1.3s ease-out infinite;
+}
+@keyframes booking-cta-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.85;
+  }
+  55%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .booking-cta-ripple::after {
+    animation: none;
+    display: none;
+  }
+  .booking-cta-ripple {
+    box-shadow: 0 0 0 3px #a6c7f7;
+  }
+}

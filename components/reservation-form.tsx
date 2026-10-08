@@ -12,6 +12,7 @@ import {
   finishAnalyticsAttempt,
 } from "@/lib/analytics/client";
 import { bookingFormVersion } from "@/lib/analytics/shared";
+import { BookingCTA } from "@/components/booking-cta";
 import { BookingSteps } from "@/components/booking-shell";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
@@ -313,6 +314,16 @@ export function ReservationForm({
       fieldSnapshots[field.id]?.valid,
   ).length;
 
+  const forwardReady =
+    !pending &&
+    fields
+      .filter((field) => reviewing || fieldGroup(field, copy) === currentGroup)
+      .every(
+        (field) =>
+          fieldSnapshots[field.id]?.valid &&
+          (!field.required || fieldSnapshots[field.id]?.answered),
+      );
+
   function syncFieldSnapshots() {
     if (!formRef.current) return;
     const data = new FormData(formRef.current);
@@ -326,7 +337,13 @@ export function ReservationForm({
             answered: data
               .getAll(fieldFormName(field.id))
               .some((v) => String(v).trim().length > 0),
-            valid: bookingFieldError(field, data) === null,
+            valid:
+              bookingFieldError(field, data) === null &&
+              Array.from(
+                formRef.current!.querySelectorAll<
+                  HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+                >(`[name="${CSS.escape(fieldFormName(field.id))}"]`),
+              ).every((input) => input.validity.valid),
           },
         ]),
       ),
@@ -710,16 +727,18 @@ export function ReservationForm({
               <strong>{estimatedTotal.toLocaleString()}원</strong>
             </div>
             {reviewing ? (
-              <Button
+              <BookingCTA
+                ready={forwardReady}
                 key="submit-reservation"
                 type="submit"
                 disabled={pending}
                 className={`${PRIMARY_CTA_CLASS} mt-4`}
               >
                 {pending ? "접수 중…" : "예약 신청하기"}
-              </Button>
+              </BookingCTA>
             ) : (
-              <Button
+              <BookingCTA
+                ready={forwardReady}
                 key="confirm-reservation"
                 type="button"
                 onClick={(event) => {
@@ -732,7 +751,7 @@ export function ReservationForm({
                 {groups.indexOf(currentGroup) === groups.length - 1
                   ? "신청 내용 확인하기 →"
                   : "다음 단계로 →"}
-              </Button>
+              </BookingCTA>
             )}
           </div>
           <p className="text-muted mt-4 text-xs leading-relaxed">
