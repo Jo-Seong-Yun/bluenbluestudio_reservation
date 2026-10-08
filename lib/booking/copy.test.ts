@@ -16,6 +16,30 @@ const field = (label: string, type: string, id = "field"): CustomField =>
     created_at: "",
   }) as CustomField;
 describe("상품 예약 문구", () => {
+  it("삭제한 설명은 빈 값으로 유지하고 나머지 편집 항목은 보존한다", () => {
+    expect(
+      resolveCopy({
+        consentIntro: "",
+        reviewIntro: "",
+        process1Body: "맞춤 절차",
+        nextNote: "맞춤 안내",
+      }),
+    ).toMatchObject({
+      consentIntro: "",
+      reviewIntro: "",
+      process1Body: "맞춤 절차",
+      nextNote: "맞춤 안내",
+    });
+    expect(
+      resolveCopy({
+        reviewIntro: "입력한 정보와 희망 시간을 확인한 후 신청합니다.",
+        actorTitle: "촬영하실 배우 정보를 알려주세요",
+      }),
+    ).toMatchObject({ reviewIntro: "", actorTitle: DEFAULT_COPY.actorTitle });
+    expect(resolveCopy({ actorTitle: "직접 편집한 제목" }).actorTitle).toBe(
+      "직접 편집한 제목",
+    );
+  });
   it("누락/잘못된 저장값은 기본 문구로 보완하고 상품별로 격리한다", () => {
     expect(
       resolveCopy({
@@ -36,7 +60,7 @@ describe("상품 예약 문구", () => {
     ).toBe("A");
     expect(productCopy(null, "a")).toEqual(DEFAULT_COPY);
   });
-  it("예약/입금 상태 문구를 관리자 입력으로 덮어쓸 수 없다", () => {
+  it("예약 상태 문구를 관리자 입력으로 덮어쓸 수 없다", () => {
     const value = resolveCopy({
       status: "확정",
       bankAccount: "조작",
@@ -56,6 +80,7 @@ describe("상품 예약 문구", () => {
     expect(fieldGroup(field("신청자 성명", "short_text"))).toBe(1);
     expect(fieldGroup(field("연락처", "phone"))).toBe(1);
     expect(fieldGroup(field("개인정보 수집 동의", "checkbox"))).toBe(3);
+    expect(fieldGroup(field("완성본의 '푸르른 스튜디오' 인스타그램 게시", "single_choice"))).toBe(3);
   });
   it("빈 페이지를 구성할 때 문항은 하나의 묶음에만 포함된다", () => {
     const fields = [

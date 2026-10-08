@@ -1,5 +1,6 @@
 import {beforeEach,describe,it,expect,vi} from 'vitest';
 vi.mock('server-only',()=>({}));
+vi.mock('@/lib/booking/deposit-server',()=>({reservationDepositRequired:async()=>true}));
 const m=vi.hoisted(()=>({failure:false,options:vi.fn(),site:vi.fn()}));
 vi.mock('@/lib/notifications/notify',()=>({siteVariableOverrides:m.site}));
 vi.mock('@/lib/booking/custom-fields',()=>({loadSelectedPricedOptions:m.options}));

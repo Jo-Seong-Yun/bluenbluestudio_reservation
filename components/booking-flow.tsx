@@ -24,6 +24,7 @@ function formatCandidate({ date, time }: Candidate) {
 
 export function BookingFlow({
   copy: rawCopy,
+  depositRequired = true,
   productId,
   productName,
   basePrice,
@@ -36,6 +37,7 @@ export function BookingFlow({
   loadSlots,
 }: {
   copy?: BookingCopy;
+  depositRequired?: boolean;
   productId: string;
   productName: string;
   basePrice: number;
@@ -229,7 +231,7 @@ export function BookingFlow({
         </div>
         <p className="booking-small-copy">{copy.timesNote}</p>
         <p className="text-muted mt-4 text-xs leading-relaxed">
-          확정 안내 전에는 입금하지 않습니다. 추가 옵션은 신청서에서 선택합니다.
+          {depositRequired ? "확정 안내 전에는 입금하지 않습니다. " : ""}추가 옵션은 신청서에서 선택합니다.
         </p>
       </aside>
     </div>

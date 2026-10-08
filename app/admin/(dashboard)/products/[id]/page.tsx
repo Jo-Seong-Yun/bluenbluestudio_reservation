@@ -1,3 +1,4 @@
+import { depositEnabled } from "@/lib/booking/deposit";
 import { BookingCopyEditor } from "./booking-copy-editor";
 import { productCopy } from "@/lib/booking/copy";
 import type { Metadata } from "next";
@@ -75,6 +76,7 @@ export default async function EditProductPage({
         />
       </ProductEditorPanel>
       <BookingCopyEditor
+        depositRequired={depositEnabled(copySettings?.booking_style)}
         fields={customFields ?? []}
         product={product}
         initial={productCopy(copySettings?.booking_style, product.id)}

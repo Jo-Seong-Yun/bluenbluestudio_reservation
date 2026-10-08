@@ -1,3 +1,4 @@
+import {depositEnabled} from "@/lib/booking/deposit";
 import { ConfigNotice } from "@/components/config-notice";
 import { missingAuthEnv, missingServerEnv } from "@/lib/supabase/env";
 import { productCopy } from "@/lib/booking/copy";
@@ -78,7 +79,7 @@ export default async function ProductDetailPage({
     return (
       <>
         <ProductViewTracker productId={product.id} />
-        <BookingDetail
+        <BookingDetail depositRequired={depositEnabled(settings?.booking_style)}
           copy={productCopy(settings?.booking_style, product.id)}
           product={product}
           earliestBookable={earliestBookable}
@@ -124,7 +125,7 @@ export default async function ProductDetailPage({
         </Link>
 
         <BookingSteps stage="times" />
-        <BookingFlow
+        <BookingFlow depositRequired={depositEnabled(settings?.booking_style)}
           copy={productCopy(settings?.booking_style, product.id)}
           productId={product.id}
           productName={product.name}

@@ -69,6 +69,7 @@ export type ReservationActionState =
     }
   | {
       status: "success";
+      depositRequired?: boolean;
       code: string;
       /** 손님이 낸 희망 시간(1~3개), 접수 순서 그대로(1지망부터). */
       candidates: { dateLabel: string; timeLabel: string }[];
@@ -216,6 +217,12 @@ export async function createReservation(
 
     if (!error) {
       const reservationId = data?.id ?? "";
+      const { data: createdReservation } = await supabase
+        .from("reservations")
+        .select("*")
+        .eq("id", reservationId)
+        .single();
+      const depositRequired = createdReservation?.deposit_required !== false;
 
       if (customAnswers.length > 0) {
         await supabase.from("reservation_answers").insert(
@@ -285,6 +292,7 @@ export async function createReservation(
 
       return {
         status: "success",
+        depositRequired,
         code,
         candidates: input.candidates.map((c) => ({
           dateLabel: c.date,
@@ -312,6 +320,7 @@ export type LookupState =
       reservation: {
         code: string;
         status: string;
+        depositRequired?: boolean;
         /** 아직 확정 전(후보만 낸 상태)이면 null. */
         shootStart: string | null;
         customerName: string;
@@ -358,6 +367,12 @@ export async function lookupReservation(
     reservation: {
       code: reservation.code,
       status: reservation.status,
+      depositRequired:
+        (
+          await supabase.rpc("lookup_reservation_deposit_mode", {
+            p_code: reservation.code,
+          })
+        ).data !== false,
       shootStart: reservation.shoot_start,
       customerName: reservation.customer_name,
     },
@@ -455,6 +470,7 @@ export async function cancelReservation(
 export type PhoneReservation = {
   code: string;
   status: string;
+  depositRequired?: boolean;
   /** 아직 확정 전(후보만 낸 상태)이면 둘 다 null. */
   shootStart: string | null;
   shootEnd: string | null;
@@ -500,14 +516,22 @@ export async function lookupReservationsByPhone(
   return {
     status: "found",
     phone: parsed.data.phone,
-    reservations: data.map((row) => ({
-      code: row.code,
-      status: row.status,
-      shootStart: row.shoot_start,
-      shootEnd: row.shoot_end,
-      customerName: row.customer_name,
-      productName: row.product_name,
-    })),
+    reservations: await Promise.all(
+      data.map(async (row) => ({
+        code: row.code,
+        status: row.status,
+        depositRequired:
+          (
+            await supabase.rpc("lookup_reservation_deposit_mode", {
+              p_code: row.code,
+            })
+          ).data !== false,
+        shootStart: row.shoot_start,
+        shootEnd: row.shoot_end,
+        customerName: row.customer_name,
+        productName: row.product_name,
+      })),
+    ),
   };
 }
 

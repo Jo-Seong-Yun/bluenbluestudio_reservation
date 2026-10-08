@@ -13,6 +13,7 @@ export type SettingsFormValues = {
   maxAdvanceDays: number;
   cancelDeadlineHours: number;
   bankAccount: string;
+  depositRequired?: boolean;
   studioIntro: string;
   notice: string;
   reservationSuccessHeading: string;
@@ -188,17 +189,21 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
               />
             </Field>
 
-            <Field label="입금 계좌">
-              <input
-                name="bankAccount"
-                value={bankAccount}
-                onChange={(e) => setBankAccount(e.target.value)}
-                placeholder="국민은행 000-0000-0000 (예금주)"
-                className={inputClass}
-              />
-            </Field>
+            {initial.depositRequired !== false ? (
+              <Field label="입금 계좌">
+                <input
+                  name="bankAccount"
+                  value={bankAccount}
+                  onChange={(e) => setBankAccount(e.target.value)}
+                  placeholder="국민은행 000-0000-0000 (예금주)"
+                  className={inputClass}
+                />
+              </Field>
+            ) : (
+              <input type="hidden" name="bankAccount" value={bankAccount} />
+            )}
 
-            <Field label="예약 공지" hint="계좌 안내 아래에 함께 표시됩니다.">
+            <Field label="예약 공지" hint="신청 완료 화면에 함께 표시됩니다.">
               <textarea
                 name="notice"
                 rows={3}
@@ -375,6 +380,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
           입력칸을 가린다). */}
         <aside className="lg:sticky lg:top-36">
           <ReservationSuccessPreview
+            depositRequired={initial.depositRequired}
             successHeading={reservationSuccessHeading}
             successMessage={reservationSuccessMessage}
             bankAccount={bankAccount}

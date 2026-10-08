@@ -1,3 +1,4 @@
+import {depositContent} from "@/lib/booking/deposit-content";
 import Link from "next/link";
 import { RichText } from "@/components/rich-text";
 import { resolveCopy, type BookingCopy } from "@/lib/booking/copy";
@@ -17,11 +18,13 @@ export function BookingDetail({
   earliestBookable,
   latestBookable,
   copy: raw,
+  depositRequired = true,
 }: {
   product: BookingDetailProduct;
   earliestBookable: string;
   latestBookable: string;
   copy?: BookingCopy;
+  depositRequired?: boolean;
 }) {
   const copy = resolveCopy(raw);
   const sale =
@@ -61,7 +64,9 @@ export function BookingDetail({
             <small>원</small>
             <span>기본 촬영 가격</span>
           </p>
-          <p className="booking-small-copy">{copy.priceNote}</p>
+          <p className="booking-small-copy booking-close-note">
+            {copy.priceNote}
+          </p>
         </section>
         <section className="booking-process">
           <h2>{copy.processTitle}</h2>
@@ -78,15 +83,14 @@ export function BookingDetail({
           </ol>
           <p className="booking-small-copy">
             희망 시간 신청만으로 일정이 확정되지 않습니다.
-            <br />
-            확정 안내 전에는 입금하지 않습니다.
+            {depositRequired ? <><br/>확정 안내 전에는 입금하지 않습니다.</> : null}
           </p>
         </section>
       </div>
       {product.description ? (
         <section className="booking-extra-description">
           <h2>상세 내용</h2>
-          <RichText>{product.description}</RichText>
+          <RichText>{depositContent(product.description,depositRequired)}</RichText>
         </section>
       ) : null}
       {product.delivery_note ? (
@@ -105,7 +109,7 @@ export function BookingDetail({
         >
           예약 가능한 날짜 확인하기 →
         </Link>
-        <p>날짜 확인만으로 예약이 확정되지 않습니다.</p>
+        <p>날짜 확인만으로 예약이 확정되지는 않습니다.</p>
       </div>
     </main>
   );

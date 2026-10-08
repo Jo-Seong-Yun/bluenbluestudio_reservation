@@ -1,4 +1,10 @@
-type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 /**
  * Supabase 테이블 타입.
  *
@@ -200,6 +206,7 @@ export interface Database {
           shoot_start: string | null;
           shoot_end: string | null;
           status: ReservationStatus;
+          deposit_required?: boolean;
           customer_name: string;
           customer_phone: string;
           customer_email: string | null;
@@ -316,6 +323,7 @@ export interface Database {
           /** lib/booking-style.ts의 BookingStyle 그대로. */
           booking_style: {
             productCopies?: Record<string, Record<string, string>>;
+            depositEnabled?: boolean;
             accentColor: string;
             saleColor: string;
             textColor: string;
@@ -554,7 +562,20 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
-      admin_edit_reservation: { Args: {p_id:string;p_expected_updated_at:string;p_record:Json;p_answers:Json;p_candidates:Json}; Returns: undefined };
+      lookup_reservation_deposit_mode: {
+        Args: { p_code: string };
+        Returns: boolean | null;
+      };
+      admin_edit_reservation: {
+        Args: {
+          p_id: string;
+          p_expected_updated_at: string;
+          p_record: Json;
+          p_answers: Json;
+          p_candidates: Json;
+        };
+        Returns: undefined;
+      };
       claim_reminder_cron: { Args: { p_token: string }; Returns: boolean };
       release_reminder_cron: { Args: { p_token: string }; Returns: undefined };
       create_reservation_with_analytics: {

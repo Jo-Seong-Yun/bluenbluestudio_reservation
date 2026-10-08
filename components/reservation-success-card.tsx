@@ -1,4 +1,5 @@
 "use client";
+import { depositText } from "@/lib/booking/deposit-content";
 import { useState } from "react";
 import Link from "next/link";
 import { resolveCopy, type BookingCopy } from "@/lib/booking/copy";
@@ -29,6 +30,7 @@ export function ReservationSuccessCard({
   productName,
   candidates,
   bankAccount,
+  depositRequired = true,
   notice,
   interactive = true,
   animate = true,
@@ -42,6 +44,7 @@ export function ReservationSuccessCard({
   productName: string;
   candidates: { dateLabel: string; timeLabel: string }[];
   bankAccount: string | null;
+  depositRequired?: boolean;
   notice: string | null;
   interactive?: boolean;
   animate?: boolean;
@@ -59,7 +62,7 @@ export function ReservationSuccessCard({
         ✓
       </div>
       <h1>{successHeading}</h1>
-      <p className="booking-lead">{successMessage}</p>
+      <p className="booking-lead">{depositText(successMessage,depositRequired,bankAccount)}</p>
       <div className="booking-unified-card">
         <section className="booking-price-section">
           <span className="booking-sale">일정 확인 대기</span>
@@ -68,8 +71,8 @@ export function ReservationSuccessCard({
             <strong>{code}</strong>
             {interactive ? <CopyButton value={code} /> : null}
           </div>
-          <p className="booking-small-copy">
-            예약번호를 저장해 두시면 조회할 때 편리합니다.
+          <p className="booking-small-copy booking-close-note">
+            예약번호는 예약조회에 사용할 수 있습니다.
           </p>
         </section>
         <section className="booking-process">
@@ -95,7 +98,7 @@ export function ReservationSuccessCard({
             ))}
           </ul>
           <p className="booking-small-copy">
-            아직 촬영 일정이 확정된 것은 아닙니다.
+            곧 푸르른 스튜디오가 일정을 확정해드립니다.
           </p>
         </section>
         <section className="booking-process">
@@ -111,12 +114,12 @@ export function ReservationSuccessCard({
               </li>
             ))}
           </ol>
-          <p className="booking-small-copy">
-            <b>확정 안내 전에는 입금하지 않습니다.</b>
-            <br />
-            예약 조회에서 진행 상태를 확인할 수 있습니다.
-          </p>
-          {bankAccount ? (
+          {depositRequired ? (
+            <p className="booking-small-copy">
+              <b>확정 안내 전에는 입금하지 않습니다.</b>
+            </p>
+          ) : null}
+          {depositRequired && bankAccount ? (
             <div className="booking-bank">
               <p>입금 계좌 · 일정 확정 후 이용합니다</p>
               <div className="booking-code-row">
@@ -125,8 +128,13 @@ export function ReservationSuccessCard({
               </div>
             </div>
           ) : null}
+          {copy.nextNote ? (
+            <p className="booking-small-copy">{copy.nextNote}</p>
+          ) : null}
           {notice ? (
-            <p className="booking-small-copy whitespace-pre-wrap">{notice}</p>
+            <p className="booking-small-copy whitespace-pre-wrap">
+              {depositText(notice,depositRequired,bankAccount)}
+            </p>
           ) : null}
         </section>
       </div>

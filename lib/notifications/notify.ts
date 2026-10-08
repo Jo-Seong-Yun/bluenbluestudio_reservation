@@ -1,3 +1,5 @@
+import { reservationDepositRequired } from "@/lib/booking/deposit-server";
+import { depositContent, depositCtas, depositText } from "@/lib/booking/deposit-content";
 import "server-only";
 import { sendSms } from "./sms";
 import { sendEmail } from "./email";
@@ -136,7 +138,12 @@ async function tryKakao(params: {
  * 발송(rule:<id>)과 구분되게 rule-test:<id>로 남긴다.
  */
 export async function sendRuleTestEmail(params: {
-  rule: { id: string; subject: string; body: string; ctas?: CtaButton[] | null };
+  rule: {
+    id: string;
+    subject: string;
+    body: string;
+    ctas?: CtaButton[] | null;
+  };
   to: string;
   variables: Record<string, string>;
 }): Promise<{ ok: boolean; error?: string }> {
@@ -192,9 +199,14 @@ export async function sendAdHocEmail(params: {
 }): Promise<{ ok: boolean; error?: string }> {
   try {
     const brand = await loadBrandSettings();
-    const html = finalizeEmailHtml(params.body, { ctas: params.ctas, ...brand });
+    const required = await reservationDepositRequired(params.reservationId);
+    const account = required ? null : (await siteVariableOverrides()).계좌;
+    const html = finalizeEmailHtml(
+      depositContent(toEditorHtml(params.body), required,account),
+      { ctas: depositCtas(params.ctas,required), ...brand },
+    );
     const text = htmlToPlainText(html);
-    await sendEmail({ to: params.to, subject: params.subject, text, html });
+    await sendEmail({ to: params.to, subject: depositText(params.subject,required) || "예약 안내", text, html });
     await logNotification({
       channel: "email",
       purpose: `customer-email:${params.purpose}`,
@@ -228,23 +240,35 @@ async function tryRuleEmail(params: {
   brand?: { logoUrl?: string | null; brandColor?: string | null };
 }): Promise<void> {
   try {
+    const required = await reservationDepositRequired(params.reservationId);
+    const variables = required
+      ? params.variables
+      : { ...params.variables, 계좌: "" };
     const subject =
       params.override?.subject ??
-      renderEmailTemplate(params.rule.subject, params.variables);
+      renderEmailTemplate(params.rule.subject, variables);
     // 본문은 서식 에디터로 쓴 HTML(옛 평문 규칙은 HTML로 바꿔서)로
     // 보내고, HTML을 못 여는 메일 앱을 위해 평문 대체본도 같이 싣는다.
     // 확인모달에서 고친 내용(override)은 이미 변수가 채워진 HTML이다.
+    const body = params.override
+      ? toEditorHtml(params.override.body)
+      : renderEmailHtml(
+          depositContent(
+            toEditorHtml(params.rule.body),
+            required,
+            params.variables.계좌,
+          ),
+          variables,
+        );
     const html = finalizeEmailHtml(
-      params.override
-        ? toEditorHtml(params.override.body)
-        : renderEmailHtml(params.rule.body, params.variables),
+      depositContent(body, required, params.variables.계좌),
       {
-        ctas: params.rule.ctas,
+        ctas: depositCtas(params.rule.ctas,required),
         ...params.brand,
       },
     );
     const text = htmlToPlainText(html);
-    await sendEmail({ to: params.to, subject, text, html });
+    await sendEmail({ to: params.to, subject: depositText(subject,required) || "예약 안내", text, html });
     await logNotification({
       channel: "email",
       purpose: `rule:${params.rule.id}`,
@@ -286,14 +310,20 @@ export async function siteVariableOverrides(): Promise<Record<string, string>> {
   };
 }
 
-async function loadBrandSettings(): Promise<{ logoUrl: string | null; brandColor: string | null }> {
+async function loadBrandSettings(): Promise<{
+  logoUrl: string | null;
+  brandColor: string | null;
+}> {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("settings")
     .select("logo_url, brand_color")
     .eq("id", 1)
     .single();
-  return { logoUrl: data?.logo_url ?? null, brandColor: data?.brand_color ?? null };
+  return {
+    logoUrl: data?.logo_url ?? null,
+    brandColor: data?.brand_color ?? null,
+  };
 }
 
 /**
@@ -317,11 +347,17 @@ async function sendTriggerEmails(params: {
   /** 상태 변경 확인모달에서 수기로 고친 내용 — 규칙 id를 키로 한다. */
   overrides?: Record<string, { subject: string; body: string }>;
 }): Promise<void> {
-  const rules = await loadEmailRulesForTrigger(params.triggerType, params.productId);
+  const rules = await loadEmailRulesForTrigger(
+    params.triggerType,
+    params.productId,
+  );
   if (rules.length === 0) return;
 
   const [variables, brand] = await Promise.all([
-    siteVariableOverrides().then((overrides) => ({ ...params.variables, ...overrides })),
+    siteVariableOverrides().then((overrides) => ({
+      ...params.variables,
+      ...overrides,
+    })),
     loadBrandSettings(),
   ]);
   await Promise.all(
@@ -382,7 +418,10 @@ export async function sendDayOffsetRuleEmail(params: {
 }): Promise<void> {
   if (params.to.length === 0) return;
   const [variables, brand] = await Promise.all([
-    siteVariableOverrides().then((overrides) => ({ ...params.variables, ...overrides })),
+    siteVariableOverrides().then((overrides) => ({
+      ...params.variables,
+      ...overrides,
+    })),
     loadBrandSettings(),
   ]);
   await Promise.all(

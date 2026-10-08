@@ -2,6 +2,7 @@
 import { useActionState, useState } from "react";
 import {
   COPY_SECTIONS,
+  COPY_LABELS,
   resolveCopy,
   fieldGroup,
   GROUP_COPY_KEYS,
@@ -23,8 +24,10 @@ export function BookingCopyEditor({
   product,
   initial,
   fields = [],
+  depositRequired = true,
 }: {
   fields?: CustomField[];
+  depositRequired?: boolean;
   product: BookingDetailProduct & { id: string };
   initial: BookingCopy;
 }) {
@@ -36,8 +39,9 @@ export function BookingCopyEditor({
     <section className="border-border mt-10 rounded-xl border bg-white p-6">
       <h2 className="text-xl font-bold">예약 페이지 문구</h2>
       <p className="text-muted mt-2 text-sm">
-        상품별 문구를 편집합니다. 빈 칸은 기본 문구로 저장합니다. 문항
-        제목·선택지·필수 여부는 위 신청서 문항에서 편집합니다.
+        상품별 문구를 편집합니다. 빈 칸은 기본 문구로 저장하며, 동의 확인·최종
+        확인 설명은 비우면 숨깁니다. 문항 제목·선택지·필수 여부는 위 신청서
+        문항에서 편집합니다.
       </p>
       <div className="mt-6 grid gap-8 xl:grid-cols-2">
         <form action={action}>
@@ -46,7 +50,7 @@ export function BookingCopyEditor({
             <fieldset key={label} className="mb-7 space-y-3">
               <legend className="mb-3 font-bold">{label}</legend>
               {Object.entries(values).map(([key, defaultValue]) => (
-                <Field key={key} label={defaultValue}>
+                <Field key={key} label={COPY_LABELS[key] ?? defaultValue}>
                   <textarea
                     name={key}
                     maxLength={1000}
@@ -160,6 +164,7 @@ export function BookingCopyEditor({
           <div className="booking-workspace booking-copy-preview max-h-[850px] max-w-[390px] overflow-auto rounded-xl border">
             {preview === 0 ? (
               <BookingDetail
+                depositRequired={depositRequired}
                 product={product}
                 earliestBookable="예약 가능 시작일"
                 latestBookable="예약 가능 종료일"
@@ -172,6 +177,7 @@ export function BookingCopyEditor({
                 </p>
                 <div className="pointer-events-none">
                   <BookingFlow
+                    depositRequired={depositRequired}
                     copy={copy}
                     productId={product.id}
                     productName={product.name}
@@ -233,6 +239,7 @@ export function BookingCopyEditor({
             ) : (
               <div className="booking-page">
                 <ReservationSuccessCard
+                  depositRequired={depositRequired}
                   copy={copy}
                   successHeading={copy.successTitle}
                   successMessage={copy.successIntro}

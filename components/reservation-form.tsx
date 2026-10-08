@@ -78,6 +78,7 @@ const initialState: ReservationActionState = { status: "idle" };
  */
 export function ReservationForm({
   copy: rawCopy,
+  depositRequired = true,
   productId,
   productName,
   durationMin,
@@ -92,6 +93,7 @@ export function ReservationForm({
   customFields,
 }: {
   copy?: BookingCopy;
+  depositRequired?: boolean;
   productId: string;
   productName: string;
   durationMin: number;
@@ -474,6 +476,7 @@ export function ReservationForm({
           successHeading={rawCopy?.successTitle ?? successHeading}
           successMessage={rawCopy?.successIntro ?? successMessage}
           copy={copy}
+          depositRequired={state.depositRequired ?? depositRequired}
           estimatedTotal={estimatedTotal}
           durationMin={durationMin}
           code={state.code}
@@ -573,9 +576,11 @@ export function ReservationForm({
           <h1 className="text-2xl font-bold">
             {copy[GROUP_COPY_KEYS[currentGroup][0]]}
           </h1>
-          <p className="booking-lead">
-            {copy[GROUP_COPY_KEYS[currentGroup][1]]}
-          </p>
+          {copy[GROUP_COPY_KEYS[currentGroup][1]] ? (
+            <p className="booking-lead">
+              {copy[GROUP_COPY_KEYS[currentGroup][1]]}
+            </p>
+          ) : null}
           <p className="booking-form-help">
             Enter로 다음 문항에 이동합니다. 문항 제목을 눌러 직접 이동할 수도
             있습니다.
@@ -641,7 +646,9 @@ export function ReservationForm({
             >
               {copy.reviewTitle}
             </h1>
-            <p className="text-muted mt-2 text-sm">{copy.reviewIntro}</p>
+            {copy.reviewIntro ? (
+              <p className="text-muted mt-2 text-sm">{copy.reviewIntro}</p>
+            ) : null}
             <dl className="mt-5">
               {answers.map((a) => (
                 <div key={a.id} className="booking-review-answer">
@@ -729,8 +736,8 @@ export function ReservationForm({
             )}
           </div>
           <p className="text-muted mt-4 text-xs leading-relaxed">
-            신청 후 스튜디오에서 일정 확정 안내를 드립니다. 확정 안내 전에는
-            입금하지 않습니다.
+            신청 후 스튜디오에서 일정 확정 안내를 드립니다.
+            {depositRequired ? " 확정 안내 전에는 입금하지 않습니다." : ""}
           </p>
         </aside>
       </form>

@@ -38,7 +38,7 @@ export default async function ReservationHistoryPage({
       supabase
         .from("reservations")
         .select(
-          "id, code, status, shoot_start, customer_name, customer_phone, customer_email, charged_amount, estimated_amount, product_id, created_at, deliverable_sent_at",
+          "*",
         )
         .order("created_at", { ascending: false }),
       supabase.from("products").select("id, name, tag_color"),
@@ -57,6 +57,7 @@ export default async function ReservationHistoryPage({
     id: r.id,
     code: r.code,
     status: r.status,
+    depositRequired: r.deposit_required !== false,
     shootStart: r.shoot_start,
     customerName: r.customer_name,
     customerPhone: r.customer_phone,

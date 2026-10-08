@@ -1108,3 +1108,8 @@
   padding: 17px;
   margin: 12px 0;
 }
+
+/* 윗줄과의 간격: 기존 12px의 40%. */
+.booking-small-copy.booking-close-note {
+  margin-top: 4.8px;
+}

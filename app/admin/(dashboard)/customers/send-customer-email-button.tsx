@@ -1,4 +1,5 @@
 "use client";
+import {depositContent,depositCtas} from "@/lib/booking/deposit-content";
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import {
@@ -183,6 +184,7 @@ export function SendCustomerEmailButton({
   const previewCustomer = customers.find((c) => c.phone === previewPhone);
   const previewContext = contexts.find((c) => c.phone === previewPhone) ?? {
     phone: previewPhone,
+    depositRequired: true,
     name: previewCustomer?.name ?? "",
     reservations: [],
     variables: {
@@ -198,8 +200,9 @@ export function SendCustomerEmailButton({
     reservationIds[previewPhone] ?? "",
     variableEdits[previewPhone] ?? {},
   );
-  const previewHtml = finalizeEmailHtml(renderEmailHtml(body, previewValues), {
-    ctas: renderCustomerCtas(ctas, previewValues),
+  const previewDepositRequired = previewContext.reservations.find(r=>r.id===reservationIds[previewPhone])?.depositRequired ?? previewContext.depositRequired ?? true;
+  const previewHtml = finalizeEmailHtml(depositContent(renderEmailHtml(depositContent(body,previewDepositRequired,previewValues.계좌),previewValues),previewDepositRequired,previewValues.계좌), {
+    ctas: depositCtas(renderCustomerCtas(ctas,previewValues),previewDepositRequired),
   });
 
   useEffect(() => {

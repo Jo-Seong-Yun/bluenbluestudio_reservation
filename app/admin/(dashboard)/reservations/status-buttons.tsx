@@ -22,9 +22,11 @@ import { StatusTransitionModal } from "./status-transition-modal";
 export function StatusButtons({
   reservationId,
   status,
+  depositRequired = true,
 }: {
   reservationId: string;
   status: string;
+  depositRequired?: boolean;
 }) {
   if (status === "completed" || status === "no_show") {
     return (
@@ -55,7 +57,7 @@ export function StatusButtons({
         />
       ) : null}
 
-      {status === "schedule_confirmed" ? (
+      {status === "schedule_confirmed" && depositRequired ? (
         <StatusTransitionModal
           reservationId={reservationId}
           triggerType="on_payment_confirmed"
@@ -66,7 +68,8 @@ export function StatusButtons({
         />
       ) : null}
 
-      {status === "payment_confirmed" ? (
+      {status === "payment_confirmed" ||
+      (status === "schedule_confirmed" && !depositRequired) ? (
         <>
           <StatusTransitionModal
             reservationId={reservationId}
