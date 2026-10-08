@@ -138,6 +138,7 @@ export function ReservationForm({
   const actorBirth = actorFields.find((field) => field.type === "birth_date");
 
   const actorAutoArmed = useRef(true);
+  const contactAutoPassed = useRef(new Set<string>());
 
   const [reviewing, setReviewing] = useState(false);
   const compactActor =
@@ -511,6 +512,47 @@ export function ReservationForm({
     focusActorBirth(target);
   }
 
+  function guideContactChange(target: HTMLElement, finished = false) {
+    const form = formRef.current;
+    if (!form || currentGroup !== 1 || reviewing || pending) return;
+    const id = target.closest<HTMLElement>("[data-field-id]")?.dataset.fieldId;
+    const groupFields = fields.filter((field) => fieldGroup(field, copy) === 1);
+    const index = groupFields.findIndex((field) => field.id === id);
+    if (index < 0) return;
+    const field = groupFields[index];
+    const data = new FormData(form);
+    const raw = String(data.get(fieldFormName(field.id)) ?? "").trim();
+    const valid = (item: CustomField) =>
+      bookingFieldError(item, data) === null &&
+      Array.from(
+        form.querySelectorAll<
+          HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+        >(`[name="${CSS.escape(fieldFormName(item.id))}"]`),
+      ).every((input) => input.validity.valid);
+    const complete =
+      !!raw &&
+      valid(field) &&
+      (field.type === "phone"
+        ? raw.replace(/\D/g, "").length === 11
+        : finished);
+    if (!complete) {
+      contactAutoPassed.current.delete(field.id);
+      return;
+    }
+    if (contactAutoPassed.current.has(field.id)) return;
+    contactAutoPassed.current.add(field.id);
+    const next = groupFields[index + 1];
+    if (next) {
+      setActiveFieldId(next.id);
+      const input = form.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+        `[name="${CSS.escape(fieldFormName(next.id))}"]`,
+      );
+      input?.focus({ preventScroll: true });
+      return;
+    }
+    if (groupFields.every(valid)) nextGroup();
+  }
+
   function focusActorBirth(target: HTMLElement) {
     if (
       currentGroup !== 0 ||
@@ -601,6 +643,9 @@ export function ReservationForm({
           )?.dataset.fieldId;
           if (id) setActiveFieldId(id);
         }}
+        onBlur={(event) =>
+          guideContactChange(event.target as HTMLElement, true)
+        }
         onChange={(event) => {
           const target = event.target as HTMLElement;
           const block = target.closest<HTMLElement>("[data-field-id]");
@@ -624,8 +669,10 @@ export function ReservationForm({
           }
           syncFieldSnapshots();
           recomputeEstimate();
-          if (!(event.nativeEvent as InputEvent).isComposing)
+          if (!(event.nativeEvent as InputEvent).isComposing) {
             guideActorChange(target);
+            guideContactChange(target);
+          }
         }}
         onSubmit={(event) => {
           if (!reviewing) {
