@@ -1180,7 +1180,7 @@
 }
 .booking-modern-times .booking-summary { position: static; }
 
-/* Internal ripple: valid forward actions only, with a pause in each 1.3s cycle. */
+/* Keep the 1.3s cycle; expansion lasts 55% / 0.7 of it for 70% speed. */
 .booking-cta-ripple {
   position: relative;
   overflow: hidden;
@@ -1203,7 +1203,7 @@
     transform: translate(-50%, -50%) scale(0);
     opacity: 0.85;
   }
-  55%,
+  78.571429%,
   100% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 0;
