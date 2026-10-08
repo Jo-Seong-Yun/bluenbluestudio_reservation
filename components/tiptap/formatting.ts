@@ -64,23 +64,42 @@ export const SPECIAL_CHARACTERS = [
   "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "㉠", "㉡",
 ] as const;
 
-const FONT_VALUE_SET = new Set<string>(
-  FONT_FAMILIES.map((f) => f.value).filter(Boolean),
-);
-
-/** 저장 전, 허용 목록에 있는 글꼴 스택인지. */
-export function isAllowedFontFamily(value: string): boolean {
-  return FONT_VALUE_SET.has(value.trim());
+/** DOM serialization may remove quotes or change them to double quotes. */
+export function normalizeFontFamily(value: string): string {
+  return value
+    .split(",")
+    .map((family) =>
+      family
+        .trim()
+        .replace(/^(['"])(.*)\1$/, "$2")
+        .toLowerCase(),
+    )
+    .join(",");
 }
-
+const FONT_VALUE_SET = new Set<string>(
+  FONT_FAMILIES.map((f) => normalizeFontFamily(f.value)).filter(Boolean),
+);
+export function isAllowedFontFamily(value: string): boolean {
+  return FONT_VALUE_SET.has(normalizeFontFamily(value));
+}
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-
-/** sanitize-html의 allowedStyles는 RegExp 배열만 받아, 허용 글꼴을 정규식으로 만든다. */
+/** Accept only listed stacks, including equivalent browser quote/spacing forms. */
 export const FONT_FAMILY_STYLE_REGEX = new RegExp(
-  `^(?:${FONT_FAMILIES.map((f) => f.value)
+  `^\\s*(?:${FONT_FAMILIES.map((f) => f.value)
     .filter(Boolean)
-    .map(escapeRegExp)
-    .join("|")})$`,
+    .map((value) =>
+      value
+        .split(",")
+        .map((family) => {
+          const name = escapeRegExp(
+            family.trim().replace(/^(['"])(.*)\1$/, "$2"),
+          );
+          return `(?:'${name}'|"${name}"|${name})`;
+        })
+        .join("\\s*,\\s*"),
+    )
+    .join("|")})\\s*$`,
+  "i",
 );

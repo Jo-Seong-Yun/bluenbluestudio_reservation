@@ -44,20 +44,20 @@ export function BookingDetail({
         <section className="booking-price-section">
           <div className="booking-price-top">
             <strong>{product.name}</strong>
-            {sale ? (
-              <span className="booking-sale">
-                {Math.round((1 - price / product.price) * 100)}% 할인
-              </span>
-            ) : null}
           </div>
           <p className="booking-lead">
             촬영 {product.duration_min}분
             {product.max_people ? ` · 최대 ${product.max_people}명` : ""}
           </p>
           {sale ? (
-            <del className="booking-old-price">
-              {product.price.toLocaleString()}원
-            </del>
+            <div className="booking-price-discount-row">
+              <del className="booking-old-price">
+                {product.price.toLocaleString()}원
+              </del>
+              <span className="booking-sale">
+                {Math.round((1 - price / product.price) * 100)}% 할인
+              </span>
+            </div>
           ) : null}
           <p className="booking-large-price">
             {price.toLocaleString()}

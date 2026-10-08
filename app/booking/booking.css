@@ -1125,3 +1125,23 @@
 @media (min-width: 601px) {
   .booking-detail-description-card { padding: 24px; }
 }
+
+.booking-modern-detail .booking-price-section > .booking-lead {
+  margin-top: 4.2px;
+}
+.booking-price-discount-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7.7px;
+}
+.booking-price-discount-row .booking-old-price {
+  margin-top: 0;
+}
+.booking-modern-detail .booking-large-price {
+  margin-top: 2.1px;
+}
+.booking-modern-detail .booking-price-section > .booking-close-note {
+  margin-top: 1.68px;
+}

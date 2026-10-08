@@ -2,6 +2,26 @@ import { describe, expect, it } from "vitest";
 import { sanitizeDescriptionHtml } from "./sanitize-description";
 
 describe("sanitizeDescriptionHtml", () => {
+  it("브라우저가 정규화한 Pretendard와 기존 글꼴을 저장·재표시해도 유지한다", () => {
+    for (const family of [
+      "Pretendard, sans-serif",
+      "'Pretendard', sans-serif",
+      "&quot;Pretendard&quot;, sans-serif",
+      "&quot;Noto Sans KR&quot;, sans-serif",
+      "Nanum Gothic, sans-serif",
+    ]) {
+      const input = `<p><span style="font-family:${family}">한글 촬영 안내</span></p>`;
+      const saved = sanitizeDescriptionHtml(input);
+      expect(saved).toContain("font-family:");
+      expect(sanitizeDescriptionHtml(saved)).toBe(saved);
+    }
+    expect(
+      sanitizeDescriptionHtml(
+        '<span style="font-family:EvilFont, sans-serif">한글</span>',
+      ),
+    ).not.toContain("font-family");
+  });
+
   it("허용된 태그와 안전한 색상은 그대로 둔다", () => {
     const input =
       '<h2>제목</h2><p><strong>굵게</strong> <span style="color: #ff0000">빨강</span></p>';

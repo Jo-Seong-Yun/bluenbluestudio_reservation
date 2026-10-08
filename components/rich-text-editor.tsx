@@ -95,6 +95,7 @@ import {
 import { FindReplace, findReplaceKey } from "@/components/tiptap/find-replace";
 import {
   FONT_FAMILIES,
+  normalizeFontFamily,
   FONT_SIZES,
   FONT_SIZE_DEFAULT,
   BRAND_COLORS,
@@ -964,7 +965,7 @@ function StyleMenu({
 function FontFamilyMenu({ editor, current }: { editor: Editor | null; current: string }) {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
-  const label = FONT_FAMILIES.find((f) => f.value === current)?.label ?? "기본";
+  const label = FONT_FAMILIES.find((f) => normalizeFontFamily(f.value) === normalizeFontFamily(current))?.label ?? "기본";
   function apply(value: string) {
     if (editor) {
       if (value) editor.chain().focus().setFontFamily(value).run();
@@ -988,7 +989,7 @@ function FontFamilyMenu({ editor, current }: { editor: Editor | null; current: s
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => apply(f.value)}
             >
-              <CheckSlot on={current === f.value || (!current && !f.value)} />
+              <CheckSlot on={normalizeFontFamily(current) === normalizeFontFamily(f.value)} />
               {f.label}
             </button>
           ))}
