@@ -1316,3 +1316,8 @@ dev-preview 페이지로 데스크톱·모바일 스크린샷만 보여준 뒤 �
 - 메모리 answerDrafts에 더해 productId별 sessionStorage `booking-draft:v1:*`에 답변과 현재 그룹을 입력마다 저장. hydration 후 한 번 복원하고 문항 영역을 remount해 native defaultValue, Code Slots, 체크/라디오를 동기화. 완료 시 메모리/세션 제거, 24시간 지난 draft 삭제. 저장소 접근 불가 시 메모리 방식 유지.
 - 전체 신청서 동일 적용, 문항ID 기준 복원하며 삭제 문항은 제외. 같은 탭 새로고침을 위한 저장이고 장기 localStorage 저장은 하지 않음.
 - 실제 모바일 컴포넌트 reload 테스트: 이름/성별/생년월일/하이픈 연락처/이메일/여러 줄 요청/동의/현재 그룹 복원, 만료 시 초기화 통과.
+
+### 2026-10-08 — 승인된 문항/페이지 전환 애니메이션
+- 다음 문항으로 이동할 때 smooth scroll + 활성 문항 테두리/배경/그림자 280ms transition. 키패드가 닫힌 경우 viewport 위치 보정도 smooth; 키패드가 열린 경우 입력 가림 방지를 위한 즉시 보정 유지.
+- 그룹/확인 페이지 전환에 DOM 교체 없이 Web Animations 280ms fade + translateY(12px→0). 입력값 remount 없이 유지, 요청 페이지 최상단 진입 보정 유지. reduced-motion에서 이동/강조 애니메이션 생략.
+- 사용자 승인 영상 `/workspace/.reviews/question-motion/demo.mp4`를 기준으로 반영. 실제 모바일 컴포넌트 영상 검증에서 연락처→이메일→요청 페이지 이동 및 데이터 보존 확인.

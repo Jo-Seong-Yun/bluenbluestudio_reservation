@@ -230,6 +230,20 @@ export function ReservationForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftRestored, initialAnswers, currentGroup, productId]);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const panel = formRef.current?.querySelector<HTMLElement>(
+      reviewing ? ".booking-review" : ".booking-questionnaire",
+    );
+    const animation = panel?.animate(
+      [
+        { opacity: 0, transform: "translateY(12px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ],
+      { duration: 280, easing: "cubic-bezier(.22,1,.36,1)" },
+    );
+    return () => animation?.cancel();
+  }, [currentGroup, reviewing]);
   // Mobile browsers may restore the old scroll position after the keyboard closes.
   // Keep the page entry at the top through viewport resize/pan, until the visitor acts.
   useEffect(() => {
@@ -499,7 +513,12 @@ export function ReservationForm({
         preventScroll: true,
       });
       if (reportError) input?.reportValidity();
-      block?.scrollIntoView({ behavior: "smooth", block: "center" });
+      block?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+        block: "center",
+      });
     });
   }
 
@@ -659,6 +678,15 @@ export function ReservationForm({
         `[name="${CSS.escape(fieldFormName(next.id))}"]`,
       );
       input?.focus({ preventScroll: true });
+      input
+        ?.closest<HTMLElement>("[data-field-id]")
+        ?.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "instant"
+            : "smooth",
+          block: "center",
+        });
       return;
     }
     if (groupFields.every(valid)) nextGroup();
@@ -916,7 +944,7 @@ export function ReservationForm({
           />
         </section>
         {reviewing ? (
-          <section className="booking-card">
+          <section className="booking-card booking-review">
             <h1
               id="booking-review-heading"
               tabIndex={-1}

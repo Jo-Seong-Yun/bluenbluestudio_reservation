@@ -79,7 +79,14 @@ export function useBookingKeyboard(formRef: RefObject<HTMLFormElement | null>) {
             (top + (height - dock) / 2),
         );
         if (Math.abs(window.scrollY - desired) > 2)
-          window.scrollTo({ top: desired, behavior: "instant" });
+          window.scrollTo({
+            top: desired,
+            behavior:
+              keyboard ||
+              window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                ? "instant"
+                : "smooth",
+          });
       }
     };
     const schedule = () => {
