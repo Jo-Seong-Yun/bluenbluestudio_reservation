@@ -148,7 +148,7 @@ export function ReservationHistoryTable({
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
-  const [sort, setSort] = useState<SortOption>("created_desc");
+  const [sort, setSort] = useState<SortOption>("shoot_asc");
 
   const filtered = useMemo(() => {
     const q = query.trim();
