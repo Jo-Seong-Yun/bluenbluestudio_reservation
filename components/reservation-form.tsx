@@ -163,8 +163,20 @@ export function ReservationForm({
     }
     setCurrentGroup(next);
     const first = fields.find((field) => fieldGroup(field, copy) === next);
-    if (first) revealField(first.id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (next === 2) {
+      // Show the request page from its heading; focusing its first input opens the
+      // keyboard and recenters the viewport before the visitor can read it.
+      setActiveFieldId(first?.id ?? null);
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && formRef.current?.contains(focused))
+        focused.blur();
+      requestAnimationFrame(() =>
+        window.scrollTo({ top: 0, behavior: "instant" }),
+      );
+    } else {
+      if (first) revealField(first.id);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
   const [activeFieldId, setActiveFieldId] = useState<string | null>(
     fields[0]?.id ?? null,
