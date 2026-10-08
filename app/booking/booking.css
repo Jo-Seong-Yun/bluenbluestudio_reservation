@@ -1169,3 +1169,6 @@
 }
 .booking-inquiry-floating:hover { background: #f8fafc; box-shadow: 0 5px 24px #1a365e2b; }
 .booking-inquiry-floating:focus-visible { outline: 2px solid #044aad; outline-offset: 3px; }
+
+.booking-time-choice { min-height: 190px; scroll-margin-top: 24px; }
+.booking-modern-times .booking-summary { scroll-margin-top: 24px; }

@@ -1,6 +1,6 @@
 "use client";
 import { resolveCopy, type BookingCopy } from "@/lib/booking/copy";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loadSlotsForDate } from "@/lib/booking/actions";
@@ -12,6 +12,7 @@ import {
   weekdayOf,
   type DateString,
 } from "@/lib/time";
+import {scrollAfterClick} from "@/lib/booking/click-scroll";
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_CANDIDATES = 3;
 type Candidate = { date: DateString; time: string };
@@ -61,10 +62,19 @@ export function BookingFlow({
   const [pending, startTransition] = useTransition();
   useReportPending(pending);
   const isFull = candidates.length === MAX_CANDIDATES;
+  const timeSection = useRef<HTMLDivElement>(null);
+  const summarySection = useRef<HTMLElement>(null);
+  const cancelScroll = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelScroll.current?.(), []);
+  function guideTo(target: HTMLElement | null) {
+    cancelScroll.current?.();
+    cancelScroll.current = scrollAfterClick(target);
+  }
   function selectDate(date: DateString) {
     setSelectedDate(date);
     setSlots([]);
     setSlotsError(null);
+    guideTo(timeSection.current);
     const request = ++latestRequest.current;
     startTransition(async () => {
       try {
@@ -83,15 +93,13 @@ export function BookingFlow({
   }
   function toggle(time: string) {
     if (!selectedDate || pending) return;
-    setCandidates((prev) => {
-      const next = prev.some((c) => c.date === selectedDate && c.time === time)
-        ? prev.filter((c) => !(c.date === selectedDate && c.time === time))
-        : prev.length < MAX_CANDIDATES
-          ? [...prev, { date: selectedDate, time }]
-          : prev;
-      timeDrafts.set(productId, next);
-      return next;
-    });
+    const picked = candidates.some(c => c.date === selectedDate && c.time === time);
+    const next = picked
+      ? candidates.filter(c => !(c.date === selectedDate && c.time === time))
+      : candidates.length < MAX_CANDIDATES ? [...candidates,{date:selectedDate,time}] : candidates;
+    setCandidates(next);
+    timeDrafts.set(productId,next);
+    if (!picked && candidates.length === 2 && next.length === MAX_CANDIDATES) guideTo(summarySection.current);
   }
 
   function apply() {
@@ -112,6 +120,7 @@ export function BookingFlow({
         </div>
         <h1 className="text-2xl font-bold">{copy.timesTitle}</h1>
         <p className="text-muted mt-2 mb-6 text-sm">{copy.timesIntro}</p>
+        <p className="text-muted mb-4 text-xs">날짜를 선택하면 시간 선택으로, 희망 시간 3개를 채우면 선택 내역으로 이동합니다.</p>
         <div className="grid gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <CalendarGrid
             month={month}
@@ -122,7 +131,7 @@ export function BookingFlow({
             minMonth={minMonth}
             maxMonth={maxMonth}
           />
-          <div className="min-w-0">
+          <div ref={timeSection} className="booking-time-choice min-w-0">
             <h2 className="mb-3 font-bold">
               {selectedDate
                 ? `${Number(selectedDate.slice(5, 7))}월 ${Number(selectedDate.slice(8))}일 시간 선택`
@@ -168,7 +177,7 @@ export function BookingFlow({
           </div>
         </div>
       </section>
-      <aside className="booking-card booking-summary" aria-label="예약 요약">
+      <aside ref={summarySection} className="booking-card booking-summary" aria-label="예약 요약">
         <p className="text-brand text-xs font-bold tracking-wider">예약 요약</p>
         <h2>{productName}</h2>
         <p className="text-muted text-sm">촬영 {durationMin}분</p>
