@@ -1,4 +1,5 @@
 "use client";
+import { confirmedLabel } from "@/lib/booking/deposit";
 import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -31,8 +32,8 @@ const formatDate = (iso: string) =>
     minute: "2-digit",
     hour12: false,
   });
-export function LookupForm() {
-  const [mode, setMode] = useState("phone");
+export function LookupForm({ initialCode = "" }: { initialCode?: string }) {
+  const [mode, setMode] = useState(initialCode ? "code" : "phone");
   const [phoneState, phoneAction, phonePending] = useActionState(
     lookupReservationsByPhone,
     phoneIdle,
@@ -138,6 +139,7 @@ export function LookupForm() {
               <Field label="예약번호">
                 <input
                   name="code"
+                  defaultValue={initialCode}
                   required
                   autoCapitalize="characters"
                   className={inputClass}
@@ -225,7 +227,11 @@ export function LookupForm() {
                     className={`border-border w-full rounded-md border p-4 text-left ${selected?.code === r.code ? "bg-surface-subtle" : "bg-surface"}`}
                   >
                     <span className="text-brand text-xs font-semibold">
-                      {STATUS_LABEL[r.status] ?? r.status}
+                      {confirmedLabel(
+                        r.status,
+                        r.depositRequired !== false,
+                        STATUS_LABEL[r.status] ?? r.status,
+                      )}
                     </span>
                     <h3 className="mt-2 font-bold">{r.productName}</h3>
                     <p className="text-muted mt-2 text-xs">
@@ -296,7 +302,11 @@ export function LookupReservationDetail({
   return (
     <section className="booking-card">
       <span className="bg-surface-subtle text-brand inline-block rounded-md px-3 py-1 text-xs font-bold">
-        {STATUS_LABEL[r.status] ?? r.status}
+        {confirmedLabel(
+          r.status,
+          r.depositRequired !== false,
+          STATUS_LABEL[r.status] ?? r.status,
+        )}
       </span>
       <h2 className="mt-3 text-2xl font-bold">{r.productName}</h2>
       <p className="text-muted mt-2 font-mono text-sm">{r.code}</p>

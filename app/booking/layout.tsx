@@ -1,3 +1,5 @@
+import { ConfigNotice } from "@/components/config-notice";
+import { missingAuthEnv } from "@/lib/supabase/env";
 import "./booking.css";
 import { BookingShell } from "@/components/booking-shell";
 import { createClient } from "@/lib/supabase/server";
@@ -17,6 +19,8 @@ export default async function BookingLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const missing = missingAuthEnv();
+  if (missing.length) return <ConfigNotice missing={missing} />;
   const supabase = await createClient();
   const { data: settings } = await supabase
     .from("settings")

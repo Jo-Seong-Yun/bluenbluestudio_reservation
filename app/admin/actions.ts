@@ -1,4 +1,7 @@
 "use server";
+import {depositContent} from "@/lib/booking/deposit-content";
+import {allowedNextStatuses, previousConfirmedStatus, requiresDeposit} from "@/lib/booking/deposit";
+import { updateBookingSettings } from "@/lib/booking/style-storage";
 import { loadCustomerEmailHistory } from "@/lib/notifications/customer-email-history";
 import { loadCustomerEmailContexts } from "@/lib/notifications/customer-email-contexts";
 import { customerEmailValues, parseCustomerVariableOverrides, renderCustomerCtas } from "@/lib/notifications/customer-email-shared";
@@ -564,11 +567,7 @@ type ForwardStatus = "schedule_confirmed" | "payment_confirmed" | "completed" | 
  * 노쇼에서 되돌아가려면 revertReservationStatus를, 취소를 복원하려면
  * restoreCancelledReservation을 따로 쓴다(둘 다 이메일을 보내지 않는
  * "되돌리기"라 이 표에 없다). */
-const ALLOWED_FORWARD_TRANSITIONS: Partial<Record<string, ForwardStatus[]>> = {
-  requested: ["schedule_confirmed"],
-  schedule_confirmed: ["payment_confirmed"],
-  payment_confirmed: ["completed", "no_show"],
-};
+
 
 /** payment_confirmed/completed/no_show은 SMS·알림톡 심사 문구가 없어
  * 이메일 규칙만 쏜다 — 이 상태들이 어떤 이메일 트리거에 해당하는지. */
@@ -630,7 +629,7 @@ function resolveTeamEmails(
 /**
  * 확인모달을 거쳐 상태를 다음 단계로만 넘긴다(일정확정→입금확인→
  * 완료|노쇼). 모달이 보여준 이메일(관리자가 고쳤으면 고친 내용)을
- * 그대로 이 발송에 쓴다 — ALLOWED_FORWARD_TRANSITIONS에 없는 전환(예:
+ * 그대로 이 발송에 쓴다 — 허용된 다음 상태에 없는 전환(예:
  * requested에서 바로 payment_confirmed, 또는 이미 완료된 예약을 다시
  * 완료 처리)은 거절한다.
  */
@@ -654,7 +653,7 @@ export async function applyReservationTransition(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id, estimated_amount, team_emails",
+      "*",
     )
     .eq("id", id)
     .single();
@@ -667,8 +666,8 @@ export async function applyReservationTransition(
   );
   if (!team.ok) return { error: team.error };
 
-  const allowed = ALLOWED_FORWARD_TRANSITIONS[reservation.status] ?? [];
-  const nextStatus = allowed.find((value) => value === rawNextStatus);
+  const allowed = allowedNextStatuses(reservation.status, requiresDeposit(reservation));
+  const nextStatus = allowed.find((value) => value === rawNextStatus) as ForwardStatus | undefined;
   if (!nextStatus) {
     return {
       error:
@@ -678,7 +677,7 @@ export async function applyReservationTransition(
 
   // 일정확정/입금확인은 이미 shoot_start가 있는 예약에서만 온다
   // (아직 후보만 낸 예약은 confirmReservationCandidate가 담당) —
-  // ALLOWED_FORWARD_TRANSITIONS상 requested→schedule_confirmed로 여기
+  // requested→schedule_confirmed로 여기
   // 도달했다는 건 레거시(후보 없이 접수된) 예약이라는 뜻이다.
   if (
     (nextStatus === "schedule_confirmed" || nextStatus === "payment_confirmed") &&
@@ -807,7 +806,7 @@ export async function cancelReservationWithReason(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, status, customer_name, customer_phone, customer_email, gender, birth_date, shoot_start, product_id, estimated_amount, team_emails",
+      "*",
     )
     .eq("id", id)
     .single();
@@ -901,7 +900,7 @@ export async function revertReservationStatus(formData: FormData) {
   const supabase = await createClient();
   const { data: reservation } = await supabase
     .from("reservations")
-    .select("status")
+    .select("*")
     .eq("id", id)
     .single();
   if (!reservation) return;
@@ -909,7 +908,7 @@ export async function revertReservationStatus(formData: FormData) {
 
   await supabase
     .from("reservations")
-    .update({ status: "payment_confirmed" })
+    .update({ status: previousConfirmedStatus(requiresDeposit(reservation)) })
     .eq("id", id);
 
   revalidatePath("/admin/reservations");
@@ -1002,7 +1001,7 @@ export async function previewStatusChangeEmails(
   const { data: reservation } = await supabase
     .from("reservations")
     .select(
-      "code, customer_name, customer_phone, shoot_start, shoot_location, product_id, estimated_amount",
+      "*",
     )
     .eq("id", reservationId)
     .single();
@@ -1036,7 +1035,7 @@ export async function previewStatusChangeEmails(
     recipientLabel: formatRecipients(rule.recipients),
     recipients: [...rule.recipients],
     subject: renderEmailTemplate(rule.subject, variables),
-    body: renderEmailHtml(rule.body, variables),
+    body: depositContent(renderEmailHtml(rule.body, requiresDeposit(reservation) ? variables : {...variables, 계좌:""}), requiresDeposit(reservation), variables.계좌),
     usesCancelReason: /\{\{\s*취소사유\s*\}\}/.test(rule.subject + rule.body),
   }));
 }
@@ -2272,23 +2271,12 @@ export async function saveBookingStyle(
     return { error: "텍스트 크기·박스 모양 값을 다시 확인해 주시기 바랍니다." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("settings")
-    .update({
-      booking_style: {
-        accentColor,
-        saleColor,
-        textColor,
-        textSize,
-        cardRadius,
-        cardSize,
-      },
-    })
-    .eq("id", 1);
-
-  if (error) {
-    return { error: `저장하지 못했습니다: ${error.message}` };
+  try {
+    await updateBookingSettings((current) => ({
+      ...current, accentColor, saleColor, textColor, textSize, cardRadius, cardSize,
+    }));
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "저장하지 못했습니다." };
   }
 
   revalidatePath("/admin/design");

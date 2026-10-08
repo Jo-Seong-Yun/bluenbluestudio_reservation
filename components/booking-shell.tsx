@@ -12,15 +12,21 @@ export function BookingShell({
   children: ReactNode;
   style?: BookingStyle;
 }) {
+  const accent =
+    style.accentColor.toLowerCase() === "#173b67"
+      ? "#044AAD"
+      : style.accentColor;
+  const text =
+    style.textColor.toLowerCase() === "#182c46" ? "#202b3d" : style.textColor;
   return (
     <div
       className="booking-workspace"
       style={
         {
-          "--brand": style.accentColor,
-          "--brand-hover": `color-mix(in srgb, ${style.accentColor} 85%, black)`,
-          "--accent": style.accentColor,
-          "--booking-text": style.textColor,
+          "--brand": accent,
+          "--brand-hover": `color-mix(in srgb, ${accent} 85%, black)`,
+          "--accent": accent,
+          "--booking-text": text,
         } as CSSProperties
       }
     >

@@ -1,3 +1,7 @@
+import {depositEnabled} from "@/lib/booking/deposit";
+import { ConfigNotice } from "@/components/config-notice";
+import { missingAuthEnv, missingServerEnv } from "@/lib/supabase/env";
+import { productCopy } from "@/lib/booking/copy";
 import { BookingSteps } from "@/components/booking-shell";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -16,6 +20,7 @@ import { ProductViewTracker } from "./product-view-tracker";
 export async function generateMetadata({
   params,
 }: PageProps<"/booking/[slug]">): Promise<Metadata> {
+  if (missingAuthEnv().length) return { title: "예약 설정 확인" };
   const { slug } = await params;
   const supabase = await createClient();
   const { data: product } = await supabase
@@ -34,6 +39,12 @@ export default async function ProductDetailPage({
   const { slug } = await params;
   const { month: monthParam, step } = await searchParams;
 
+  const missing =
+    (Array.isArray(step) ? step[0] : step) === "times"
+      ? missingServerEnv()
+      : missingAuthEnv();
+  if (missing.length) return <ConfigNotice missing={missing} />;
+
   const supabase = await createClient();
   const [{ data: product }, { data: settings }] = await Promise.all([
     supabase
@@ -44,7 +55,9 @@ export default async function ProductDetailPage({
       .maybeSingle(),
     supabase
       .from("settings")
-      .select("slot_interval_min, min_lead_days, max_advance_days")
+      .select(
+        "slot_interval_min, min_lead_days, max_advance_days, booking_style",
+      )
       .eq("id", 1)
       .single(),
   ]);
@@ -66,7 +79,8 @@ export default async function ProductDetailPage({
     return (
       <>
         <ProductViewTracker productId={product.id} />
-        <BookingDetail
+        <BookingDetail depositRequired={depositEnabled(settings?.booking_style)}
+          copy={productCopy(settings?.booking_style, product.id)}
           product={product}
           earliestBookable={earliestBookable}
           latestBookable={latestBookable}
@@ -111,7 +125,8 @@ export default async function ProductDetailPage({
         </Link>
 
         <BookingSteps stage="times" />
-        <BookingFlow
+        <BookingFlow depositRequired={depositEnabled(settings?.booking_style)}
+          copy={productCopy(settings?.booking_style, product.id)}
           productId={product.id}
           productName={product.name}
           basePrice={product.sale_price ?? product.price}

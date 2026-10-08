@@ -43,11 +43,13 @@ function RevertButton({ reservationId }: { reservationId: string }) {
 export function ReservationActionCell({
   reservationId,
   status,
+  depositRequired = true,
   isPending,
   deliverableSent,
 }: {
   reservationId: string;
   status: string;
+  depositRequired?: boolean;
   /** 후보만 낸 채 아직 촬영일시가 확정되지 않은 예약이면 true. */
   isPending: boolean;
   /** "결과물 전송"을 이미 한 번 성공적으로 마쳤으면 true. */
@@ -112,7 +114,7 @@ export function ReservationActionCell({
         />
       ) : null}
 
-      {status === "schedule_confirmed" ? (
+      {status === "schedule_confirmed" && depositRequired ? (
         <StatusTransitionModal
           reservationId={reservationId}
           triggerType="on_payment_confirmed"
@@ -124,7 +126,8 @@ export function ReservationActionCell({
         />
       ) : null}
 
-      {status === "payment_confirmed" ? (
+      {status === "payment_confirmed" ||
+      (status === "schedule_confirmed" && !depositRequired) ? (
         <>
           <StatusTransitionModal
             reservationId={reservationId}

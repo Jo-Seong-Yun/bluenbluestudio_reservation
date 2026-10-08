@@ -1,3 +1,5 @@
+import { ConfigNotice } from "@/components/config-notice";
+import { missingAuthEnv } from "@/lib/supabase/env";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { publicImageUrl } from "@/lib/images";
@@ -7,6 +9,8 @@ import { BookingProducts } from "@/components/booking-products";
 import { BookingListViewTracker } from "./booking-list-view-tracker";
 export const metadata: Metadata = { title: "예약하기" };
 export default async function BookingPage() {
+  const missing = missingAuthEnv();
+  if (missing.length) return <ConfigNotice missing={missing} />;
   const supabase = await createClient();
   const [{ data: products, error }, { data: settings }] = await Promise.all([
     supabase

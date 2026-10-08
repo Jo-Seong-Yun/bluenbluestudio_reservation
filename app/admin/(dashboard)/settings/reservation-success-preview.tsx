@@ -19,11 +19,13 @@ const SAMPLE_CANDIDATES = [
  * 손님이 보는 모습이다.
  */
 export function ReservationSuccessPreview({
+  depositRequired = true,
   successHeading,
   successMessage,
   bankAccount,
   notice,
 }: {
+  depositRequired?: boolean;
   successHeading: string;
   successMessage: string;
   bankAccount: string;
@@ -33,6 +35,7 @@ export function ReservationSuccessPreview({
     <div>
       <p className="text-muted mb-2 text-xs font-medium">손님 화면 미리보기</p>
       <ReservationSuccessCard
+        depositRequired={depositRequired}
         successHeading={successHeading}
         successMessage={successMessage}
         code={SAMPLE_CODE}

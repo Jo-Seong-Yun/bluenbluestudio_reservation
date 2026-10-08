@@ -1,4 +1,6 @@
 import "server-only";
+import {requiresDeposit} from "@/lib/booking/deposit";
+import {reservationDepositRequired} from "@/lib/booking/deposit-server";
 import { createClient } from "@/lib/supabase/server";
 import { loadSelectedPricedOptions } from "@/lib/booking/custom-fields";
 import { buildEmailVariables } from "./templates";
@@ -13,6 +15,7 @@ export async function loadCustomerEmailContexts(
   const db = await createClient();
   const unique = [...new Set(phones)];
   const site = await siteVariableOverrides();
+  const currentDepositRequired = await reservationDepositRequired();
   if (!unique.length) return [];
   const { data: customers, error } = await db
     .from("customers")
@@ -24,7 +27,7 @@ export async function loadCustomerEmailContexts(
     const { data, error } = await db
       .from("reservations")
       .select(
-        "id,code,customer_name,customer_email,customer_phone,product_id,shoot_start,shoot_location,estimated_amount,cancel_reason,created_at",
+        "*",
       )
       .in("customer_phone", unique)
       .order("created_at", { ascending: false })
@@ -75,13 +78,15 @@ export async function loadCustomerEmailContexts(
         phone: r.customer_phone,
         id: r.id,
         label: `${r.code} · ${names.get(r.product_id) ?? "삭제된 상품"} · ${r.shoot_start ? `${kstDateString(new Date(r.shoot_start))} ${kstTimeString(new Date(r.shoot_start))}` : "시간 미확정"}`,
-        variables,
+        variables: requiresDeposit(r) ? variables : {...variables,계좌:""},
+        depositRequired: requiresDeposit(r),
       };
     }),
   );
   return (customers ?? []).map((c) => ({
     phone: c.phone,
     name: c.name,
+    depositRequired: currentDepositRequired,
     variables: {
       ...buildEmailVariables({ customerName: c.name, customerPhone: c.phone }),
       ...site,

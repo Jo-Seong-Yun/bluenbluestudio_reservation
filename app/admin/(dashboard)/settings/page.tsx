@@ -1,3 +1,5 @@
+import { DepositToggle } from "./deposit-toggle";
+import { depositEnabled } from "@/lib/booking/deposit";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { SettingsForm } from "./settings-form";
@@ -17,7 +19,7 @@ export default async function SettingsPage() {
       supabase
         .from("settings")
         .select(
-          "slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, reservation_success_heading, reservation_success_message, admin_notify_phone, admin_notify_email, show_product_thumbnails, logo_url, brand_color",
+          "booking_style, slot_interval_min, min_lead_days, max_advance_days, cancel_deadline_hours, bank_account, studio_intro, notice, reservation_success_heading, reservation_success_message, admin_notify_phone, admin_notify_email, show_product_thumbnails, logo_url, brand_color",
         )
         .eq("id", 1)
         .single(),
@@ -28,13 +30,15 @@ export default async function SettingsPage() {
   if (!settings) {
     return (
       <p className="text-muted text-sm">
-        설정 행을 찾을 수 없습니다. 마이그레이션이 제대로 적용되었는지 확인해 주시기 바랍니다.
+        설정 행을 찾을 수 없습니다. 마이그레이션이 제대로 적용되었는지 확인해
+        주시기 바랍니다.
       </p>
     );
   }
 
   return (
     <div>
+      <DepositToggle initial={depositEnabled(settings.booking_style)} />
       <SettingsForm
         initial={{
           slotIntervalMin: settings.slot_interval_min,
@@ -42,6 +46,7 @@ export default async function SettingsPage() {
           maxAdvanceDays: settings.max_advance_days,
           cancelDeadlineHours: settings.cancel_deadline_hours,
           bankAccount: settings.bank_account ?? "",
+          depositRequired: depositEnabled(settings.booking_style),
           studioIntro: settings.studio_intro ?? "",
           notice: settings.notice ?? "",
           reservationSuccessHeading: settings.reservation_success_heading,

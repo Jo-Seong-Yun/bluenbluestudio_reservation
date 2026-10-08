@@ -1,3 +1,4 @@
+import { confirmedLabel, requiresDeposit } from "@/lib/booking/deposit";
 import { ReservationEditModal } from "./reservation-edit-modal";
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -26,6 +27,7 @@ export type ReservationRow = {
   id: string;
   code: string;
   status: string;
+  deposit_required?: boolean;
   /** 후보(1~3지망)만 낸 채 아직 확정 전이면 null. */
   shoot_start: string | null;
   shoot_end: string | null;
@@ -221,7 +223,11 @@ function ReservationDetail({
           <Row label="인원">{reservation.people_count}명</Row>
         ) : null}
         <Row label="상태">
-          {STATUS_LABEL[reservation.status] ?? reservation.status}
+          {confirmedLabel(
+            reservation.status,
+            requiresDeposit(reservation),
+            STATUS_LABEL[reservation.status] ?? reservation.status,
+          )}
         </Row>
       </dl>
 
@@ -279,10 +285,17 @@ function ReservationDetail({
           <p className="mb-2 text-sm font-medium">
             상태 변경{" "}
             <span className="text-muted font-normal">
-              (현재: {STATUS_LABEL[reservation.status] ?? reservation.status})
+              (현재:{" "}
+              {confirmedLabel(
+                reservation.status,
+                requiresDeposit(reservation),
+                STATUS_LABEL[reservation.status] ?? reservation.status,
+              )}
+              )
             </span>
           </p>
           <StatusButtons
+            depositRequired={requiresDeposit(reservation)}
             reservationId={reservation.id}
             status={reservation.status}
           />

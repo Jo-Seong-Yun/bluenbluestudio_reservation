@@ -1,13 +1,13 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 
-const RESERVATION_COLUMNS =
-  "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, shoot_location, cancel_reason, cost, cost_memo, charged_amount, charged_amount_memo, charged_amount_breakdown, estimated_amount, gender, birth_date, product_id";
+const RESERVATION_COLUMNS = "*";
 
 export type ReservationDetail = {
   id: string;
   code: string;
   status: string;
+  deposit_required?: boolean;
   shoot_start: string | null;
   shoot_end: string | null;
   customer_name: string;
@@ -65,32 +65,40 @@ export async function loadReservationDetail(
 
   // 확정 대기 중인 예약이면(shoot_start가 없다) 손님이 낸 후보들을
   // 같이 가져와야 관리자가 그중 하나를 골라 확정할 수 있다.
-  const [{ data: product }, { data: candidateRows }, { data: notificationLogRows }, { data: answerRows }] =
-    await Promise.all([
-      supabase
-        .from("products")
-        .select("name, price, sale_price")
-        .eq("id", reservation.product_id)
-        .maybeSingle(),
-      reservation.shoot_start
-        ? Promise.resolve({
-            data: [] as { rank: number; shoot_start: string; shoot_end: string }[],
-          })
-        : supabase
-            .from("reservation_candidates")
-            .select("rank, shoot_start, shoot_end")
-            .eq("reservation_id", id)
-            .order("rank"),
-      supabase
-        .from("notification_logs")
-        .select("id, channel, purpose, recipient, success, error, created_at")
-        .eq("reservation_id", id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("reservation_answers")
-        .select("field_id, value")
-        .eq("reservation_id", id),
-    ]);
+  const [
+    { data: product },
+    { data: candidateRows },
+    { data: notificationLogRows },
+    { data: answerRows },
+  ] = await Promise.all([
+    supabase
+      .from("products")
+      .select("name, price, sale_price")
+      .eq("id", reservation.product_id)
+      .maybeSingle(),
+    reservation.shoot_start
+      ? Promise.resolve({
+          data: [] as {
+            rank: number;
+            shoot_start: string;
+            shoot_end: string;
+          }[],
+        })
+      : supabase
+          .from("reservation_candidates")
+          .select("rank, shoot_start, shoot_end")
+          .eq("reservation_id", id)
+          .order("rank"),
+    supabase
+      .from("notification_logs")
+      .select("id, channel, purpose, recipient, success, error, created_at")
+      .eq("reservation_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("reservation_answers")
+      .select("field_id, value")
+      .eq("reservation_id", id),
+  ]);
 
   // rule:<id> 형식의 purpose에서 규칙 이름을 조회한다.
   const ruleIds = [
@@ -107,9 +115,13 @@ export async function loadReservationDetail(
     ruleIds.length > 0
       ? await supabase.from("email_rules").select("id, name").in("id", ruleIds)
       : { data: [] as { id: string; name: string }[] };
-  const ruleNameById = new Map((emailRuleRows ?? []).map((r) => [r.id, r.name]));
+  const ruleNameById = new Map(
+    (emailRuleRows ?? []).map((r) => [r.id, r.name]),
+  );
 
-  const answerFieldIds = [...new Set((answerRows ?? []).map((a) => a.field_id))];
+  const answerFieldIds = [
+    ...new Set((answerRows ?? []).map((a) => a.field_id)),
+  ];
   const { data: answerFields } =
     answerFieldIds.length > 0
       ? await supabase
@@ -172,7 +184,9 @@ export async function loadReservationDetail(
 
   const notificationLogs = (notificationLogRows ?? []).map((l) => {
     const ruleMatch = l.purpose.match(/^(rule(?:-test)?):(.+)$/);
-    const ruleName = ruleMatch ? (ruleNameById.get(ruleMatch[2]) ?? null) : null;
+    const ruleName = ruleMatch
+      ? (ruleNameById.get(ruleMatch[2]) ?? null)
+      : null;
     return {
       id: l.id,
       channel: l.channel as "email" | "sms" | "kakao",

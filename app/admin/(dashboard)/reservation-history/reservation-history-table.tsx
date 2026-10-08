@@ -65,14 +65,22 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   no_show: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
 };
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({
+  status,
+  depositRequired = true,
+}: {
+  status: string;
+  depositRequired?: boolean;
+}) {
   return (
     <span
       className={`inline-block shrink-0 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${
         STATUS_BADGE_CLASS[status] ?? "bg-surface-subtle text-muted"
       }`}
     >
-      {STATUS_BADGE_LABEL[status] ?? STATUS_LABEL[status] ?? status}
+      {status === "schedule_confirmed" && !depositRequired
+        ? "예약확정"
+        : (STATUS_BADGE_LABEL[status] ?? STATUS_LABEL[status] ?? status)}
     </span>
   );
 }
@@ -104,6 +112,7 @@ type Row = {
   id: string;
   code: string;
   status: string;
+  depositRequired?: boolean;
   shootStart: string | null;
   customerName: string;
   customerPhone: string;
@@ -176,7 +185,13 @@ export function ReservationHistoryTable({
         <div>
           <dt>입금 확인 대기</dt>
           <dd>
-            {rows.filter((r) => r.status === "schedule_confirmed").length}
+            {
+              rows.filter(
+                (r) =>
+                  r.status === "schedule_confirmed" &&
+                  r.depositRequired !== false,
+              ).length
+            }
             <span className="text-muted ml-1 text-xs font-normal">건</span>
           </dd>
         </div>
@@ -317,7 +332,10 @@ export function ReservationHistoryTable({
                   }`}
                 >
                   <td data-label="상태" className="px-3 py-3">
-                    <StatusBadge status={r.status} />
+                    <StatusBadge
+                      status={r.status}
+                      depositRequired={r.depositRequired}
+                    />
                   </td>
                   <td
                     data-label="촬영일시"
@@ -372,6 +390,7 @@ export function ReservationHistoryTable({
                   </td>
                   <td data-label="예약 처리" className="px-3 py-3">
                     <ReservationActionCell
+                      depositRequired={r.depositRequired}
                       reservationId={r.id}
                       status={r.status}
                       isPending={

@@ -6,8 +6,10 @@ import {
 export type CustomerEmailContext = {
   phone: string;
   name: string;
+  depositRequired?: boolean;
   reservations: {
     id: string;
+    depositRequired?: boolean;
     label: string;
     variables: Record<string, string>;
   }[];

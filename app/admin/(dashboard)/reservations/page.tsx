@@ -46,8 +46,7 @@ export default async function ReservationsPage({
   // trashedReservations는 취소된 예약 — 취소하면 이 화면(달력·확정
   // 대기 목록)에서는 더 이상 안 보이고 "휴지통" 목록으로만 보인다(DB
   // 행은 그대로 남아있다). 월과 무관하게 최근 것부터 보여준다.
-  const RESERVATION_COLUMNS =
-    "id, code, status, shoot_start, shoot_end, customer_name, customer_phone, people_count, memo, admin_memo, shoot_location, cancel_reason, cost, cost_memo, charged_amount, charged_amount_memo, charged_amount_breakdown, estimated_amount, gender, birth_date, product_id";
+  const RESERVATION_COLUMNS = "*";
 
   const [
     { data: reservations },
