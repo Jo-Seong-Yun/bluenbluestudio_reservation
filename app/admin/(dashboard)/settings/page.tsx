@@ -1,3 +1,5 @@
+import {DEFAULT_INQUIRY_URL} from "@/lib/booking/inquiry";
+import {InquirySettings} from "./inquiry-settings";
 import { DepositToggle } from "./deposit-toggle";
 import { depositEnabled } from "@/lib/booking/deposit";
 import type { Metadata } from "next";
@@ -38,6 +40,7 @@ export default async function SettingsPage() {
 
   return (
     <div>
+      <InquirySettings initial={settings.booking_style?.inquiryUrl ?? DEFAULT_INQUIRY_URL}/>
       <DepositToggle initial={depositEnabled(settings.booking_style)} />
       <SettingsForm
         initial={{

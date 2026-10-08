@@ -1,3 +1,4 @@
+import {DEFAULT_INQUIRY_URL} from "@/lib/booking/inquiry";
 import { ConfigNotice } from "@/components/config-notice";
 import { missingAuthEnv } from "@/lib/supabase/env";
 import type { Metadata } from "next";
@@ -41,6 +42,7 @@ export default async function BookingPage() {
     <>
       <BookingListViewTracker />
       <BookingProducts
+        inquiryHref={settings?.booking_style?.inquiryUrl ?? DEFAULT_INQUIRY_URL}
         products={(products ?? []).map((p) => ({
           ...p,
           imageUrl: p.cover_image ? publicImageUrl(p.cover_image) : null,

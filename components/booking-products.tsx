@@ -1,4 +1,6 @@
 "use client";
+import {BookingInquiry} from "./booking-inquiry";
+import {inquiryUrl} from "@/lib/booking/inquiry";
 import { useState } from "react";
 import Link from "next/link";
 import { tagColorDotClass } from "@/lib/product-tag-colors";
@@ -28,10 +30,12 @@ export function BookingProducts({
   products,
   showThumbnails,
   style,
+  inquiryHref,
 }: {
   products: BookingProduct[];
   showThumbnails: boolean;
   style: BookingStyle;
+  inquiryHref?: string | null;
 }) {
   const [filter, setFilter] = useState("all");
   const displayed = products.filter(
@@ -40,7 +44,7 @@ export function BookingProducts({
       (filter === "solo" ? p.max_people === 1 : (p.max_people ?? 1) > 1),
   );
   return (
-    <main className="booking-page">
+    <main className={`booking-page ${inquiryUrl(inquiryHref) ? "booking-has-inquiry" : ""}`}>
       <h1 className="sr-only">촬영 상품</h1>
       <div className="booking-product-content">
       {products.length > 0 ? (
@@ -102,6 +106,7 @@ export function BookingProducts({
           예약 조회하기 →
         </Link>
       </div>
+      <BookingInquiry href={inquiryHref}/>
     </main>
   );
 }

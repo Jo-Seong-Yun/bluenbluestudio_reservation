@@ -324,6 +324,7 @@ export interface Database {
           booking_style: {
             productCopies?: Record<string, Record<string, string>>;
             depositEnabled?: boolean;
+            inquiryUrl?: string;
             accentColor: string;
             saleColor: string;
             textColor: string;

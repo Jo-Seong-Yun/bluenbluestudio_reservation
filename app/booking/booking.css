@@ -1145,3 +1145,27 @@
 .booking-modern-detail .booking-price-section > .booking-close-note {
   margin-top: 1.68px;
 }
+
+.booking-has-inquiry { padding-bottom: 100px; }
+.booking-inquiry-floating {
+  position: fixed;
+  right: 20px;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 0 17px;
+  border-radius: 25px;
+  border: 1px solid #dce5ef;
+  background: #fff;
+  color: #28496f;
+  box-shadow: 0 5px 24px #1a365e1f;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color .15s, box-shadow .15s;
+}
+.booking-inquiry-floating:hover { background: #f8fafc; box-shadow: 0 5px 24px #1a365e2b; }
+.booking-inquiry-floating:focus-visible { outline: 2px solid #044aad; outline-offset: 3px; }
