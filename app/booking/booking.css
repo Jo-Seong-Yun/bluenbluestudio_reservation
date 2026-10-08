@@ -1218,3 +1218,36 @@
     box-shadow: 0 0 0 3px #a6c7f7;
   }
 }
+
+@media (max-width: 767px) {
+  .booking-modern-form .booking-summary {
+    border: 0;
+    padding: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  .booking-modern-form .booking-form-summary-detail { display: none; }
+  .booking-modern-form .booking-form-mobile-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    min-width: 0;
+  }
+  .booking-modern-form .booking-form-mobile-total > span {
+    font-size: 13px;
+    color: #6b7684;
+  }
+  .booking-modern-form .booking-form-mobile-total > strong {
+    font-size: 23px;
+    line-height: 1.25;
+    color: #191f28;
+    font-weight: 700;
+    letter-spacing: -.5px;
+  }
+  .booking-modern-form { padding-bottom: 155px; }
+  .booking-modern-form .booking-form-actions {
+    padding-top: 15px;
+    box-shadow: 0 -4px 18px rgba(25,31,40,.035);
+  }
+}

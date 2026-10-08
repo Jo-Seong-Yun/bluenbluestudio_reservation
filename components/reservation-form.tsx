@@ -685,20 +685,10 @@ export function ReservationForm({
           </section>
         ) : null}
         <aside className="booking-card booking-summary" aria-label="예약 요약">
-          <p className="text-brand text-xs font-bold">예약 요약</p>
-          <h2>{productName}</h2>
-          <p className="text-muted text-sm">촬영 {durationMin}분</p>
-          <ul className="booking-summary-list">
-            {candidates.map((c, i) => (
-              <li key={i}>
-                {i + 1}번째 · {c.date} {c.time}
-              </li>
-            ))}
-          </ul>
-          <Link href={backHref} className="text-brand text-sm underline">
-            희망 시간 다시 선택하기
-          </Link>
-          <div className="booking-summary-total">
+          <p className="booking-form-summary-detail text-brand text-xs font-bold">예약 요약</p>
+          <h2 className="booking-form-summary-detail">{productName}</h2>
+          <p className="booking-form-summary-detail text-muted text-sm">촬영 {durationMin}분</p>
+          <div className="booking-form-summary-detail booking-summary-total">
             <span>예상 금액</span>
             <strong>{estimatedTotal.toLocaleString()}원</strong>
           </div>
@@ -716,7 +706,7 @@ export function ReservationForm({
               ))}
             </ul>
           ) : null}
-          <div role="alert" className="mt-4">
+          <div role="alert" className={state.status === "error" ? "mt-4" : ""}>
             <ErrorText>
               {state.status === "error" ? state.error : null}
             </ErrorText>
@@ -754,7 +744,7 @@ export function ReservationForm({
               </BookingCTA>
             )}
           </div>
-          <p className="text-muted mt-4 text-xs leading-relaxed">
+          <p className="booking-form-summary-detail text-muted mt-4 text-xs leading-relaxed">
             신청 후 스튜디오에서 일정 확정 안내를 드립니다.
             {depositRequired ? " 확정 안내 전에는 입금하지 않습니다." : ""}
           </p>
