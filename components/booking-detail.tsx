@@ -88,7 +88,7 @@ export function BookingDetail({
         </section>
       </div>
       {product.description ? (
-        <section className="booking-extra-description">
+        <section className="booking-extra-description booking-detail-description-card">
           <h2>상세 내용</h2>
           <RichText>{depositContent(product.description,depositRequired)}</RichText>
         </section>

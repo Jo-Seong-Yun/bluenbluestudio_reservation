@@ -24,6 +24,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className={`${notoSansKr.variable} h-full antialiased`}>
       <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css" />
         {/* 서식 에디터의 글꼴 선택지(본고딕/나눔고딕/나눔명조)용 — 사이트
             기본 글꼴은 위 next/font/google(Noto_Sans_KR)로 최적화해서
             쓰지만, next/font는 실제 font-family 이름을 난독화해서

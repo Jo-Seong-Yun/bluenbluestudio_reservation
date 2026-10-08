@@ -1113,3 +1113,15 @@
 .booking-small-copy.booking-close-note {
   margin-top: 4.8px;
 }
+
+/* Match the price/process card without changing saved rich-text formatting. */
+.booking-detail-description-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  padding: 20px;
+  background: #fff;
+  box-shadow: 0 4px 18px #202b3d0b;
+}
+@media (min-width: 601px) {
+  .booking-detail-description-card { padding: 24px; }
+}

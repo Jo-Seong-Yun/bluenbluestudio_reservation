@@ -209,6 +209,7 @@ function wrapInEmailShell(content: string, options?: EmailShellOptions): string 
   // 보여주므로 여기서라도 불러와야 에디터에서 고른 본고딕/나눔고딕/
   // 나눔명조가 미리보기에도 실제로 적용된다.
   const fontLink =
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css">' +
     '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap">';
   return `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only">${fontLink}${ctaStyle}</head>

@@ -8,6 +8,7 @@
  * 메일에선 대부분 기본 글꼴로 보인다(메일 앱이 웹폰트를 못 불러옴). */
 export const FONT_FAMILIES = [
   { label: "기본", value: "" },
+  { label: "Pretendard", value: "'Pretendard', sans-serif" },
   { label: "본고딕", value: "'Noto Sans KR', sans-serif" },
   { label: "나눔고딕", value: "'Nanum Gothic', sans-serif" },
   { label: "나눔명조", value: "'Nanum Myeongjo', serif" },
