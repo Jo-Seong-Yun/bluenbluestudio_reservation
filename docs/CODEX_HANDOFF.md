@@ -1307,3 +1307,7 @@ dev-preview 페이지로 데스크톱·모바일 스크린샷만 보여준 뒤 �
 ### 2026-10-08 — 촬영 요청 페이지 진입 위치
 - `nextGroup()`에서 촬영 요청(group2) 진입 시 `revealField()` 자동 초점을 생략. 이전 입력을 blur해 키패드를 닫고 다음 렌더에서 페이지 최상단으로 즉시 이동. 문항을 직접 누른 뒤의 키패드 대응과 Enter 문항 이동은 유지.
 - 실제 모바일 공통 컴포넌트에서 연락 정보 자동 완료 → 촬영 요청 페이지 진입 후 scrollY=0, 첫 입력 자동 초점 없음, 클릭 초점 정상 확인.
+
+### 2026-10-08 — 요청 페이지 키패드 종료 후 스크롤 재보정
+- group2 진입 뒤 visualViewport resize/scroll과 window resize에 최상단을 다시 맞춰, 키패드가 늦게 닫히며 이전 스크롤 위치로 복원되는 상황 대응. 사용자가 pointer/touch/wheel/key로 조작하면 보정 중단, 입력에 초점이 있으면 보정 생략. 다른 그룹 진입/언마운트 때 리스너 정리.
+- 실제 공통 컴포넌트 모바일 전환 녹화 + 뒤늦은 viewport resize/pan 모의 검증: 연락 완료 → 요청 페이지 scrollY=0, 직접 문항 클릭 초점 유지. 영상은 `/workspace/.reviews/contact-design/page-2-to-3.mp4`/GIF. 실제 iPhone 키패드 동작은 여전히 직접 검증하지 못함.

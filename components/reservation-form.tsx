@@ -178,6 +178,50 @@ export function ReservationForm({
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
+  // Mobile browsers may restore the old scroll position after the keyboard closes.
+  // Keep the page entry at the top through viewport resize/pan, until the visitor acts.
+  useEffect(() => {
+    if (currentGroup !== 2 || reviewing) return;
+    let frame = 0;
+    let interrupted = false;
+    const viewport = window.visualViewport;
+    const restoreTop = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (
+          interrupted ||
+          (active instanceof HTMLElement &&
+            formRef.current?.contains(active) &&
+            active.matches("input:not([type=hidden]), textarea, select"))
+        )
+          return;
+        window.scrollTo({ top: 0, behavior: "instant" });
+      });
+    };
+    const interrupt = () => {
+      interrupted = true;
+      cancelAnimationFrame(frame);
+    };
+    restoreTop();
+    viewport?.addEventListener("resize", restoreTop);
+    viewport?.addEventListener("scroll", restoreTop);
+    window.addEventListener("resize", restoreTop);
+    window.addEventListener("pointerdown", interrupt, { passive: true });
+    window.addEventListener("touchstart", interrupt, { passive: true });
+    window.addEventListener("wheel", interrupt, { passive: true });
+    window.addEventListener("keydown", interrupt);
+    return () => {
+      cancelAnimationFrame(frame);
+      viewport?.removeEventListener("resize", restoreTop);
+      viewport?.removeEventListener("scroll", restoreTop);
+      window.removeEventListener("resize", restoreTop);
+      window.removeEventListener("pointerdown", interrupt);
+      window.removeEventListener("touchstart", interrupt);
+      window.removeEventListener("wheel", interrupt);
+      window.removeEventListener("keydown", interrupt);
+    };
+  }, [currentGroup, reviewing]);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(
     fields[0]?.id ?? null,
   );
