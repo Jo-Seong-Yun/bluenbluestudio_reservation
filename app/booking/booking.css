@@ -454,6 +454,10 @@
   font-size: 14px;
   overflow-wrap: anywhere;
 }
+/* 설명이 있는 선택 카드는 선택 표시를 옵션명 첫 줄에 맞춥니다. */
+.booking-question-panel label.booking-option-tile:has(input) {
+  align-items: flex-start;
+}
 .booking-question-panel label:has(input:checked) {
   background: var(--surface-subtle);
   border-color: var(--brand);
