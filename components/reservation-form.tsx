@@ -1,4 +1,5 @@
 "use client";
+import { answerDrafts, draftStorageKey } from "@/lib/booking/drafts";
 import {
   resolveCopy,
   fieldGroup,
@@ -73,8 +74,6 @@ function descriptionHint(
   );
 }
 
-const draftStorageKey = (productId: string) => `booking-draft:v1:${productId}`;
-const answerDrafts = new Map<string, Record<string, string[]>>();
 const initialState: ReservationActionState = { status: "idle" };
 
 /**
