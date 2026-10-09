@@ -142,6 +142,7 @@ export function ReservationForm({
   const [currentGroup, setCurrentGroup] = useState(groups[0] ?? 0);
   const entryGroupRef = useRef(currentGroup);
   const pageEntryFocusRef = useRef<number | null>(null);
+  const initialPageFocusHandled = useRef(false);
   const actorFields = fields.filter((field) => fieldGroup(field, copy) === 0);
   const actorName = actorFields.find((field) => field.type === "name");
   const actorGender = actorFields.find(
@@ -257,6 +258,26 @@ export function ReservationForm({
     // A draft is restored once per mounted product, after hydration.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
+  useEffect(() => {
+    if (!draftRestored || initialPageFocusHandled.current) return;
+    // 답변 복원으로 입력 DOM을 다시 만든 뒤 첫 페이지에서 한 번만 초점을 줍니다.
+    initialPageFocusHandled.current = true;
+    if (reviewing || currentGroup !== groups[0]) return;
+    const input = formRef.current?.querySelector<
+      HTMLInputElement | HTMLTextAreaElement
+    >(
+      '.booking-questionnaire:not([hidden]) [data-field-id]:not([hidden]) input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not(:disabled), .booking-questionnaire:not([hidden]) [data-field-id]:not([hidden]) textarea:not(:disabled)',
+    );
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    if (!window.matchMedia("(max-width: 767px)").matches)
+      input.closest<HTMLElement>("[data-field-id]")?.scrollIntoView({
+        block: "center",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
+  }, [draftRestored, currentGroup, groups, reviewing]);
   useEffect(() => {
     if (!draftRestored) return;
     syncFieldSnapshots();
