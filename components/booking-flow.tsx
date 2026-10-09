@@ -1,4 +1,5 @@
 "use client";
+import { timeDrafts } from "@/lib/booking/drafts";
 import { resolveCopy, type BookingCopy } from "@/lib/booking/copy";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -16,8 +17,6 @@ import {scrollAfterClick} from "@/lib/booking/click-scroll";
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_CANDIDATES = 3;
 type Candidate = { date: DateString; time: string };
-// 후보 선택은 같은 탭의 이전/다음 단계 이동 동안만 메모리에 유지합니다.
-const timeDrafts = new Map<string, Candidate[]>();
 function formatCandidate({ date, time }: Candidate) {
   const [, month, day] = date.split("-").map(Number);
   return `${month}월 ${day}일(${WEEKDAY_LABELS[weekdayOf(date)]}) ${time}`;

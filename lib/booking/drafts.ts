@@ -3,9 +3,12 @@ export const draftStorageKey = (productId: string) =>
   `${DRAFT_PREFIX}${productId}`;
 export const answerDrafts = new Map<string, Record<string, string[]>>();
 
-/** 상품 선택으로 돌아오면 모든 상품의 작성 중인 답변과 페이지를 비웁니다. */
+export const timeDrafts = new Map<string, { date: string; time: string }[]>();
+
+/** 상품 상세로 돌아오면 모든 상품의 답변·페이지·희망 일정을 비웁니다. */
 export function clearBookingDrafts(storage?: Storage) {
   answerDrafts.clear();
+  timeDrafts.clear();
   try {
     const target = storage ?? window.sessionStorage;
     for (let index = target.length - 1; index >= 0; index--) {
