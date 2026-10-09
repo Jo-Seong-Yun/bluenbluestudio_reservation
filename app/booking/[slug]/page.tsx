@@ -12,6 +12,7 @@ import {
   pickDefaultBookingMonth,
 } from "@/lib/availability/load";
 import type { AvailabilitySettings } from "@/lib/availability/slots";
+import { BookingDraftReset } from "@/components/booking-draft-reset";
 import { BookingDetail } from "@/components/booking-detail";
 import { BookingFlow } from "@/components/booking-flow";
 import { addDays, kstToday, monthGridDates } from "@/lib/time";
@@ -78,6 +79,7 @@ export default async function ProductDetailPage({
   if (!isTimes)
     return (
       <>
+        <BookingDraftReset />
         <ProductViewTracker productId={product.id} />
         <BookingDetail depositRequired={depositEnabled(settings?.booking_style)}
           copy={productCopy(settings?.booking_style, product.id)}
