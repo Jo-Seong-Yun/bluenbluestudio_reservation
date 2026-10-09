@@ -27,6 +27,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
+import { flushSync } from "react-dom";
 import {
   createReservation,
   type ReservationActionState,
@@ -140,6 +141,7 @@ export function ReservationForm({
   );
   const [currentGroup, setCurrentGroup] = useState(groups[0] ?? 0);
   const entryGroupRef = useRef(currentGroup);
+  const pageEntryFocusRef = useRef<number | null>(null);
   const actorFields = fields.filter((field) => fieldGroup(field, copy) === 0);
   const actorName = actorFields.find((field) => field.type === "name");
   const actorGender = actorFields.find(
@@ -173,8 +175,45 @@ export function ReservationForm({
       confirm();
       return;
     }
-    setCurrentGroup(next);
     const first = fields.find((field) => fieldGroup(field, copy) === next);
+    // iOS 키패드는 사용자 이벤트 안에서 동기 focus해야 열립니다.
+    // 두 번째 페이지의 첫 텍스트 입력을 표시한 뒤 같은 이벤트에서 초점을 줍니다.
+    const firstInput =
+      groups.indexOf(next) === 1
+        ? fields
+            .filter((field) => fieldGroup(field, copy) === next)
+            .map((field) =>
+              formRef.current?.querySelector<
+                HTMLInputElement | HTMLTextAreaElement
+              >(
+                `[data-field-id="${CSS.escape(field.id)}"] input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not(:disabled), [data-field-id="${CSS.escape(field.id)}"] textarea:not(:disabled)`,
+              ),
+            )
+            .find((input) => input)
+        : null;
+    if (firstInput) {
+      pageEntryFocusRef.current = next;
+      flushSync(() => {
+        setCurrentGroup(next);
+        setActiveFieldId(
+          firstInput.closest<HTMLElement>("[data-field-id]")?.dataset.fieldId ??
+            first?.id ??
+            null,
+        );
+      });
+      firstInput.focus({ preventScroll: true });
+      // 데스크톱에서는 키패드 hook이 스크롤하지 않으므로 직접 중앙에 배치합니다.
+      if (!window.matchMedia("(max-width: 767px)").matches)
+        firstInput.closest<HTMLElement>("[data-field-id]")?.scrollIntoView({
+          block: "center",
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "instant"
+            : "smooth",
+        });
+      return;
+    }
+    setCurrentGroup(next);
     setActiveFieldId(first?.id ?? null);
     const focused = document.activeElement;
     if (focused instanceof HTMLElement && formRef.current?.contains(focused))
@@ -258,6 +297,24 @@ export function ReservationForm({
     let interrupted = false;
     const changed = entryGroupRef.current !== currentGroup;
     entryGroupRef.current = currentGroup;
+    // 2페이지 자동 초점은 useBookingKeyboard가 중앙 정렬합니다.
+    // 키패드 종료 대기/최상단 복원과 겹쳐 스크롤하지 않습니다.
+    if (pageEntryFocusRef.current === currentGroup && !reviewing) {
+      pageEntryFocusRef.current = null;
+      if (entryForm) {
+        entryForm.dataset.entryScroll = "true";
+        entryForm.style.setProperty(
+          "--booking-entry-space",
+          `${window.innerHeight / 2}px`,
+        );
+      }
+      return () => {
+        if (entryForm) {
+          delete entryForm.dataset.entryScroll;
+          entryForm.style.removeProperty("--booking-entry-space");
+        }
+      };
+    }
     const viewport = window.visualViewport;
     let waited = 0;
     const scrollFirst = () => {
