@@ -115,7 +115,7 @@ export async function buildRecordSheetData(
     supabase
       .from("custom_fields")
       .select(
-        "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
+        "id, product_id, label, type, options, option_prices, option_descriptions, description, required, active, sort_order, created_at",
       )
       .eq("product_id", reservation.product_id),
     supabase

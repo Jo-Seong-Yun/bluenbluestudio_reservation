@@ -18,7 +18,14 @@ import { BirthDateSlots } from "@/components/birth-date-slots";
 import { BookingCTA } from "@/components/booking-cta";
 import { BookingSteps } from "@/components/booking-shell";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import {
   createReservation,
@@ -1265,6 +1272,7 @@ function ReservationFieldInput({
   values?: string[];
   placeholderText?: string;
 }) {
+  const optionHintId = useId();
   const name = fieldFormName(field.id);
   const options = field.options ?? [];
 
@@ -1431,23 +1439,45 @@ function ReservationFieldInput({
           {options.map((option, index) => {
             const price = field.option_prices?.[index];
             return (
-              <label key={option} className={OPTION_LABEL_CLASS}>
-                <input
-                  type="radio"
-                  name={name}
-                  enterKeyHint="next"
-                  value={option}
-                  defaultChecked={values.includes(option)}
-                  required={field.required}
-                  className={OPTION_INPUT_CLASS}
-                />
-                {option}
-                {price ? (
-                  <span className="text-brand text-sm font-medium">
-                    (+{price.toLocaleString()}원)
-                  </span>
+              <div
+                key={option}
+                className={
+                  field.option_descriptions?.[index]
+                    ? "booking-option-with-hint"
+                    : "contents"
+                }
+              >
+                <label className={OPTION_LABEL_CLASS}>
+                  <input
+                    type="radio"
+                    name={name}
+                    enterKeyHint="next"
+                    value={option}
+                    defaultChecked={values.includes(option)}
+                    aria-describedby={
+                      field.option_descriptions?.[index]
+                        ? `${optionHintId}-${index}`
+                        : undefined
+                    }
+                    required={field.required}
+                    className={OPTION_INPUT_CLASS}
+                  />
+                  {option}
+                  {price ? (
+                    <span className="text-brand text-sm font-medium">
+                      (+{price.toLocaleString()}원)
+                    </span>
+                  ) : null}
+                </label>
+                {field.option_descriptions?.[index] ? (
+                  <p
+                    id={`${optionHintId}-${index}`}
+                    className="text-muted mb-2 ml-[1.875rem] text-sm break-words whitespace-pre-wrap"
+                  >
+                    {field.option_descriptions[index]}
+                  </p>
                 ) : null}
-              </label>
+              </div>
             );
           })}
         </div>
@@ -1469,22 +1499,44 @@ function ReservationFieldInput({
           {options.map((option, index) => {
             const price = field.option_prices?.[index];
             return (
-              <label key={option} className={OPTION_LABEL_CLASS}>
-                <input
-                  type="checkbox"
-                  name={name}
-                  enterKeyHint="next"
-                  value={option}
-                  defaultChecked={values.includes(option)}
-                  className={OPTION_INPUT_CLASS}
-                />
-                {option}
-                {price ? (
-                  <span className="text-brand text-sm font-medium">
-                    (+{price.toLocaleString()}원)
-                  </span>
+              <div
+                key={option}
+                className={
+                  field.option_descriptions?.[index]
+                    ? "booking-option-with-hint"
+                    : "contents"
+                }
+              >
+                <label className={OPTION_LABEL_CLASS}>
+                  <input
+                    type="checkbox"
+                    name={name}
+                    enterKeyHint="next"
+                    value={option}
+                    defaultChecked={values.includes(option)}
+                    aria-describedby={
+                      field.option_descriptions?.[index]
+                        ? `${optionHintId}-${index}`
+                        : undefined
+                    }
+                    className={OPTION_INPUT_CLASS}
+                  />
+                  {option}
+                  {price ? (
+                    <span className="text-brand text-sm font-medium">
+                      (+{price.toLocaleString()}원)
+                    </span>
+                  ) : null}
+                </label>
+                {field.option_descriptions?.[index] ? (
+                  <p
+                    id={`${optionHintId}-${index}`}
+                    className="text-muted mb-2 ml-[1.875rem] text-sm break-words whitespace-pre-wrap"
+                  >
+                    {field.option_descriptions[index]}
+                  </p>
                 ) : null}
-              </label>
+              </div>
             );
           })}
         </div>

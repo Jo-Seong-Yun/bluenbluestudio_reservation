@@ -139,13 +139,12 @@ export function CustomFieldsSection({
                     ) : null}
                   </div>
 
-                  <FieldPreview field={field} />
-
                   {field.description ? (
-                    <p className="text-muted mt-1 text-xs">
+                    <div className="text-muted mt-1 text-xs">
                       <FieldDescription html={field.description} />
-                    </p>
+                    </div>
                   ) : null}
+                  <FieldPreview field={field} />
                 </div>
 
                 <div className="flex shrink-0 items-start gap-2">
@@ -187,21 +186,25 @@ function FieldPreview({ field }: { field: CustomField }) {
         {options.map((option, index) => {
           const price = field.option_prices?.[index];
           return (
-            <label
-              key={option}
-              className="text-muted flex items-center gap-1.5 text-sm"
-            >
-              <input
-                type={field.type === "single_choice" ? "radio" : "checkbox"}
-                disabled
-              />
-              {option}
-              {price ? (
-                <span className="text-brand text-xs font-medium">
-                  (+{price.toLocaleString()}원)
-                </span>
+            <div key={option}>
+              <label className="text-muted flex items-center gap-1.5 text-sm">
+                <input
+                  type={field.type === "single_choice" ? "radio" : "checkbox"}
+                  disabled
+                />
+                {option}
+                {price ? (
+                  <span className="text-brand text-xs font-medium">
+                    (+{price.toLocaleString()}원)
+                  </span>
+                ) : null}
+              </label>
+              {field.option_descriptions?.[index] ? (
+                <p className="text-muted ml-5 text-xs break-words whitespace-pre-wrap">
+                  {field.option_descriptions[index]}
+                </p>
               ) : null}
-            </label>
+            </div>
           );
         })}
       </div>

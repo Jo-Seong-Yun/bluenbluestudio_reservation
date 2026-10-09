@@ -1,4 +1,6 @@
 "use server";
+
+import { parseChoiceOptions } from "@/lib/booking/choice-options";
 import {depositContent} from "@/lib/booking/deposit-content";
 import {allowedNextStatuses, previousConfirmedStatus, requiresDeposit} from "@/lib/booking/deposit";
 import { updateBookingSettings } from "@/lib/booking/style-storage";
@@ -512,7 +514,7 @@ export async function duplicateProduct(formData: FormData) {
 
   const { data: fields } = await supabase
     .from("custom_fields")
-    .select("label, type, options, description, required, active, sort_order")
+    .select("label, type, options, option_prices, option_descriptions, description, required, active, sort_order")
     .eq("product_id", id)
     .order("sort_order");
 
@@ -1748,7 +1750,7 @@ export async function getProductCustomFields(
   const { data } = await supabase
     .from("custom_fields")
     .select(
-      "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
+      "id, product_id, label, type, options, option_prices, option_descriptions, description, required, active, sort_order, created_at",
     )
     .eq("product_id", productId)
     .eq("active", true)
@@ -1798,7 +1800,7 @@ export async function createManualReservation(
     supabase
       .from("custom_fields")
       .select(
-        "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
+        "id, product_id, label, type, options, option_prices, option_descriptions, description, required, active, sort_order, created_at",
       )
       .eq("product_id", input.productId)
       .eq("active", true)
@@ -2676,27 +2678,7 @@ function parseCustomFieldForm(formData: FormData) {
   const descriptionText = description.replace(/<[^>]*>/g, "").trim();
   const required = formData.get("required") === "on";
   const active = formData.get("active") === "on";
-  // option/optionPrice는 화면에서 같은 인덱스끼리 짝지어 보낸다(옵션
-  // 한 줄 = 라벨 칸 + 가격 칸). 빈 라벨 행을 걸러낼 때 가격도 같이
-  // 걸러내야 짝이 안 어긋난다 — 그래서 먼저 묶은 뒤에 거른다.
-  const rawOptions = formData.getAll("option").map((v) => String(v).trim());
-  const rawOptionPrices = formData
-    .getAll("optionPrice")
-    .map((v) => String(v).trim());
-  const optionPairs = rawOptions
-    .map((label, i) => ({ label, price: rawOptionPrices[i] ?? "" }))
-    .filter((pair) => pair.label.length > 0);
-  const options = optionPairs.map((pair) => pair.label);
-  // 가격 칸을 하나도 안 건드렸으면(전부 빈 칸) 이 문항엔 가격이 없는
-  // 거다 — option_prices를 null로 둬서 예전과 똑같이 동작한다. 하나라도
-  // 채웠으면 나머지 빈 칸은 0원으로 채워 전체 배열을 만든다.
-  const hasAnyOptionPrice = optionPairs.some((pair) => pair.price !== "");
-  const optionPrices = hasAnyOptionPrice
-    ? optionPairs.map((pair) =>
-        Math.max(0, Math.round(Number(pair.price) || 0)),
-      )
-    : null;
-
+  const choices = parseChoiceOptions(formData);
   if (!productId || !label) return null;
   if (
     !CUSTOM_FIELD_TYPES.includes(type as (typeof CUSTOM_FIELD_TYPES)[number])
@@ -2704,14 +2686,15 @@ function parseCustomFieldForm(formData: FormData) {
     return null;
   }
   const needsOptions = type === "single_choice" || type === "multi_choice";
-  if (needsOptions && options.length === 0) return null;
+  if (needsOptions && choices.options.length === 0) return null;
 
   return {
     product_id: productId,
     label,
     type: type as (typeof CUSTOM_FIELD_TYPES)[number],
-    options: needsOptions ? options : null,
-    option_prices: needsOptions ? optionPrices : null,
+    options: needsOptions ? choices.options : null,
+    option_prices: needsOptions ? choices.option_prices : null,
+    option_descriptions: needsOptions ? choices.option_descriptions : null,
     description: descriptionText ? description : null,
     required,
     active,
@@ -2727,38 +2710,53 @@ export async function addCustomField(formData: FormData) {
   await requireAdmin();
 
   const row = parseCustomFieldForm(formData);
-  if (!row) return;
+  if (!row) return { error: "문항과 선택지를 확인해 주십시오." };
 
   const supabase = await createClient();
-  const { data: existing } = await supabase
+  const { data: existing, error: loadError } = await supabase
     .from("custom_fields")
     .select("sort_order")
     .eq("product_id", row.product_id)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (loadError) return { error: "문항을 불러오지 못했습니다. 다시 시도해 주십시오." };
   const nextOrder = (existing?.sort_order ?? -1) + 1;
 
-  await supabase
+  const { data, error } = await supabase
     .from("custom_fields")
-    .insert({ ...row, sort_order: nextOrder });
+    .insert({ ...row, sort_order: nextOrder })
+    .select("id")
+    .single();
+  if (error || !data)
+    return { error: "문항을 저장하지 못했습니다. 다시 시도해 주십시오." };
 
   revalidateCustomFieldPaths(row.product_id);
+  return { success: true };
 }
 
 export async function updateCustomField(formData: FormData) {
   await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "문항을 확인해 주십시오." };
 
   const row = parseCustomFieldForm(formData);
-  if (!row) return;
+  if (!row) return { error: "문항과 선택지를 확인해 주십시오." };
 
   const supabase = await createClient();
-  await supabase.from("custom_fields").update(row).eq("id", id);
+  const { data, error } = await supabase
+    .from("custom_fields")
+    .update(row)
+    .eq("id", id)
+    .eq("product_id", row.product_id)
+    .select("id")
+    .single();
+  if (error || !data)
+    return { error: "문항을 저장하지 못했습니다. 다시 시도해 주십시오." };
 
   revalidateCustomFieldPaths(row.product_id);
+  return { success: true };
 }
 
 /**
@@ -2847,7 +2845,7 @@ export async function importCustomFieldsFromProduct(formData: FormData) {
   const [{ data: sourceFields }, { data: existing }] = await Promise.all([
     supabase
       .from("custom_fields")
-      .select("label, type, options, option_prices, description, required")
+      .select("label, type, options, option_prices, option_descriptions, description, required")
       .eq("product_id", sourceProductId)
       .eq("active", true)
       .not("type", "in", `(${SPECIAL_FIELD_TYPES.join(",")})`)
