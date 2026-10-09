@@ -1,4 +1,5 @@
 import { ConfigNotice } from "@/components/config-notice";
+import { BookingDraftReset } from "@/components/booking-draft-reset";
 import { missingAuthEnv } from "@/lib/supabase/env";
 import "./booking.css";
 import { BookingShell } from "@/components/booking-shell";
@@ -20,7 +21,13 @@ export default async function BookingLayout({
   children: React.ReactNode;
 }) {
   const missing = missingAuthEnv();
-  if (missing.length) return <ConfigNotice missing={missing} />;
+  if (missing.length)
+    return (
+      <>
+        <BookingDraftReset />
+        <ConfigNotice missing={missing} />
+      </>
+    );
   const supabase = await createClient();
   const { data: settings } = await supabase
     .from("settings")
@@ -29,6 +36,7 @@ export default async function BookingLayout({
     .maybeSingle();
   return (
     <PendingOverlayProvider>
+      <BookingDraftReset />
       <div className="relative flex flex-1 flex-col">
         <BookingShell style={resolveBookingStyle(settings?.booking_style)}>
           {children}
