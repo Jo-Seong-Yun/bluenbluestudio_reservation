@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { addCustomField, updateCustomField } from "@/app/admin/actions";
-import { Button, inputClass } from "@/components/ui";
+import { Button, ErrorText, inputClass } from "@/components/ui";
 import { MoneyInput } from "@/components/money-input";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -28,6 +28,7 @@ export function FieldModal({
   productId: string;
   field?: CustomField;
 }) {
+  const [saveError, setSaveError] = useState<string>();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [type, setType] = useState<string>(field?.type ?? "short_text");
   const [options, setOptions] = useState<string[]>(
@@ -43,6 +44,9 @@ export function FieldModal({
         })
       : [""],
   );
+  const [optionDescriptions, setOptionDescriptions] = useState<string[]>(
+    options.map((_, i) => field?.option_descriptions?.[i] ?? ""),
+  );
   // "질문 추가" 모달은 하나를 등록한 뒤 다이얼로그를 닫지 않고 그대로
   // 다시 열 수 있다 — 그때 상세설명 에디터(FieldDescriptionEditor)가
   // 이전에 타이핑한 내용을 그대로 들고 있지 않도록, 열 때마다 이
@@ -51,6 +55,7 @@ export function FieldModal({
   const isEdit = Boolean(field);
 
   function open() {
+    setSaveError(undefined);
     setType(field?.type ?? "short_text");
     setOptions(
       field?.options && field.options.length > 0 ? field.options : [""],
@@ -62,6 +67,11 @@ export function FieldModal({
             return price ? String(price) : "";
           })
         : [""],
+    );
+    setOptionDescriptions(
+      (field?.options ?? [""]).map(
+        (_, i) => field?.option_descriptions?.[i] ?? "",
+      ),
     );
     setEditorEpoch((n) => n + 1);
     dialogRef.current?.showModal();
@@ -82,11 +92,13 @@ export function FieldModal({
   function addOption() {
     setOptions((prev) => [...prev, ""]);
     setOptionPrices((prev) => [...prev, ""]);
+    setOptionDescriptions((prev) => [...prev, ""]);
   }
 
   function removeOption(index: number) {
     setOptions((prev) => prev.filter((_, i) => i !== index));
     setOptionPrices((prev) => prev.filter((_, i) => i !== index));
+    setOptionDescriptions((prev) => prev.filter((_, i) => i !== index));
   }
 
   return (
@@ -123,8 +135,18 @@ export function FieldModal({
         </div>
 
         <form
-          action={isEdit ? updateCustomField : addCustomField}
-          onSubmit={close}
+          action={async (formData) => {
+            setSaveError(undefined);
+            try {
+              const result = await (
+                isEdit ? updateCustomField : addCustomField
+              )(formData);
+              if (result.error) setSaveError(result.error);
+              else close();
+            } catch {
+              setSaveError("문항을 저장하지 못했습니다. 다시 시도해 주십시오.");
+            }
+          }}
           className="max-h-[75vh] space-y-4 overflow-y-auto p-5"
         >
           <input type="hidden" name="productId" value={productId} />
@@ -219,18 +241,22 @@ export function FieldModal({
               </span>
               <div className="space-y-2">
                 {options.map((option, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <span className="text-muted shrink-0">
-                      {type === "single_choice" ? "○" : "☐"}
-                    </span>
-                    <input
-                      name="option"
-                      value={option}
-                      onChange={(e) => updateOption(index, e.target.value)}
-                      placeholder={`옵션 ${index + 1}`}
-                      className={`${inputClass} min-w-0`}
-                    />
-                    {/* inputClass 자체가 w-full이라, 이 칸에 폭을 좁히려고
+                  <div
+                    key={index}
+                    className="border-border space-y-2 rounded-lg border p-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted shrink-0">
+                        {type === "single_choice" ? "○" : "☐"}
+                      </span>
+                      <input
+                        name="option"
+                        value={option}
+                        onChange={(e) => updateOption(index, e.target.value)}
+                        placeholder={`옵션 ${index + 1}`}
+                        className={`${inputClass} min-w-0`}
+                      />
+                      {/* inputClass 자체가 w-full이라, 이 칸에 폭을 좁히려고
                         w-24를 같이 주면 둘 다 유틸리티 클래스라 어느 게
                         이기는지 클래스 문자열 순서가 아니라 Tailwind가
                         생성한 스타일시트 순서로 정해진다 — 실제로 w-full이
@@ -238,23 +264,45 @@ export function FieldModal({
                         문제가 있었다. 폭을 별도 래퍼에 주고 input 자신은
                         그 안에서 그냥 w-full(=래퍼 폭 전체)이 되게 하면
                         이 충돌 자체가 안 생긴다. */}
-                    <div className="w-28 shrink-0">
-                      <MoneyInput
-                        name="optionPrice"
-                        value={optionPrices[index] ?? ""}
-                        onChange={(v) => updateOptionPrice(index, v)}
-                        placeholder="가격"
-                      />
+                      <div className="w-28 shrink-0">
+                        <MoneyInput
+                          name="optionPrice"
+                          value={optionPrices[index] ?? ""}
+                          onChange={(v) => updateOptionPrice(index, v)}
+                          placeholder="가격"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeOption(index)}
+                        aria-label="옵션 삭제"
+                        disabled={options.length <= 1}
+                        className="text-muted hover:text-foreground shrink-0 disabled:opacity-25"
+                      >
+                        ×
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeOption(index)}
-                      aria-label="옵션 삭제"
-                      disabled={options.length <= 1}
-                      className="text-muted hover:text-foreground shrink-0 disabled:opacity-25"
-                    >
-                      ×
-                    </button>
+                    <label className="block text-sm">
+                      <span className="mb-1 block font-medium">
+                        선택지 설명
+                      </span>
+                      <textarea
+                        name="optionDescription"
+                        aria-label={`옵션 ${index + 1} 설명`}
+                        rows={2}
+                        maxLength={1000}
+                        value={optionDescriptions[index] ?? ""}
+                        onChange={(e) =>
+                          setOptionDescriptions((prev) =>
+                            prev.map((value, i) =>
+                              i === index ? e.target.value : value,
+                            ),
+                          )
+                        }
+                        placeholder="이 선택지 바로 아래 표시할 설명을 입력합니다."
+                        className={inputClass}
+                      />
+                    </label>
                   </div>
                 ))}
               </div>
@@ -282,6 +330,7 @@ export function FieldModal({
             />
           </div>
 
+          <ErrorText>{saveError}</ErrorText>
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={close}>
               취소

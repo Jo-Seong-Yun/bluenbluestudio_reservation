@@ -411,6 +411,8 @@ export interface Database {
           /** options[i]의 가격(원). 전부 null이거나 배열 자체가 null이면
            * 가격 없는(예전과 같은) 옵션이다. */
           option_prices: number[] | null;
+          /** options[i] 바로 아래 표시하는 일반 텍스트 설명. */
+          option_descriptions?: string[] | null;
           description: string | null;
           required: boolean;
           active: boolean;

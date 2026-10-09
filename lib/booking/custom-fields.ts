@@ -53,7 +53,7 @@ export async function loadSelectedPricedOptions(
   const { data: fields, error: fieldsError } = await supabase
     .from("custom_fields")
     .select(
-      "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
+      "id, product_id, label, type, options, option_prices, option_descriptions, description, required, active, sort_order, created_at",
     )
     .in("id", fieldIds);
   if (options.strict && fieldsError) throw fieldsError;
@@ -74,7 +74,7 @@ export async function loadActiveCustomFields(
   const { data, error } = await supabase
     .from("custom_fields")
     .select(
-      "id, product_id, label, type, options, option_prices, description, required, active, sort_order, created_at",
+      "id, product_id, label, type, options, option_prices, option_descriptions, description, required, active, sort_order, created_at",
     )
     .eq("product_id", productId)
     .eq("active", true)
