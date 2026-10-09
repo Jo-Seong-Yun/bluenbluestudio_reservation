@@ -1425,7 +1425,7 @@ function ReservationFieldInput({
     );
   }
 
-  if (field.type === "single_choice") {
+  if (field.type === "single_choice" || field.type === "multi_choice") {
     return (
       <ChoiceField
         label={field.label}
@@ -1438,105 +1438,50 @@ function ReservationFieldInput({
         <div>
           {options.map((option, index) => {
             const price = field.option_prices?.[index];
+            const description = field.option_descriptions?.[index];
             return (
-              <div
+              <label
                 key={option}
                 className={
-                  field.option_descriptions?.[index]
-                    ? "booking-option-with-hint"
-                    : "contents"
+                  description
+                    ? "booking-option-tile flex items-start gap-2.5 py-2 text-base"
+                    : OPTION_LABEL_CLASS
                 }
               >
-                <label className={OPTION_LABEL_CLASS}>
-                  <input
-                    type="radio"
-                    name={name}
-                    enterKeyHint="next"
-                    value={option}
-                    defaultChecked={values.includes(option)}
-                    aria-describedby={
-                      field.option_descriptions?.[index]
-                        ? `${optionHintId}-${index}`
-                        : undefined
-                    }
-                    required={field.required}
-                    className={OPTION_INPUT_CLASS}
-                  />
-                  {option}
-                  {price ? (
-                    <span className="text-brand text-sm font-medium">
-                      (+{price.toLocaleString()}원)
+                <input
+                  type={field.type === "single_choice" ? "radio" : "checkbox"}
+                  name={name}
+                  enterKeyHint="next"
+                  value={option}
+                  defaultChecked={values.includes(option)}
+                  aria-describedby={
+                    description ? `${optionHintId}-${index}` : undefined
+                  }
+                  required={field.type === "single_choice" && field.required}
+                  className={[
+                    OPTION_INPUT_CLASS,
+                    description ? "mt-0.5" : "",
+                  ].join(" ")}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-baseline gap-x-2">
+                    <span>{option}</span>
+                    {price ? (
+                      <span className="text-brand text-sm font-medium">
+                        (+{price.toLocaleString()}원)
+                      </span>
+                    ) : null}
+                  </span>
+                  {description ? (
+                    <span
+                      id={`${optionHintId}-${index}`}
+                      className="text-muted mt-1 block text-sm break-words whitespace-pre-wrap"
+                    >
+                      {description}
                     </span>
                   ) : null}
-                </label>
-                {field.option_descriptions?.[index] ? (
-                  <p
-                    id={`${optionHintId}-${index}`}
-                    className="text-muted mb-2 ml-[1.875rem] text-sm break-words whitespace-pre-wrap"
-                  >
-                    {field.option_descriptions[index]}
-                  </p>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      </ChoiceField>
-    );
-  }
-
-  if (field.type === "multi_choice") {
-    return (
-      <ChoiceField
-        label={field.label}
-        required={field.required}
-        hint={descriptionHint(field)}
-        labelClassName={FIELD_LABEL_CLASS}
-        hintClassName={FIELD_HINT_CLASS}
-        hintPosition="before"
-      >
-        <div>
-          {options.map((option, index) => {
-            const price = field.option_prices?.[index];
-            return (
-              <div
-                key={option}
-                className={
-                  field.option_descriptions?.[index]
-                    ? "booking-option-with-hint"
-                    : "contents"
-                }
-              >
-                <label className={OPTION_LABEL_CLASS}>
-                  <input
-                    type="checkbox"
-                    name={name}
-                    enterKeyHint="next"
-                    value={option}
-                    defaultChecked={values.includes(option)}
-                    aria-describedby={
-                      field.option_descriptions?.[index]
-                        ? `${optionHintId}-${index}`
-                        : undefined
-                    }
-                    className={OPTION_INPUT_CLASS}
-                  />
-                  {option}
-                  {price ? (
-                    <span className="text-brand text-sm font-medium">
-                      (+{price.toLocaleString()}원)
-                    </span>
-                  ) : null}
-                </label>
-                {field.option_descriptions?.[index] ? (
-                  <p
-                    id={`${optionHintId}-${index}`}
-                    className="text-muted mb-2 ml-[1.875rem] text-sm break-words whitespace-pre-wrap"
-                  >
-                    {field.option_descriptions[index]}
-                  </p>
-                ) : null}
-              </div>
+                </span>
+              </label>
             );
           })}
         </div>
