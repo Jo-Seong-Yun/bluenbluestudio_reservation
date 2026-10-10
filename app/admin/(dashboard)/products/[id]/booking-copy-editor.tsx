@@ -169,17 +169,27 @@ export function BookingCopyEditor({
     ]);
     setSelected(id);
   }
-  function deletePage(target: number) {
-    const next = pages.filter((p) => p.id !== page.id);
-    let nextCopy = copyWithPages(copy, next);
-    for (const field of pageFields)
-      nextCopy = { ...nextCopy, [`group:${field.id}`]: String(target) };
-    // Explicitly reassign fallback fields as well, so no question is orphaned.
-    for (const field of fields.filter((f) => !pageFields.includes(f)))
-      nextCopy[`group:${field.id}`] = String(fieldGroup(field, layoutCopy));
+  function deletePage(id: number) {
+    if (pages.length <= 1) return;
+    const index = pages.findIndex((p) => p.id === id);
+    if (index < 0) return;
+    const removed = pages[index];
+    const target = pages[index - 1] ?? pages[index + 1];
+    if (
+      !window.confirm(
+        `"${removed.label}" 페이지를 삭제하시겠습니까? 이 페이지의 문항은 "${target.label}" 페이지로 이동하며 기존 답변은 유지됩니다. 페이지 구성 저장 시 반영됩니다.`,
+      )
+    )
+      return;
+    const next = pages.filter((p) => p.id !== id);
+    const nextCopy = copyWithPages(copy, next);
+    for (const field of fields) {
+      const group = fieldGroup(field, layoutCopy);
+      nextCopy[`group:${field.id}`] = String(group === id ? target.id : group);
+    }
     setDraftPages(next);
     setCopy(nextCopy);
-    setSelected(target);
+    if (selected === id) setSelected(target.id);
   }
   function moveField(id: string, direction: number) {
     const index = pageFields.findIndex((f) => f.id === id),
@@ -266,22 +276,36 @@ export function BookingCopyEditor({
                   (f) => fieldGroup(f, layoutCopy) === p.id,
                 );
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={p.id}
                     className={`page-list-item ${page.id === p.id ? "selected" : ""}`}
-                    onClick={() => setSelected(p.id)}
                   >
-                    <span className="page-number">{index + 1}</span>
-                    <span>
-                      <b>{p.label}</b>
-                      <small>
-                        {assigned.map((f) => f.label).join(" · ") ||
-                          "문항 없음"}
-                      </small>
-                    </span>
-                    <span className="page-count">{assigned.length}</span>
-                  </button>
+                    <button
+                      type="button"
+                      className="page-select"
+                      onClick={() => setSelected(p.id)}
+                      aria-pressed={page.id === p.id}
+                    >
+                      <span className="page-number">{index + 1}</span>
+                      <span>
+                        <b>{p.label}</b>
+                        <small>
+                          {assigned.map((f) => f.label).join(" · ") ||
+                            "문항 없음"}
+                        </small>
+                      </span>
+                      <span className="page-count">{assigned.length}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="page-remove"
+                      aria-label={`${p.label} 페이지 삭제`}
+                      disabled={pages.length <= 1}
+                      onClick={() => deletePage(p.id)}
+                    >
+                      삭제
+                    </button>
+                  </div>
                 );
               })}
               <Button
@@ -493,26 +517,6 @@ export function BookingCopyEditor({
                 <p className="editor-help">
                   문항을 추가하거나 다른 페이지에서 이동할 수 있습니다.
                 </p>
-              ) : null}
-              {pages.length > 1 ? (
-                <details className="page-delete">
-                  <summary>페이지 삭제</summary>
-                  <p className="editor-help">
-                    이 페이지의 문항을 이동할 곳을 선택합니다. 문항과 기존
-                    답변은 삭제하지 않습니다.
-                  </p>
-                  {pages
-                    .filter((p) => p.id !== page.id)
-                    .map((p) => (
-                      <button
-                        type="button"
-                        key={p.id}
-                        onClick={() => deletePage(p.id)}
-                      >
-                        {p.label}로 이동하고 페이지 삭제
-                      </button>
-                    ))}
-                </details>
               ) : null}
             </div>
             <aside className="builder-preview">

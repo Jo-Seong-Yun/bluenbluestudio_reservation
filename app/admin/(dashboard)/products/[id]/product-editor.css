@@ -149,8 +149,7 @@
   color: var(--color-muted);
 }
 .builder-question button:not([class]),
-.page-editor > .editor-section-heading button:not([data-ui]),
-.page-delete button {
+.page-editor > .editor-section-heading > .flex > button {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 4px 8px;
@@ -245,20 +244,6 @@
   font-size: 12px;
   color: var(--color-muted);
 }
-.page-delete {
-  border-top: 1px solid var(--color-border);
-  padding-top: 16px;
-  margin-top: 18px;
-}
-.page-delete summary {
-  color: #9f5361;
-  font-size: 12px;
-  cursor: pointer;
-}
-.page-delete button {
-  display: block;
-  margin-top: 8px;
-}
 .product-copy-editor iframe {
   display: block;
 }
@@ -308,4 +293,26 @@
 }
 .builder-question > label {
   margin-top: 12px;
+}
+
+.page-select {
+  display: flex;
+  align-items: start;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.page-select > span:nth-child(2) {
+  min-width: 0;
+}
+.page-remove {
+  flex-shrink: 0;
+  color: #9f5361;
+  font-size: 11px;
+  padding: 3px;
+}
+.page-remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
