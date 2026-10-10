@@ -35,7 +35,7 @@ export function FormLivePreview({
     <div className="overflow-auto">
       <iframe
         ref={frame}
-        title="고객 신청서 미리보기"
+        title="고객 예약 페이지 미리보기"
         src={src}
         className="h-[760px] rounded-2xl border bg-white"
         style={{

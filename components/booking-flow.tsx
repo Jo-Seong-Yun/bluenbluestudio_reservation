@@ -13,7 +13,7 @@ import {
   weekdayOf,
   type DateString,
 } from "@/lib/time";
-import {scrollAfterClick} from "@/lib/booking/click-scroll";
+import { scrollAfterClick } from "@/lib/booking/click-scroll";
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_CANDIDATES = 3;
 type Candidate = { date: DateString; time: string };
@@ -35,7 +35,9 @@ export function BookingFlow({
   minMonth,
   maxMonth,
   loadSlots,
+  previewOnly = false,
 }: {
+  previewOnly?: boolean;
   copy?: BookingCopy;
   depositRequired?: boolean;
   productId: string;
@@ -51,8 +53,8 @@ export function BookingFlow({
 }) {
   const copy = resolveCopy(rawCopy);
   const router = useRouter();
-  const [candidates, setCandidates] = useState<Candidate[]>(
-    () => timeDrafts.get(productId) ?? [],
+  const [candidates, setCandidates] = useState<Candidate[]>(() =>
+    previewOnly ? [] : (timeDrafts.get(productId) ?? []),
   );
   const [selectedDate, setSelectedDate] = useState<DateString | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
@@ -92,18 +94,23 @@ export function BookingFlow({
   }
   function toggle(time: string) {
     if (!selectedDate || pending) return;
-    const picked = candidates.some(c => c.date === selectedDate && c.time === time);
+    const picked = candidates.some(
+      (c) => c.date === selectedDate && c.time === time,
+    );
     const next = picked
-      ? candidates.filter(c => !(c.date === selectedDate && c.time === time))
-      : candidates.length < MAX_CANDIDATES ? [...candidates,{date:selectedDate,time}] : candidates;
+      ? candidates.filter((c) => !(c.date === selectedDate && c.time === time))
+      : candidates.length < MAX_CANDIDATES
+        ? [...candidates, { date: selectedDate, time }]
+        : candidates;
     setCandidates(next);
-    timeDrafts.set(productId,next);
-    if (!picked && candidates.length === 2 && next.length === MAX_CANDIDATES) guideTo(summarySection.current);
+    if (!previewOnly) timeDrafts.set(productId, next);
+    if (!picked && candidates.length === 2 && next.length === MAX_CANDIDATES)
+      guideTo(summarySection.current);
     else if (!picked && next !== candidates) guideTo(timeSection.current);
   }
 
   function apply() {
-    if (!isFull) return;
+    if (!isFull || previewOnly) return;
     const slots = candidates
       .map((c) => `${c.date}_${c.time.replace(":", "-")}`)
       .join(",");
@@ -120,7 +127,7 @@ export function BookingFlow({
         </div>
         <h1 className="text-2xl font-bold">{copy.timesTitle}</h1>
         <p className="text-muted mt-2 mb-6 text-sm">{copy.timesIntro}</p>
-        <p className="text-muted mb-4 text-xs">날짜를 선택하면 시간 선택으로, 희망 시간 3개를 채우면 선택 내역으로 이동합니다.</p>
+        <p className="text-muted mb-4 text-xs">{copy.timesGuide}</p>
         <div className="grid gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <CalendarGrid
             month={month}
@@ -138,43 +145,41 @@ export function BookingFlow({
                 : "시간 선택"}
             </h2>
             <div ref={timeSection} className="booking-time-actions">
-            {slotsError ? (
-              <p role="alert" className="text-sm text-red-700">
-                {slotsError}
-              </p>
-            ) : pending ? (
-              <p role="status" className="text-muted text-sm">
-                불러오는 중…
-              </p>
-            ) : !selectedDate ? (
-              <p className="text-muted text-sm">
-                달력에서 날짜를 먼저 선택해 주십시오.
-              </p>
-            ) : slots.length === 0 ? (
-              <p className="text-muted text-sm">
-                이 날짜는 예약할 수 있는 시간이 없습니다.
-              </p>
-            ) : (
-              <div className="grid w-full grid-cols-2 gap-2">
-                {slots.map((time) => {
-                  const picked = candidates.some(
-                    (c) => c.date === selectedDate && c.time === time,
-                  );
-                  return (
-                    <button
-                      type="button"
-                      key={time}
-                      onClick={() => toggle(time)}
-                      disabled={!picked && isFull}
-                      aria-pressed={picked}
-                      className={`min-h-11 rounded-md border px-2 py-2 text-sm disabled:opacity-40 ${picked ? "border-brand bg-brand text-white" : "border-border hover:border-brand bg-surface"}`}
-                    >
-                      {time}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+              {slotsError ? (
+                <p role="alert" className="text-sm text-red-700">
+                  {slotsError}
+                </p>
+              ) : pending ? (
+                <p role="status" className="text-muted text-sm">
+                  불러오는 중…
+                </p>
+              ) : !selectedDate ? (
+                <p className="text-muted text-sm">{copy.timesEmpty}</p>
+              ) : slots.length === 0 ? (
+                <p className="text-muted text-sm">
+                  이 날짜는 예약할 수 있는 시간이 없습니다.
+                </p>
+              ) : (
+                <div className="grid w-full grid-cols-2 gap-2">
+                  {slots.map((time) => {
+                    const picked = candidates.some(
+                      (c) => c.date === selectedDate && c.time === time,
+                    );
+                    return (
+                      <button
+                        type="button"
+                        key={time}
+                        onClick={() => toggle(time)}
+                        disabled={!picked && isFull}
+                        aria-pressed={picked}
+                        className={`min-h-11 rounded-md border px-2 py-2 text-sm disabled:opacity-40 ${picked ? "border-brand bg-brand text-white" : "border-border hover:border-brand bg-surface"}`}
+                      >
+                        {time}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -209,7 +214,7 @@ export function BookingFlow({
                   onClick={() =>
                     setCandidates((prev) => {
                       const next = prev.filter((_, index) => index !== i);
-                      timeDrafts.set(productId, next);
+                      if (!previewOnly) timeDrafts.set(productId, next);
                       return next;
                     })
                   }
@@ -234,7 +239,7 @@ export function BookingFlow({
             disabled={!isFull || pending}
             className="mt-5 min-h-12 w-full text-base"
           >
-            신청서 작성하기 →
+            {copy.timesButton}
           </BookingCTA>
           <p>
             {isFull
@@ -244,7 +249,8 @@ export function BookingFlow({
         </div>
         <p className="booking-small-copy">{copy.timesNote}</p>
         <p className="text-muted mt-4 text-xs leading-relaxed">
-          {depositRequired ? "확정 안내 전에는 입금하지 않습니다. " : ""}추가 옵션은 신청서에서 선택합니다.
+          {depositRequired ? "확정 안내 전에는 입금하지 않습니다. " : ""}추가
+          옵션은 신청서에서 선택합니다.
         </p>
       </aside>
     </div>

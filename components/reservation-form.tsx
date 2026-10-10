@@ -102,9 +102,11 @@ export function ReservationForm({
   customFields,
   previewOnly = false,
   initialGroup,
+  initialReview = false,
 }: {
   previewOnly?: boolean;
   initialGroup?: number;
+  initialReview?: boolean;
   copy?: BookingCopy;
   depositRequired?: boolean;
   productId: string;
@@ -174,7 +176,7 @@ export function ReservationForm({
   const actorAutoArmed = useRef(true);
   const contactAutoPassed = useRef(new Set<string>());
 
-  const [reviewing, setReviewing] = useState(false);
+  const [reviewing, setReviewing] = useState(previewOnly && initialReview);
   const compactActor =
     currentGroup === 0 &&
     !reviewing &&
@@ -1208,11 +1210,7 @@ export function ReservationForm({
                 disabled={pending || previewOnly}
                 className={`${PRIMARY_CTA_CLASS} mt-4`}
               >
-                {previewOnly
-                  ? "미리보기에서는 접수하지 않습니다"
-                  : pending
-                    ? "접수 중…"
-                    : "예약 신청하기"}
+                {pending ? "접수 중…" : copy.reviewButton}
               </BookingCTA>
             ) : (
               <BookingCTA

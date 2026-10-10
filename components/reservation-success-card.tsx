@@ -62,7 +62,9 @@ export function ReservationSuccessCard({
         ✓
       </div>
       <h1>{successHeading}</h1>
-      <p className="booking-lead">{depositText(successMessage,depositRequired,bankAccount)}</p>
+      <p className="booking-lead">
+        {depositText(successMessage, depositRequired, bankAccount)}
+      </p>
       <div className="booking-unified-card">
         <section className="booking-price-section">
           <span className="booking-sale">일정 확인 대기</span>
@@ -72,7 +74,7 @@ export function ReservationSuccessCard({
             {interactive ? <CopyButton value={code} /> : null}
           </div>
           <p className="booking-small-copy booking-close-note">
-            예약번호는 예약조회에 사용할 수 있습니다.
+            {copy.successCodeNote}
           </p>
         </section>
         <section className="booking-process">
@@ -88,7 +90,7 @@ export function ReservationSuccessCard({
           ) : null}
         </section>
         <section className="booking-process">
-          <h2>신청한 희망 시간</h2>
+          <h2>{copy.successTimesTitle}</h2>
           <ul className="booking-complete-times">
             {candidates.map((c, i) => (
               <li key={i}>
@@ -97,9 +99,7 @@ export function ReservationSuccessCard({
               </li>
             ))}
           </ul>
-          <p className="booking-small-copy">
-            곧 푸르른 스튜디오가 일정을 확정해드립니다.
-          </p>
+          <p className="booking-small-copy">{copy.successTimesNote}</p>
         </section>
         <section className="booking-process">
           <h2>{copy.nextTitle}</h2>
@@ -133,7 +133,7 @@ export function ReservationSuccessCard({
           ) : null}
           {notice ? (
             <p className="booking-small-copy whitespace-pre-wrap">
-              {depositText(notice,depositRequired,bankAccount)}
+              {depositText(notice, depositRequired, bankAccount)}
             </p>
           ) : null}
         </section>
@@ -144,12 +144,12 @@ export function ReservationSuccessCard({
             href={`/booking/lookup?code=${encodeURIComponent(code)}`}
             className="booking-primary"
           >
-            내 예약 확인하기 →
+            {copy.successButton}
           </Link>
         ) : (
-          <div className="booking-primary">내 예약 확인하기 →</div>
+          <div className="booking-primary">{copy.successButton}</div>
         )}
-        <p>예약번호로 신청 내역을 확인할 수 있습니다.</p>
+        <p>{copy.successButtonNote}</p>
       </div>
     </section>
   );
