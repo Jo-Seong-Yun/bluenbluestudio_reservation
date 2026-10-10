@@ -1,267 +1,636 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 import {
+  DEFAULT_COPY,
   COPY_SECTIONS,
   COPY_LABELS,
   resolveCopy,
   fieldGroup,
-  GROUP_COPY_KEYS,
   type BookingCopy,
 } from "@/lib/booking/copy";
+import {
+  formPages,
+  copyWithPages,
+  orderedFormFields,
+  MAX_FORM_PAGES,
+  type FormPage,
+} from "@/lib/booking/form-pages";
 import { saveProductBookingCopy } from "@/app/admin/booking-copy-actions";
 import { Button, Field, inputClass, ErrorText } from "@/components/ui";
+import type { BookingDetailProduct } from "@/components/booking-detail";
 import {
-  BookingDetail,
-  type BookingDetailProduct,
-} from "@/components/booking-detail";
-import "@/app/booking/booking.css";
-import { ReservationFields } from "@/components/reservation-form";
-import { ReservationSuccessCard } from "@/components/reservation-success-card";
-import { BookingFlow } from "@/components/booking-flow";
-import { kstToday, addDays } from "@/lib/time";
-import type { CustomField } from "@/lib/booking/custom-fields-shared";
+  FIELD_TYPE_LABELS,
+  LOCKED_FIELD_TYPES,
+  type CustomField,
+} from "@/lib/booking/custom-fields-shared";
+import { FieldDescription } from "@/components/field-description";
+import { FieldModal } from "./field-modal";
+import { DeleteFieldButton } from "./delete-field-button";
+import { ImportFieldsButton } from "./import-fields-button";
+import { FormLivePreview } from "./form-live-preview";
+import "./product-editor.css";
+
 export function BookingCopyEditor({
   product,
   initial,
   fields = [],
   depositRequired = true,
+  otherProducts = [],
+  mode = "form",
+  previewSrc,
 }: {
   fields?: CustomField[];
   depositRequired?: boolean;
   product: BookingDetailProduct & { id: string };
   initial: BookingCopy;
+  otherProducts?: { id: string; name: string }[];
+  mode?: "details" | "form";
+  previewSrc?: string;
 }) {
+  const formId = useId();
   const [copy, setCopy] = useState(() => resolveCopy(initial));
-  const [state, action, pending] = useActionState(saveProductBookingCopy, null);
-  const [preview, setPreview] = useState(0);
-  const [previewGroup, setPreviewGroup] = useState(0);
+  const [draftPages, setDraftPages] = useState(() =>
+    formPages(resolveCopy(initial)),
+  );
+  const [savedCopy, setSavedCopy] = useState(() =>
+    JSON.stringify(resolveCopy(initial)),
+  );
+  const [state, action, pending] = useActionState(
+    async (
+      previous: { error?: string; success?: boolean } | null,
+      data: FormData,
+    ) => {
+      const snapshot = JSON.stringify(copy);
+      const result = await saveProductBookingCopy(previous, data);
+      if (result.success) setSavedCopy(snapshot);
+      return result;
+    },
+    null,
+  );
+  const [selected, setSelected] = useState(() => formPages(copy)[0].id);
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [desktop, setDesktop] = useState(false);
+  const pages = draftPages;
+  const layoutCopy = copyWithPages(
+    copy,
+    pages.map((page) => ({
+      ...page,
+      label: page.label.trim() || "새 페이지",
+      title: page.title.trim() || "페이지 제목",
+    })),
+  );
+  const page = pages.find((p) => p.id === selected) ?? pages[0];
+  const pageFields = orderedFormFields(fields, copy).filter(
+    (f) => fieldGroup(f, layoutCopy) === page.id,
+  );
+  const dirty = JSON.stringify(copy) !== savedCopy;
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    function protectNavigation(event: MouseEvent) {
+      const anchor = (event.target as HTMLElement)?.closest("a");
+      if (
+        anchor?.getAttribute("href")?.startsWith("/") &&
+        !confirm(
+          "저장하지 않은 페이지 설정이 있습니다. 저장하지 않고 이동하시겠습니까?",
+        )
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }
+    function protectProductSave(event: Event) {
+      if (
+        event.target instanceof HTMLFormElement &&
+        event.target.getAttribute("id") === "product-form" &&
+        !confirm(
+          "상품 정보를 저장하면 화면을 이동합니다. 저장하지 않은 페이지 설정을 버리고 진행하시겠습니까?",
+        )
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }
+    document.addEventListener("click", protectNavigation, true);
+    document.addEventListener("submit", protectProductSave, true);
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", protectNavigation, true);
+      document.removeEventListener("submit", protectProductSave, true);
+    };
+  }, [dirty]);
+  useEffect(() => {
+    if (mode !== "form") return;
+    function shortcut(event: KeyboardEvent) {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        event.key.toLowerCase() !== "s" ||
+        pending
+      )
+        return;
+      const form = document.getElementById(formId);
+      if (
+        form instanceof HTMLFormElement &&
+        !form.closest('[role="tabpanel"]')?.hasAttribute("hidden")
+      ) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    }
+    window.addEventListener("keydown", shortcut);
+    return () => window.removeEventListener("keydown", shortcut);
+  }, [formId, mode, pending]);
+  function updatePages(next: FormPage[]) {
+    setDraftPages(next);
+    setCopy(copyWithPages(copy, next));
+  }
+  function updatePage(key: "label" | "title" | "intro", value: string) {
+    updatePages(
+      pages.map((p) => (p.id === page.id ? { ...p, [key]: value } : p)),
+    );
+  }
+  function movePage(direction: number) {
+    const index = pages.findIndex((p) => p.id === page.id),
+      target = index + direction;
+    if (target < 0 || target >= pages.length) return;
+    const next = [...pages];
+    [next[index], next[target]] = [next[target], next[index]];
+    updatePages(next);
+  }
+  function addPage() {
+    const id = Math.max(...pages.map((p) => p.id)) + 1;
+    updatePages([
+      ...pages,
+      { id, label: "새 페이지", title: "내용을 입력해 주세요", intro: "" },
+    ]);
+    setSelected(id);
+  }
+  function deletePage(target: number) {
+    const next = pages.filter((p) => p.id !== page.id);
+    let nextCopy = copyWithPages(copy, next);
+    for (const field of pageFields)
+      nextCopy = { ...nextCopy, [`group:${field.id}`]: String(target) };
+    // Explicitly reassign fallback fields as well, so no question is orphaned.
+    for (const field of fields.filter((f) => !pageFields.includes(f)))
+      nextCopy[`group:${field.id}`] = String(fieldGroup(field, layoutCopy));
+    setDraftPages(next);
+    setCopy(nextCopy);
+    setSelected(target);
+  }
+  function moveField(id: string, direction: number) {
+    const index = pageFields.findIndex((f) => f.id === id),
+      target = index + direction;
+    if (target < 0 || target >= pageFields.length) return;
+    const reordered = orderedFormFields(fields, copy),
+      a = reordered.findIndex((f) => f.id === id),
+      b = reordered.findIndex((f) => f.id === pageFields[target].id);
+    [reordered[a], reordered[b]] = [reordered[b], reordered[a]];
+    setCopy({
+      ...copy,
+      ...Object.fromEntries(
+        reordered.map((f, i) => [`order:${f.id}`, String(i)]),
+      ),
+    });
+  }
+  const sections = COPY_SECTIONS.filter((_, i) =>
+    mode === "details" ? i === 0 : i !== 0 && i !== 2,
+  );
   return (
-    <section className="border-border mt-10 rounded-xl border bg-white p-6">
-      <h2 className="text-xl font-bold">예약 페이지 문구</h2>
-      <p className="text-muted mt-2 text-sm">
-        상품별 문구를 편집합니다. 빈 칸은 기본 문구로 저장하며, 동의 확인·최종
-        확인 설명은 비우면 숨깁니다. 문항 제목·선택지·필수 여부는 위 신청서
-        문항에서 편집합니다.
-      </p>
-      <div className="mt-6 grid gap-8 xl:grid-cols-2">
-        <form action={action}>
-          <input type="hidden" name="productId" value={product.id} />
-          {COPY_SECTIONS.map(([label, values]) => (
-            <fieldset key={label} className="mb-7 space-y-3">
+    <section className="product-copy-editor">
+      <form id={formId} action={action}>
+        <input type="hidden" name="productId" value={product.id} />
+        {mode === "form" ? (
+          <>
+            <input
+              type="hidden"
+              name="formPages"
+              value={JSON.stringify(pages)}
+            />
+            {fields.map((field) => (
+              <span key={field.id}>
+                <input
+                  type="hidden"
+                  name={`group:${field.id}`}
+                  value={fieldGroup(field, layoutCopy)}
+                />
+                <input
+                  type="hidden"
+                  name={`order:${field.id}`}
+                  value={copy[`order:${field.id}`] ?? field.sort_order}
+                />
+                <input
+                  type="hidden"
+                  name={`placeholder:${field.id}`}
+                  value={copy[`placeholder:${field.id}`] ?? ""}
+                />
+              </span>
+            ))}
+          </>
+        ) : null}
+      </form>
+      {mode === "form" ? (
+        <>
+          <div className="editor-section-heading">
+            <div>
+              <h2>신청서 페이지 구성</h2>
+              <p>페이지와 문항을 편집하고 고객이 작성할 화면을 확인합니다.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <ImportFieldsButton
+                productId={product.id}
+                otherProducts={otherProducts}
+                disabled={dirty || pending}
+                onImported={(value) => {
+                  setDraftPages(formPages(value));
+                  setCopy(value);
+                  setSavedCopy(JSON.stringify(value));
+                  setSelected(formPages(value)[0].id);
+                }}
+              />
+              <Button type="submit" form={formId} disabled={pending}>
+                {pending ? "저장 중…" : "페이지 구성 저장"}
+              </Button>
+            </div>
+          </div>
+          <div className="form-builder-grid">
+            <aside className="editor-card page-list">
+              <h3>
+                페이지 <span>{pages.length}개</span>
+              </h3>
+              {pages.map((p, index) => {
+                const assigned = fields.filter(
+                  (f) => fieldGroup(f, layoutCopy) === p.id,
+                );
+                return (
+                  <button
+                    type="button"
+                    key={p.id}
+                    className={`page-list-item ${page.id === p.id ? "selected" : ""}`}
+                    onClick={() => setSelected(p.id)}
+                  >
+                    <span className="page-number">{index + 1}</span>
+                    <span>
+                      <b>{p.label}</b>
+                      <small>
+                        {assigned.map((f) => f.label).join(" · ") ||
+                          "문항 없음"}
+                      </small>
+                    </span>
+                    <span className="page-count">{assigned.length}</span>
+                  </button>
+                );
+              })}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={addPage}
+                disabled={pages.length >= MAX_FORM_PAGES}
+              >
+                ＋ 페이지 추가
+              </Button>
+              <p className="editor-help">
+                문항이 없는 페이지는 고객 화면에서 건너뜁니다.
+              </p>
+              <hr />
+              <p className="editor-help">
+                고정 단계
+                <br />
+                내용 확인 → 접수 완료
+              </p>
+            </aside>
+            <div className="editor-card page-editor">
+              <div className="editor-section-heading">
+                <div>
+                  <small>
+                    PAGE {String(pages.indexOf(page) + 1).padStart(2, "0")}
+                  </small>
+                  <h2>{page.label}</h2>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    aria-label="페이지 위로"
+                    disabled={pages.indexOf(page) === 0}
+                    onClick={() => movePage(-1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="페이지 아래로"
+                    disabled={pages.indexOf(page) === pages.length - 1}
+                    onClick={() => movePage(1)}
+                  >
+                    ↓
+                  </button>
+                </div>
+              </div>
+              <Field label="페이지 이름">
+                <input
+                  className={inputClass}
+                  value={page.label}
+                  maxLength={80}
+                  onChange={(e) => updatePage("label", e.target.value)}
+                />
+              </Field>
+              <Field label="고객 화면의 페이지 제목">
+                <input
+                  className={inputClass}
+                  value={page.title}
+                  maxLength={1000}
+                  onChange={(e) => updatePage("title", e.target.value)}
+                />
+              </Field>
+              <Field label="페이지 설명 (비우면 숨김)">
+                <textarea
+                  className={inputClass}
+                  rows={2}
+                  value={page.intro}
+                  maxLength={1000}
+                  onChange={(e) => updatePage("intro", e.target.value)}
+                />
+              </Field>
+              <div className="editor-section-heading">
+                <h3>이 페이지의 문항</h3>
+                <FieldModal
+                  productId={product.id}
+                  onSaved={(id) =>
+                    setCopy((current) => ({
+                      ...current,
+                      [`group:${id}`]: String(page.id),
+                    }))
+                  }
+                />
+              </div>
+              {pageFields.map((field, index) => (
+                <article className="builder-question" key={field.id}>
+                  <div className="builder-question-heading">
+                    <div>
+                      <b>{field.label}</b>
+                      <small>
+                        {FIELD_TYPE_LABELS[field.type]} ·{" "}
+                        {field.required ? "필수" : "선택"}
+                        {!field.active ? " · 비활성" : ""}
+                      </small>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label={`${field.label} 위로`}
+                        onClick={() => moveField(field.id, -1)}
+                        disabled={!index}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`${field.label} 아래로`}
+                        onClick={() => moveField(field.id, 1)}
+                        disabled={index === pageFields.length - 1}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`${field.label} 편집`}
+                        onClick={() =>
+                          setEditingFieldId(
+                            editingFieldId === field.id ? null : field.id,
+                          )
+                        }
+                      >
+                        {editingFieldId === field.id ? "닫기" : "편집"}
+                      </button>
+                    </div>
+                  </div>
+                  {editingFieldId === field.id ? (
+                    <FieldModal
+                      inline
+                      onCancel={() => setEditingFieldId(null)}
+                      productId={product.id}
+                      field={field}
+                      onSaved={() => setEditingFieldId(null)}
+                    />
+                  ) : null}
+                  {field.description ? (
+                    <FieldDescription html={field.description} />
+                  ) : null}
+                  {field.options?.map((option, i) => (
+                    <div className="builder-option" key={`${field.id}-${i}`}>
+                      <div>
+                        {option}
+                        <b>
+                          {field.option_prices?.[i]
+                            ? `+${field.option_prices[i].toLocaleString()}원`
+                            : ""}
+                        </b>
+                      </div>
+                      {field.option_descriptions?.[i] ? (
+                        <p>{field.option_descriptions[i]}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                  {[
+                    "name",
+                    "phone",
+                    "email",
+                    "birth_date",
+                    "short_text",
+                    "long_text",
+                  ].includes(field.type) ? (
+                    <Field label="입력 예시">
+                      <input
+                        className={inputClass}
+                        value={copy[`placeholder:${field.id}`] ?? ""}
+                        maxLength={200}
+                        placeholder="비우면 기본 입력 예시"
+                        onChange={(e) =>
+                          setCopy({
+                            ...copy,
+                            [`placeholder:${field.id}`]: e.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                  ) : null}
+                  <div className="builder-question-footer">
+                    <label>
+                      배치 페이지
+                      <select
+                        aria-label={`${field.label} 배치 페이지`}
+                        className={inputClass}
+                        value={page.id}
+                        onChange={(e) =>
+                          setCopy({
+                            ...copy,
+                            [`group:${field.id}`]: e.target.value,
+                          })
+                        }
+                      >
+                        {pages.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <DeleteFieldButton
+                      id={field.id}
+                      productId={product.id}
+                      label={field.label}
+                      locked={LOCKED_FIELD_TYPES.includes(
+                        field.type as "name" | "phone",
+                      )}
+                    />
+                  </div>
+                </article>
+              ))}
+              {!pageFields.length ? (
+                <p className="editor-help">
+                  문항을 추가하거나 다른 페이지에서 이동할 수 있습니다.
+                </p>
+              ) : null}
+              {pages.length > 1 ? (
+                <details className="page-delete">
+                  <summary>페이지 삭제</summary>
+                  <p className="editor-help">
+                    이 페이지의 문항을 이동할 곳을 선택합니다. 문항과 기존
+                    답변은 삭제하지 않습니다.
+                  </p>
+                  {pages
+                    .filter((p) => p.id !== page.id)
+                    .map((p) => (
+                      <button
+                        type="button"
+                        key={p.id}
+                        onClick={() => deletePage(p.id)}
+                      >
+                        {p.label}로 이동하고 페이지 삭제
+                      </button>
+                    ))}
+                </details>
+              ) : null}
+            </div>
+            <aside className="builder-preview">
+              <div className="editor-section-heading">
+                <h3>고객 화면 미리보기</h3>
+                <select
+                  aria-label="미리보기 화면 크기"
+                  value={desktop ? "desktop" : "mobile"}
+                  onChange={(e) => setDesktop(e.target.value === "desktop")}
+                >
+                  <option value="mobile">모바일</option>
+                  <option value="desktop">데스크톱</option>
+                </select>
+              </div>
+              <FormLivePreview
+                src={previewSrc}
+                desktop={desktop}
+                data={{
+                  product,
+                  fields,
+                  copy: layoutCopy,
+                  group: page.id,
+                  depositRequired,
+                }}
+              />
+              <p className="editor-help">
+                실제 신청서와 같은 입력·전환·금액 계산을 사용합니다. 예약은
+                접수하지 않습니다.
+              </p>
+            </aside>
+          </div>
+          <div className="editor-common-note">
+            모든 상품에 공통 적용 · 페이지 전환 · 자동 이동 · 입력 검증 · 키패드
+            대응 · 답변 복원
+          </div>
+        </>
+      ) : (
+        <h2 className="mb-4 text-lg font-bold">상품 상세 안내 문구</h2>
+      )}
+      <details
+        className="editor-card booking-copy-settings"
+        open={mode === "details"}
+      >
+        <summary>
+          {mode === "details"
+            ? "가격·신청 절차 안내"
+            : "일정 선택·내용 확인·접수 완료 안내"}
+        </summary>
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          {sections.map(([label, values]) => (
+            <fieldset key={label} className="space-y-3">
               <legend className="mb-3 font-bold">{label}</legend>
               {Object.entries(values).map(([key, defaultValue]) => (
                 <Field key={key} label={COPY_LABELS[key] ?? defaultValue}>
                   <textarea
+                    form={formId}
                     name={key}
                     maxLength={1000}
                     value={copy[key]}
                     onChange={(e) =>
                       setCopy({ ...copy, [key]: e.target.value })
                     }
-                    className={inputClass}
                     rows={2}
+                    className={inputClass}
                   />
                 </Field>
               ))}
             </fieldset>
           ))}
-          <fieldset className="mb-7 space-y-3">
-            <legend className="mb-3 font-bold">문항 페이지 배치</legend>
-            {fields.map((field) => (
-              <div key={field.id}>
-                <Field label={field.label}>
-                  <select
-                    name={`group:${field.id}`}
-                    value={
-                      copy[`group:${field.id}`] ?? String(fieldGroup(field))
-                    }
-                    onChange={(e) =>
-                      setCopy({
-                        ...copy,
-                        [`group:${field.id}`]: e.target.value,
-                      })
-                    }
-                    className={inputClass}
-                  >
-                    {["배우 정보", "연락 정보", "촬영 요청", "동의 확인"].map(
-                      (label, i) => (
-                        <option key={i} value={i}>
-                          {label}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </Field>
-                {[
-                  "name",
-                  "phone",
-                  "email",
-                  "birth_date",
-                  "short_text",
-                  "long_text",
-                ].includes(field.type) ? (
-                  <Field label={`${field.label} 입력 예시`}>
-                    <input
-                      name={`placeholder:${field.id}`}
-                      value={copy[`placeholder:${field.id}`] ?? ""}
-                      onChange={(e) =>
-                        setCopy({
-                          ...copy,
-                          [`placeholder:${field.id}`]: e.target.value,
-                        })
-                      }
-                      maxLength={200}
-                      placeholder="비우면 기본 입력 예시"
-                      className={inputClass}
-                    />
-                  </Field>
-                ) : null}
-              </div>
-            ))}
-          </fieldset>
-          <div className="sticky bottom-0 flex flex-wrap gap-3 bg-white py-4">
-            <Button type="submit" disabled={pending}>
-              {pending ? "저장 중…" : "예약 문구 저장"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() =>
-                setCopy({
-                  ...resolveCopy(null),
-                  ...Object.fromEntries(
-                    Object.entries(copy).filter(([key]) =>
-                      key.startsWith("group:"),
-                    ),
-                  ),
-                })
-              }
-            >
-              기본 문구 복원
-            </Button>
-          </div>
-          <ErrorText>{state?.error}</ErrorText>
-          {state?.success ? (
-            <p role="status" className="text-sm text-green-700">
-              예약 문구를 저장했습니다.
-            </p>
-          ) : null}
-        </form>
-        <div>
-          <h3 className="mb-3 font-bold">모바일 미리보기</h3>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {COPY_SECTIONS.map(([label], i) => (
-              <Button
-                key={label}
-                type="button"
-                variant="ghost"
-                onClick={() => setPreview(i)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
-          <div className="booking-workspace booking-copy-preview max-h-[850px] max-w-[390px] overflow-auto rounded-xl border">
-            {preview === 0 ? (
-              <BookingDetail
-                depositRequired={depositRequired}
-                product={product}
-                earliestBookable="예약 가능 시작일"
-                latestBookable="예약 가능 종료일"
-                copy={copy}
-              />
-            ) : preview === 1 ? (
-              <div className="booking-page">
-                <p className="booking-small-copy">
-                  미리보기의 일정은 예시입니다.
-                </p>
-                <div className="pointer-events-none">
-                  <BookingFlow
-                    depositRequired={depositRequired}
-                    copy={copy}
-                    productId={product.id}
-                    productName={product.name}
-                    basePrice={product.sale_price ?? product.price}
-                    durationMin={product.duration_min}
-                    month={kstToday().slice(0, 7)}
-                    minMonth={kstToday().slice(0, 7)}
-                    maxMonth={kstToday().slice(0, 7)}
-                    availableDates={[addDays(kstToday(), 1)]}
-                    basePath={`/booking/${product.slug}`}
-                    loadSlots={async () => []}
-                  />
-                </div>
-              </div>
-            ) : preview === 2 ? (
-              <div className="booking-page booking-modern-form">
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {["배우 정보", "연락 정보", "촬영 요청", "동의 확인"].map(
-                    (label, i) => (
-                      <button
-                        type="button"
-                        className="text-xs"
-                        key={label}
-                        onClick={() => setPreviewGroup(i)}
-                      >
-                        {label}
-                      </button>
-                    ),
-                  )}
-                </div>
-                <h1>{copy[GROUP_COPY_KEYS[previewGroup][0]]}</h1>
-                <p className="booking-lead">
-                  {copy[GROUP_COPY_KEYS[previewGroup][1]]}
-                </p>
-                <ReservationFields
-                  fields={fields.filter(
-                    (field) => fieldGroup(field, copy) === previewGroup,
-                  )}
-                  placeholders={copy}
-                />
-              </div>
-            ) : preview === 3 ? (
-              <div className="booking-page">
-                <h1>{copy.reviewTitle}</h1>
-                <p className="booking-lead">{copy.reviewIntro}</p>
-                <div className="booking-unified-card">
-                  <section className="booking-price-section">
-                    <h2>{product.name}</h2>
-                    <p className="booking-small-copy">
-                      선택한 시간과 입력한 답변은 실제 확인 화면에 표시됩니다.
-                    </p>
-                    <p className="booking-large-price">
-                      {(product.sale_price ?? product.price).toLocaleString()}
-                      <small>원</small>
-                    </p>
-                  </section>
-                </div>
-              </div>
-            ) : (
-              <div className="booking-page">
-                <ReservationSuccessCard
-                  depositRequired={depositRequired}
-                  copy={copy}
-                  successHeading={copy.successTitle}
-                  successMessage={copy.successIntro}
-                  code="DEMO2026"
-                  productName={product.name}
-                  candidates={[]}
-                  bankAccount={null}
-                  notice={null}
-                  durationMin={product.duration_min}
-                  estimatedTotal={product.sale_price ?? product.price}
-                  interactive={false}
-                  animate={false}
-                />
-              </div>
-            )}
-          </div>
-          <p className="text-muted mt-3 text-xs">
-            예시 미리보기입니다. 예약 상태·검증·필수 안내는 고정됩니다. 복원 후
-            저장해야 반영됩니다.
-          </p>
         </div>
+      </details>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => {
+          const next = { ...copy };
+          for (const [, values] of sections)
+            for (const key of Object.keys(values))
+              next[key] = DEFAULT_COPY[key];
+          if (mode === "form") {
+            const defaults = formPages(resolveCopy(null));
+            const resetPages = pages.map((page) =>
+              defaults.find((p) => p.id === page.id)
+                ? {
+                    ...page,
+                    title: defaults[page.id].title,
+                    intro: defaults[page.id].intro,
+                  }
+                : page,
+            );
+            setDraftPages(resetPages);
+            setCopy(copyWithPages(next, resetPages));
+          } else setCopy(next);
+        }}
+      >
+        기본 안내 문구 복원
+      </Button>
+      <div className="editor-save-bar">
+        <span>
+          {dirty
+            ? "저장하지 않은 변경사항이 있습니다."
+            : "저장된 설정을 표시합니다."}{" "}
+          문항 수정·추가·삭제는 각각 저장됩니다.
+        </span>
+        <Button type="submit" form={formId} disabled={pending}>
+          {pending
+            ? "저장 중…"
+            : mode === "details"
+              ? "상품 안내 문구 저장"
+              : "페이지 구성 저장"}
+        </Button>
       </div>
+      <ErrorText>{state?.error}</ErrorText>
+      {state?.success ? (
+        <p role="status" className="text-sm text-green-700">
+          저장했습니다.
+        </p>
+      ) : null}
     </section>
   );
 }

@@ -29,8 +29,10 @@ export function ProductForm({
   formId,
   action,
   state,
+  showImage = true,
 }: {
   initial: ProductFormValues;
+  showImage?: boolean;
   /** 이 id로 폼 밖(타이틀 옆 저장 버튼, 공개 여부 토글)에서도 같은 폼을 쓴다. */
   formId: string;
   action: (formData: FormData) => void;
@@ -214,16 +216,18 @@ export function ProductForm({
           내려주므로, 이 hidden input은 항상 최신 값을 싣고 있다. */}
       <input type="hidden" name="description" value={initial.description} />
 
-      <section className="space-y-4">
-        <ImageUploader
-          label="대표 이미지"
-          hint="예약 페이지 상품 목록 카드의 썸네일로 표시됩니다. (설정 → 상품 목록 화면 → '썸네일 표시'가 켜져 있을 때만 보입니다.)"
-          value={coverImage ? [coverImage] : []}
-          onChange={(paths) => setCoverImage(paths[0] ?? null)}
-          max={1}
-        />
-        <input type="hidden" name="coverImage" value={coverImage ?? ""} />
-      </section>
+      {showImage ? (
+        <section className="space-y-4">
+          <ImageUploader
+            label="대표 이미지"
+            hint="예약 페이지 상품 목록 카드의 썸네일로 표시됩니다. (설정 → 상품 목록 화면 → '썸네일 표시'가 켜져 있을 때만 보입니다.)"
+            value={coverImage ? [coverImage] : []}
+            onChange={(paths) => setCoverImage(paths[0] ?? null)}
+            max={1}
+          />
+          <input type="hidden" name="coverImage" value={coverImage ?? ""} />
+        </section>
+      ) : null}
 
       <ErrorText>{state?.error}</ErrorText>
     </form>

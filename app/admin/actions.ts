@@ -3,6 +3,9 @@
 import { parseChoiceOptions } from "@/lib/booking/choice-options";
 import {depositContent} from "@/lib/booking/deposit-content";
 import {allowedNextStatuses, previousConfirmedStatus, requiresDeposit} from "@/lib/booking/deposit";
+import { productCopy } from "@/lib/booking/copy";
+import { remapFormCopy, formPages, copyWithPages, MAX_FORM_PAGES, orderedFormFields } from "@/lib/booking/form-pages";
+import { fieldGroup } from "@/lib/booking/copy";
 import { updateBookingSettings } from "@/lib/booking/style-storage";
 import { loadCustomerEmailHistory } from "@/lib/notifications/customer-email-history";
 import { loadCustomerEmailContexts } from "@/lib/notifications/customer-email-contexts";
@@ -495,6 +498,7 @@ export async function duplicateProduct(formData: FormData) {
         max_people: source.max_people,
         summary: source.summary,
         description: source.description,
+        delivery_note: source.delivery_note,
         cover_image: source.cover_image,
         gallery: source.gallery,
         is_published: source.is_published,
@@ -512,18 +516,39 @@ export async function duplicateProduct(formData: FormData) {
 
   if (!created) return;
 
-  const { data: fields } = await supabase
-    .from("custom_fields")
-    .select("label, type, options, option_prices, option_descriptions, description, required, active, sort_order")
-    .eq("product_id", id)
-    .order("sort_order");
-
-  if (fields && fields.length > 0) {
-    await supabase
+  const createdId = created.id;
+  try {
+    const { data: fields, error: fieldsError } = await supabase
       .from("custom_fields")
-      .insert(fields.map((field) => ({ ...field, product_id: created.id })));
+      .select(
+        "id, label, type, options, option_prices, option_descriptions, description, required, active, sort_order",
+      )
+      .eq("product_id", id)
+      .order("sort_order");
+    if (fieldsError) throw new Error("복사할 문항을 불러오지 못했습니다.");
+    const idMap: Record<string, string> = {};
+    if (fields?.length) {
+      const { error } = await supabase.from("custom_fields").insert(
+        fields.map(({ id: oldId, ...field }) => {
+          const newId = crypto.randomUUID();
+          idMap[oldId] = newId;
+          return { ...field, id: newId, product_id: createdId };
+        }),
+      );
+      if (error) throw new Error("문항을 복사하지 못했습니다.");
+    }
+    await updateBookingSettings((current) => ({
+      ...current,
+      productCopies: {
+        ...current?.productCopies,
+        [createdId]: remapFormCopy(productCopy(current, id), idMap),
+      },
+    }));
+  } catch (error) {
+    await supabase.from("custom_fields").delete().eq("product_id", createdId);
+    await supabase.from("products").delete().eq("id", createdId);
+    throw error;
   }
-
   revalidatePath("/admin/products");
 }
 
@@ -2732,7 +2757,7 @@ export async function addCustomField(formData: FormData) {
     return { error: "문항을 저장하지 못했습니다. 다시 시도해 주십시오." };
 
   revalidateCustomFieldPaths(row.product_id);
-  return { success: true };
+  return { success: true, id: data.id };
 }
 
 export async function updateCustomField(formData: FormData) {
@@ -2756,7 +2781,7 @@ export async function updateCustomField(formData: FormData) {
     return { error: "문항을 저장하지 못했습니다. 다시 시도해 주십시오." };
 
   revalidateCustomFieldPaths(row.product_id);
-  return { success: true };
+  return { success: true, id: data.id };
 }
 
 /**
@@ -2838,14 +2863,14 @@ export async function importCustomFieldsFromProduct(formData: FormData) {
     !sourceProductId ||
     targetProductId === sourceProductId
   ) {
-    return;
+    return { error: "가져올 상품을 선택해 주십시오." };
   }
 
   const supabase = await createClient();
   const [{ data: sourceFields }, { data: existing }] = await Promise.all([
     supabase
       .from("custom_fields")
-      .select("label, type, options, option_prices, option_descriptions, description, required")
+      .select("*")
       .eq("product_id", sourceProductId)
       .eq("active", true)
       .not("type", "in", `(${SPECIAL_FIELD_TYPES.join(",")})`)
@@ -2859,20 +2884,76 @@ export async function importCustomFieldsFromProduct(formData: FormData) {
       .maybeSingle(),
   ]);
 
-  if (!sourceFields || sourceFields.length === 0) return;
-
+  if (!sourceFields || sourceFields.length === 0)
+    return { error: "가져올 활성 문항이 없습니다." };
   let nextOrder = (existing?.sort_order ?? -1) + 1;
-  await supabase.from("custom_fields").insert(
-    sourceFields.map((field) => ({
+  const ids: Record<string, string> = {};
+  const rows = sourceFields.map((field) => {
+    const newId = crypto.randomUUID();
+    ids[field.id] = newId;
+    return {
       ...field,
+      id: newId,
       product_id: targetProductId,
       active: true,
       sort_order: nextOrder++,
-    })),
-  );
-
+    };
+  });
+  const { error: insertError } = await supabase
+    .from("custom_fields")
+    .insert(rows);
+  if (insertError) return { error: "문항을 가져오지 못했습니다." };
+  let importedCopy: Record<string, string> = {};
+  try {
+    await updateBookingSettings((current) => {
+      const source = productCopy(current, sourceProductId),
+        target = productCopy(current, targetProductId);
+      const targetPages = formPages(target),
+        sourcePages = formPages(source).filter((page) =>
+          sourceFields.some((field) => fieldGroup(field, source) === page.id),
+        );
+      if (targetPages.length + sourcePages.length > MAX_FORM_PAGES)
+        throw new Error("가져온 페이지를 포함하면 최대 20개를 초과합니다.");
+      let pageId = Math.max(...targetPages.map((page) => page.id)) + 1;
+      const pageMap = new Map<number, number>();
+      const appended = sourcePages.map((page) => {
+        const id = pageId++;
+        pageMap.set(page.id, id);
+        return { ...page, id };
+      });
+      const next = copyWithPages(target, [...targetPages, ...appended]);
+      for (const [index, field] of orderedFormFields(
+        sourceFields,
+        source,
+      ).entries()) {
+        const id = ids[field.id];
+        next[`group:${id}`] = String(pageMap.get(fieldGroup(field, source)));
+        next[`placeholder:${id}`] = source[`placeholder:${field.id}`] ?? "";
+        next[`order:${id}`] = String((existing?.sort_order ?? -1) + 1 + index);
+      }
+      importedCopy = next;
+      return {
+        ...current,
+        productCopies: { ...current?.productCopies, [targetProductId]: next },
+      };
+    });
+  } catch (error) {
+    await supabase
+      .from("custom_fields")
+      .delete()
+      .eq("product_id", targetProductId)
+      .in("id", Object.values(ids));
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "페이지 구성을 가져오지 못했습니다.",
+    };
+  }
   revalidateCustomFieldPaths(targetProductId);
+  return { success: true, copy: importedCopy };
 }
+
 
 /**
  * 구글 시트 연동을 붙이기 전부터 있던 예약들을 한 번에 소급 반영.

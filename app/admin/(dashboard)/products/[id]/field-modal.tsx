@@ -24,9 +24,15 @@ const IS_SPECIAL = new Set<string>(SPECIAL_FIELD_TYPES);
 export function FieldModal({
   productId,
   field,
+  onSaved,
+  inline = false,
+  onCancel,
 }: {
   productId: string;
   field?: CustomField;
+  onSaved?: (id: string) => void;
+  inline?: boolean;
+  onCancel?: () => void;
 }) {
   const [saveError, setSaveError] = useState<string>();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -79,6 +85,7 @@ export function FieldModal({
 
   function close() {
     dialogRef.current?.close();
+    if (inline) onCancel?.();
   }
 
   function updateOption(index: number, value: string) {
@@ -100,6 +107,213 @@ export function FieldModal({
     setOptionPrices((prev) => prev.filter((_, i) => i !== index));
     setOptionDescriptions((prev) => prev.filter((_, i) => i !== index));
   }
+
+  const editor = (
+    <form
+      action={async (formData) => {
+        setSaveError(undefined);
+        try {
+          const result = await (isEdit ? updateCustomField : addCustomField)(
+            formData,
+          );
+          if (result.error) setSaveError(result.error);
+          else {
+            if (result.id) onSaved?.(result.id);
+            close();
+          }
+        } catch {
+          setSaveError("문항을 저장하지 못했습니다. 다시 시도해 주십시오.");
+        }
+      }}
+      className={
+        inline
+          ? "space-y-4 border-t border-inherit pt-4"
+          : "max-h-[75vh] space-y-4 overflow-y-auto p-5"
+      }
+    >
+      <input type="hidden" name="productId" value={productId} />
+      {isEdit && field ? (
+        <input type="hidden" name="id" value={field.id} />
+      ) : null}
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium" htmlFor="label">
+          질문 <span className="text-red-600 dark:text-red-400">*</span>
+        </label>
+        <textarea
+          id="label"
+          name="label"
+          required
+          rows={2}
+          maxLength={100}
+          defaultValue={field?.label ?? ""}
+          className={inputClass}
+        />
+      </div>
+
+      <div className="flex items-center justify-between">
+        <label className="inline-flex cursor-pointer items-center gap-2">
+          <span className="relative inline-block h-6 w-11 shrink-0">
+            <input
+              type="checkbox"
+              name="active"
+              defaultChecked={field?.active ?? true}
+              className="peer sr-only"
+            />
+            <span className="bg-surface-subtle border-border peer-checked:bg-brand peer-checked:border-brand absolute inset-0 rounded-full border transition-colors" />
+            <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
+          </span>
+          <span className="text-sm">활성화</span>
+        </label>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="required"
+            defaultChecked={field?.required ?? false}
+            className="h-4 w-4"
+          />
+          답변 필수
+        </label>
+      </div>
+
+      {isEdit && field && IS_SPECIAL.has(field.type) ? (
+        <div>
+          <span className="mb-1.5 block text-sm font-medium">답변 종류</span>
+          <p className="border-border bg-surface-subtle text-muted rounded-lg border px-3 py-2 text-sm">
+            {FIELD_TYPE_LABELS[field.type] ?? field.type} (바꿀 수 없습니다)
+          </p>
+          <input type="hidden" name="type" value={field.type} />
+        </div>
+      ) : (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="type">
+            답변 종류 <span className="text-red-600 dark:text-red-400">*</span>
+          </label>
+          <select
+            id="type"
+            name="type"
+            required
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className={inputClass}
+          >
+            {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {NEEDS_OPTIONS.has(type) ? (
+        <div>
+          <span className="mb-1.5 block text-sm font-medium">
+            보기{" "}
+            <span className="text-muted font-normal">
+              (가격을 넣으면 유료 옵션이 됩니다. 비워두면 무료)
+            </span>
+          </span>
+          <div className="space-y-2">
+            {options.map((option, index) => (
+              <div
+                key={index}
+                className="border-border space-y-2 rounded-lg border p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-muted shrink-0">
+                    {type === "single_choice" ? "○" : "☐"}
+                  </span>
+                  <input
+                    name="option"
+                    value={option}
+                    onChange={(e) => updateOption(index, e.target.value)}
+                    placeholder={`옵션 ${index + 1}`}
+                    className={`${inputClass} min-w-0`}
+                  />
+                  {/* inputClass 자체가 w-full이라, 이 칸에 폭을 좁히려고
+                        w-24를 같이 주면 둘 다 유틸리티 클래스라 어느 게
+                        이기는지 클래스 문자열 순서가 아니라 Tailwind가
+                        생성한 스타일시트 순서로 정해진다 — 실제로 w-full이
+                        이겨서 이 칸이 넓어지고 옆 칸(라벨)이 찌그러지는
+                        문제가 있었다. 폭을 별도 래퍼에 주고 input 자신은
+                        그 안에서 그냥 w-full(=래퍼 폭 전체)이 되게 하면
+                        이 충돌 자체가 안 생긴다. */}
+                  <div className="w-28 shrink-0">
+                    <MoneyInput
+                      name="optionPrice"
+                      value={optionPrices[index] ?? ""}
+                      onChange={(v) => updateOptionPrice(index, v)}
+                      placeholder="가격"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeOption(index)}
+                    aria-label="옵션 삭제"
+                    disabled={options.length <= 1}
+                    className="text-muted hover:text-foreground shrink-0 disabled:opacity-25"
+                  >
+                    ×
+                  </button>
+                </div>
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium">선택지 설명</span>
+                  <textarea
+                    name="optionDescription"
+                    aria-label={`옵션 ${index + 1} 설명`}
+                    rows={2}
+                    maxLength={1000}
+                    value={optionDescriptions[index] ?? ""}
+                    onChange={(e) =>
+                      setOptionDescriptions((prev) =>
+                        prev.map((value, i) =>
+                          i === index ? e.target.value : value,
+                        ),
+                      )
+                    }
+                    placeholder="이 선택지 바로 아래 표시할 설명을 입력합니다."
+                    className={inputClass}
+                  />
+                </label>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addOption}
+            className="text-brand mt-2 text-sm hover:underline"
+          >
+            + 옵션 추가
+          </button>
+        </div>
+      ) : null}
+
+      <div>
+        <span className="mb-1.5 block text-sm font-medium">
+          상세 설명{" "}
+          <span className="text-muted font-normal">
+            (질문 아래 작게 표시됩니다)
+          </span>
+        </span>
+        <FieldDescriptionEditor
+          key={editorEpoch}
+          name="description"
+          defaultValue={field?.description ?? ""}
+        />
+      </div>
+
+      <ErrorText>{saveError}</ErrorText>
+      <div className="flex justify-end gap-2 pt-1">
+        <Button type="button" variant="ghost" onClick={close}>
+          취소
+        </Button>
+        <SubmitButton>확인</SubmitButton>
+      </div>
+    </form>
+  );
+  if (inline) return editor;
 
   return (
     <>
@@ -134,210 +348,7 @@ export function FieldModal({
           </button>
         </div>
 
-        <form
-          action={async (formData) => {
-            setSaveError(undefined);
-            try {
-              const result = await (
-                isEdit ? updateCustomField : addCustomField
-              )(formData);
-              if (result.error) setSaveError(result.error);
-              else close();
-            } catch {
-              setSaveError("문항을 저장하지 못했습니다. 다시 시도해 주십시오.");
-            }
-          }}
-          className="max-h-[75vh] space-y-4 overflow-y-auto p-5"
-        >
-          <input type="hidden" name="productId" value={productId} />
-          {isEdit && field ? (
-            <input type="hidden" name="id" value={field.id} />
-          ) : null}
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="label">
-              질문 <span className="text-red-600 dark:text-red-400">*</span>
-            </label>
-            <textarea
-              id="label"
-              name="label"
-              required
-              rows={2}
-              maxLength={100}
-              defaultValue={field?.label ?? ""}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <label className="inline-flex cursor-pointer items-center gap-2">
-              <span className="relative inline-block h-6 w-11 shrink-0">
-                <input
-                  type="checkbox"
-                  name="active"
-                  defaultChecked={field?.active ?? true}
-                  className="peer sr-only"
-                />
-                <span className="bg-surface-subtle border-border peer-checked:bg-brand peer-checked:border-brand absolute inset-0 rounded-full border transition-colors" />
-                <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
-              </span>
-              <span className="text-sm">활성화</span>
-            </label>
-
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="required"
-                defaultChecked={field?.required ?? false}
-                className="h-4 w-4"
-              />
-              답변 필수
-            </label>
-          </div>
-
-          {isEdit && field && IS_SPECIAL.has(field.type) ? (
-            <div>
-              <span className="mb-1.5 block text-sm font-medium">
-                답변 종류
-              </span>
-              <p className="border-border bg-surface-subtle text-muted rounded-lg border px-3 py-2 text-sm">
-                {FIELD_TYPE_LABELS[field.type] ?? field.type} (바꿀 수 없습니다)
-              </p>
-              <input type="hidden" name="type" value={field.type} />
-            </div>
-          ) : (
-            <div>
-              <label
-                className="mb-1.5 block text-sm font-medium"
-                htmlFor="type"
-              >
-                답변 종류{" "}
-                <span className="text-red-600 dark:text-red-400">*</span>
-              </label>
-              <select
-                id="type"
-                name="type"
-                required
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className={inputClass}
-              >
-                {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {NEEDS_OPTIONS.has(type) ? (
-            <div>
-              <span className="mb-1.5 block text-sm font-medium">
-                보기{" "}
-                <span className="text-muted font-normal">
-                  (가격을 넣으면 유료 옵션이 됩니다. 비워두면 무료)
-                </span>
-              </span>
-              <div className="space-y-2">
-                {options.map((option, index) => (
-                  <div
-                    key={index}
-                    className="border-border space-y-2 rounded-lg border p-3"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted shrink-0">
-                        {type === "single_choice" ? "○" : "☐"}
-                      </span>
-                      <input
-                        name="option"
-                        value={option}
-                        onChange={(e) => updateOption(index, e.target.value)}
-                        placeholder={`옵션 ${index + 1}`}
-                        className={`${inputClass} min-w-0`}
-                      />
-                      {/* inputClass 자체가 w-full이라, 이 칸에 폭을 좁히려고
-                        w-24를 같이 주면 둘 다 유틸리티 클래스라 어느 게
-                        이기는지 클래스 문자열 순서가 아니라 Tailwind가
-                        생성한 스타일시트 순서로 정해진다 — 실제로 w-full이
-                        이겨서 이 칸이 넓어지고 옆 칸(라벨)이 찌그러지는
-                        문제가 있었다. 폭을 별도 래퍼에 주고 input 자신은
-                        그 안에서 그냥 w-full(=래퍼 폭 전체)이 되게 하면
-                        이 충돌 자체가 안 생긴다. */}
-                      <div className="w-28 shrink-0">
-                        <MoneyInput
-                          name="optionPrice"
-                          value={optionPrices[index] ?? ""}
-                          onChange={(v) => updateOptionPrice(index, v)}
-                          placeholder="가격"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeOption(index)}
-                        aria-label="옵션 삭제"
-                        disabled={options.length <= 1}
-                        className="text-muted hover:text-foreground shrink-0 disabled:opacity-25"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <label className="block text-sm">
-                      <span className="mb-1 block font-medium">
-                        선택지 설명
-                      </span>
-                      <textarea
-                        name="optionDescription"
-                        aria-label={`옵션 ${index + 1} 설명`}
-                        rows={2}
-                        maxLength={1000}
-                        value={optionDescriptions[index] ?? ""}
-                        onChange={(e) =>
-                          setOptionDescriptions((prev) =>
-                            prev.map((value, i) =>
-                              i === index ? e.target.value : value,
-                            ),
-                          )
-                        }
-                        placeholder="이 선택지 바로 아래 표시할 설명을 입력합니다."
-                        className={inputClass}
-                      />
-                    </label>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={addOption}
-                className="text-brand mt-2 text-sm hover:underline"
-              >
-                + 옵션 추가
-              </button>
-            </div>
-          ) : null}
-
-          <div>
-            <span className="mb-1.5 block text-sm font-medium">
-              상세 설명{" "}
-              <span className="text-muted font-normal">
-                (질문 아래 작게 표시됩니다)
-              </span>
-            </span>
-            <FieldDescriptionEditor
-              key={editorEpoch}
-              name="description"
-              defaultValue={field?.description ?? ""}
-            />
-          </div>
-
-          <ErrorText>{saveError}</ErrorText>
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" onClick={close}>
-              취소
-            </Button>
-            <SubmitButton>확인</SubmitButton>
-          </div>
-        </form>
+        {editor}
       </dialog>
     </>
   );

@@ -6,7 +6,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProductEditorPanel } from "./product-editor-panel";
-import { CustomFieldsSection } from "./custom-fields-section";
 import { Button } from "@/components/ui";
 
 export const metadata: Metadata = { title: "상품 수정" };
@@ -68,19 +67,22 @@ export default async function EditProductPage({
           tagColor: product.tag_color,
         }}
         description={product.description ?? ""}
+        informationExtra={
+          <BookingCopyEditor
+            mode="details"
+            product={product}
+            initial={productCopy(copySettings?.booking_style, product.id)}
+          />
+        }
       >
-        <CustomFieldsSection
-          productId={product.id}
+        <BookingCopyEditor
+          depositRequired={depositEnabled(copySettings?.booking_style)}
           fields={customFields ?? []}
+          product={product}
           otherProducts={allProducts ?? []}
+          initial={productCopy(copySettings?.booking_style, product.id)}
         />
       </ProductEditorPanel>
-      <BookingCopyEditor
-        depositRequired={depositEnabled(copySettings?.booking_style)}
-        fields={customFields ?? []}
-        product={product}
-        initial={productCopy(copySettings?.booking_style, product.id)}
-      />
     </div>
   );
 }

@@ -1,0 +1,311 @@
+.product-editor-tabs {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid var(--color-border);
+  margin: 24px 0;
+}
+.product-editor-tabs button {
+  padding: 14px 2px;
+  font-weight: 600;
+  color: var(--color-muted);
+  border-bottom: 3px solid transparent;
+}
+.product-editor-tabs button[aria-selected="true"] {
+  color: var(--color-brand);
+  border-bottom-color: var(--color-brand);
+}
+.editor-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 22px;
+}
+.editor-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.editor-section-heading h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.editor-section-heading h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+.editor-section-heading p,
+.editor-help {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.editor-section-heading small {
+  color: var(--color-brand);
+  font-size: 11px;
+}
+.form-builder-grid {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 350px;
+  align-items: start;
+  gap: 18px;
+}
+.page-list {
+  padding: 18px 12px;
+}
+.page-list h3 {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 8px;
+  margin-bottom: 16px;
+}
+.page-list h3 > span {
+  float: right;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.page-list-item {
+  display: flex;
+  align-items: start;
+  gap: 9px;
+  width: 100%;
+  padding: 12px 10px;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  margin-bottom: 7px;
+}
+.page-list-item.selected {
+  background: #eef4ff;
+  border-color: #b5cdfa;
+  color: #295cca;
+}
+.page-list-item b {
+  font-size: 12px;
+}
+.page-list-item small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.7;
+  color: #8998af;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.page-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: #edf0f5;
+  color: #8d9aad;
+  font-size: 11px;
+}
+.selected .page-number {
+  background: #3869e8;
+  color: white;
+}
+.page-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: #95a3b8;
+}
+.page-list > button:last-of-type {
+  width: 100%;
+  margin: 10px 0;
+  border: 1px dashed #ced9ed;
+}
+.page-list hr {
+  border-color: var(--color-border);
+  margin: 18px 0;
+}
+.page-editor > div:has(> label) {
+  margin-bottom: 15px;
+}
+.builder-question {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 13px;
+  overflow-wrap: anywhere;
+}
+.builder-question-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 13px;
+}
+.builder-question-heading b {
+  font-size: 14px;
+}
+.builder-question-heading small {
+  display: block;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.builder-question button:not([class]),
+.page-editor > .editor-section-heading button:not([data-ui]),
+.page-delete button {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--color-surface);
+}
+.builder-question button:disabled,
+.page-editor button:disabled {
+  opacity: 0.3;
+}
+.builder-option {
+  background: #f7faff;
+  border: 1px solid #e1e8f4;
+  border-radius: 7px;
+  padding: 10px;
+  margin: 8px 0;
+  font-size: 12px;
+  color: #334155;
+}
+.builder-option b {
+  float: right;
+  font-size: 11px;
+  color: #4f78c5;
+}
+.builder-option p {
+  font-size: 11px;
+  color: #8494ad;
+  white-space: pre-wrap;
+  margin-top: 4px;
+}
+.builder-question-footer {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+.builder-question-footer label {
+  font-size: 11px;
+  color: var(--color-muted);
+  max-width: 75%;
+}
+.builder-question-footer select {
+  margin-top: 4px;
+  font-size: 12px;
+}
+.builder-preview {
+  background: #eff3f8;
+  padding: 18px;
+  border: 1px solid #e0e7f0;
+  border-radius: 14px;
+  position: sticky;
+  top: 20px;
+}
+.builder-preview select {
+  font-size: 11px;
+  max-width: 105px;
+  border: 1px solid #dce5f2;
+  border-radius: 6px;
+  padding: 5px;
+  background: white;
+  color: #4469ae;
+}
+.builder-preview .editor-help {
+  margin-top: 12px;
+}
+.editor-common-note {
+  background: #edf4ff;
+  color: #5775a8;
+  border-radius: 9px;
+  padding: 14px 18px;
+  margin-top: 18px;
+  font-size: 12px;
+}
+.booking-copy-settings {
+  margin-top: 24px;
+}
+.booking-copy-settings summary {
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.editor-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 0;
+  flex-wrap: wrap;
+}
+.editor-save-bar > span {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.page-delete {
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+  margin-top: 18px;
+}
+.page-delete summary {
+  color: #9f5361;
+  font-size: 12px;
+  cursor: pointer;
+}
+.page-delete button {
+  display: block;
+  margin-top: 8px;
+}
+.product-copy-editor iframe {
+  display: block;
+}
+@media (min-width: 1500px) {
+  .form-builder-grid {
+    grid-template-columns: 235px minmax(0, 1fr) 410px;
+  }
+}
+@media (max-width: 1250px) {
+  .form-builder-grid {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+  .builder-preview {
+    grid-column: 1/-1;
+    position: static;
+    max-width: 450px;
+    width: 100%;
+    justify-self: center;
+  }
+}
+@media (max-width: 650px) {
+  .form-builder-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .builder-preview {
+    grid-column: auto;
+  }
+  .editor-section-heading {
+    flex-wrap: wrap;
+  }
+  .editor-card {
+    padding: 16px;
+  }
+  .page-list-item {
+    padding: 9px;
+  }
+  .builder-question {
+    padding: 12px;
+  }
+  .builder-question-heading {
+    flex-wrap: wrap;
+  }
+}
+
+.page-editor > label {
+  margin-bottom: 16px;
+}
+.builder-question > label {
+  margin-top: 12px;
+}

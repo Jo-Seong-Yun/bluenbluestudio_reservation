@@ -1,14 +1,10 @@
 "use client";
+import { formPages, orderedFormFields } from "@/lib/booking/form-pages";
 import { answerDrafts, draftStorageKey } from "@/lib/booking/drafts";
-import {
-  resolveCopy,
-  fieldGroup,
-  GROUP_COPY_KEYS,
-  type BookingCopy,
-} from "@/lib/booking/copy";
+import { resolveCopy, fieldGroup, type BookingCopy } from "@/lib/booking/copy";
 import {
   analyticsContext,
-  trackBooking,
+  trackBooking as emitBooking,
   flushAnalytics,
   finishAnalyticsAttempt,
 } from "@/lib/analytics/client";
@@ -21,6 +17,7 @@ import { BookingSteps } from "@/components/booking-shell";
 
 import {
   useActionState,
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -103,7 +100,11 @@ export function ReservationForm({
   successHeading,
   successMessage,
   customFields,
+  previewOnly = false,
+  initialGroup,
 }: {
+  previewOnly?: boolean;
+  initialGroup?: number;
   copy?: BookingCopy;
   depositRequired?: boolean;
   productId: string;
@@ -122,23 +123,42 @@ export function ReservationForm({
   successMessage: string;
   customFields: CustomField[];
 }) {
-  const fields = useMemo(
-    () => visibleBookingFields(customFields),
-    [customFields],
+  const trackBooking = useCallback(
+    (...args: Parameters<typeof emitBooking>) => {
+      if (!previewOnly) emitBooking(...args);
+    },
+    [previewOnly],
   );
-  const [initialAnswers, setInitialAnswers] = useState(
-    () => answerDrafts.get(productId) ?? {},
+  const copy = useMemo(() => resolveCopy(rawCopy), [rawCopy]);
+  const pages = useMemo(() => formPages(copy), [copy]);
+  const fields = useMemo(() => {
+    const rank = new Map(pages.map((page, index) => [page.id, index]));
+    return orderedFormFields(visibleBookingFields(customFields), copy)
+      .sort(
+        (a, b) =>
+          (rank.get(fieldGroup(a, copy)) ?? 0) -
+          (rank.get(fieldGroup(b, copy)) ?? 0),
+      )
+      .map((field, index) => ({ ...field, sort_order: index }));
+  }, [customFields, copy, pages]);
+  const [initialAnswers, setInitialAnswers] = useState(() =>
+    previewOnly ? {} : (answerDrafts.get(productId) ?? {}),
   );
   const [draftRestored, setDraftRestored] = useState(false);
-  const copy = useMemo(() => resolveCopy(rawCopy), [rawCopy]);
   const groups = useMemo(
     () =>
-      [0, 1, 2, 3].filter((group) =>
-        fields.some((field) => fieldGroup(field, copy) === group),
-      ),
-    [fields, copy],
+      pages
+        .map((page) => page.id)
+        .filter((group) =>
+          fields.some((field) => fieldGroup(field, copy) === group),
+        ),
+    [fields, copy, pages],
   );
-  const [currentGroup, setCurrentGroup] = useState(groups[0] ?? 0);
+  const [currentGroup, setCurrentGroup] = useState(
+    initialGroup !== undefined && groups.includes(initialGroup)
+      ? initialGroup
+      : (groups[0] ?? 0),
+  );
   const entryGroupRef = useRef(currentGroup);
   const pageEntryFocusRef = useRef<number | null>(null);
   const initialPageFocusHandled = useRef(false);
@@ -225,7 +245,9 @@ export function ReservationForm({
   useEffect(() => {
     const restoreFrame = requestAnimationFrame(() => {
       try {
-        const raw = sessionStorage.getItem(draftStorageKey(productId));
+        const raw = previewOnly
+          ? null
+          : sessionStorage.getItem(draftStorageKey(productId));
         if (raw) {
           const saved = JSON.parse(raw);
           if (
@@ -258,7 +280,8 @@ export function ReservationForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
   useEffect(() => {
-    if (!draftRestored || initialPageFocusHandled.current) return;
+    if (previewOnly || !draftRestored || initialPageFocusHandled.current)
+      return;
     // 답변 복원으로 입력 DOM을 다시 만든 뒤 첫 페이지에서 한 번만 초점을 줍니다.
     initialPageFocusHandled.current = true;
     if (reviewing || currentGroup !== groups[0]) return;
@@ -276,11 +299,12 @@ export function ReservationForm({
           ? "instant"
           : "smooth",
       });
-  }, [draftRestored, currentGroup, groups, reviewing]);
+  }, [draftRestored, currentGroup, groups, reviewing, previewOnly]);
   useEffect(() => {
     if (!draftRestored) return;
     syncFieldSnapshots();
     recomputeEstimate();
+    if (previewOnly) return;
     try {
       const answers = answerDrafts.get(productId);
       if (answers)
@@ -470,6 +494,7 @@ export function ReservationForm({
     previous: ReservationActionState,
     data: FormData,
   ) {
+    if (previewOnly) return initialState;
     try {
       const context = analyticsContext(productId);
       data.set("analyticsSessionId", context.sessionId);
@@ -479,7 +504,7 @@ export function ReservationForm({
       trackBooking("submit_attempt", productId, {
         formVersion: bookingFormVersion(fields),
       });
-      flushAnalytics();
+      if (!previewOnly) flushAnalytics();
     } catch {
       /* 통계 실패가 접수를 막지 않습니다. */
     }
@@ -495,7 +520,7 @@ export function ReservationForm({
         try {
           sessionStorage.removeItem(draftStorageKey(productId));
         } catch {}
-        flushAnalytics();
+        if (!previewOnly) flushAnalytics();
         finishAnalyticsAttempt(productId);
       }
       return result;
@@ -531,7 +556,14 @@ export function ReservationForm({
         formVersion,
       });
     }
-  }, [activeFieldId, reviewing, productId, formVersion, state.status]);
+  }, [
+    activeFieldId,
+    reviewing,
+    productId,
+    formVersion,
+    state.status,
+    trackBooking,
+  ]);
   useEffect(() => {
     const timer = setTimeout(() => {
       for (const field of fields) {
@@ -558,7 +590,14 @@ export function ReservationForm({
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [fieldSnapshots, formVersion, productId, activeFieldId, fields]);
+  }, [
+    fieldSnapshots,
+    formVersion,
+    productId,
+    activeFieldId,
+    fields,
+    trackBooking,
+  ]);
   const [pricedItems, setPricedItems] = useState<
     { fieldId: string; label: string; price: number }[]
   >([]);
@@ -871,7 +910,7 @@ export function ReservationForm({
     syncFieldSnapshots();
     setAnswers(bookingReviewAnswers(fields, new FormData(form)));
     trackBooking("review_view", productId, { formVersion });
-    flushAnalytics();
+    if (!previewOnly) flushAnalytics();
     setReviewing(true);
     requestAnimationFrame(() =>
       document.getElementById("booking-review-heading")?.focus(),
@@ -933,7 +972,7 @@ export function ReservationForm({
             )
             .forEach((input) => input.setCustomValidity(""));
           if (block?.dataset.fieldId === fieldError?.id) setFieldError(null);
-          if (formRef.current) {
+          if (!previewOnly && formRef.current) {
             const data = new FormData(formRef.current);
             answerDrafts.set(
               productId,
@@ -946,14 +985,15 @@ export function ReservationForm({
             );
           }
           try {
-            sessionStorage.setItem(
-              draftStorageKey(productId),
-              JSON.stringify({
-                answers: answerDrafts.get(productId),
-                group: currentGroup,
-                savedAt: Date.now(),
-              }),
-            );
+            if (!previewOnly)
+              sessionStorage.setItem(
+                draftStorageKey(productId),
+                JSON.stringify({
+                  answers: answerDrafts.get(productId),
+                  group: currentGroup,
+                  savedAt: Date.now(),
+                }),
+              );
           } catch {
             /* Browser storage is optional; input must remain usable. */
           }
@@ -965,6 +1005,10 @@ export function ReservationForm({
           }
         }}
         onSubmit={(event) => {
+          if (previewOnly) {
+            event.preventDefault();
+            return;
+          }
           if (!reviewing) {
             event.preventDefault();
             confirm();
@@ -1018,16 +1062,20 @@ export function ReservationForm({
             {groups.map((group) => (
               <span
                 key={group}
-                className={group <= currentGroup ? "done" : ""}
+                className={
+                  groups.indexOf(group) <= groups.indexOf(currentGroup)
+                    ? "done"
+                    : ""
+                }
               />
             ))}
           </div>
           <h1 className="text-2xl font-bold">
-            {copy[GROUP_COPY_KEYS[currentGroup][0]]}
+            {pages.find((page) => page.id === currentGroup)?.title}
           </h1>
-          {copy[GROUP_COPY_KEYS[currentGroup][1]] ? (
+          {pages.find((page) => page.id === currentGroup)?.intro ? (
             <p className="booking-lead">
-              {copy[GROUP_COPY_KEYS[currentGroup][1]]}
+              {pages.find((page) => page.id === currentGroup)?.intro}
             </p>
           ) : null}
           <p className="booking-form-help">
@@ -1157,10 +1205,14 @@ export function ReservationForm({
                 ready={forwardReady}
                 key="submit-reservation"
                 type="submit"
-                disabled={pending}
+                disabled={pending || previewOnly}
                 className={`${PRIMARY_CTA_CLASS} mt-4`}
               >
-                {pending ? "접수 중…" : "예약 신청하기"}
+                {previewOnly
+                  ? "미리보기에서는 접수하지 않습니다"
+                  : pending
+                    ? "접수 중…"
+                    : "예약 신청하기"}
               </BookingCTA>
             ) : (
               <BookingCTA
@@ -1215,103 +1267,109 @@ export function ReservationFields({
 }) {
   return (
     <div className={navigation ? "booking-question-list" : undefined}>
-      {visibleBookingFields(fields).map((field, index) => {
-        const active = navigation?.activeId === field.id;
-        const snapshot = navigation?.snapshots[field.id];
-        const complete =
-          snapshot?.valid &&
-          (snapshot.answered || navigation?.passedIds.includes(field.id));
-        const error =
-          navigation?.error?.id === field.id ? navigation.error.message : null;
-        const headingId = `question-heading-${field.id}`;
-        const panelId = `question-panel-${field.id}`;
-        return (
-          <div
-            key={field.id}
-            hidden={
-              navigation?.visibleIds
-                ? !navigation.visibleIds.includes(field.id)
-                : false
-            }
-            data-field-block
-            data-field-type={field.type}
-            data-gender={
-              field.type === "gender" ||
-              (field.type === "single_choice" && /성별/.test(field.label))
-                ? "true"
-                : undefined
-            }
-            data-field-id={field.id}
-            className={[
-              FIELD_WRAPPER_CLASS,
-              navigation ? "booking-question" : "",
-              navigation && active ? "is-active" : "",
-              navigation && complete ? "is-complete" : "",
-              navigation && error ? "has-error" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            {navigation ? (
-              <>
-                <button
-                  id={headingId}
-                  type="button"
-                  className="booking-question-heading"
-                  aria-controls={panelId}
-                  onClick={() => navigation.onSelect(field.id)}
-                >
-                  <span className="booking-question-dot" aria-hidden>
-                    {complete && !active
-                      ? "✓"
-                      : String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="booking-question-heading-copy">
-                    <span className="booking-question-title">
-                      {field.label}
-                      {field.required ? (
-                        <span className="booking-question-required">필수</span>
-                      ) : null}
-                      {active ? (
-                        <span className="booking-question-current">
-                          작성 중
-                        </span>
-                      ) : null}
+      {orderedFormFields(visibleBookingFields(fields), placeholders ?? {}).map(
+        (field, index) => {
+          const active = navigation?.activeId === field.id;
+          const snapshot = navigation?.snapshots[field.id];
+          const complete =
+            snapshot?.valid &&
+            (snapshot.answered || navigation?.passedIds.includes(field.id));
+          const error =
+            navigation?.error?.id === field.id
+              ? navigation.error.message
+              : null;
+          const headingId = `question-heading-${field.id}`;
+          const panelId = `question-panel-${field.id}`;
+          return (
+            <div
+              key={field.id}
+              hidden={
+                navigation?.visibleIds
+                  ? !navigation.visibleIds.includes(field.id)
+                  : false
+              }
+              data-field-block
+              data-field-type={field.type}
+              data-gender={
+                field.type === "gender" ||
+                (field.type === "single_choice" && /성별/.test(field.label))
+                  ? "true"
+                  : undefined
+              }
+              data-field-id={field.id}
+              className={[
+                FIELD_WRAPPER_CLASS,
+                navigation ? "booking-question" : "",
+                navigation && active ? "is-active" : "",
+                navigation && complete ? "is-complete" : "",
+                navigation && error ? "has-error" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {navigation ? (
+                <>
+                  <button
+                    id={headingId}
+                    type="button"
+                    className="booking-question-heading"
+                    aria-controls={panelId}
+                    onClick={() => navigation.onSelect(field.id)}
+                  >
+                    <span className="booking-question-dot" aria-hidden>
+                      {complete && !active
+                        ? "✓"
+                        : String(index + 1).padStart(2, "0")}
                     </span>
-                  </span>
-                </button>
-                <div
-                  id={panelId}
-                  aria-labelledby={headingId}
-                  className="booking-question-panel"
-                >
-                  <ReservationFieldInput
-                    field={field}
-                    values={initialAnswers[field.id] ?? []}
-                    placeholderText={placeholders[`placeholder:${field.id}`]}
-                  />
-                  {error ? (
-                    <p className="booking-question-error" role="alert">
-                      {error}
+                    <span className="booking-question-heading-copy">
+                      <span className="booking-question-title">
+                        {field.label}
+                        {field.required ? (
+                          <span className="booking-question-required">
+                            필수
+                          </span>
+                        ) : null}
+                        {active ? (
+                          <span className="booking-question-current">
+                            작성 중
+                          </span>
+                        ) : null}
+                      </span>
+                    </span>
+                  </button>
+                  <div
+                    id={panelId}
+                    aria-labelledby={headingId}
+                    className="booking-question-panel"
+                  >
+                    <ReservationFieldInput
+                      field={field}
+                      values={initialAnswers[field.id] ?? []}
+                      placeholderText={placeholders[`placeholder:${field.id}`]}
+                    />
+                    {error ? (
+                      <p className="booking-question-error" role="alert">
+                        {error}
+                      </p>
+                    ) : null}
+                    <p className="booking-question-key-hint">
+                      {field.type === "long_text"
+                        ? "Enter는 다음 문항 · Shift+Enter는 줄바꿈"
+                        : "Enter로 다음 문항 · 제목을 눌러 이동할 수도 있습니다."}
                     </p>
-                  ) : null}
-                  <p className="booking-question-key-hint">
-                    {field.type === "long_text"
-                      ? "Enter는 다음 문항 · Shift+Enter는 줄바꿈"
-                      : "Enter로 다음 문항 · 제목을 눌러 이동할 수도 있습니다."}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <ReservationFieldInput
-                field={field}
-                values={initialAnswers[field.id] ?? []}
-                placeholderText={placeholders[`placeholder:${field.id}`]}
-              />
-            )}
-          </div>
-        );
-      })}
+                  </div>
+                </>
+              ) : (
+                <ReservationFieldInput
+                  field={field}
+                  values={initialAnswers[field.id] ?? []}
+                  placeholderText={placeholders[`placeholder:${field.id}`]}
+                />
+              )}
+            </div>
+          );
+        },
+      )}
     </div>
   );
 }

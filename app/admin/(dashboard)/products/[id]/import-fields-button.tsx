@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { importCustomFieldsFromProduct } from "@/app/admin/actions";
-import { Button, inputClass } from "@/components/ui";
+import type { BookingCopy } from "@/lib/booking/copy";
+import { Button, inputClass, ErrorText } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 
 /**
@@ -16,10 +17,15 @@ import { SubmitButton } from "@/components/submit-button";
 export function ImportFieldsButton({
   productId,
   otherProducts,
+  disabled = false,
+  onImported,
 }: {
   productId: string;
+  disabled?: boolean;
+  onImported?: (copy: BookingCopy) => void;
   otherProducts: { id: string; name: string }[];
 }) {
+  const [error, setError] = useState<string>();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   if (otherProducts.length === 0) return null;
@@ -34,7 +40,13 @@ export function ImportFieldsButton({
 
   return (
     <>
-      <Button type="button" variant="ghost" onClick={open}>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={open}
+        disabled={disabled}
+        title={disabled ? "먼저 페이지 구성을 저장해 주십시오." : undefined}
+      >
         다른 상품에서 가져오기
       </Button>
 
@@ -55,8 +67,19 @@ export function ImportFieldsButton({
         </div>
 
         <form
-          action={importCustomFieldsFromProduct}
-          onSubmit={close}
+          action={async (data) => {
+            setError(undefined);
+            try {
+              const result = await importCustomFieldsFromProduct(data);
+              if (result.error) setError(result.error);
+              else {
+                if (result.copy) onImported?.(result.copy);
+                close();
+              }
+            } catch {
+              setError("가져오지 못했습니다. 다시 시도해 주십시오.");
+            }
+          }}
           className="space-y-4 p-5"
         >
           <input type="hidden" name="targetProductId" value={productId} />
@@ -87,12 +110,13 @@ export function ImportFieldsButton({
           </div>
 
           <p className="text-muted text-xs">
-            이름·연락처·이메일·성별·생년월일처럼 상품마다 이미 있는 기본
-            문항은 제외하고, 나머지 활성화된 문항만 복사해 지금 상품 맨
-            끝에 추가합니다. 고른 상품의 문항은 그대로 남고 바뀌지
+            이름·연락처·이메일·성별·생년월일처럼 상품마다 이미 있는 기본 문항은
+            제외하고, 나머지 활성화된 문항만 복사해 페이지 이름·설명·배치와 함께
+            새 페이지로 추가합니다. 고른 상품의 문항은 그대로 남고 바뀌지
             않습니다.
           </p>
 
+          <ErrorText>{error}</ErrorText>
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={close}>
               취소
