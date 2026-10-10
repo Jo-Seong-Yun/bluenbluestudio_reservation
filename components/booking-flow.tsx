@@ -125,9 +125,15 @@ export function BookingFlow({
           </strong>
           <span>{basePrice.toLocaleString()}원</span>
         </div>
-        <h1 className="text-2xl font-bold">{copy.timesTitle}</h1>
-        <p className="text-muted mt-2 mb-6 text-sm">{copy.timesIntro}</p>
-        <p className="text-muted mb-4 text-xs">{copy.timesGuide}</p>
+        <h1 className="text-2xl font-bold">
+          <span data-preview-target="copy:timesTitle">{copy.timesTitle}</span>
+        </h1>
+        <p className="text-muted mt-2 mb-6 text-sm">
+          <span data-preview-target="copy:timesIntro">{copy.timesIntro}</span>
+        </p>
+        <p className="text-muted mb-4 text-xs">
+          <span data-preview-target="copy:timesGuide">{copy.timesGuide}</span>
+        </p>
         <div className="grid gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <CalendarGrid
             month={month}
@@ -154,7 +160,11 @@ export function BookingFlow({
                   불러오는 중…
                 </p>
               ) : !selectedDate ? (
-                <p className="text-muted text-sm">{copy.timesEmpty}</p>
+                <p className="text-muted text-sm">
+                  <span data-preview-target="copy:timesEmpty">
+                    {copy.timesEmpty}
+                  </span>
+                </p>
               ) : slots.length === 0 ? (
                 <p className="text-muted text-sm">
                   이 날짜는 예약할 수 있는 시간이 없습니다.
@@ -239,7 +249,9 @@ export function BookingFlow({
             disabled={!isFull || pending}
             className="mt-5 min-h-12 w-full text-base"
           >
-            {copy.timesButton}
+            <span data-preview-target="copy:timesButton">
+              {copy.timesButton}
+            </span>
           </BookingCTA>
           <p>
             {isFull
@@ -247,7 +259,9 @@ export function BookingFlow({
               : `희망 시간을 ${MAX_CANDIDATES - candidates.length}개 더 선택합니다.`}
           </p>
         </div>
-        <p className="booking-small-copy">{copy.timesNote}</p>
+        <p className="booking-small-copy">
+          <span data-preview-target="copy:timesNote">{copy.timesNote}</span>
+        </p>
         <p className="text-muted mt-4 text-xs leading-relaxed">
           {depositRequired ? "확정 안내 전에는 입금하지 않습니다. " : ""}추가
           옵션은 신청서에서 선택합니다.

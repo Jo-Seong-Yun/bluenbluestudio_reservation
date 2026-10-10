@@ -76,6 +76,7 @@ export function BookingCopyEditor({
   const [stage, setStage] = useState<
     "detail" | "times" | "form" | "review" | "success"
   >("form");
+  const [focusTarget, setFocusTarget] = useState<string | null>(null);
   const [desktop, setDesktop] = useState(false);
   const pages = draftPages;
   const layoutCopy = copyWithPages(
@@ -227,7 +228,46 @@ export function BookingCopyEditor({
             : 4
     ];
   return (
-    <section className="product-copy-editor">
+    <section
+      className="product-copy-editor"
+      onFocusCapture={(event) => {
+        const input = event.target as HTMLElement;
+        const explicit = input.closest<HTMLElement>("[data-preview-target]")
+          ?.dataset.previewTarget;
+        if (explicit) {
+          setFocusTarget(explicit);
+          return;
+        }
+        const field = input.closest<HTMLElement>("[data-editor-field]")?.dataset
+          .editorField;
+        if (!field) {
+          setFocusTarget(null);
+          return;
+        }
+        const name = input.getAttribute("name");
+        const part =
+          name === "option"
+            ? "option"
+            : name === "optionDescription"
+              ? "option-description"
+              : name === "optionPrice"
+                ? "price"
+                : input.closest(".ProseMirror")
+                  ? "description"
+                  : "label";
+        const index =
+          name && ["option", "optionDescription", "optionPrice"].includes(name)
+            ? Array.from(
+                input.closest("form")?.querySelectorAll(`[name="${name}"]`) ??
+                  [],
+              ).indexOf(input)
+            : -1;
+        setFocusTarget(
+          `field:${field}:${part}${index >= 0 ? `:${index}` : ""}`,
+        );
+      }}
+      onBlurCapture={() => setFocusTarget(null)}
+    >
       <form id={formId} action={action}>
         <input type="hidden" name="productId" value={product.id} />
         {mode === "form" ? (
@@ -257,6 +297,7 @@ export function BookingCopyEditor({
                 <input
                   type="hidden"
                   name={`placeholder:${field.id}`}
+                  data-preview-target={`field:${field.id}:placeholder`}
                   value={copy[`placeholder:${field.id}`] ?? ""}
                 />
               </span>
@@ -325,7 +366,7 @@ export function BookingCopyEditor({
                 return (
                   <div
                     key={p.id}
-                    className={`page-list-item ${stage === "form" && page.id === p.id ? "selected" : ""}`}
+                    className={`page-list-item ${stage === "form" && page.id === p.id ? `selected ${focusTarget === "page:name" ? "preview-page-focus" : ""}` : ""}`}
                   >
                     <button
                       type="button"
@@ -427,6 +468,7 @@ export function BookingCopyEditor({
                   <Field label="페이지 이름">
                     <input
                       className={inputClass}
+                      data-preview-target="page:name"
                       value={page.label}
                       maxLength={80}
                       onChange={(e) => updatePage("label", e.target.value)}
@@ -435,6 +477,7 @@ export function BookingCopyEditor({
                   <Field label="고객 화면의 페이지 제목">
                     <input
                       className={inputClass}
+                      data-preview-target="page:title"
                       value={page.title}
                       maxLength={1000}
                       onChange={(e) => updatePage("title", e.target.value)}
@@ -444,6 +487,7 @@ export function BookingCopyEditor({
                     <textarea
                       className={inputClass}
                       rows={2}
+                      data-preview-target="page:intro"
                       value={page.intro}
                       maxLength={1000}
                       onChange={(e) => updatePage("intro", e.target.value)}
@@ -462,7 +506,11 @@ export function BookingCopyEditor({
                     />
                   </div>
                   {pageFields.map((field, index) => (
-                    <article className="builder-question" key={field.id}>
+                    <article
+                      className="builder-question"
+                      key={field.id}
+                      data-editor-field={field.id}
+                    >
                       <div className="builder-question-heading">
                         <div>
                           <b>{field.label}</b>
@@ -543,6 +591,7 @@ export function BookingCopyEditor({
                         <Field label="입력 예시">
                           <input
                             className={inputClass}
+                            data-preview-target={`field:${field.id}:placeholder`}
                             value={copy[`placeholder:${field.id}`] ?? ""}
                             maxLength={200}
                             placeholder="비우면 기본 입력 예시"
@@ -616,6 +665,7 @@ export function BookingCopyEditor({
                   {Object.entries(stageSection[1]).map(([key, value]) => (
                     <Field key={key} label={COPY_LABELS[key] ?? value}>
                       <textarea
+                        data-preview-target={`copy:${key}`}
                         aria-label={COPY_LABELS[key] ?? value}
                         maxLength={1000}
                         value={copy[key]}
@@ -657,6 +707,7 @@ export function BookingCopyEditor({
                   copy: layoutCopy,
                   group: page.id,
                   stage,
+                  focusTarget,
                   bankAccount,
                   notice,
                   depositRequired,
