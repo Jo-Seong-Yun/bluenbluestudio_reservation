@@ -1,4 +1,8 @@
-import {SNS_CONSENT_FIELD_LABEL, type CustomField} from "./custom-fields-shared";
+import { parseFormPages, formPages } from "./form-pages";
+import {
+  SNS_CONSENT_FIELD_LABEL,
+  type CustomField,
+} from "./custom-fields-shared";
 export const COPY_SECTIONS = [
   [
     "상품설명",
@@ -93,7 +97,7 @@ export function resolveCopy(raw: unknown): BookingCopy {
     for (const [key, value] of Object.entries(raw))
       if (
         /^group:[a-zA-Z0-9-]{1,80}$/.test(key) &&
-        ["0", "1", "2", "3"].includes(String(value))
+        /^\d{1,3}$/.test(String(value))
       )
         result[key] = String(value);
   if (raw && typeof raw === "object")
@@ -103,6 +107,16 @@ export function resolveCopy(raw: unknown): BookingCopy {
         typeof value === "string"
       )
         result[key] = value.slice(0, 200);
+  if (raw && typeof raw === "object") {
+    const pages = parseFormPages((raw as BookingCopy).formPages);
+    if (pages) result.formPages = JSON.stringify(pages);
+    for (const [key, value] of Object.entries(raw))
+      if (
+        /^order:[a-zA-Z0-9-]{1,80}$/.test(key) &&
+        /^\d{1,6}$/.test(String(value))
+      )
+        result[key] = String(value);
+  }
   return result;
 }
 export function productCopy(style: unknown, id: string): BookingCopy {
@@ -113,9 +127,24 @@ export function productCopy(style: unknown, id: string): BookingCopy {
 }
 export function fieldGroup(field: CustomField, copy?: BookingCopy): number {
   const assigned = copy?.[`group:${field.id}`];
-  if (assigned && ["0", "1", "2", "3"].includes(assigned))
+  const pages = copy ? formPages(copy) : null;
+  if (
+    assigned &&
+    /^\d{1,3}$/.test(assigned) &&
+    (!pages || pages.some((page) => page.id === Number(assigned)))
+  )
     return Number(assigned);
-  if (field.label===SNS_CONSENT_FIELD_LABEL || /SNS|개인정보|동의|약관/i.test(field.label)) return 3;
+  const defaultGroup = legacyFieldGroup(field);
+  return !pages || pages.some((page) => page.id === defaultGroup)
+    ? defaultGroup
+    : pages[0].id;
+}
+function legacyFieldGroup(field: CustomField): number {
+  if (
+    field.label === SNS_CONSENT_FIELD_LABEL ||
+    /SNS|개인정보|동의|약관/i.test(field.label)
+  )
+    return 3;
   if (
     /신청자|신청인|관계|본인/.test(field.label) ||
     ["phone", "email"].includes(field.type)
