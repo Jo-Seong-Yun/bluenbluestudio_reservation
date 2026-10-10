@@ -124,7 +124,7 @@ export function ProductEditorPanel({
           id="product-application-tab"
           onClick={() => setTab("application")}
         >
-          신청서 구성
+          예약 페이지 구성
         </button>
       </div>
       <div

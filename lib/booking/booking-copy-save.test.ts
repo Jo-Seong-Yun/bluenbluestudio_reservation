@@ -98,3 +98,42 @@ it("rejects invalid assignments and keeps failed saves as errors", async () => {
     error: "저장 실패",
   });
 });
+
+it("persists the full product journey copy alongside page assignments without losing existing data", async () => {
+  const original = copyWithPages(
+    resolveCopy({ "group:q": "2", "placeholder:q": "기존 예시" }),
+    formPages(resolveCopy(null)),
+  );
+  let saved:
+    { productCopies: Record<string, Record<string, string>> } | undefined;
+  updateBookingSettings.mockImplementation(async (transform) => {
+    saved = transform({
+      productCopies: { a: original, b: { timesTitle: "다른 상품" } },
+    });
+  });
+  const changes = {
+    detailIntro: "상품별 소개",
+    detailButton: "일정 확인",
+    timesTitle: "일정 제목",
+    timesButton: "작성 시작",
+    reviewTitle: "확인 제목",
+    reviewIntro: "",
+    reviewButton: "신청 접수",
+    successTitle: "접수 제목",
+    next1Body: "맞춤 다음 절차",
+    successButton: "내 신청 조회",
+  };
+  const data = new FormData();
+  data.set("productId", "a");
+  data.set("formPages", original.formPages);
+  data.set("group:q", "2");
+  for (const [key, value] of Object.entries(changes)) data.set(key, value);
+  expect(await saveProductBookingCopy(null, data)).toEqual({ success: true });
+  expect(saved!.productCopies.a).toMatchObject({
+    ...changes,
+    "placeholder:q": "기존 예시",
+    "group:q": "2",
+    formPages: original.formPages,
+  });
+  expect(saved!.productCopies.b).toEqual({ timesTitle: "다른 상품" });
+});

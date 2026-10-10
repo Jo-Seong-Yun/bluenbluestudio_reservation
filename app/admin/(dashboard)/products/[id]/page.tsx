@@ -37,7 +37,7 @@ export default async function EditProductPage({
   if (!product) notFound();
   const { data: copySettings } = await supabase
     .from("settings")
-    .select("booking_style")
+    .select("booking_style, bank_account, notice")
     .eq("id", 1)
     .single();
 
@@ -67,15 +67,10 @@ export default async function EditProductPage({
           tagColor: product.tag_color,
         }}
         description={product.description ?? ""}
-        informationExtra={
-          <BookingCopyEditor
-            mode="details"
-            product={product}
-            initial={productCopy(copySettings?.booking_style, product.id)}
-          />
-        }
       >
         <BookingCopyEditor
+          bankAccount={copySettings?.bank_account ?? null}
+          notice={copySettings?.notice ?? null}
           depositRequired={depositEnabled(copySettings?.booking_style)}
           fields={customFields ?? []}
           product={product}

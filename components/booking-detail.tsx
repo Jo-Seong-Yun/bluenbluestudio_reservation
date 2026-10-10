@@ -1,4 +1,4 @@
-import {depositContent} from "@/lib/booking/deposit-content";
+import { depositContent } from "@/lib/booking/deposit-content";
 import Link from "next/link";
 import { RichText } from "@/components/rich-text";
 import { resolveCopy, type BookingCopy } from "@/lib/booking/copy";
@@ -83,19 +83,26 @@ export function BookingDetail({
           </ol>
           <p className="booking-small-copy">
             희망 시간 신청만으로 일정이 확정되지 않습니다.
-            {depositRequired ? <><br/>확정 안내 전에는 입금하지 않습니다.</> : null}
+            {depositRequired ? (
+              <>
+                <br />
+                확정 안내 전에는 입금하지 않습니다.
+              </>
+            ) : null}
           </p>
         </section>
       </div>
       {product.description ? (
         <section className="booking-extra-description booking-detail-description-card">
-          <h2>상세 내용</h2>
-          <RichText>{depositContent(product.description,depositRequired)}</RichText>
+          <h2>{copy.detailDescriptionTitle}</h2>
+          <RichText>
+            {depositContent(product.description, depositRequired)}
+          </RichText>
         </section>
       ) : null}
       {product.delivery_note ? (
         <section className="booking-extra-description">
-          <h2>결과물 안내</h2>
+          <h2>{copy.detailDeliveryTitle}</h2>
           <p>{product.delivery_note}</p>
         </section>
       ) : null}
@@ -107,9 +114,9 @@ export function BookingDetail({
           href={`/booking/${product.slug}?step=times`}
           className="booking-primary booking-cta-ripple"
         >
-          <span className="relative z-[1]">촬영 일정 선택하기 →</span>
+          <span className="relative z-[1]">{copy.detailButton}</span>
         </Link>
-        <p>날짜 확인만으로 예약이 확정되지는 않습니다.</p>
+        <p>{copy.detailButtonNote}</p>
       </div>
     </main>
   );
