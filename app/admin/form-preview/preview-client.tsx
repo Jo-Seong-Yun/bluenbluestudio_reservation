@@ -15,6 +15,7 @@ export type FormPreviewData = {
   fields: CustomField[];
   copy: BookingCopy;
   group: number;
+  focusTarget?: string | null;
   stage?: "detail" | "times" | "form" | "review" | "success";
   depositRequired: boolean;
   bankAccount?: string | null;
@@ -36,6 +37,9 @@ export function FormPreviewClient() {
         !Array.isArray(value.fields) ||
         !value.copy ||
         !Number.isInteger(value.group) ||
+        (value.focusTarget != null &&
+          (typeof value.focusTarget !== "string" ||
+            value.focusTarget.length > 200)) ||
         (value.stage !== undefined &&
           !["detail", "times", "form", "review", "success"].includes(
             value.stage,
@@ -51,6 +55,84 @@ export function FormPreviewClient() {
     );
     return () => window.removeEventListener("message", receive);
   }, []);
+  useEffect(() => {
+    let frame = 0;
+    let lastTarget: Element | null = null;
+    function clear() {
+      document
+        .querySelectorAll(
+          ".booking-preview-text-focus, .booking-preview-field-focus",
+        )
+        .forEach((element) =>
+          element.classList.remove(
+            "booking-preview-text-focus",
+            "booking-preview-field-focus",
+          ),
+        );
+    }
+    function highlight() {
+      clear();
+      const key = data?.focusTarget;
+      if (!key || key === "page:name") return;
+      let target = document.querySelector<HTMLElement>(
+        `[data-preview-target="${CSS.escape(key)}"]`,
+      );
+      const match = /^field:([^:]+):/.exec(key);
+      const field = match
+        ? document.querySelector<HTMLElement>(
+            `[data-field-id="${CSS.escape(match[1])}"]`,
+          )
+        : null;
+      if (field) {
+        field.classList.add("booking-preview-field-focus");
+        if (!target)
+          target = field.querySelector<HTMLElement>(
+            key.endsWith(":placeholder")
+              ? "input:not([type=hidden]), textarea"
+              : ".booking-question-title",
+          );
+      }
+      if (!target) return;
+      target.classList.add("booking-preview-text-focus");
+      const rect = target.getBoundingClientRect();
+      if (
+        target !== lastTarget &&
+        (rect.top < 20 || rect.bottom > window.innerHeight - 100)
+      ) {
+        // This browsing context is the preview iframe; the editor never scrolls.
+        window.scrollTo({
+          top: Math.max(
+            0,
+            window.scrollY +
+              rect.top -
+              window.innerHeight / 2 +
+              rect.height / 2,
+          ),
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "instant"
+            : "smooth",
+        });
+      }
+      lastTarget = target;
+    }
+    function schedule() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(highlight);
+    }
+    schedule();
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      clear();
+    };
+  }, [data]);
   if (!data)
     return (
       <p className="p-5 text-sm text-slate-500">
@@ -59,6 +141,10 @@ export function FormPreviewClient() {
     );
   return (
     <PendingOverlayProvider>
+      <style>{`
+        .booking-preview-text-focus { background: #fff0a6 !important; color: #192c43 !important; box-shadow: 0 0 0 3px #fff0a6; border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+        .booking-preview-field-focus .booking-question-panel { display: block !important; max-height: none !important; opacity: 1 !important; visibility: visible !important; }
+      `}</style>
       <div
         className="booking-workspace booking-page"
         onClickCapture={(event) => {

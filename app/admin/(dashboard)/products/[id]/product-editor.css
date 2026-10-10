@@ -316,3 +316,5 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+.page-list-item.preview-page-focus { box-shadow: 0 0 0 3px #fff0a6; }

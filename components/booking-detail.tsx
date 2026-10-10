@@ -65,18 +65,30 @@ export function BookingDetail({
             <span>기본 촬영 가격</span>
           </p>
           <p className="booking-small-copy booking-close-note">
-            {copy.priceNote}
+            <span data-preview-target="copy:priceNote">{copy.priceNote}</span>
           </p>
         </section>
         <section className="booking-process">
-          <h2>{copy.processTitle}</h2>
+          <h2>
+            <span data-preview-target="copy:processTitle">
+              {copy.processTitle}
+            </span>
+          </h2>
           <ol>
             {[1, 2, 3].map((n) => (
               <li key={n}>
                 <span>0{n}</span>
                 <div>
-                  <strong>{copy[`process${n}Title`]}</strong>
-                  <p>{copy[`process${n}Body`]}</p>
+                  <strong>
+                    <span data-preview-target={`copy:process${n}Title`}>
+                      {copy[`process${n}Title`]}
+                    </span>
+                  </strong>
+                  <p>
+                    <span data-preview-target={`copy:process${n}Body`}>
+                      {copy[`process${n}Body`]}
+                    </span>
+                  </p>
                 </div>
               </li>
             ))}
@@ -94,7 +106,11 @@ export function BookingDetail({
       </div>
       {product.description ? (
         <section className="booking-extra-description booking-detail-description-card">
-          <h2>{copy.detailDescriptionTitle}</h2>
+          <h2>
+            <span data-preview-target="copy:detailDescriptionTitle">
+              {copy.detailDescriptionTitle}
+            </span>
+          </h2>
           <RichText>
             {depositContent(product.description, depositRequired)}
           </RichText>
@@ -102,7 +118,11 @@ export function BookingDetail({
       ) : null}
       {product.delivery_note ? (
         <section className="booking-extra-description">
-          <h2>{copy.detailDeliveryTitle}</h2>
+          <h2>
+            <span data-preview-target="copy:detailDeliveryTitle">
+              {copy.detailDeliveryTitle}
+            </span>
+          </h2>
           <p>{product.delivery_note}</p>
         </section>
       ) : null}
@@ -114,9 +134,17 @@ export function BookingDetail({
           href={`/booking/${product.slug}?step=times`}
           className="booking-primary booking-cta-ripple"
         >
-          <span className="relative z-[1]">{copy.detailButton}</span>
+          <span className="relative z-[1]">
+            <span data-preview-target="copy:detailButton">
+              {copy.detailButton}
+            </span>
+          </span>
         </Link>
-        <p>{copy.detailButtonNote}</p>
+        <p>
+          <span data-preview-target="copy:detailButtonNote">
+            {copy.detailButtonNote}
+          </span>
+        </p>
       </div>
     </main>
   );

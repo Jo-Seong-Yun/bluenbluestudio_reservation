@@ -65,7 +65,9 @@ function descriptionHint(
   fallback?: React.ReactNode,
 ): React.ReactNode {
   return field.description ? (
-    <FieldDescription html={field.description} />
+    <span data-preview-target={`field:${field.id}:description`}>
+      <FieldDescription html={field.description} />
+    </span>
   ) : (
     fallback
   );
@@ -1073,11 +1075,15 @@ export function ReservationForm({
             ))}
           </div>
           <h1 className="text-2xl font-bold">
-            {pages.find((page) => page.id === currentGroup)?.title}
+            <span data-preview-target="page:title">
+              {pages.find((page) => page.id === currentGroup)?.title}
+            </span>
           </h1>
           {pages.find((page) => page.id === currentGroup)?.intro ? (
             <p className="booking-lead">
-              {pages.find((page) => page.id === currentGroup)?.intro}
+              <span data-preview-target="page:intro">
+                {pages.find((page) => page.id === currentGroup)?.intro}
+              </span>
             </p>
           ) : null}
           <p className="booking-form-help">
@@ -1143,10 +1149,16 @@ export function ReservationForm({
               tabIndex={-1}
               className="text-2xl font-bold"
             >
-              {copy.reviewTitle}
+              <span data-preview-target="copy:reviewTitle">
+                {copy.reviewTitle}
+              </span>
             </h1>
             {copy.reviewIntro ? (
-              <p className="text-muted mt-2 text-sm">{copy.reviewIntro}</p>
+              <p className="text-muted mt-2 text-sm">
+                <span data-preview-target="copy:reviewIntro">
+                  {copy.reviewIntro}
+                </span>
+              </p>
             ) : null}
             <dl className="mt-5">
               {answers.map((a) => (
@@ -1210,7 +1222,9 @@ export function ReservationForm({
                 disabled={pending || previewOnly}
                 className={`${PRIMARY_CTA_CLASS} mt-4`}
               >
-                {pending ? "접수 중…" : copy.reviewButton}
+                <span data-preview-target="copy:reviewButton">
+                  {pending ? "접수 중…" : copy.reviewButton}
+                </span>
               </BookingCTA>
             ) : (
               <BookingCTA
@@ -1321,7 +1335,9 @@ export function ReservationFields({
                     </span>
                     <span className="booking-question-heading-copy">
                       <span className="booking-question-title">
-                        {field.label}
+                        <span data-preview-target={`field:${field.id}:label`}>
+                          {field.label}
+                        </span>
                         {field.required ? (
                           <span className="booking-question-required">
                             필수
@@ -1598,9 +1614,16 @@ function ReservationFieldInput({
                 />
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-baseline gap-x-2">
-                    <span>{option}</span>
+                    <span
+                      data-preview-target={`field:${field.id}:option:${index}`}
+                    >
+                      {option}
+                    </span>
                     {price ? (
-                      <span className="text-brand text-sm font-medium">
+                      <span
+                        data-preview-target={`field:${field.id}:price:${index}`}
+                        className="text-brand text-sm font-medium"
+                      >
                         (+{price.toLocaleString()}원)
                       </span>
                     ) : null}
@@ -1610,7 +1633,11 @@ function ReservationFieldInput({
                       id={`${optionHintId}-${index}`}
                       className="text-muted mt-1 block text-sm break-words whitespace-pre-wrap"
                     >
-                      {description}
+                      <span
+                        data-preview-target={`field:${field.id}:option-description:${index}`}
+                      >
+                        {description}
+                      </span>
                     </span>
                   ) : null}
                 </span>
@@ -1640,7 +1667,9 @@ function ReservationFieldInput({
           ) : null}
           {field.description ? (
             <span className="text-muted mt-1 block text-sm font-normal">
-              <FieldDescription html={field.description} />
+              <span data-preview-target={`field:${field.id}:description`}>
+                <FieldDescription html={field.description} />
+              </span>
             </span>
           ) : null}
         </span>

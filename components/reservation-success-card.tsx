@@ -61,9 +61,13 @@ export function ReservationSuccessCard({
       <div className="booking-success-check" aria-hidden>
         ✓
       </div>
-      <h1>{successHeading}</h1>
+      <h1>
+        <span data-preview-target="copy:successTitle">{successHeading}</span>
+      </h1>
       <p className="booking-lead">
-        {depositText(successMessage, depositRequired, bankAccount)}
+        <span data-preview-target="copy:successIntro">
+          {depositText(successMessage, depositRequired, bankAccount)}
+        </span>
       </p>
       <div className="booking-unified-card">
         <section className="booking-price-section">
@@ -74,7 +78,9 @@ export function ReservationSuccessCard({
             {interactive ? <CopyButton value={code} /> : null}
           </div>
           <p className="booking-small-copy booking-close-note">
-            {copy.successCodeNote}
+            <span data-preview-target="copy:successCodeNote">
+              {copy.successCodeNote}
+            </span>
           </p>
         </section>
         <section className="booking-process">
@@ -90,7 +96,11 @@ export function ReservationSuccessCard({
           ) : null}
         </section>
         <section className="booking-process">
-          <h2>{copy.successTimesTitle}</h2>
+          <h2>
+            <span data-preview-target="copy:successTimesTitle">
+              {copy.successTimesTitle}
+            </span>
+          </h2>
           <ul className="booking-complete-times">
             {candidates.map((c, i) => (
               <li key={i}>
@@ -99,17 +109,31 @@ export function ReservationSuccessCard({
               </li>
             ))}
           </ul>
-          <p className="booking-small-copy">{copy.successTimesNote}</p>
+          <p className="booking-small-copy">
+            <span data-preview-target="copy:successTimesNote">
+              {copy.successTimesNote}
+            </span>
+          </p>
         </section>
         <section className="booking-process">
-          <h2>{copy.nextTitle}</h2>
+          <h2>
+            <span data-preview-target="copy:nextTitle">{copy.nextTitle}</span>
+          </h2>
           <ol>
             {[1, 2].map((n) => (
               <li key={n}>
                 <span>0{n}</span>
                 <div>
-                  <strong>{copy[`next${n}Title`]}</strong>
-                  <p>{copy[`next${n}Body`]}</p>
+                  <strong>
+                    <span data-preview-target={`copy:next${n}Title`}>
+                      {copy[`next${n}Title`]}
+                    </span>
+                  </strong>
+                  <p>
+                    <span data-preview-target={`copy:next${n}Body`}>
+                      {copy[`next${n}Body`]}
+                    </span>
+                  </p>
                 </div>
               </li>
             ))}
@@ -129,7 +153,9 @@ export function ReservationSuccessCard({
             </div>
           ) : null}
           {copy.nextNote ? (
-            <p className="booking-small-copy">{copy.nextNote}</p>
+            <p className="booking-small-copy">
+              <span data-preview-target="copy:nextNote">{copy.nextNote}</span>
+            </p>
           ) : null}
           {notice ? (
             <p className="booking-small-copy whitespace-pre-wrap">
@@ -144,12 +170,22 @@ export function ReservationSuccessCard({
             href={`/booking/lookup?code=${encodeURIComponent(code)}`}
             className="booking-primary"
           >
-            {copy.successButton}
+            <span data-preview-target="copy:successButton">
+              {copy.successButton}
+            </span>
           </Link>
         ) : (
-          <div className="booking-primary">{copy.successButton}</div>
+          <div className="booking-primary">
+            <span data-preview-target="copy:successButton">
+              {copy.successButton}
+            </span>
+          </div>
         )}
-        <p>{copy.successButtonNote}</p>
+        <p>
+          <span data-preview-target="copy:successButtonNote">
+            {copy.successButtonNote}
+          </span>
+        </p>
       </div>
     </section>
   );
