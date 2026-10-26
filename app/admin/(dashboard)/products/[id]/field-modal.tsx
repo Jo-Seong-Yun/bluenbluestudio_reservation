@@ -243,14 +243,18 @@ export function FieldModal({
                       disabled={index === 0}
                       aria-label={`옵션 ${index + 1} 위로`}
                       className="border-border hover:bg-surface-subtle rounded border px-2 py-1 text-sm disabled:opacity-25"
-                    >↑</button>
+                    >
+                      ↑
+                    </button>
                     <button
                       type="button"
                       onClick={() => moveOption(index, 1)}
                       disabled={index === options.length - 1}
                       aria-label={`옵션 ${index + 1} 아래로`}
                       className="border-border hover:bg-surface-subtle rounded border px-2 py-1 text-sm disabled:opacity-25"
-                    >↓</button>
+                    >
+                      ↓
+                    </button>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
