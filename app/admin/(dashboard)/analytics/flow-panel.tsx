@@ -92,9 +92,11 @@ export function FlowPanel({
         </div>
         <p className="text-muted mt-2 text-xs leading-relaxed">
           답변 내용은 저장하지 않습니다. 문항별 수치는 예약 시도 수이며, 유효
-          답변은 마지막 기록 상태를 사용합니다. 마지막 도달은 접수 없이 30분
-          이상 지난 시도의 마지막으로 진입한 문항입니다. 시간은 선택 문항에
-          진입한 뒤 유효 답변까지의 경과 시간입니다.
+          답변은 진입이 기록된 같은 예약 시도의 마지막 검증 상태입니다. 진입
+          미기록은 검증 기록만 있는 시도를 별도로 표시하며 원본을 보존합니다.
+          마지막 도달은 접수 없이 30분 이상 지난 시도의 마지막으로 진입한
+          문항입니다. 시간은 선택 문항에 진입한 뒤 유효 답변까지의 경과
+          시간입니다.
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[650px] text-sm">
@@ -103,7 +105,8 @@ export function FlowPanel({
                 {[
                   "상품 / 버전 / 문항",
                   "문항 진입",
-                  "유효 답변",
+                  "유효 답변 (진입 확인)",
+                  "진입 미기록 유효 답변",
                   "검증 오류",
                   "마지막 도달",
                   "평균 작성",
@@ -132,6 +135,12 @@ export function FlowPanel({
                     </td>
                     <td className="p-3">{f.views}</td>
                     <td className="p-3">{f.valid}</td>
+                    <td
+                      className="p-3"
+                      title="진입 기록 없이 유효 검증만 있는 예약 시도입니다. 복원/이전 수집 누락 등을 포함합니다."
+                    >
+                      {f.unmatchedValid ?? 0}
+                    </td>
                     <td className="p-3">{f.errors}</td>
                     <td className="p-3">{f.lastReached}</td>
                     <td className="p-3">

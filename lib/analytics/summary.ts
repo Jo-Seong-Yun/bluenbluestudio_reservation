@@ -23,6 +23,7 @@ export type FieldStat = {
   order: number;
   views: number;
   valid: number;
+  unmatchedValid: number;
   errors: number;
   lastReached: number;
   averageMs: number | null;
@@ -128,8 +129,16 @@ export function summarizeFlow(
           e.attempt_id
         )
           latest.set(e.attempt_id, e);
-      const durations = [...latest.values()]
-        .filter((e) => e.event_kind === "field_valid" && e.duration_ms !== null)
+      const entered = new Set(
+        rows
+          .filter((e) => e.event_kind === "field_view" && e.attempt_id)
+          .map((e) => e.attempt_id),
+      );
+      const valid = [...latest.values()].filter(
+        (e) => e.event_kind === "field_valid",
+      );
+      const durations = valid
+        .filter((e) => entered.has(e.attempt_id) && e.duration_ms !== null)
         .map((e) => e.duration_ms!);
       const r = rows.at(-1)!;
       return {
@@ -138,14 +147,9 @@ export function summarizeFlow(
         version: r.form_version,
         label: r.field_label ?? "삭제된 문항",
         order: r.field_order ?? 0,
-        views: unique(
-          rows
-            .filter((e) => e.event_kind === "field_view")
-            .map((e) => e.attempt_id),
-        ),
-        valid: [...latest.values()].filter(
-          (e) => e.event_kind === "field_valid",
-        ).length,
+        views: entered.size,
+        valid: valid.filter((e) => entered.has(e.attempt_id)).length,
+        unmatchedValid: valid.filter((e) => !entered.has(e.attempt_id)).length,
         errors: unique(
           rows
             .filter((e) => e.event_kind === "field_error")

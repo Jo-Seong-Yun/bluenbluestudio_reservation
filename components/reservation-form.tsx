@@ -128,9 +128,19 @@ export function ReservationForm({
   successMessage: string;
   customFields: CustomField[];
 }) {
+  const analyticsVisited = useRef<string | null>(null);
+  const analyticsOpenedAt = useRef(0);
   const trackBooking = useCallback(
     (...args: Parameters<typeof emitBooking>) => {
-      if (!previewOnly) emitBooking(...args);
+      if (previewOnly) return;
+      if (args[0] === "field_view") {
+        const id = args[2]?.fieldId;
+        const key = `${args[1]}:${args[2]?.formVersion ?? ""}:${id}`;
+        if (!id || analyticsVisited.current === key) return;
+        analyticsVisited.current = key;
+        analyticsOpenedAt.current = Date.now();
+      }
+      emitBooking(...args);
     },
     [previewOnly],
   );
@@ -565,8 +575,6 @@ export function ReservationForm({
   );
   const formRef = useRef<HTMLFormElement>(null);
   useBookingKeyboard(formRef);
-  const analyticsVisited = useRef<string | null>(null);
-  const analyticsOpenedAt = useRef(0);
   const analyticsValidity = useRef(new Map<string, boolean>());
   // Match the server fingerprint before display-only page ordering rewrites sort_order.
   const formVersion = bookingFormVersion(
@@ -607,9 +615,7 @@ export function ReservationForm({
 
   useEffect(() => {
     if (reviewing || !activeFieldId || state.status === "success") return;
-    if (analyticsVisited.current !== activeFieldId) {
-      analyticsVisited.current = activeFieldId;
-      analyticsOpenedAt.current = Date.now();
+    if (analyticsVisited.current !== `${productId}:${formVersion}:${activeFieldId}`) {
       trackBooking("field_view", productId, {
         fieldId: activeFieldId,
         formVersion,
@@ -753,6 +759,7 @@ export function ReservationForm({
   function revealField(id: string, reportError = false) {
     const groupField = fields.find((field) => field.id === id);
     if (groupField) setCurrentGroup(fieldGroup(groupField, copy));
+    trackBooking("field_view", productId, { fieldId: id, formVersion });
     setActiveFieldId(id);
     requestAnimationFrame(() => {
       const block = formRef.current?.querySelector<HTMLElement>(
@@ -1026,6 +1033,7 @@ export function ReservationForm({
             "[data-field-id]",
           )?.dataset.fieldId;
           if (id) {
+            trackBooking("field_view", productId, { fieldId: id, formVersion });
             setActiveFieldId(id);
             trackBooking("field_focus", productId, {
               fieldId: id,
@@ -1045,6 +1053,11 @@ export function ReservationForm({
           const target = event.target as HTMLElement;
           const block = target.closest<HTMLElement>("[data-field-id]");
           const field = fields.find((f) => f.id === block?.dataset.fieldId);
+          if (field)
+            trackBooking("field_view", productId, {
+              fieldId: field.id,
+              formVersion,
+            });
           if (
             field &&
             target instanceof HTMLInputElement &&

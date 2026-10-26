@@ -123,3 +123,55 @@ describe("새 예약 흐름 집계", () => {
     expect(data.fields[0].lastReached).toBe(0);
   });
 });
+
+it("counts valid answers within the entered-attempt cohort and preserves unmatched history", () => {
+  const data = summarizeFlow(
+    [
+      e("field_view", { field_id: "f", attempt_id: "a" }),
+      e("field_valid", { field_id: "f", attempt_id: "a" }),
+      e("field_valid", { field_id: "f", attempt_id: "b" }),
+      e("field_valid", { field_id: "f", attempt_id: "c" }),
+    ],
+    t,
+  );
+  expect(data.fields[0]).toMatchObject({
+    views: 1,
+    valid: 1,
+    unmatchedValid: 2,
+  });
+  const onlyValid = summarizeFlow(
+    [e("field_valid", { field_id: "f", duration_ms: 5000 })],
+    t,
+  );
+  expect(onlyValid.fields[0]).toMatchObject({
+    views: 0,
+    valid: 0,
+    unmatchedValid: 1,
+    averageMs: null,
+  });
+});
+it("handles out-of-order arrival, repeated visits, invalidation and version boundaries", () => {
+  const data = summarizeFlow(
+    [
+      e("field_valid", { field_id: "f", occurred_at: "2026-10-05T01:00:02Z" }),
+      e("field_view", { field_id: "f" }),
+      e("field_view", { field_id: "f" }),
+      e("field_invalid", {
+        field_id: "f",
+        occurred_at: "2026-10-05T01:00:03Z",
+      }),
+      e("field_valid", { field_id: "f", form_version: "00000002" }),
+    ],
+    t,
+  );
+  expect(data.fields[0]).toMatchObject({
+    views: 1,
+    valid: 0,
+    unmatchedValid: 0,
+  });
+  expect(data.fields[1]).toMatchObject({
+    views: 0,
+    valid: 0,
+    unmatchedValid: 1,
+  });
+});
