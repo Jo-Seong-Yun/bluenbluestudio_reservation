@@ -33,9 +33,9 @@
 - 임시 버퍼는 탭별 최대 300건, 24시간 이내입니다. 자동 재시도 6회 후 다음 행동/온라인 복귀/페이지 진입에 재시도합니다. 예약 자체는 통계 전송 성공을 기다리지 않습니다.
 - 기존에 수집하지 않던 행동은 배포 이후부터 쌓입니다. 새 SQL은 원본 로그와 메모를 삭제하지 않습니다.
 
-## 적용 전 필수 SQL
+## 적용 SQL — 실행 완료 확인
 
-`supabase/migrations/20261101000100_analytics_activity_detail.sql`을 Supabase SQL Editor에서 실행한 뒤 실행 완료를 확인해야 master에 합칩니다.
+`supabase/migrations/20261101000100_analytics_activity_detail.sql`의 Supabase SQL Editor 실행 완료를 사용자가 2026-10-26에 확인했습니다. 검증된 코드를 master에 반영합니다.
 `booking_events.event_details`, 행동 종류 제약, 시간/세션/시도/상품/기본 집계 인덱스를 추가·확장하고, 대체되는 기존 시간·시도 단일 인덱스를 제거합니다. RLS와 권한은 변경하지 않습니다.
 Supabase CLI는 환경의 `/home/agent/.supabase` 읽기 전용 오류로 실행되지 않아, 기존 마지막 마이그레이션 다음 번호로 파일을 작성했습니다.
 
