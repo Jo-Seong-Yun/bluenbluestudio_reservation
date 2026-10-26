@@ -1,4 +1,5 @@
 "use client";
+import { trackBooking, flushAnalytics } from "@/lib/analytics/client";
 import { timeDrafts } from "@/lib/booking/drafts";
 import { resolveCopy, type BookingCopy } from "@/lib/booking/copy";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -72,6 +73,8 @@ export function BookingFlow({
     cancelScroll.current = scrollAfterClick(target);
   }
   function selectDate(date: DateString) {
+    if (!previewOnly)
+      trackBooking("date_select", productId, { details: { date } });
     setSelectedDate(date);
     setSlots([]);
     setSlotsError(null);
@@ -85,6 +88,11 @@ export function BookingFlow({
         // 먼저 누른 날짜의 늦은 응답이 현재 날짜의 시간으로 표시되지 않게 한다.
         if (request === latestRequest.current) setSlots(result);
       } catch {
+        if (!previewOnly)
+          trackBooking("slots_error", productId, {
+            errorCode: "availability",
+            details: { date },
+          });
         if (request === latestRequest.current)
           setSlotsError(
             "시간을 불러오지 못했습니다. 날짜를 다시 선택해 주십시오.",
@@ -102,6 +110,10 @@ export function BookingFlow({
       : candidates.length < MAX_CANDIDATES
         ? [...candidates, { date: selectedDate, time }]
         : candidates;
+    if (!previewOnly && next !== candidates)
+      trackBooking(picked ? "time_remove" : "time_select", productId, {
+        details: { date: selectedDate, time, selectedCount: next.length },
+      });
     setCandidates(next);
     if (!previewOnly) timeDrafts.set(productId, next);
     if (!picked && candidates.length === 2 && next.length === MAX_CANDIDATES)
@@ -111,13 +123,27 @@ export function BookingFlow({
 
   function apply() {
     if (!isFull || previewOnly) return;
+    trackBooking("times_continue", productId, {
+      details: { selectedCount: candidates.length },
+    });
+    flushAnalytics();
     const slots = candidates
       .map((c) => `${c.date}_${c.time.replace(":", "-")}`)
       .join(",");
     router.push(`${basePath}/apply?${new URLSearchParams({ slots })}`);
   }
   return (
-    <div className="booking-split booking-modern-times">
+    <div
+      className="booking-split booking-modern-times"
+      onClickCapture={(event) => {
+        if (previewOnly) return;
+        const link = (event.target as HTMLElement).closest("a");
+        if (!link) return;
+        const month = new URL(link.href).searchParams.get("month");
+        if (month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month))
+          trackBooking("month_change", productId, { details: { month } });
+      }}
+    >
       <section className="booking-card">
         <div className="booking-time-product">
           <strong>
@@ -221,13 +247,21 @@ export function BookingFlow({
                 <button
                   type="button"
                   aria-label={`${i + 1}번째 희망 시간 삭제`}
-                  onClick={() =>
-                    setCandidates((prev) => {
-                      const next = prev.filter((_, index) => index !== i);
-                      if (!previewOnly) timeDrafts.set(productId, next);
-                      return next;
-                    })
-                  }
+                  onClick={() => {
+                    const removed = candidates[i];
+                    const next = candidates.filter((_, index) => index !== i);
+                    setCandidates(next);
+                    if (!previewOnly) {
+                      timeDrafts.set(productId, next);
+                      trackBooking("time_remove", productId, {
+                        details: {
+                          date: removed.date,
+                          time: removed.time,
+                          selectedCount: next.length,
+                        },
+                      });
+                    }
+                  }}
                   className="shrink-0 px-1"
                 >
                   ×

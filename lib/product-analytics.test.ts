@@ -8,7 +8,16 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     from: (table: string) => {
+      let selected = mocks.tables[table] ?? [];
       const q = {
+        in: (key: string, values: unknown[]) => {
+          selected = selected.filter((row) => values.includes(row[key]));
+          return q;
+        },
+        limit: async (limit: number) => ({
+          data: table === mocks.failure ? null : selected.slice(0, limit),
+          error: table === mocks.failure ? new Error("failed") : null,
+        }),
         select: () => q,
         eq: () => q,
         order: () => q,
@@ -19,11 +28,8 @@ vi.mock("@/lib/supabase/server", () => ({
         range: async (from: number, to: number) => {
           mocks.ranges.push(from);
           return {
-            data:
-              table === mocks.failure
-                ? null
-                : (mocks.tables[table] ?? []).slice(from, to + 1),
-            count: (mocks.tables[table] ?? []).length,
+            data: table === mocks.failure ? null : selected.slice(from, to + 1),
+            count: selected.length,
             error: table === mocks.failure ? new Error("failed") : null,
           };
         },
@@ -132,4 +138,18 @@ describe("과거 통계 연결", () => {
     expect(data.flow.startedAt).toBe(time);
     expect(data.recentActivity.some((r) => r.id === "legacy")).toBe(true);
   });
+});
+
+it("keeps detailed interactions out of funnel aggregation while returning the timeline", async () => {
+  mocks.tables.booking_events.push({
+    ...mocks.tables.booking_events[0],
+    id: "detail",
+    session_id: "other",
+    event_kind: "date_select",
+    reservation_id: null,
+  });
+  const data = await loadProductAnalytics();
+  expect(data.flow.sessions).toBe(1);
+  expect(data.activityPage?.rows).toHaveLength(2);
+  expect(data.rows[0].applications).toBe(2);
 });

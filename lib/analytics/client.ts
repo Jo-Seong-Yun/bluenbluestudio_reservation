@@ -1,7 +1,7 @@
 "use client";
 import { captureRefFromUrl, readRefCookie } from "@/lib/booking/ref-cookie";
 import { logBookingEvents } from "./actions";
-import type { ClientAnalyticsEvent } from "./shared";
+import { analyticsEventSchema, type ClientAnalyticsEvent } from "./shared";
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let lastEventTime = 0;
@@ -10,6 +10,57 @@ let fallback: { id: string; last: number } | null = null;
 const attempts = new Map<string, string>();
 const queue: ClientAnalyticsEvent[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
+let sending = false;
+let restored = false;
+let failures = 0;
+const BUFFER_KEY = "booking-analytics-buffer-v3";
+function persist() {
+  try {
+    sessionStorage.setItem(BUFFER_KEY, JSON.stringify(queue));
+  } catch {
+    /* Optional storage. */
+  }
+}
+function restore() {
+  if (restored) return;
+  restored = true;
+  try {
+    const values = JSON.parse(sessionStorage.getItem(BUFFER_KEY) ?? "[]");
+    if (Array.isArray(values))
+      for (const value of values.slice(-300)) {
+        const parsed = analyticsEventSchema.safeParse(value);
+        if (
+          parsed.success &&
+          Date.now() - Date.parse(parsed.data.occurredAt) < 86400000
+        )
+          queue.push(parsed.data);
+      }
+  } catch {
+    /* Optional storage. */
+  }
+  window.addEventListener?.("pagehide", () => {
+    persist();
+    flushAnalytics();
+  });
+  window.addEventListener?.("online", () => {
+    failures = 0;
+    flushAnalytics();
+  });
+  if (typeof document !== "undefined")
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        persist();
+        flushAnalytics();
+      }
+    });
+}
+function schedule(delay = 250) {
+  if (!timer && !sending)
+    timer = setTimeout(() => {
+      timer = null;
+      flushAnalytics();
+    }, delay);
+}
 function session() {
   let value = fallback;
   try {
@@ -76,13 +127,15 @@ export function trackBooking(
   extra: Partial<
     Pick<
       ClientAnalyticsEvent,
-      "fieldId" | "formVersion" | "durationMs" | "errorCode"
+      "fieldId" | "formVersion" | "durationMs" | "errorCode" | "details"
     >
   > = {},
 ) {
   if (typeof window === "undefined") return;
   try {
-    queue.push({
+    restore();
+    if (queue.length >= 300) return; // Bounded pending buffer, never evict an in-flight batch.
+    const event = {
       occurredAt: new Date(
         (lastEventTime = Math.max(Date.now(), lastEventTime + 1)),
       ).toISOString(),
@@ -95,25 +148,41 @@ export function trackBooking(
       durationMs: null,
       errorCode: null,
       ...extra,
-    });
-    if (!timer)
-      timer = setTimeout(() => {
-        timer = null;
-        const batch = queue.splice(0, 30);
-        void logBookingEvents(batch).catch(() => {});
-        if (queue.length) flushAnalytics();
-      }, 250);
+    };
+    const parsed = analyticsEventSchema.safeParse(event);
+    if (!parsed.success) return;
+    queue.push(parsed.data);
+    persist();
+    schedule();
   } catch {
     /* 저장소 접근 실패가 예약 동작을 막지 않습니다. */
   }
 }
 export function flushAnalytics() {
+  if (typeof window === "undefined") return;
+  restore();
   if (timer) {
     clearTimeout(timer);
     timer = null;
   }
-  while (queue.length) {
-    const batch = queue.splice(0, 30);
-    void logBookingEvents(batch).catch(() => {});
-  }
+  if (sending || !queue.length) return;
+  sending = true;
+  const batch = queue.slice(0, 30);
+  void logBookingEvents(batch)
+    .then((acknowledged) => {
+      if (!acknowledged) throw new Error("not acknowledged");
+      const ids = new Set(batch.map((e) => e.id));
+      for (let i = queue.length - 1; i >= 0; i--)
+        if (ids.has(queue[i].id)) queue.splice(i, 1);
+      failures = 0;
+    })
+    .catch(() => {
+      failures++;
+    })
+    .finally(() => {
+      sending = false;
+      persist();
+      if (queue.length && failures < 6)
+        schedule(failures ? Math.min(30000, 1000 * 2 ** (failures - 1)) : 0);
+    });
 }

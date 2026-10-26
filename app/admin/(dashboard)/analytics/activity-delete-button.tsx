@@ -18,9 +18,11 @@ const CONFIRM_MESSAGE: Partial<Record<ActivityLogEntry["kind"], string>> = {
 export function ActivityDeleteButton({
   kind,
   id,
+  onDeleted,
 }: {
   kind: ActivityLogEntry["kind"];
   id: string;
+  onDeleted?: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -37,7 +39,7 @@ export function ActivityDeleteButton({
       const result = await deleteActivityLogEntry(formData);
       if (result?.error) {
         alert(`삭제하지 못했습니다: ${result.error}`);
-      }
+      } else onDeleted?.();
     });
   }
 

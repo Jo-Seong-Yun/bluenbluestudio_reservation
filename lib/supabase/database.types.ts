@@ -44,6 +44,7 @@ export type BookingEventRow = {
   product_id: string | null;
   reservation_id: string | null;
   event_kind: string;
+  event_details?: Record<string, unknown>;
   ref: string | null;
   device: string;
   form_version: string | null;

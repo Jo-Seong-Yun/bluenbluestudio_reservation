@@ -34,6 +34,7 @@ vi.mock("@/lib/supabase/admin", () => ({
                       id: "00000000-0000-4000-8000-000000000004",
                       product_id: "00000000-0000-4000-8000-000000000003",
                       label: "문항",
+                      options: ["서버에 저장된 보기"],
                       sort_order: 0,
                     },
                   ],
@@ -115,4 +116,54 @@ describe("예약 통계 서버 기록", () => {
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
+});
+
+it("stores original occurrence time across a delayed retry and validates detail fields", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-05T04:00:00Z"));
+  try {
+    expect(
+      await logBookingEvents([
+        { ...event, kind: "date_select", details: { date: "2026-10-15" } },
+      ]),
+    ).toBe(true);
+    expect(mocks.upsert.mock.calls[0][0][0]).toMatchObject({
+      occurred_at: event.occurredAt,
+      event_details: { date: "2026-10-15" },
+    });
+    expect(
+      await logBookingEvents([
+        { ...event, kind: "field_change", details: { answer: "private text" } },
+      ]),
+    ).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("takes option labels from the database rather than accepting client labels", async () => {
+  expect(
+    await logBookingEvents([
+      {
+        ...event,
+        kind: "option_select",
+        fieldId: "00000000-0000-4000-8000-000000000004",
+        details: { optionIndex: 0 },
+      },
+    ]),
+  ).toBe(true);
+  expect(mocks.upsert.mock.calls[0][0][0].event_details).toMatchObject({
+    optionIndex: 0,
+    optionLabel: "서버에 저장된 보기",
+  });
+  expect(
+    await logBookingEvents([
+      {
+        ...event,
+        kind: "option_select",
+        fieldId: "00000000-0000-4000-8000-000000000004",
+        details: { optionIndex: 0, optionLabel: "클라이언트 임의 이름" },
+      },
+    ]),
+  ).toBe(false);
 });

@@ -164,26 +164,28 @@ export function summarizeFlow(
         a.order - b.order,
     );
   function breakdown(key: (e: BookingEventRow) => string) {
-    const keys = new Set([...firstEvents.values()].map(key));
-    return [...keys]
-      .map((k) => {
-        const ids = new Set(
-          [...firstEvents].filter(([, e]) => key(e) === k).map(([id]) => id),
-        );
-        const converted = new Set(
-          completedReservations
-            .filter((e) => ids.has(e.session_id))
-            .map((e) => e.session_id),
-        ).size;
-        return {
-          key: k,
-          sessions: ids.size,
-          completions: converted,
-          rate: ids.size ? (converted / ids.size) * 100 : null,
-        };
-      })
+    const groups = new Map<string, { sessions: number; completions: number }>();
+    const convertedSessions = new Set(
+      completedReservations.map((e) => e.session_id),
+    );
+    for (const [sessionId, event] of firstEvents) {
+      const name = key(event),
+        group = groups.get(name) ?? { sessions: 0, completions: 0 };
+      group.sessions++;
+      if (convertedSessions.has(sessionId)) group.completions++;
+      groups.set(name, group);
+    }
+    return [...groups]
+      .map(([name, group]) => ({
+        key: name,
+        ...group,
+        rate: group.sessions
+          ? (group.completions / group.sessions) * 100
+          : null,
+      }))
       .sort((a, b) => b.sessions - a.sessions);
   }
+
   return {
     startedAt,
     sessions: firstEvents.size,
