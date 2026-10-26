@@ -1,4 +1,4 @@
-import {depositEnabled} from "@/lib/booking/deposit";
+import { depositEnabled } from "@/lib/booking/deposit";
 import { ConfigNotice } from "@/components/config-notice";
 import { missingAuthEnv, missingServerEnv } from "@/lib/supabase/env";
 import { productCopy } from "@/lib/booking/copy";
@@ -74,14 +74,19 @@ export default async function ProductDetailPage({
   const today = kstToday();
   const earliestBookable = addDays(today, availabilitySettings.minLeadDays);
   const latestBookable = addDays(today, availabilitySettings.maxAdvanceDays);
+  const copy = productCopy(settings?.booking_style, product.id);
+  const showDetail = copy.detailPageState === "visible";
+  if (!showDetail && missingServerEnv().length)
+    return <ConfigNotice missing={missingServerEnv()} />;
   const isTimes = (Array.isArray(step) ? step[0] : step) === "times";
   // 상품 설명을 읽는 단계에서는 달력 전체 조회를 기다릴 필요가 없다.
-  if (!isTimes)
+  if (!isTimes && showDetail)
     return (
       <>
         <BookingDraftReset />
         <ProductViewTracker productId={product.id} />
-        <BookingDetail depositRequired={depositEnabled(settings?.booking_style)}
+        <BookingDetail
+          depositRequired={depositEnabled(settings?.booking_style)}
           copy={productCopy(settings?.booking_style, product.id)}
           product={product}
           earliestBookable={earliestBookable}
@@ -116,18 +121,23 @@ export default async function ProductDetailPage({
 
   return (
     <>
+      {!isTimes ? <BookingDraftReset /> : null}
       <ProductViewTracker productId={product.id} stage="times_view" />
 
       <main className="booking-page">
         <Link
-          href={`/booking/${slug}`}
+          href={showDetail ? `/booking/${slug}` : "/booking"}
           className="text-muted mb-4 inline-block text-sm"
         >
-          ← 상품 상세
+          ← {showDetail ? "상품 상세" : "상품 목록"}
         </Link>
 
-        <BookingSteps stage="times" />
-        <BookingFlow depositRequired={depositEnabled(settings?.booking_style)}
+        <BookingSteps
+          stage="times"
+          omitReview={copy.reviewPageState !== "visible"}
+        />
+        <BookingFlow
+          depositRequired={depositEnabled(settings?.booking_style)}
           copy={productCopy(settings?.booking_style, product.id)}
           productId={product.id}
           productName={product.name}

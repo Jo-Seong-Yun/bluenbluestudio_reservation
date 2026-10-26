@@ -24,6 +24,11 @@ export async function saveProductBookingCopy(
     const value = String(form.get(key) ?? "");
     if (value.length > 1000)
       return { error: "문구는 항목당 1,000자 이내로 입력합니다." };
+    if (
+      ["detailPageState", "reviewPageState"].includes(key) &&
+      !["visible", "hidden", "deleted"].includes(value)
+    )
+      return { error: "페이지 표시 상태를 확인해 주십시오." };
     raw[key] = value;
   }
   const serializedPages = form.get("formPages");

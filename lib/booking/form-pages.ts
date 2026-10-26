@@ -6,6 +6,8 @@ export type FormPage = {
   label: string;
   title: string;
   intro: string;
+  hidden?: boolean;
+  buttonLabel?: string;
 };
 export const MAX_FORM_PAGES = 20;
 const LABELS = ["배우 정보", "연락 정보", "촬영 요청", "동의 확인"];
@@ -44,13 +46,25 @@ export function parseFormPages(value: unknown): FormPage[] | null {
         page.intro.length > 1000
       )
         return null;
+      if (page.hidden !== undefined && typeof page.hidden !== "boolean")
+        return null;
+      if (
+        page.buttonLabel !== undefined &&
+        (typeof page.buttonLabel !== "string" || page.buttonLabel.length > 100)
+      )
+        return null;
       ids.add(page.id);
     }
+    if (pages.every((page) => page.hidden)) return null;
     return pages.map((page) => ({
       id: page.id,
       label: page.label.trim(),
       title: page.title.trim(),
       intro: page.intro.trim(),
+      ...(page.hidden ? { hidden: true } : {}),
+      ...(page.buttonLabel !== undefined
+        ? { buttonLabel: page.buttonLabel.trim() }
+        : {}),
     }));
   } catch {
     return null;

@@ -77,11 +77,18 @@ const labels = [
   "내용 확인",
   "접수 완료",
 ];
-export function BookingSteps({ stage }: { stage: BookingStage }) {
-  const current = stages.indexOf(stage);
+export function BookingSteps({
+  stage,
+  omitReview = false,
+}: {
+  stage: BookingStage;
+  omitReview?: boolean;
+}) {
+  const shown = stages.filter((s) => !omitReview || s !== "review");
+  const current = shown.indexOf(stage);
   return (
     <ol className="booking-steps" aria-label="예약 진행 단계">
-      {stages.map((s, i) => (
+      {shown.map((s, i) => (
         <li
           key={s}
           aria-current={s === stage ? "step" : undefined}
@@ -90,7 +97,7 @@ export function BookingSteps({ stage }: { stage: BookingStage }) {
           <span className="booking-step-number" aria-hidden>
             {i < current ? "✓" : i + 1}
           </span>
-          <span>{labels[i]}</span>
+          <span>{labels[stages.indexOf(s)]}</span>
         </li>
       ))}
     </ol>

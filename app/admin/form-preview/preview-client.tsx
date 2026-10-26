@@ -1,4 +1,5 @@
 "use client";
+import { formPages } from "@/lib/booking/form-pages";
 import { useEffect, useState } from "react";
 import { BookingDetail } from "@/components/booking-detail";
 import { BookingFlow } from "@/components/booking-flow";
@@ -152,7 +153,13 @@ export function FormPreviewClient() {
             event.preventDefault();
         }}
       >
-        {data.stage === "detail" ? (
+        {data.stage === "form" &&
+        formPages(data.copy).find((p) => p.id === data.group)?.hidden ? (
+          <p className="p-5 text-sm">
+            숨긴 페이지입니다. 고객 예약 화면에는 표시되지 않습니다. 편집 후
+            표시로 전환하면 미리보기를 확인할 수 있습니다.
+          </p>
+        ) : data.stage === "detail" ? (
           <BookingDetail
             product={data.product}
             earliestBookable="12월 1일"
@@ -179,7 +186,10 @@ export function FormPreviewClient() {
           />
         ) : data.stage === "success" ? (
           <>
-            <BookingSteps stage="success" />
+            <BookingSteps
+              stage="success"
+              omitReview={data.copy.reviewPageState !== "visible"}
+            />
             <ReservationSuccessCard
               successHeading={data.copy.successTitle}
               successMessage={data.copy.successIntro}

@@ -1,4 +1,6 @@
 "use server";
+import { productCopy } from "@/lib/booking/copy";
+import { customerFields } from "@/lib/booking/page-controls";
 import { z } from "zod";
 import { bookingFormVersion } from "@/lib/analytics/shared";
 
@@ -132,6 +134,17 @@ export async function createReservation(
   let customFields: Awaited<ReturnType<typeof loadActiveCustomFields>>;
   try {
     customFields = await loadActiveCustomFields(productId);
+    const configDb = await createClient();
+    const config = await configDb
+      .from("settings")
+      .select("booking_style")
+      .eq("id", 1)
+      .single();
+    if (config.error) throw config.error;
+    customFields = customerFields(
+      customFields,
+      productCopy(config.data?.booking_style, productId),
+    );
   } catch {
     return {
       status: "error",

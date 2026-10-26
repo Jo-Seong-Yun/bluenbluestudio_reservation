@@ -9,6 +9,7 @@ import {
   finishAnalyticsAttempt,
 } from "@/lib/analytics/client";
 import { bookingFormVersion } from "@/lib/analytics/shared";
+import { customerFields, customerCopy } from "@/lib/booking/page-controls";
 import { useBookingKeyboard } from "@/components/use-booking-keyboard";
 import { BookingContactInput } from "@/components/booking-contact-input";
 import { BirthDateSlots } from "@/components/birth-date-slots";
@@ -133,11 +134,17 @@ export function ReservationForm({
     },
     [previewOnly],
   );
-  const copy = useMemo(() => resolveCopy(rawCopy), [rawCopy]);
+  const copy = useMemo(
+    () => customerCopy(resolveCopy(rawCopy), customFields),
+    [rawCopy, customFields],
+  );
   const pages = useMemo(() => formPages(copy), [copy]);
   const fields = useMemo(() => {
     const rank = new Map(pages.map((page, index) => [page.id, index]));
-    return orderedFormFields(visibleBookingFields(customFields), copy)
+    return orderedFormFields(
+      visibleBookingFields(customerFields(customFields, copy)),
+      copy,
+    )
       .sort(
         (a, b) =>
           (rank.get(fieldGroup(a, copy)) ?? 0) -
@@ -562,7 +569,9 @@ export function ReservationForm({
   const analyticsOpenedAt = useRef(0);
   const analyticsValidity = useRef(new Map<string, boolean>());
   // Match the server fingerprint before display-only page ordering rewrites sort_order.
-  const formVersion = bookingFormVersion(visibleBookingFields(customFields));
+  const formVersion = bookingFormVersion(
+    visibleBookingFields(customerFields(customFields, copy)),
+  );
   const analyticsDirty = useRef(new Set<string>());
   const analyticsPage = useRef<string | null>(null);
   function recordFieldChanges(only?: string) {
@@ -940,6 +949,7 @@ export function ReservationForm({
   }
 
   function confirm() {
+    if (copy.reviewPageState !== "visible") return;
     recordFieldChanges();
     const form = formRef.current;
     if (!form) return;
@@ -972,7 +982,10 @@ export function ReservationForm({
   if (state.status === "success") {
     return (
       <div className="mx-auto max-w-3xl">
-        <BookingSteps stage="success" />
+        <BookingSteps
+          stage="success"
+          omitReview={copy.reviewPageState !== "visible"}
+        />
 
         <ReservationSuccessCard
           successHeading={rawCopy?.successTitle ?? successHeading}
@@ -993,7 +1006,10 @@ export function ReservationForm({
   return (
     <>
       <div className={compactActor ? "booking-actor-steps" : undefined}>
-        <BookingSteps stage={reviewing ? "review" : "form"} />
+        <BookingSteps
+          stage={reviewing ? "review" : "form"}
+          omitReview={copy.reviewPageState !== "visible"}
+        />
       </div>
       <form
         ref={formRef}
@@ -1091,7 +1107,14 @@ export function ReservationForm({
             event.preventDefault();
             return;
           }
-          if (!reviewing) {
+          if (copy.reviewPageState !== "visible") {
+            recordFieldChanges();
+            for (const field of fields)
+              if (!validateField(field)) {
+                event.preventDefault();
+                return;
+              }
+          } else if (!reviewing) {
             event.preventDefault();
             confirm();
           }
@@ -1303,7 +1326,9 @@ export function ReservationForm({
               <span>예상 금액</span>
               <strong>{estimatedTotal.toLocaleString()}원</strong>
             </div>
-            {reviewing ? (
+            {reviewing ||
+            (copy.reviewPageState !== "visible" &&
+              groups.indexOf(currentGroup) === groups.length - 1) ? (
               <BookingCTA
                 ready={forwardReady}
                 key="submit-reservation"
@@ -1311,8 +1336,17 @@ export function ReservationForm({
                 disabled={pending || previewOnly}
                 className={`${PRIMARY_CTA_CLASS} mt-4`}
               >
-                <span data-preview-target="copy:reviewButton">
-                  {pending ? "접수 중…" : copy.reviewButton}
+                <span
+                  data-preview-target={
+                    reviewing ? "copy:reviewButton" : "page:buttonLabel"
+                  }
+                >
+                  {pending
+                    ? "접수 중…"
+                    : (!reviewing &&
+                        pages.find((p) => p.id === currentGroup)
+                          ?.buttonLabel) ||
+                      copy.reviewButton}
                 </span>
               </BookingCTA>
             ) : (
@@ -1327,9 +1361,13 @@ export function ReservationForm({
                 }}
                 className={`${PRIMARY_CTA_CLASS} mt-4`}
               >
-                {groups.indexOf(currentGroup) === groups.length - 1
-                  ? "신청 내용 확인하기 →"
-                  : "다음 단계로 →"}
+                <span data-preview-target="page:buttonLabel">
+                  {pages.find((page) => page.id === currentGroup)
+                    ?.buttonLabel ||
+                    (groups.indexOf(currentGroup) === groups.length - 1
+                      ? "신청 내용 확인하기 →"
+                      : "다음 단계로 →")}
+                </span>
               </BookingCTA>
             )}
           </div>
