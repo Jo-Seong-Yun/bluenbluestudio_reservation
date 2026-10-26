@@ -79,6 +79,7 @@ export type BookingCopy = Record<string, string>;
 export const DEFAULT_COPY: BookingCopy = Object.assign(
   {},
   ...COPY_SECTIONS.map(([, values]) => values),
+  { detailPageState: "visible", reviewPageState: "visible" },
 );
 export const OPTIONAL_COPY_KEYS = new Set(["consentIntro", "reviewIntro"]);
 export const COPY_LABELS: Record<string, string> = {
@@ -165,6 +166,9 @@ export function resolveCopy(raw: unknown): BookingCopy {
       )
         result[key] = String(value);
   }
+  for (const key of ["detailPageState", "reviewPageState"])
+    if (!["visible", "hidden", "deleted"].includes(result[key]))
+      result[key] = "visible";
   return result;
 }
 export function productCopy(style: unknown, id: string): BookingCopy {

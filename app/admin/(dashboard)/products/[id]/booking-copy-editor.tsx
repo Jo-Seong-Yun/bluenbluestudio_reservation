@@ -156,7 +156,10 @@ export function BookingCopyEditor({
     setDraftPages(next);
     setCopy(copyWithPages(copy, next));
   }
-  function updatePage(key: "label" | "title" | "intro", value: string) {
+  function updatePage(
+    key: "label" | "title" | "intro" | "buttonLabel",
+    value: string,
+  ) {
     updatePages(
       pages.map((p) => (p.id === page.id ? { ...p, [key]: value } : p)),
     );
@@ -182,7 +185,8 @@ export function BookingCopyEditor({
     const index = pages.findIndex((p) => p.id === id);
     if (index < 0) return;
     const removed = pages[index];
-    const target = pages[index - 1] ?? pages[index + 1];
+    if (!removed.hidden && pages.filter((p) => !p.hidden).length <= 1) return;
+    const target = pages.find((p) => p.id !== id && !p.hidden)!;
     if (
       !window.confirm(
         `"${removed.label}" 페이지를 삭제하시겠습니까? 이 페이지의 문항은 "${target.label}" 페이지로 이동하며 기존 답변은 유지됩니다. 페이지 구성 저장 시 반영됩니다.`,
@@ -272,6 +276,9 @@ export function BookingCopyEditor({
         <input type="hidden" name="productId" value={product.id} />
         {mode === "form" ? (
           <>
+            {["detailPageState", "reviewPageState"].map((key) => (
+              <input key={key} type="hidden" name={key} value={copy[key]} />
+            ))}
             {sections
               .flatMap(([, values]) => Object.keys(values))
               .map((key) => (
@@ -335,29 +342,86 @@ export function BookingCopyEditor({
           <div className="form-builder-grid">
             <aside className="editor-card page-list">
               <h3>
-                페이지 <span>{pages.length + 4}개</span>
+                페이지{" "}
+                <span>
+                  {pages.length +
+                    2 +
+                    Number(copy.detailPageState !== "deleted") +
+                    Number(copy.reviewPageState !== "deleted")}
+                  개
+                </span>
               </h3>
               {[
                 ["detail", "상품 상세"],
                 ["times", "일정 선택"],
-              ].map(([id, label]) => (
-                <div
-                  key={id}
-                  className={`page-list-item ${stage === id ? "selected" : ""}`}
-                >
-                  <button
-                    type="button"
-                    className="page-select"
-                    aria-pressed={stage === id}
-                    onClick={() => setStage(id as "detail" | "times")}
+              ]
+                .filter(
+                  ([id]) =>
+                    id !== "detail" || copy.detailPageState !== "deleted",
+                )
+                .map(([id, label]) => (
+                  <div
+                    key={id}
+                    className={`page-list-item ${stage === id ? "selected" : ""}`}
                   >
-                    <span>
-                      <b>{label}</b>
-                      <small>상품별 안내 · 고정 단계</small>
-                    </span>
-                  </button>
-                </div>
-              ))}
+                    <button
+                      type="button"
+                      className="page-select"
+                      aria-pressed={stage === id}
+                      onClick={() => setStage(id as "detail" | "times")}
+                    >
+                      <span>
+                        <b>{label}</b>
+                        <small>
+                          {copy[`${id}PageState`] === "hidden"
+                            ? "숨김 · 고객 화면 제외"
+                            : "상품별 안내"}
+                        </small>
+                      </span>
+                    </button>
+                    {id === "detail" || id === "review" ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="text-xs"
+                          onClick={() =>
+                            setCopy({
+                              ...copy,
+                              [`${id}PageState`]:
+                                copy[`${id}PageState`] === "hidden"
+                                  ? "visible"
+                                  : "hidden",
+                            })
+                          }
+                        >
+                          {copy[`${id}PageState`] === "hidden"
+                            ? "표시"
+                            : "숨기기"}
+                        </button>
+                        <button
+                          type="button"
+                          className="page-remove"
+                          aria-label={`${label} 페이지 삭제`}
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `"${label}" 페이지를 삭제하시겠습니까? 고객 예약 흐름에서 건너뛰며 페이지 구성 저장 시 반영됩니다.`,
+                              )
+                            ) {
+                              setCopy({
+                                ...copy,
+                                [`${id}PageState`]: "deleted",
+                              });
+                              setStage("form");
+                            }
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
               <h4 className="editor-help">신청서</h4>
               {pages.map((p, index) => {
                 const assigned = fields.filter(
@@ -379,7 +443,10 @@ export function BookingCopyEditor({
                     >
                       <span className="page-number">{index + 1}</span>
                       <span>
-                        <b>{p.label}</b>
+                        <b>
+                          {p.label}
+                          {p.hidden ? " (숨김)" : ""}
+                        </b>
                         <small>
                           {assigned.map((f) => f.label).join(" · ") ||
                             "문항 없음"}
@@ -389,9 +456,31 @@ export function BookingCopyEditor({
                     </button>
                     <button
                       type="button"
+                      className="text-xs"
+                      disabled={
+                        !p.hidden && pages.filter((p) => !p.hidden).length <= 1
+                      }
+                      onClick={() =>
+                        updatePages(
+                          pages.map((item) =>
+                            item.id === p.id
+                              ? { ...item, hidden: !item.hidden }
+                              : item,
+                          ),
+                        )
+                      }
+                    >
+                      {p.hidden ? "표시" : "숨기기"}
+                    </button>
+                    <button
+                      type="button"
                       className="page-remove"
                       aria-label={`${p.label} 페이지 삭제`}
-                      disabled={pages.length <= 1}
+                      disabled={
+                        pages.length <= 1 ||
+                        (!p.hidden &&
+                          pages.filter((p) => !p.hidden).length <= 1)
+                      }
                       onClick={() => deletePage(p.id)}
                     >
                       삭제
@@ -413,28 +502,99 @@ export function BookingCopyEditor({
               <p className="editor-help">
                 문항이 없는 페이지는 고객 화면에서 건너뜁니다.
               </p>
+              <p className="editor-help">
+                숨긴 페이지는 고객에게 표시하지 않습니다. 이름·연락처 기본
+                문항은 표시 중인 첫 페이지로 옮겨 표시합니다.
+              </p>
+              {[
+                ["detail", "상품 상세"],
+                ["review", "최종 확인"],
+              ]
+                .filter(([id]) => copy[`${id}PageState`] === "deleted")
+                .map(([id, label]) => (
+                  <button
+                    type="button"
+                    key={id}
+                    className="text-xs"
+                    onClick={() =>
+                      setCopy({ ...copy, [`${id}PageState`]: "visible" })
+                    }
+                  >
+                    {label} 복원
+                  </button>
+                ))}
               <hr />
               {[
                 ["review", "최종 확인"],
                 ["success", "접수 완료"],
-              ].map(([id, label]) => (
-                <div
-                  key={id}
-                  className={`page-list-item ${stage === id ? "selected" : ""}`}
-                >
-                  <button
-                    type="button"
-                    className="page-select"
-                    aria-pressed={stage === id}
-                    onClick={() => setStage(id as "review" | "success")}
+              ]
+                .filter(
+                  ([id]) =>
+                    id !== "review" || copy.reviewPageState !== "deleted",
+                )
+                .map(([id, label]) => (
+                  <div
+                    key={id}
+                    className={`page-list-item ${stage === id ? "selected" : ""}`}
                   >
-                    <span>
-                      <b>{label}</b>
-                      <small>상품별 안내 · 고정 단계</small>
-                    </span>
-                  </button>
-                </div>
-              ))}
+                    <button
+                      type="button"
+                      className="page-select"
+                      aria-pressed={stage === id}
+                      onClick={() => setStage(id as "review" | "success")}
+                    >
+                      <span>
+                        <b>{label}</b>
+                        <small>
+                          {copy[`${id}PageState`] === "hidden"
+                            ? "숨김 · 고객 화면 제외"
+                            : "상품별 안내"}
+                        </small>
+                      </span>
+                    </button>
+                    {id === "detail" || id === "review" ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="text-xs"
+                          onClick={() =>
+                            setCopy({
+                              ...copy,
+                              [`${id}PageState`]:
+                                copy[`${id}PageState`] === "hidden"
+                                  ? "visible"
+                                  : "hidden",
+                            })
+                          }
+                        >
+                          {copy[`${id}PageState`] === "hidden"
+                            ? "표시"
+                            : "숨기기"}
+                        </button>
+                        <button
+                          type="button"
+                          className="page-remove"
+                          aria-label={`${label} 페이지 삭제`}
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `"${label}" 페이지를 삭제하시겠습니까? 고객 예약 흐름에서 건너뛰며 페이지 구성 저장 시 반영됩니다.`,
+                              )
+                            ) {
+                              setCopy({
+                                ...copy,
+                                [`${id}PageState`]: "deleted",
+                              });
+                              setStage("form");
+                            }
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
             </aside>
             <div className="editor-card page-editor">
               {stage === "form" ? (
@@ -481,6 +641,18 @@ export function BookingCopyEditor({
                       value={page.title}
                       maxLength={1000}
                       onChange={(e) => updatePage("title", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="다음 버튼 문구">
+                    <input
+                      className={inputClass}
+                      data-preview-target="page:buttonLabel"
+                      value={page.buttonLabel ?? ""}
+                      maxLength={100}
+                      placeholder="비우면 기본 버튼 문구"
+                      onChange={(e) =>
+                        updatePage("buttonLabel", e.target.value)
+                      }
                     />
                   </Field>
                   <Field label="페이지 설명 (비우면 숨김)">

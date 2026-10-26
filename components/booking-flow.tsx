@@ -224,12 +224,14 @@ export function BookingFlow({
         <p className="text-brand text-xs font-bold tracking-wider">예약 요약</p>
         <h2>{productName}</h2>
         <p className="text-muted text-sm">촬영 {durationMin}분</p>
-        <Link
-          href={basePath}
-          className="text-brand mt-3 inline-block text-sm underline"
-        >
-          상품 상세 다시 보기
-        </Link>
+        {copy.detailPageState === "visible" ? (
+          <Link
+            href={basePath}
+            className="text-brand mt-3 inline-block text-sm underline"
+          >
+            상품 상세 다시 보기
+          </Link>
+        ) : null}
         <div className="mt-5 flex justify-between text-sm">
           <span className="font-semibold">희망 시간</span>
           <span className="text-muted" aria-live="polite">
