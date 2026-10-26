@@ -168,7 +168,15 @@ export function ActivityTimeline({
                   >
                     {stamp}
                   </time>
-                  <b>{eventLabels[row.event_kind] ?? row.event_kind}</b>
+                  <b>
+                    {eventLabels[row.event_kind] ?? row.event_kind}
+                    {row.event_kind === "visibility_change" &&
+                    ["hidden", "visible"].includes(
+                      String(row.event_details?.visibility),
+                    )
+                      ? ` (${row.event_details?.visibility})`
+                      : ""}
+                  </b>
                   <span className="ml-3">
                     {names[row.product_id ?? ""] ?? "공통 / 삭제된 상품"}
                     {row.field_label ? ` · ${row.field_label}` : ""}
