@@ -102,6 +102,19 @@ export function FieldModal({
     setOptionDescriptions((prev) => [...prev, ""]);
   }
 
+  function moveOption(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= options.length) return;
+    const move = (values: string[]) => {
+      const next = [...values];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    };
+    setOptions(move);
+    setOptionPrices(move);
+    setOptionDescriptions(move);
+  }
+
   function removeOption(index: number) {
     setOptions((prev) => prev.filter((_, i) => i !== index));
     setOptionPrices((prev) => prev.filter((_, i) => i !== index));
@@ -221,6 +234,25 @@ export function FieldModal({
                 key={index}
                 className="border-border space-y-2 rounded-lg border p-3"
               >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted text-xs">옵션 {index + 1}</span>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveOption(index, -1)}
+                      disabled={index === 0}
+                      aria-label={`옵션 ${index + 1} 위로`}
+                      className="border-border hover:bg-surface-subtle rounded border px-2 py-1 text-sm disabled:opacity-25"
+                    >↑</button>
+                    <button
+                      type="button"
+                      onClick={() => moveOption(index, 1)}
+                      disabled={index === options.length - 1}
+                      aria-label={`옵션 ${index + 1} 아래로`}
+                      className="border-border hover:bg-surface-subtle rounded border px-2 py-1 text-sm disabled:opacity-25"
+                    >↓</button>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="text-muted shrink-0">
                     {type === "single_choice" ? "○" : "☐"}
