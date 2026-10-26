@@ -23,19 +23,21 @@ export async function logBookingEvents(input: unknown): Promise<boolean> {
         parsed.data.map((e) => e.fieldId).filter((id): id is string => !!id),
       ),
     ];
-    const products = productIds.length
-      ? await db
-          .from("products")
-          .select("id")
-          .in("id", productIds)
-          .eq("is_published", true)
-      : { data: [], error: null };
-    const fields = fieldIds.length
-      ? await db
-          .from("custom_fields")
-          .select("id, product_id, label, sort_order")
-          .in("id", fieldIds)
-      : { data: [], error: null };
+    const [products, fields] = await Promise.all([
+      productIds.length
+        ? db
+            .from("products")
+            .select("id")
+            .in("id", productIds)
+            .eq("is_published", true)
+        : { data: [], error: null },
+      fieldIds.length
+        ? db
+            .from("custom_fields")
+            .select("id, product_id, label, sort_order, options")
+            .in("id", fieldIds)
+        : { data: [], error: null },
+    ]);
     if (products.error || fields.error) throw new Error("통계 문항 조회 실패");
     const allowed = new Set(products.data?.map((p) => p.id));
     const byField = new Map(fields.data?.map((f) => [f.id, f]));
@@ -45,15 +47,28 @@ export async function logBookingEvents(input: unknown): Promise<boolean> {
           (e.kind === "list_view"
             ? e.productId === null
             : !!e.productId && allowed.has(e.productId) && !!e.attemptId) &&
-          (e.kind.startsWith("field_")
+          (e.kind.startsWith("field_") ||
+          e.kind === "option_select" ||
+          e.kind === "option_deselect"
             ? !!e.fieldId && byField.get(e.fieldId)?.product_id === e.productId
             : e.fieldId === null),
       )
       .map((e) => ({
         occurred_at:
-          Math.abs(Date.now() - Date.parse(e.occurredAt)) < 120000
+          Date.parse(e.occurredAt) >= Date.now() - 86400000 &&
+          Date.parse(e.occurredAt) <= Date.now() + 120000
             ? e.occurredAt
             : new Date().toISOString(),
+        event_details: {
+          ...e.details,
+          ...(e.fieldId && e.details?.optionIndex !== undefined
+            ? {
+                optionLabel:
+                  byField.get(e.fieldId)?.options?.[e.details.optionIndex] ??
+                  null,
+              }
+            : {}),
+        },
         id: e.id,
         session_id: e.sessionId,
         attempt_id: e.attemptId,
@@ -70,7 +85,7 @@ export async function logBookingEvents(input: unknown): Promise<boolean> {
         duration_ms: e.durationMs,
         error_code: e.errorCode,
       }));
-    if (!rows.length) return false;
+    if (!rows.length) return true; // Acknowledge stale/deleted targets so they cannot block later batches.
     const result = await db
       .from("booking_events")
       .upsert(rows, { onConflict: "id", ignoreDuplicates: true });

@@ -15,11 +15,20 @@ export function BookingAnalyticsTracker({
       logged.current = key;
       trackBooking(stage, productId);
     }
-    const flush = () => flushAnalytics();
-    window.addEventListener("pagehide", flush);
+    const visibility = () => {
+      if (productId)
+        trackBooking("visibility_change", productId, {
+          details: {
+            visibility:
+              document.visibilityState === "hidden" ? "hidden" : "visible",
+          },
+        });
+      flushAnalytics();
+    };
+    document.addEventListener("visibilitychange", visibility);
     return () => {
-      window.removeEventListener("pagehide", flush);
-      flush();
+      document.removeEventListener("visibilitychange", visibility);
+      flushAnalytics();
     };
   }, [stage, productId]);
   return null;

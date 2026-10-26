@@ -1,3 +1,4 @@
+import { ActivityTimeline } from "./activity-timeline";
 import { FlowPanel } from "./flow-panel";
 
 import {
@@ -60,13 +61,6 @@ export function AnalyticsDashboard({
   );
   const maxHourly = Math.max(1, ...hourly.map((h) => h.views));
 
-  const listToDetailRate =
-    listViews > 0 ? (totalViews / listViews) * 100 : null;
-  const detailToApplyRate =
-    totalViews > 0 ? (applyViews / totalViews) * 100 : null;
-  const applyToApplicationRate =
-    applyViews > 0 ? (totalApplications / applyViews) * 100 : null;
-
   // 지난번 확인(previous) 시점 대비 변동치 계산용 — previous가 null이면
   // (한 번도 연 적 없으면) 전부 null로 두어 아무 변동치도 안 보여준다.
   const previousTotalViews = previous
@@ -109,46 +103,53 @@ export function AnalyticsDashboard({
           rows.map((r) => [r.productId, r.productName]),
         )}
       />
-      <section className="border-border bg-surface mb-5 rounded-xl border p-4">
-        <h2 className="font-bold">과거 기록과 연결한 누적 집계</h2>
-        <p className="text-muted mt-2 text-xs leading-relaxed">
-          과거 목록 {legacyCounts.list}회 · 상세·시간 선택 {legacyCounts.detail}
-          회 · 신청서 {legacyCounts.form}회 · 예약 {legacyCounts.reservations}
-          건을 원본에서 연결합니다. 새 이벤트를 기존 테이블에 복사하지 않아 중복
-          집계하지 않습니다. 과거 예약 {flow.unclassifiedReservations}건은 고객
-          신청·관리자 등록을 구분할 근거가 없어 포함 출처 미분류로 유지합니다.
-        </p>
-        <p className="text-muted mt-2 text-xs">
-          아래 조회 대비 접수 비율은 횟수 기준 참고 지표이며 세션 전환율과
-          다릅니다. 상세·시간 선택은 과거에 함께 기록되어 분리할 수 없습니다.
-        </p>
-      </section>
-      <div className="border-border bg-surface flex flex-wrap items-stretch gap-3 rounded-xl border p-4 sm:flex-nowrap">
-        <FunnelStep
-          label="상품 목록 진입"
-          value={listViews}
-          previous={previous?.listViews ?? null}
-        />
-        <FunnelArrow rate={listToDetailRate} />
-        <FunnelStep
-          label="상세·시간 선택 조회"
-          value={totalViews}
-          previous={previousTotalViews}
-        />
-        <FunnelArrow rate={detailToApplyRate} />
-        <FunnelStep
-          label="신청서 진입"
-          value={applyViews}
-          previous={previous?.applyViews ?? null}
-        />
-        <FunnelArrow rate={applyToApplicationRate} />
-        <FunnelStep
-          label="접수 기록 합계"
-          value={totalApplications}
-          previous={previousTotalApplications}
-          highlight
-        />
-      </div>
+      <details className="border-border bg-surface mb-5 rounded-xl border p-4">
+        <summary className="cursor-pointer font-bold">
+          과거 기록 포함 누적 횟수 (보조 지표)
+        </summary>
+        <section className="mt-3">
+          <h2 className="font-bold">과거 기록과 연결한 누적 집계</h2>
+          <p className="text-muted mt-2 text-xs leading-relaxed">
+            과거 목록 {legacyCounts.list}회 · 상세·시간 선택{" "}
+            {legacyCounts.detail}회 · 신청서 {legacyCounts.form}회 · 예약{" "}
+            {legacyCounts.reservations}
+            건을 원본에서 연결합니다. 새 이벤트를 기존 테이블에 복사하지 않아
+            중복 집계하지 않습니다. 과거 예약 {flow.unclassifiedReservations}
+            건은 고객 신청·관리자 등록을 구분할 근거가 없어 포함 출처 미분류로
+            유지합니다.
+          </p>
+          <p className="text-muted mt-2 text-xs">
+            아래 조회 대비 접수 비율은 횟수 기준 참고 지표이며 세션 전환율과
+            다릅니다. 상세·시간 선택은 과거에 함께 기록되어 분리할 수 없습니다.
+          </p>
+        </section>
+        <div className="border-border bg-surface flex flex-wrap items-stretch gap-3 rounded-xl border p-4 sm:flex-nowrap">
+          <FunnelStep
+            label="상품 목록 진입"
+            value={listViews}
+            previous={previous?.listViews ?? null}
+          />
+
+          <FunnelStep
+            label="상세·시간 선택 조회"
+            value={totalViews}
+            previous={previousTotalViews}
+          />
+
+          <FunnelStep
+            label="신청서 진입"
+            value={applyViews}
+            previous={previous?.applyViews ?? null}
+          />
+
+          <FunnelStep
+            label="접수 기록 합계"
+            value={totalApplications}
+            previous={previousTotalApplications}
+            highlight
+          />
+        </div>
+      </details>
 
       <section className="border-border bg-surface mt-6 rounded-xl border p-4">
         <div className="mb-4 flex items-center justify-between">
@@ -291,7 +292,7 @@ export function AnalyticsDashboard({
           목적. 링크에 ref가 없던 방문은 "(직접 방문)"으로 묶인다. */}
       <section className="border-border bg-surface mt-6 overflow-x-auto rounded-xl border">
         <div className="border-border border-b px-4 py-3">
-          <h2 className="font-bold">유입경로별 집계</h2>
+          <h2 className="font-bold">유입경로별 누적 횟수 (과거 포함)</h2>
           <p className="text-muted mt-0.5 text-xs">
             홍보 링크 끝에 ?ref=값을 붙이면(예: ?ref=insta) 그 채널로 들어온
             조회·신청이 여기 따로 집계됩니다.
@@ -356,72 +357,89 @@ export function AnalyticsDashboard({
         </table>
       </section>
 
+      {data.activityPage ? (
+        <ActivityTimeline
+          initial={data.activityPage}
+          names={Object.fromEntries(
+            rows.map((r) => [r.productId, r.productName]),
+          )}
+        />
+      ) : null}
       {/* 집계된 숫자 말고 "언제" 발생했는지 하나하나 보고 싶을 때 쓰는
           상세 로그. 세 종류(목록 진입/상품 상세 진입/실제 예약)를 발생
           시간순으로 섞어서 최근 것부터 보여준다. 화면 밖으로 무한정
           늘어나지 않게 목록 자체를 스크롤 영역으로 둔다. */}
       <section className="border-border bg-surface mt-6 rounded-xl border p-4">
-        <h2 className="mb-4 font-bold">상세 로그</h2>
-
-        {recentActivity.length === 0 ? (
-          <p className="text-muted py-4 text-center text-sm">
-            아직 쌓인 기록이 없습니다.
+        <details>
+          <summary className="cursor-pointer font-bold">
+            과거 조회·예약 원본 기록 (최근 100건)
+          </summary>
+          <p className="text-muted my-3 text-xs">
+            세부 행동 로그와 별도로 보존한 과거 조회 및 예약 생성 기록입니다.
+            관리자 수기 예약도 이 원본 기록에 포함됩니다.
           </p>
-        ) : (
-          <ul className="max-h-[420px] overflow-y-auto">
-            {recentActivity.map((entry) => (
-              <li
-                key={`${entry.kind}-${entry.id}`}
-                className="border-border flex items-center gap-3 border-b py-2 text-sm last:border-0"
-              >
-                <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${ACTIVITY_KIND_DOT[entry.kind]}`}
-                  aria-hidden
-                />
-                <span className="text-muted w-36 shrink-0 font-mono text-xs">
-                  {kstDateString(new Date(entry.occurredAt))}{" "}
-                  {kstTimeString(new Date(entry.occurredAt))}
-                </span>
-                <span className="w-28 shrink-0">
-                  {entry.eventLabel ?? ACTIVITY_KIND_LABEL[entry.kind]}
-                </span>
-                <span className="text-muted min-w-0 flex-1 truncate">
-                  {entry.productName ?? "-"}
-                </span>
-                <span
-                  className="w-20 shrink-0 truncate text-xs"
-                  title={entry.ref ?? undefined}
+
+          {recentActivity.length === 0 ? (
+            <p className="text-muted py-4 text-center text-sm">
+              아직 쌓인 기록이 없습니다.
+            </p>
+          ) : (
+            <ul className="max-h-[420px] overflow-y-auto">
+              {recentActivity.map((entry) => (
+                <li
+                  key={`${entry.kind}-${entry.id}`}
+                  className="border-border flex items-center gap-3 border-b py-2 text-sm last:border-0"
                 >
-                  {entry.ref ? (
-                    <span className="bg-surface-subtle text-muted rounded px-1.5 py-0.5">
-                      {entry.ref}
-                    </span>
-                  ) : (
-                    <span className="text-muted-faint">-</span>
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${ACTIVITY_KIND_DOT[entry.kind]}`}
+                    aria-hidden
+                  />
+                  <span className="text-muted w-36 shrink-0 font-mono text-xs">
+                    {kstDateString(new Date(entry.occurredAt))}{" "}
+                    {kstTimeString(new Date(entry.occurredAt))}
+                  </span>
+                  <span className="w-28 shrink-0">
+                    {entry.eventLabel ?? ACTIVITY_KIND_LABEL[entry.kind]}
+                  </span>
+                  <span className="text-muted min-w-0 flex-1 truncate">
+                    {entry.productName ?? "-"}
+                  </span>
+                  <span
+                    className="w-20 shrink-0 truncate text-xs"
+                    title={entry.ref ?? undefined}
+                  >
+                    {entry.ref ? (
+                      <span className="bg-surface-subtle text-muted rounded px-1.5 py-0.5">
+                        {entry.ref}
+                      </span>
+                    ) : (
+                      <span className="text-muted-faint">-</span>
+                    )}
+                  </span>
+                  {entry.kind === "reset" ? null : (
+                    <>
+                      <ActivityMemo
+                        kind={entry.kind}
+                        id={entry.id}
+                        memo={entry.memo}
+                      />
+                      <ActivityDeleteButton kind={entry.kind} id={entry.id} />
+                    </>
                   )}
-                </span>
-                {entry.kind === "reset" ? null : (
-                  <>
-                    <ActivityMemo
-                      kind={entry.kind}
-                      id={entry.id}
-                      memo={entry.memo}
-                    />
-                    <ActivityDeleteButton kind={entry.kind} id={entry.id} />
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
       </section>
 
       <p className="text-muted mt-3 text-xs">
         과거 조회는 화면을 열 때마다 세는 횟수이며 사람 수가 아닙니다. 새 세션
         분석은 개편 이후 수집한 기록만 사용합니다. 일별·시간대별 조회는
         목록·상세·시간 선택·신청서 화면 조회를 합산합니다. 통계 리셋은 집계 시작
-        시점만 바꾸고 원본 로그는 보존합니다. 상세 로그는 최근 100건입니다.
-        메모·삭제 기능은 기존과 동일합니다.
+        시점만 바꾸고 원본 로그는 보존합니다. 행동 로그는 필터와 이어 보기를
+        지원합니다. 과거 원본 기록은 최근 100건입니다. 메모·삭제 기능은 기존과
+        동일합니다.
       </p>
     </div>
   );
@@ -479,18 +497,5 @@ function Delta({
       {formatted}
       {suffix}
     </span>
-  );
-}
-
-function FunnelArrow({ rate }: { rate: number | null }) {
-  return (
-    <div className="flex flex-col items-center justify-center gap-0.5 px-1">
-      <span className="text-muted" aria-hidden>
-        →
-      </span>
-      <span className="text-muted text-[11px] whitespace-nowrap">
-        {rate === null ? "-" : `${rate.toFixed(1)}%`}
-      </span>
-    </div>
   );
 }

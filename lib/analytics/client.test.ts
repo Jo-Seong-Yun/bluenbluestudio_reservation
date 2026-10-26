@@ -23,7 +23,9 @@ beforeEach(() => {
   vi.stubGlobal("localStorage", storage());
   vi.stubGlobal("sessionStorage", storage());
 });
-afterEach(() => {
+afterEach(async () => {
+  for (let i = 0; i < 8; i++) await Promise.resolve();
+  vi.clearAllTimers();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -77,4 +79,48 @@ describe("예약 세션과 시도 추적", () => {
     expect(rows[0].attemptId).toBe(rows[1].attemptId);
     expect(rows[0]).not.toHaveProperty("answer");
   });
+});
+
+it("retains a failed batch with the same IDs and drains events added in flight", async () => {
+  const client = await import("./client");
+  mocks.log.mockResolvedValueOnce(false).mockResolvedValue(true);
+  client.trackBooking("date_select", "00000000-0000-4000-8000-000000000001", {
+    details: { date: "2026-10-05" },
+  });
+  client.flushAnalytics();
+  const id = mocks.log.mock.calls[0][0][0].id;
+  client.trackBooking("times_continue", "00000000-0000-4000-8000-000000000001");
+  await vi.advanceTimersByTimeAsync(1500);
+  expect(mocks.log.mock.calls[1][0][0].id).toBe(id);
+  expect(
+    JSON.parse(sessionStorage.getItem("booking-analytics-buffer-v3") ?? "[]"),
+  ).toEqual([]);
+});
+it("restores unsent events on reload without exposing answer data", async () => {
+  let client = await import("./client");
+  client.trackBooking("field_change", "00000000-0000-4000-8000-000000000001", {
+    fieldId: "00000000-0000-4000-8000-000000000002",
+  });
+  const pending = JSON.parse(
+    sessionStorage.getItem("booking-analytics-buffer-v3")!,
+  );
+  const { analyticsEventSchema } = await import("./shared");
+  expect(analyticsEventSchema.safeParse(pending[0])).toMatchObject({
+    success: true,
+  });
+  vi.clearAllTimers();
+  vi.resetModules();
+  client = await import("./client");
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(pending[0].occurredAt));
+  client.flushAnalytics();
+  expect(mocks.log.mock.calls[0][0][0].id).toBe(pending[0].id);
+  expect(mocks.log.mock.calls[0][0][0]).not.toHaveProperty("answer");
+});
+it("caps the pending buffer while the server is unavailable", async () => {
+  const client = await import("./client");
+  for (let i = 0; i < 350; i++) client.trackBooking("list_view");
+  expect(
+    JSON.parse(sessionStorage.getItem("booking-analytics-buffer-v3")!),
+  ).toHaveLength(300);
 });

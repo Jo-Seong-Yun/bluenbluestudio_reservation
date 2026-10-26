@@ -190,6 +190,7 @@ export function ReservationForm({
     .filter((field) => fieldGroup(field, copy) === currentGroup)
     .map((field) => field.id);
   function nextGroup() {
+    recordFieldChanges();
     for (const field of fields.filter(
       (field) => fieldGroup(field, copy) === currentGroup,
     ))
@@ -199,6 +200,10 @@ export function ReservationForm({
       confirm();
       return;
     }
+    trackBooking("page_next", productId, {
+      formVersion,
+      details: { fromPage: currentGroup, toPage: next },
+    });
     const first = fields.find((field) => fieldGroup(field, copy) === next);
     // iOS 키패드는 사용자 이벤트 안에서 동기 focus해야 열립니다.
     // 두 번째 페이지의 첫 텍스트 입력을 표시한 뒤 같은 이벤트에서 초점을 줍니다.
@@ -271,6 +276,13 @@ export function ReservationForm({
             }
             answerDrafts.set(productId, answers);
             setInitialAnswers(answers);
+            trackBooking("form_restore", productId, {
+              details: {
+                pageId: groups.includes(saved.group)
+                  ? saved.group
+                  : (groups[0] ?? 0),
+              },
+            });
             if (groups.includes(saved.group)) setCurrentGroup(saved.group);
           } else sessionStorage.removeItem(draftStorageKey(productId));
         }
@@ -549,7 +561,41 @@ export function ReservationForm({
   const analyticsVisited = useRef<string | null>(null);
   const analyticsOpenedAt = useRef(0);
   const analyticsValidity = useRef(new Map<string, boolean>());
-  const formVersion = bookingFormVersion(fields);
+  // Match the server fingerprint before display-only page ordering rewrites sort_order.
+  const formVersion = bookingFormVersion(visibleBookingFields(customFields));
+  const analyticsDirty = useRef(new Set<string>());
+  const analyticsPage = useRef<string | null>(null);
+  function recordFieldChanges(only?: string) {
+    for (const id of [...analyticsDirty.current]) {
+      if (only && only !== id) continue;
+      analyticsDirty.current.delete(id);
+      trackBooking("field_change", productId, {
+        fieldId: id,
+        formVersion,
+        details: { pageId: currentGroup },
+      });
+    }
+  }
+  useEffect(() => {
+    if (!draftRestored || state.status === "success") return;
+    const key = reviewing ? "review" : String(currentGroup);
+    if (analyticsPage.current === key) return;
+    analyticsPage.current = key;
+    if (!reviewing)
+      trackBooking("page_view", productId, {
+        formVersion,
+        details: { pageId: currentGroup },
+      });
+  }, [
+    draftRestored,
+    state.status,
+    reviewing,
+    currentGroup,
+    productId,
+    formVersion,
+    trackBooking,
+  ]);
+
   useEffect(() => {
     if (reviewing || !activeFieldId || state.status === "success") return;
     if (analyticsVisited.current !== activeFieldId) {
@@ -894,6 +940,7 @@ export function ReservationForm({
   }
 
   function confirm() {
+    recordFieldChanges();
     const form = formRef.current;
     if (!form) return;
     for (const field of fields) if (!validateField(field)) return;
@@ -962,14 +1009,45 @@ export function ReservationForm({
           const id = (event.target as HTMLElement).closest<HTMLElement>(
             "[data-field-id]",
           )?.dataset.fieldId;
-          if (id) setActiveFieldId(id);
+          if (id) {
+            setActiveFieldId(id);
+            trackBooking("field_focus", productId, {
+              fieldId: id,
+              formVersion,
+              details: { pageId: currentGroup },
+            });
+          }
         }}
-        onBlur={(event) =>
-          guideContactChange(event.target as HTMLElement, true)
-        }
+        onBlur={(event) => {
+          const target = event.target as HTMLElement;
+          const id =
+            target.closest<HTMLElement>("[data-field-id]")?.dataset.fieldId;
+          if (id) recordFieldChanges(id);
+          guideContactChange(target, true);
+        }}
         onChange={(event) => {
           const target = event.target as HTMLElement;
           const block = target.closest<HTMLElement>("[data-field-id]");
+          const field = fields.find((f) => f.id === block?.dataset.fieldId);
+          if (
+            field &&
+            target instanceof HTMLInputElement &&
+            ["checkbox", "radio"].includes(target.type)
+          ) {
+            const optionIndex = field.options?.indexOf(target.value) ?? -1;
+            trackBooking(
+              target.checked ? "option_select" : "option_deselect",
+              productId,
+              {
+                fieldId: field.id,
+                formVersion,
+                details: {
+                  pageId: currentGroup,
+                  ...(optionIndex >= 0 ? { optionIndex } : {}),
+                },
+              },
+            );
+          } else if (field) analyticsDirty.current.add(field.id);
           block
             ?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
               "input, textarea",
@@ -1051,6 +1129,11 @@ export function ReservationForm({
                 if (prev !== undefined) {
                   const focused = document.activeElement;
                   if (focused instanceof HTMLElement) focused.blur();
+                  recordFieldChanges();
+                  trackBooking("page_back", productId, {
+                    formVersion,
+                    details: { fromPage: currentGroup, toPage: prev },
+                  });
                   setCurrentGroup(prev);
                 }
               }}
@@ -1172,7 +1255,13 @@ export function ReservationForm({
               type="button"
               variant="ghost"
               className="mt-5"
-              onClick={() => setReviewing(false)}
+              onClick={() => {
+                trackBooking("page_back", productId, {
+                  formVersion,
+                  details: { toPage: currentGroup },
+                });
+                setReviewing(false);
+              }}
             >
               ← 신청 정보 수정하기
             </Button>

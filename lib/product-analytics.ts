@@ -1,4 +1,6 @@
 import "server-only";
+import { loadActivityPage, type ActivityPage } from "@/lib/analytics/activity";
+import { summaryEventKinds } from "@/lib/analytics/shared";
 import { readAllRevenueRows } from "@/lib/revenue/pagination";
 import { summarizeFlow, type FlowAnalytics } from "@/lib/analytics/summary";
 import { createClient } from "@/lib/supabase/server";
@@ -66,6 +68,7 @@ export type ProductAnalyticsSnapshot = {
 
 export type ProductAnalytics = {
   flow: FlowAnalytics;
+  activityPage?: ActivityPage;
   legacyCounts: {
     list: number;
     detail: number;
@@ -116,34 +119,43 @@ export async function loadProductAnalytics(
       count: number | null;
       error: unknown;
     }>,
-  ) => readAllRevenueRows(fetch);
-  const [products, list, detail, form, reservations, events] =
+  ) =>
+    readAllRevenueRows(fetch).catch(() => {
+      throw new Error("통계 집계 데이터를 불러오지 못했습니다.");
+    });
+  const [products, list, detail, form, reservations, events, activityPage] =
     await Promise.all([
       all((f, t) =>
         db
           .from("products")
-          .select("id,name", { count: "exact" })
+          .select("id,name", f === 0 ? { count: "exact" } : {})
           .order("id")
           .range(f, t),
       ),
       all((f, t) =>
         db
           .from("booking_list_views")
-          .select("id,ref,memo,viewed_at", { count: "exact" })
+          .select("id,ref,memo,viewed_at", f === 0 ? { count: "exact" } : {})
           .order("id")
           .range(f, t),
       ),
       all((f, t) =>
         db
           .from("product_views")
-          .select("id,product_id,ref,memo,viewed_at", { count: "exact" })
+          .select(
+            "id,product_id,ref,memo,viewed_at",
+            f === 0 ? { count: "exact" } : {},
+          )
           .order("id")
           .range(f, t),
       ),
       all((f, t) =>
         db
           .from("apply_views")
-          .select("id,product_id,ref,memo,viewed_at", { count: "exact" })
+          .select(
+            "id,product_id,ref,memo,viewed_at",
+            f === 0 ? { count: "exact" } : {},
+          )
           .order("id")
           .range(f, t),
       ),
@@ -159,10 +171,15 @@ export async function loadProductAnalytics(
       all((f, t) =>
         db
           .from("booking_events")
-          .select("*", { count: "exact" })
+          .select(
+            "id,session_id,attempt_id,product_id,reservation_id,event_kind,ref,device,form_version,field_id,field_label,field_order,duration_ms,error_code,memo,occurred_at,created_at",
+            f === 0 ? { count: "exact" } : {},
+          )
+          .in("event_kind", [...summaryEventKinds])
           .order("id")
           .range(f, t),
       ),
+      loadActivityPage(db),
     ]);
   const reset = settings.data.analytics_reset_at;
   const afterReset = (time: string) =>
@@ -258,47 +275,61 @@ export async function loadProductAnalytics(
         afterReset(r.created_at) &&
         (!cutoff || Date.parse(r.created_at) <= Date.parse(cutoff)),
     );
-    const rows = [...catalog].map(([id, name]) => {
-      const p = { id, name };
-      const count = views.filter(
-        (r) => (r.product_id ?? "") === p.id && r.kind === "product_view",
-      ).length;
-      const applications = submitted.filter(
-        (r) => r.product_id === p.id,
-      ).length;
-      return {
-        productId: p.id,
-        productName: p.name,
-        views: count,
-        applications,
-        conversionRate: count ? (applications / count) * 100 : null,
-      };
-    });
-    const channels = [
-      ...new Set([
-        ...views.map((r) => r.ref?.trim() || "(직접 방문)"),
-        ...submitted.map((r) => r.ref?.trim() || "(직접 방문)"),
-      ]),
-    ];
+    const productCounts = new Map<
+      string,
+      { views: number; applications: number }
+    >();
+    const channelCounts = new Map<
+      string,
+      { views: number; applications: number }
+    >();
+    function add(
+      map: Map<string, { views: number; applications: number }>,
+      key: string,
+      metric: "views" | "applications",
+    ) {
+      const value = map.get(key) ?? { views: 0, applications: 0 };
+      value[metric]++;
+      map.set(key, value);
+    }
+    let listViews = 0,
+      applyViews = 0;
+    for (const row of views) {
+      if (row.kind === "list_view") listViews++;
+      if (row.kind === "apply_view") applyViews++;
+      if (row.kind === "product_view")
+        add(productCounts, row.product_id ?? "", "views");
+      add(channelCounts, row.ref?.trim() || "(직접 방문)", "views");
+    }
+    for (const row of submitted) {
+      add(productCounts, row.product_id, "applications");
+      add(channelCounts, row.ref?.trim() || "(직접 방문)", "applications");
+    }
     return {
-      listViews: views.filter((r) => r.kind === "list_view").length,
-      applyViews: views.filter((r) => r.kind === "apply_view").length,
-      rows,
-      channelBreakdown: channels
-        .map((channel) => {
-          const count = views.filter(
-            (r) => (r.ref?.trim() || "(직접 방문)") === channel,
-          ).length;
-          const applications = submitted.filter(
-            (r) => (r.ref?.trim() || "(직접 방문)") === channel,
-          ).length;
-          return {
-            channel,
-            views: count,
-            applications,
-            conversionRate: count ? (applications / count) * 100 : null,
-          };
-        })
+      listViews,
+      applyViews,
+      rows: [...catalog].map(([productId, productName]) => {
+        const counts = productCounts.get(productId) ?? {
+          views: 0,
+          applications: 0,
+        };
+        return {
+          productId,
+          productName,
+          ...counts,
+          conversionRate: counts.views
+            ? (counts.applications / counts.views) * 100
+            : null,
+        };
+      }),
+      channelBreakdown: [...channelCounts]
+        .map(([channel, counts]) => ({
+          channel,
+          ...counts,
+          conversionRate: counts.views
+            ? (counts.applications / counts.views) * 100
+            : null,
+        }))
         .sort((a, b) => b.views - a.views),
     };
   };
@@ -310,30 +341,29 @@ export async function loadProductAnalytics(
       ? settings.data.analytics_last_seen_at
       : null;
   const since = addDays(kstToday(), -(trendDays - 1));
+  const dayCounts = new Map<string, { views: number; applications: number }>();
+  const hourCounts = Array<number>(24).fill(0);
+  for (const row of sourceViews) {
+    if (!afterReset(row.viewed_at)) continue;
+    const date = new Date(row.viewed_at),
+      key = kstDateString(date);
+    const value = dayCounts.get(key) ?? { views: 0, applications: 0 };
+    value.views++;
+    dayCounts.set(key, value);
+    hourCounts[(date.getUTCHours() + 9) % 24]++;
+  }
+  for (const row of apps) {
+    if (!afterReset(row.created_at)) continue;
+    const key = kstDateString(new Date(row.created_at));
+    const value = dayCounts.get(key) ?? { views: 0, applications: 0 };
+    value.applications++;
+    dayCounts.set(key, value);
+  }
   const daily = Array.from({ length: trendDays }, (_, i) => {
     const date = addDays(since, i);
-    return {
-      date,
-      views: sourceViews.filter(
-        (r) =>
-          afterReset(r.viewed_at) &&
-          kstDateString(new Date(r.viewed_at)) === date,
-      ).length,
-      applications: apps.filter(
-        (r) =>
-          afterReset(r.created_at) &&
-          kstDateString(new Date(r.created_at)) === date,
-      ).length,
-    };
+    return { date, ...(dayCounts.get(date) ?? { views: 0, applications: 0 }) };
   });
-  const hourly = Array.from({ length: 24 }, (_, hour) => ({
-    hour,
-    views: sourceViews.filter(
-      (r) =>
-        afterReset(r.viewed_at) &&
-        (new Date(r.viewed_at).getUTCHours() + 9) % 24 === hour,
-    ).length,
-  }));
+  const hourly = hourCounts.map((views, hour) => ({ hour, views }));
   const names = catalog;
   const recentActivity: ActivityLogEntry[] = [
     ...sourceViews
@@ -345,32 +375,6 @@ export async function loadProductAnalytics(
         productName: r.product_id ? (names.get(r.product_id) ?? null) : null,
         memo: r.memo,
         ref: r.ref,
-      })),
-    ...events
-      .filter((e) => e.event_kind !== "completed")
-      .map((e) => ({
-        id: e.id,
-        occurredAt: e.occurred_at,
-        kind: "booking_event" as const,
-        eventLabel:
-          (
-            {
-              list_view: "상품 목록",
-              detail_view: "상품 상세",
-              times_view: "희망 시간",
-              form_view: "신청서 진입",
-              review_view: "내용 확인",
-              field_view: "문항 펼침",
-              field_valid: "유효 답변",
-              field_invalid: "답변 미완료",
-              field_error: "문항 오류",
-              submit_attempt: "제출 시도",
-              submit_error: "제출 실패",
-            } as Record<string, string>
-          )[e.event_kind] ?? "예약 진행",
-        productName: e.product_id ? (names.get(e.product_id) ?? null) : null,
-        memo: e.memo,
-        ref: e.ref,
       })),
     ...reservations.map((r) => ({
       id: r.id,
@@ -397,6 +401,7 @@ export async function loadProductAnalytics(
     .slice(0, 100);
   return {
     ...snapshot,
+    activityPage,
     daily,
     hourly,
     recentActivity,
