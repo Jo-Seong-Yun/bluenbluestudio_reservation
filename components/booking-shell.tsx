@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
+import { BookingPageSpacing } from "./booking-page-spacing";
 import Link from "next/link";
 import { BRAND_LOGO, SITE } from "@/lib/site";
 import { DEFAULT_BOOKING_STYLE, type BookingStyle } from "@/lib/booking-style";
@@ -57,6 +58,7 @@ export function BookingShell({
           </nav>
         </div>
       </header>
+      <BookingPageSpacing />
       {children}
     </div>
   );

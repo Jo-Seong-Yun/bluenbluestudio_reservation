@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { parseBirthDate8 } from "../age";
 import { kstToday } from "../time";
+import { normalizeKoreanPhone } from "../phone";
 
 /**
  * 이름·연락처·이메일·성별·생년월일은 더 이상 이 파일에 고정된 필드가
@@ -23,7 +24,7 @@ export const nameField = z
 export const phoneField = z
   .string()
   .trim()
-  .transform((value) => value.replace(/[^0-9]/g, ""))
+  .transform(normalizeKoreanPhone)
   .pipe(
     z
       .string()

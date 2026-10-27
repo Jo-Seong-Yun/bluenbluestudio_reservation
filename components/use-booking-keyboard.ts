@@ -50,12 +50,6 @@ export function useBookingKeyboard(formRef: RefObject<HTMLFormElement | null>) {
       const keyboard =
         mobile && (viewport?.scale ?? 1) <= 1.05 && baseline - height > 120;
       form.dataset.keyboardOpen = keyboard ? "true" : "false";
-      if (keyboard)
-        form.style.setProperty(
-          "--booking-keyboard-room",
-          `${baseline - height + height / 2}px`,
-        );
-      else form.style.removeProperty("--booking-keyboard-room");
       const input = document.activeElement;
       if (!mobile || !isTextInput(input) || !form.contains(input)) return;
       const inputTarget =
