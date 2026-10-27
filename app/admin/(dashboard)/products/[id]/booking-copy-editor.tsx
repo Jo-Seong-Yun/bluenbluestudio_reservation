@@ -1,4 +1,5 @@
 "use client";
+import { descriptionCollapsible } from "@/lib/booking/copy";
 import { useActionState, useEffect, useId, useState } from "react";
 import {
   DEFAULT_COPY,
@@ -291,6 +292,7 @@ export function BookingCopyEditor({
             />
             {fields.map((field) => (
               <span key={field.id}>
+                <input type="hidden" name={`collapse:${field.id}`} value={String(descriptionCollapsible(field, copy))} />
                 <input
                   type="hidden"
                   name={`group:${field.id}`}
@@ -732,7 +734,15 @@ export function BookingCopyEditor({
                         />
                       ) : null}
                       {field.description ? (
-                        <FieldDescription html={field.description} />
+                        <>
+                          <label className="builder-description-toggle my-3 flex items-center gap-3 text-sm">
+                            <input type="checkbox" role="switch" aria-label={`${field.label} 설명 접기/펼치기`} checked={descriptionCollapsible(field, copy)}
+                              onChange={e => setCopy({...copy, [`collapse:${field.id}`]: String(e.target.checked)})}
+                              className="h-5 w-10" />
+                            설명 접기/펼치기 사용
+                          </label>
+                          <FieldDescription html={field.description} />
+                        </>
                       ) : null}
                       {field.options?.map((option, i) => (
                         <div

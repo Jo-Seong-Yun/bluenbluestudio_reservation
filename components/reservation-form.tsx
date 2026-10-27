@@ -1,7 +1,7 @@
 "use client";
 import { formPages, orderedFormFields } from "@/lib/booking/form-pages";
 import { answerDrafts, draftStorageKey } from "@/lib/booking/drafts";
-import { resolveCopy, fieldGroup, type BookingCopy } from "@/lib/booking/copy";
+import { descriptionCollapsible, resolveCopy, fieldGroup, type BookingCopy } from "@/lib/booking/copy";
 import {
   analyticsContext,
   trackBooking as emitBooking,
@@ -1419,7 +1419,8 @@ export function ReservationFields({
                     aria-labelledby={headingId}
                     className="booking-question-panel"
                   >
-                    <ReservationFieldInput
+                    <ReservationQuestionInput
+                      collapsible={descriptionCollapsible(field, placeholders)}
                       field={field}
                       values={initialAnswers[field.id] ?? []}
                       placeholderText={placeholders[`placeholder:${field.id}`]}
@@ -1437,7 +1438,8 @@ export function ReservationFields({
                   </div>
                 </>
               ) : (
-                <ReservationFieldInput
+                <ReservationQuestionInput
+                  collapsible={descriptionCollapsible(field, placeholders)}
                   field={field}
                   values={initialAnswers[field.id] ?? []}
                   placeholderText={placeholders[`placeholder:${field.id}`]}
@@ -1449,6 +1451,23 @@ export function ReservationFields({
       )}
     </div>
   );
+}
+
+/** Keep consent/answer controls outside the disclosure so they remain reachable. */
+function ReservationQuestionInput({ field, values, placeholderText, collapsible }: {
+  field: CustomField; values: string[]; placeholderText?: string; collapsible: boolean;
+}) {
+  if (!collapsible || !field.description)
+    return <ReservationFieldInput field={field} values={values} placeholderText={placeholderText} />;
+  return <>
+    <details className="booking-description-disclosure">
+      <summary><span className="when-closed">상세 설명 펼치기</span><span className="when-open">상세 설명 접기</span></summary>
+      <div data-preview-target={`field:${field.id}:description`} className="booking-description-content">
+        <FieldDescription html={field.description} />
+      </div>
+    </details>
+    <ReservationFieldInput field={{...field, description:null}} values={values} placeholderText={placeholderText} />
+  </>;
 }
 
 /** 보기 여러 개를 하나의 label 안에 중첩하지 않고 접근 가능한 그룹으로 묶는다. */

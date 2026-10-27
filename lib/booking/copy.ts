@@ -166,6 +166,10 @@ export function resolveCopy(raw: unknown): BookingCopy {
       )
         result[key] = String(value);
   }
+  if (raw && typeof raw === "object")
+    for (const [key, value] of Object.entries(raw))
+      if (/^collapse:[a-zA-Z0-9-]{1,80}$/.test(key) && ["true", "false"].includes(String(value)))
+        result[key] = String(value);
   for (const key of ["detailPageState", "reviewPageState"])
     if (!["visible", "hidden", "deleted"].includes(result[key]))
       result[key] = "visible";
@@ -215,3 +219,9 @@ export const GROUP_COPY_KEYS = [
   ["requestTitle", "requestIntro"],
   ["consentTitle", "consentIntro"],
 ] as const;
+
+/** Privacy notices start compact; every description can be explicitly configured. */
+export function descriptionCollapsible(field: Pick<CustomField, "id" | "label">, copy: BookingCopy = {}) {
+  const configured = copy[`collapse:${field.id}`];
+  return configured === "true" || (configured !== "false" && /개인정보.*(수집|동의)/.test(field.label));
+}

@@ -137,3 +137,13 @@ it("persists the full product journey copy alongside page assignments without lo
   });
   expect(saved!.productCopies.b).toEqual({ timesTitle: "다른 상품" });
 });
+it("saves disclosure on/off per owned field while preserving all other booking data", async () => {
+  let saved: unknown;
+  const initial={productCopies:{a:{"collapse:q":"true",actorTitle:"보존할 제목"},b:{"collapse:q":"true"}}};
+  updateBookingSettings.mockImplementation(async transform=>{saved=transform(initial);});
+  const data=new FormData();data.set("productId","a");data.set("collapse:q","false");data.set("collapse:unowned","true");
+  expect(await saveProductBookingCopy(null,data)).toEqual({success:true});
+  expect(saved).toMatchObject({productCopies:{a:{"collapse:q":"false",actorTitle:"보존할 제목"},b:{"collapse:q":"true"}}});
+  expect(JSON.stringify(saved)).not.toContain('unowned');
+  data.set("collapse:q","invalid");expect(await saveProductBookingCopy(null,data)).toHaveProperty('error');
+});
