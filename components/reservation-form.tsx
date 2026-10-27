@@ -44,6 +44,7 @@ import {
   type CustomField,
 } from "@/lib/booking/custom-fields-shared";
 import { bookingFieldError } from "@/lib/booking/field-validation";
+import { normalizeKoreanPhone } from "@/lib/phone";
 import { readRefCookie } from "@/lib/booking/ref-cookie";
 
 /** 상품별 문항과 입력 컴포넌트를 유지하며 진행선이 있는 아코디언으로 표시합니다. */
@@ -192,8 +193,12 @@ export function ReservationForm({
   );
   const actorBirth = actorFields.find((field) => field.type === "birth_date");
 
-  const actorAutoArmed = useRef(true);
-  const contactAutoPassed = useRef(new Set<string>());
+  const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function cancelAutoAdvance() {
+    if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+    autoAdvanceTimer.current = null;
+  }
+  useEffect(() => cancelAutoAdvance, [currentGroup]);
 
   const [reviewing, setReviewing] = useState(previewOnly && initialReview);
   const compactActor =
@@ -367,7 +372,6 @@ export function ReservationForm({
   // Mobile browsers may restore the old scroll position after the keyboard closes.
   // Keep the page entry at the top through viewport resize/pan, until the visitor acts.
   useEffect(() => {
-    const entryForm = formRef.current;
     let frame = 0;
     let scrollFrame = 0;
     let moving = false;
@@ -378,19 +382,7 @@ export function ReservationForm({
     // 키패드 종료 대기/최상단 복원과 겹쳐 스크롤하지 않습니다.
     if (pageEntryFocusRef.current === currentGroup && !reviewing) {
       pageEntryFocusRef.current = null;
-      if (entryForm) {
-        entryForm.dataset.entryScroll = "true";
-        entryForm.style.setProperty(
-          "--booking-entry-space",
-          `${window.innerHeight / 2}px`,
-        );
-      }
-      return () => {
-        if (entryForm) {
-          delete entryForm.dataset.entryScroll;
-          entryForm.style.removeProperty("--booking-entry-space");
-        }
-      };
+      return;
     }
     const viewport = window.visualViewport;
     let waited = 0;
@@ -426,13 +418,6 @@ export function ReservationForm({
           ?.querySelector<HTMLElement>(".booking-form-actions")
           ?.getBoundingClientRect().height ?? 0;
       const available = height - dock;
-      if (formRef.current) {
-        formRef.current.dataset.entryScroll = "true";
-        formRef.current.style.setProperty(
-          "--booking-entry-space",
-          `${available / 2}px`,
-        );
-      }
       const rect = question.getBoundingClientRect();
       const offset =
         rect.height <= available - 32 ? (available - rect.height) / 2 : 16;
@@ -486,10 +471,6 @@ export function ReservationForm({
       cancelAnimationFrame(frame);
       cancelAnimationFrame(listenFrame);
       cancelAnimationFrame(scrollFrame);
-      if (entryForm) {
-        delete entryForm.dataset.entryScroll;
-        entryForm.style.removeProperty("--booking-entry-space");
-      }
       viewport?.removeEventListener("resize", restoreTop);
       viewport?.removeEventListener("scroll", restoreTop);
       window.removeEventListener("resize", restoreTop);
@@ -761,7 +742,7 @@ export function ReservationForm({
     if (groupField) setCurrentGroup(fieldGroup(groupField, copy));
     trackBooking("field_view", productId, { fieldId: id, formVersion });
     setActiveFieldId(id);
-    requestAnimationFrame(() => {
+    const focus = () => {
       const block = formRef.current?.querySelector<HTMLElement>(
         `[data-field-id="${CSS.escape(id)}"]`,
       );
@@ -772,7 +753,9 @@ export function ReservationForm({
         preventScroll: true,
       });
       if (reportError) input?.reportValidity();
-    });
+    };
+    if (groupField && fieldGroup(groupField, copy) === currentGroup) focus();
+    else requestAnimationFrame(focus);
   }
 
   function validateField(field: CustomField) {
@@ -808,7 +791,7 @@ export function ReservationForm({
 
   // 이전 단계와 새로고침에서 입력값을 유지합니다. 임시 답변은 탭별 sessionStorage에 저장하고,
   // 신청서의 모든 페이지 입력을 마운트한 채 hidden으로 표시만 전환합니다.
-  // Enter 이동을 유지하고, 배우 정보 세 항목의 완료 시에만 자동으로 다음 페이지로 이동합니다.
+  // Enter 이동과 모든 문항의 완료 후 자동 이동을 함께 지원합니다.
   function handleFieldKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
     if (
       reviewing ||
@@ -827,6 +810,7 @@ export function ReservationForm({
     if (target instanceof HTMLTextAreaElement && e.shiftKey) return;
     if (target instanceof HTMLInputElement && target.type === "hidden") return;
     e.preventDefault();
+    cancelAutoAdvance();
     const id = target.closest<HTMLElement>("[data-field-id]")?.dataset.fieldId;
     const index = fields.findIndex((field) => field.id === id);
     if (index < 0 || !validateField(fields[index])) return;
@@ -861,98 +845,35 @@ export function ReservationForm({
     else nextGroup();
   }
 
-  function guideActorChange(target: HTMLElement) {
-    if (
-      currentGroup !== 0 ||
-      reviewing ||
-      !actorName ||
-      !actorGender ||
-      !actorBirth ||
-      !formRef.current
-    )
-      return;
-    const data = new FormData(formRef.current);
-    const complete =
-      actorFields.every(
-        (field) =>
-          bookingFieldError(field, data) === null &&
-          Array.from(
-            formRef.current!.querySelectorAll<
-              HTMLInputElement | HTMLTextAreaElement
-            >(`[name="${CSS.escape(fieldFormName(field.id))}"]`),
-          ).every((input) => input.validity.valid),
-      ) &&
-      [actorName, actorGender, actorBirth].every(
-        (field) =>
-          String(data.get(fieldFormName(field.id)) ?? "").trim().length > 0,
-      );
-    if (!complete) actorAutoArmed.current = true;
-    if (complete && actorAutoArmed.current) {
-      actorAutoArmed.current = false;
-      nextGroup();
-      return;
-    }
-    focusActorBirth(target);
-  }
-
-  function guideContactChange(target: HTMLElement, finished = false) {
-    const form = formRef.current;
-    if (!form || currentGroup !== 1 || reviewing || pending) return;
+  // Shared by every current/future field, independent of page IDs or labels.
+  function guideFieldChange(target: HTMLElement, finished = false) {
+    cancelAutoAdvance();
+    if (reviewing || pending || !formRef.current) return;
     const id = target.closest<HTMLElement>("[data-field-id]")?.dataset.fieldId;
-    const groupFields = fields.filter((field) => fieldGroup(field, copy) === 1);
-    const index = groupFields.findIndex((field) => field.id === id);
+    const groupFields = fields.filter(field => fieldGroup(field, copy) === currentGroup);
+    const index = groupFields.findIndex(field => field.id === id);
     if (index < 0) return;
     const field = groupFields[index];
-    const data = new FormData(form);
-    const raw = String(data.get(fieldFormName(field.id)) ?? "").trim();
-    const valid = (item: CustomField) =>
-      bookingFieldError(item, data) === null &&
-      Array.from(
-        form.querySelectorAll<
-          HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-        >(`[name="${CSS.escape(fieldFormName(item.id))}"]`),
-      ).every((input) => input.validity.valid);
-    const complete =
-      !!raw &&
-      valid(field) &&
-      (field.type === "phone"
-        ? raw.replace(/\D/g, "").length === 11
-        : finished);
-    if (!complete) {
-      contactAutoPassed.current.delete(field.id);
-      return;
-    }
-    if (contactAutoPassed.current.has(field.id)) return;
-    contactAutoPassed.current.add(field.id);
-    const next = groupFields[index + 1];
-    if (next) {
-      setActiveFieldId(next.id);
-      const input = form.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-        `[name="${CSS.escape(fieldFormName(next.id))}"]`,
-      );
-      input?.focus({ preventScroll: true });
-      return;
-    }
-    if (groupFields.every(valid)) nextGroup();
-  }
-
-  function focusActorBirth(target: HTMLElement) {
-    if (
-      currentGroup !== 0 ||
-      reviewing ||
-      !actorGender ||
-      !actorBirth ||
-      !(target instanceof HTMLInputElement) ||
-      target.type !== "radio" ||
-      target.name !== fieldFormName(actorGender.id)
-    )
-      return;
-    const input = formRef.current?.querySelector<HTMLInputElement>(
-      `[name="${CSS.escape(fieldFormName(actorBirth.id))}"]`,
-    );
-    // Focus during the native click, before iOS clears its keyboard gesture permission.
-    if (input && document.activeElement !== input)
-      input.focus({ preventScroll: true });
+    const advance = () => {
+      const form = formRef.current;
+      if (!form || !form.contains(target) || target.closest<HTMLElement>("[hidden]")) return;
+      const data = new FormData(form);
+      const values = data.getAll(fieldFormName(field.id)).map(String);
+      if (!values.some(value => value.trim()) || bookingFieldError(field, data)) return;
+      if (field.type === "phone" && normalizeKoreanPhone(values[0] ?? "").length !== 11) return;
+      const controls = Array.from(form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+        `[name="${CSS.escape(fieldFormName(field.id))}"]`));
+      if (controls.some(control => !control.validity.valid)) return;
+      recordFieldChanges(field.id);
+      syncFieldSnapshots();
+      setPassedFieldIds(prev => prev.includes(field.id) ? prev : [...prev, field.id]);
+      const next = groupFields[index + 1];
+      if (next) revealField(next.id);
+      else if (groupFields.every(item => bookingFieldError(item, data) === null)) nextGroup();
+    };
+    const discrete = ["single_choice", "gender", "checkbox", "birth_date", "phone"].includes(field.type);
+    if (discrete || finished) advance();
+    else autoAdvanceTimer.current = setTimeout(advance, field.type === "multi_choice" ? 1800 : 1500);
   }
 
   function confirm() {
@@ -1022,13 +943,14 @@ export function ReservationForm({
         ref={formRef}
         action={action}
         onKeyDown={handleFieldKeyDown}
-        onClickCapture={(event) => focusActorBirth(event.target as HTMLElement)}
         onCompositionEnd={(event) => {
           requestAnimationFrame(() =>
-            guideActorChange(event.target as HTMLElement),
+            guideFieldChange(event.target as HTMLElement),
           );
         }}
+        onCompositionStart={cancelAutoAdvance}
         onFocusCapture={(event) => {
+          cancelAutoAdvance();
           const id = (event.target as HTMLElement).closest<HTMLElement>(
             "[data-field-id]",
           )?.dataset.fieldId;
@@ -1047,7 +969,9 @@ export function ReservationForm({
           const id =
             target.closest<HTMLElement>("[data-field-id]")?.dataset.fieldId;
           if (id) recordFieldChanges(id);
-          guideContactChange(target, true);
+          const next = event.relatedTarget as HTMLElement | null;
+          if (!next || next.closest("[data-field-id]") === target.closest("[data-field-id]"))
+            guideFieldChange(target, true);
         }}
         onChange={(event) => {
           const target = event.target as HTMLElement;
@@ -1111,8 +1035,7 @@ export function ReservationForm({
           syncFieldSnapshots();
           recomputeEstimate();
           if (!(event.nativeEvent as InputEvent).isComposing) {
-            guideActorChange(target);
-            guideContactChange(target);
+            guideFieldChange(target);
           }
         }}
         onSubmit={(event) => {

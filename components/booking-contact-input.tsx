@@ -1,9 +1,10 @@
 "use client";
 
 import type { InputHTMLAttributes } from "react";
+import { normalizeKoreanPhone } from "@/lib/phone";
 
 function formatPhone(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
+  const digits = normalizeKoreanPhone(value);
   if (digits.length <= 3) return digits;
   if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
@@ -40,12 +41,15 @@ export function BookingContactInput({
           phone
             ? (event) => {
                 const input = event.currentTarget;
+                const original = input.value;
                 const before = input.value
                   .slice(0, input.selectionStart ?? input.value.length)
                   .replace(/\D/g, "").length;
                 input.value = formatPhone(input.value);
                 const position =
-                  before + (before > 3 ? 1 : 0) + (before > 7 ? 1 : 0);
+                  original.replace(/\D/g, "").startsWith("82")
+                    ? input.value.length
+                    : before + (before > 3 ? 1 : 0) + (before > 7 ? 1 : 0);
                 input.setSelectionRange(position, position);
               }
             : undefined

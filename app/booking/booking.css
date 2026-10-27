@@ -587,7 +587,7 @@
 }
 .booking-page {
   max-width: 900px;
-  padding: 25px 26px 150px;
+  padding: 25px 26px calc(24px + var(--booking-dock-space, 150px));
 }
 .booking-page h1,
 .booking-modern-success h1 {
@@ -1249,7 +1249,7 @@
     font-weight: 700;
     letter-spacing: -.5px;
   }
-  .booking-modern-form { padding-bottom: 155px; }
+  .booking-modern-form { padding-bottom: 0; }
   .booking-modern-form .booking-form-actions {
     padding-top: 15px;
     box-shadow: 0 -4px 18px rgba(25,31,40,.035);
@@ -1313,8 +1313,8 @@
 }
 @media (max-width: 767px) {
   .booking-actor-steps { display: none; }
-  .booking-page:has(.booking-actor-compact) { padding-top: 16px; padding-bottom: 0; }
-  .booking-actor-compact { padding-bottom: 140px; gap: 0; }
+  .booking-page:has(.booking-actor-compact) { padding-top: 16px; }
+  .booking-actor-compact { padding-bottom: 0; gap: 0; }
   .booking-actor-compact .booking-questionnaire { position: relative; }
   .booking-actor-compact .booking-questionnaire > a {
     position: absolute;
@@ -1348,7 +1348,7 @@
 }
 @media (max-width: 767px) {
   .booking-reservation-form[data-keyboard-open=true] {
-    padding-bottom: calc(140px + var(--booking-keyboard-room, 0px));
+    padding-bottom: 0;
   }
   .booking-reservation-form[data-keyboard-open=true] .booking-form-actions {
     display: none !important;
@@ -1372,5 +1372,16 @@
 .booking-modern-form .booking-question-panel .booking-birth-slots > input:not([type=checkbox]):not([type=radio]):not([type=hidden]) { padding:0; }
 
 @media(max-width:767px){
-  .booking-modern-form[data-entry-scroll=true]:not([data-keyboard-open=true]) { padding-bottom:calc(155px + var(--booking-entry-space, 0px)); }
+  .booking-reservation-form { padding-bottom: 0; }
+}
+
+/* A finished entrance animation must not contain viewport-fixed action bars. */
+@keyframes booking-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.booking-workspace .animate-fade-up {
+  animation-name: booking-fade-up;
+  animation-fill-mode: backwards;
+  opacity: 1;
 }
