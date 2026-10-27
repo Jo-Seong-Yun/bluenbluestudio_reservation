@@ -1472,3 +1472,4 @@ dev-preview 페이지로 데스크톱·모바일 스크린샷만 보여준 뒤 �
 - 고객 문항 설명을 native details/summary로 접고 펼칠 수 있습니다. 개인정보 수집/동의 문항은 기본 접힘이며, 다른 문항도 예약 페이지 구성의 각 문항 카드에서 '설명 접기/펼치기 사용' 스위치로 설정합니다. OFF는 기존 전체 설명 표시입니다. 동의/답변 컨트롤은 details 밖에 두어 항상 표시하며 펼침 변경으로 답변을 초기화하지 않습니다.
 - 기존 settings.booking_style.productCopies의 `collapse:<fieldId>` 문자열 true/false를 사용합니다. 새 DB 컬럼/SQL이 없습니다. 서버는 해당 상품 소속 문항만 저장하고 잘못된 값을 거절합니다. 문항 이관 시 명시된 설정도 새 ID에 연결합니다. 설명 서식·옵션·가격·선택 방식·계산은 유지합니다.
 - 실제 고객 컴포넌트와 편집 스위치의 마우스/Enter 열기·닫기, 선택값 보존, ON/OFF 렌더링 및 FormData 연결을 확인했습니다. 편집 저장은 submit capture 모의이며 서버 저장은 단위 테스트로 설정 병합·소속 검증·기존 자료 보존을 확인했습니다. 미리보기에서 접힌 설명에 초점을 주면 자동으로 펼쳐 노란 강조를 표시합니다. 자료 `/workspace/.reviews/description-disclosure/`. 임시 페이지와 폰트 우회는 제거했습니다.
+- DB 변경 없는 접기 기능만 master에 반영합니다. 최종 typecheck·395개 테스트 통과, lint 오류0(기존 경고6). 별도 보존 이력 기능은 `codex/permanent-audit-log`에서 SQL 실행 확인을 기다립니다.
