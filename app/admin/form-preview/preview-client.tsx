@@ -94,6 +94,8 @@ export function FormPreviewClient() {
           );
       }
       if (!target) return;
+      const disclosure = target.closest("details");
+      if (disclosure) disclosure.open = true;
       target.classList.add("booking-preview-text-focus");
       const rect = target.getBoundingClientRect();
       if (

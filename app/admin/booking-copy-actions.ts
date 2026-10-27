@@ -57,6 +57,10 @@ export async function saveProductBookingCopy(
       raw[`group:${field.id}`] = String(value);
   }
   for (const field of fields ?? []) {
+    const collapsed = form.get(`collapse:${field.id}`);
+    if (collapsed !== null && !["true", "false"].includes(String(collapsed)))
+      return { error: "설명 접기 설정을 확인해 주십시오." };
+    if (collapsed !== null) raw[`collapse:${field.id}`] = String(collapsed);
     const order = form.get(`order:${field.id}`);
     if (typeof order === "string" && /^\d{1,6}$/.test(order))
       raw[`order:${field.id}`] = order;
