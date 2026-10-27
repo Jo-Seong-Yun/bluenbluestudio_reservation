@@ -6,12 +6,17 @@ const mocks = vi.hoisted(() => ({
   user: false,
   failure: false,
   upsert: vi.fn(),
+  tables: [] as string[],
 }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: {
       getUser: async () => ({
-        data: { user: mocks.user ? {} : null },
+        data: {
+          user: mocks.user
+            ? { id: "00000000-0000-4000-8000-000000000009" }
+            : null,
+        },
         error: mocks.authError,
       }),
     },
@@ -20,6 +25,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (table: string) => {
+      mocks.tables.push(table);
       const q = {
         select: () => q,
         in: () => q,
@@ -65,6 +71,7 @@ beforeEach(() => {
   mocks.authError = new AuthSessionMissingError();
   mocks.user = false;
   mocks.failure = false;
+  mocks.tables = [];
   mocks.upsert.mockReset();
   mocks.upsert.mockResolvedValue({ error: null });
 });
@@ -85,10 +92,21 @@ describe("예약 통계 서버 기록", () => {
     );
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
-  it("관리자 방문을 기록하지 않는다", async () => {
+  it("관리자 테스트는 성과 이벤트와 분리하여 보존하고 재시도 중복을 막는다", async () => {
     mocks.user = true;
     expect(await logBookingEvents([event])).toBe(true);
-    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.tables).toContain("audit_logs");
+    expect(mocks.tables).not.toContain("booking_events");
+    expect(mocks.upsert.mock.calls[0][0][0]).toMatchObject({
+      actor_type: "admin",
+      actor_id: "00000000-0000-4000-8000-000000000009",
+      event_kind: "form_view",
+      details: { test: true },
+    });
+    expect(mocks.upsert.mock.calls[0][1]).toEqual({
+      onConflict: "import_key",
+      ignoreDuplicates: true,
+    });
   });
   it("개인 답변 없이 허용 이벤트와 서버 문항 라벨만 저장하며 재시도 중복을 막는다", async () => {
     expect(

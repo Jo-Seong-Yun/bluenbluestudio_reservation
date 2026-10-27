@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ActivityTimeline } from "./activity-timeline";
 import { FlowPanel } from "./flow-panel";
 
@@ -357,6 +358,10 @@ export function AnalyticsDashboard({
         </table>
       </section>
 
+      <section className="border-border bg-surface mt-6 rounded-xl border p-4">
+        <Link href="/admin/analytics/audit" className="text-brand font-bold">전체 보존 이력 보기 →</Link>
+        <p className="text-muted mt-2 text-sm">고객 행동·관리자 작업·삭제 전후 이력을 보관합니다. 아래 원본 로그 삭제나 통계 초기화로 보존 이력은 지워지지 않습니다.</p>
+      </section>
       {data.activityPage ? (
         <ActivityTimeline
           initial={data.activityPage}

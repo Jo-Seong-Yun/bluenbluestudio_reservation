@@ -1,3 +1,4 @@
+import { AdminAuditTracker } from "@/components/admin-audit-tracker";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { missingServerEnv } from "@/lib/supabase/env";
 import { ConfigNotice } from "@/components/config-notice";
@@ -26,7 +27,7 @@ export default async function AdminLayout({
 
   return (
     <PendingOverlayProvider>
-      <AdminWorkspace signOutAction={signOut}>{children}</AdminWorkspace>
+      <AdminWorkspace signOutAction={signOut}><AdminAuditTracker />{children}</AdminWorkspace>
     </PendingOverlayProvider>
   );
 }
