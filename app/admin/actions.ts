@@ -1,4 +1,5 @@
 "use server";
+import { recordAdminSession } from "@/lib/analytics/audit-server";
 
 import { parseChoiceOptions } from "@/lib/booking/choice-options";
 import {depositContent} from "@/lib/booking/deposit-content";
@@ -117,7 +118,7 @@ export async function signIn(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     // "이메일/비번 틀림"과 "이메일 인증 안 됨"은 구분해서 보여준다.
@@ -134,13 +135,15 @@ export async function signIn(
     return { error: "이메일 또는 비밀번호가 맞지 않습니다." };
   }
 
+  if (data.user) await recordAdminSession(data.user.id, "login");
   redirect("/admin/products");
 }
 
 export async function signOut() {
-  await requireAdmin();
+  const actorId = await requireAdmin();
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+  if (!error) await recordAdminSession(actorId, "logout");
   redirect("/admin/login");
 }
 

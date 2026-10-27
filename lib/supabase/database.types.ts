@@ -58,9 +58,26 @@ export type BookingEventRow = {
   created_at: string;
 };
 
+export type AuditLogRow = {
+  id: string; occurred_at: string; recorded_at: string;
+  actor_type: "customer" | "admin" | "system" | "unknown";
+  actor_id: string | null; source_table: string; source_id: string | null;
+  operation: string; event_kind: string | null; session_id: string | null;
+  attempt_id: string | null; product_id: string | null; ref: string | null;
+  device: string | null; before_data: Json; after_data: Json;
+  details: Json; import_key: string | null;
+};
+
 export interface Database {
   public: {
     Tables: {
+      audit_logs: {
+        Row: AuditLogRow;
+        Insert: Partial<AuditLogRow> & Pick<AuditLogRow, "actor_type" | "source_table" | "operation">;
+        Update: never;
+        Relationships: [];
+      };
+
       booking_events: {
         Row: BookingEventRow;
         Insert: Partial<BookingEventRow> & {

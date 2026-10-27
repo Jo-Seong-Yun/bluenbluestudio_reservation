@@ -1473,3 +1473,10 @@ dev-preview 페이지로 데스크톱·모바일 스크린샷만 보여준 뒤 �
 - 기존 settings.booking_style.productCopies의 `collapse:<fieldId>` 문자열 true/false를 사용합니다. 새 DB 컬럼/SQL이 없습니다. 서버는 해당 상품 소속 문항만 저장하고 잘못된 값을 거절합니다. 문항 이관 시 명시된 설정도 새 ID에 연결합니다. 설명 서식·옵션·가격·선택 방식·계산은 유지합니다.
 - 실제 고객 컴포넌트와 편집 스위치의 마우스/Enter 열기·닫기, 선택값 보존, ON/OFF 렌더링 및 FormData 연결을 확인했습니다. 편집 저장은 submit capture 모의이며 서버 저장은 단위 테스트로 설정 병합·소속 검증·기존 자료 보존을 확인했습니다. 미리보기에서 접힌 설명에 초점을 주면 자동으로 펼쳐 노란 강조를 표시합니다. 자료 `/workspace/.reviews/description-disclosure/`. 임시 페이지와 폰트 우회는 제거했습니다.
 - DB 변경 없는 접기 기능만 master에 반영합니다. 최종 typecheck·395개 테스트 통과, lint 오류0(기존 경고6). 별도 보존 이력 기능은 `codex/permanent-audit-log`에서 SQL 실행 확인을 기다립니다.
+
+## 2026-10-27 — 삭제 후 보존 이력 (SQL 실행 확인 완료)
+
+- `codex/permanent-audit-log`에 구현했습니다. 상세 범위·보안·한계·실행 절차는 `docs/AUDIT_LOG.md`에 기록했습니다. 새 `audit_logs`는 FK 없는 append-only 이력이며 관리자/고객/시스템을 구분합니다. 18개 도메인 테이블의 생성·변경·삭제 트리거, 기존 자료 1회 이관, 관리자 예약 테스트/로그인/로그아웃/화면 진입을 보관합니다. 원본·예약·상품 삭제 및 통계 초기화로 이력은 사라지지 않으며 고객 성과 집계와 분리됩니다. 이름·연락처·답변/메모 원문은 복제하지 않습니다.
+- 새 조회 화면 `/admin/analytics/audit`: KST 시간별/밀리초, 작업자·유입 태그·대상·ID·세션·상품·작업·기간 필터, 변경 전후 및 변경 필드, 100건 커서 이어 보기. 보존 이력 수정·삭제 UI/API 권한은 없습니다.
+- 사용자가 SQL 실행 확인에 응답했고 운영 DB 읽기 검증으로 SQL 적용을 확인했습니다. `audit_logs` 1,978건, 이관 완료 표식, 원본 18개 트리거와 UPDATE/DELETE/TRUNCATE 보호 2개, RLS/조회 전용 관리자 권한/익명 조회 금지/서버 INSERT만 허용을 확인했습니다. DB 선행 조건을 충족하여 master에 병합·푸시합니다. 설명 접기 기능은 master `9bb005e`에 먼저 반영했습니다.
+- 로컬 PostgreSQL에서 재실행/이관/cascade/actor/상태 전후/개인정보 제외/UPDATE·DELETE·TRUNCATE 차단/RLS/롤백 검증. 실제 타임라인 1440/390px에서 삭제 상태·hidden·KST·조회 실패 시 이전 이력 보존 확인. typecheck·399개 테스트 통과, lint 오류0(기존6경고). 검증 페이지·폰트 우회 제거. 운영 보안 advisor는 기존 경고를 반환했으며 미적용 새 스키마의 검증 결과로 간주하지 않았습니다.

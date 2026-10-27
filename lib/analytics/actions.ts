@@ -11,7 +11,7 @@ export async function logBookingEvents(input: unknown): Promise<boolean> {
     const client = await createClient();
     const auth = await client.auth.getUser();
     if (auth.error && !isAuthSessionMissingError(auth.error)) return false;
-    if (auth.data.user) return true;
+    const admin = auth.data.user;
     const db = createAdminClient();
     const productIds = [
       ...new Set(
@@ -86,6 +86,24 @@ export async function logBookingEvents(input: unknown): Promise<boolean> {
         error_code: e.errorCode,
       }));
     if (!rows.length) return true; // Acknowledge stale/deleted targets so they cannot block later batches.
+    if (admin) {
+      const allowedIds = new Set(rows.map(row => row.id));
+      const occurred = new Map(rows.map(row=>[row.id,row.occurred_at]));
+      const result = await db.from("audit_logs").upsert(
+        parsed.data.filter(e => allowedIds.has(e.id)).map(e => ({
+          actor_type: "admin" as const, actor_id: admin.id,
+          source_table: "booking_events", source_id: e.id,
+          operation: "event", event_kind: e.kind, occurred_at: occurred.get(e.id),
+          session_id: e.sessionId, attempt_id: e.attemptId,
+          product_id: e.productId, ref: e.ref, device: e.device,
+          after_data: { field_id: e.fieldId, form_version: e.formVersion,
+            duration_ms: e.durationMs, error_code: e.errorCode },
+          details: { test: true, event: e.details ?? {} },
+          import_key: `admin-event:${e.id}`,
+        })), { onConflict: "import_key", ignoreDuplicates: true });
+      if (result.error) throw result.error;
+      return true;
+    }
     const result = await db
       .from("booking_events")
       .upsert(rows, { onConflict: "id", ignoreDuplicates: true });
