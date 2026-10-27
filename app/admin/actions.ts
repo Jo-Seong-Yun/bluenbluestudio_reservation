@@ -2929,6 +2929,8 @@ export async function importCustomFieldsFromProduct(formData: FormData) {
         const id = ids[field.id];
         next[`group:${id}`] = String(pageMap.get(fieldGroup(field, source)));
         next[`placeholder:${id}`] = source[`placeholder:${field.id}`] ?? "";
+        if (source[`collapse:${field.id}`] !== undefined)
+          next[`collapse:${id}`] = source[`collapse:${field.id}`];
         next[`order:${id}`] = String((existing?.sort_order ?? -1) + 1 + index);
       }
       importedCopy = next;

@@ -1385,3 +1385,11 @@
   animation-fill-mode: backwards;
   opacity: 1;
 }
+
+.booking-description-disclosure { margin: 0 0 16px; color: #6b7684; font-size: 14px; }
+.booking-description-disclosure > summary { cursor: pointer; padding: 12px 14px; border: 1px solid #e5eaf1; border-radius: 9px; color: #044aad; font-weight: 600; }
+.booking-description-disclosure > summary:focus-visible { outline: 2px solid #044aad; outline-offset: 3px; }
+.booking-description-disclosure .when-open { display: none; }
+.booking-description-disclosure[open] .when-open { display: inline; }
+.booking-description-disclosure[open] .when-closed { display: none; }
+.booking-description-content { margin-top: 12px; line-height: 1.7; }

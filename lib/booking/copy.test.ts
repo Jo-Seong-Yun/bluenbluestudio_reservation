@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_COPY, resolveCopy, productCopy, fieldGroup } from "./copy";
+import { descriptionCollapsible, DEFAULT_COPY, resolveCopy, productCopy, fieldGroup } from "./copy";
 import type { CustomField } from "./custom-fields-shared";
 const field = (label: string, type: string, id = "field"): CustomField =>
   ({
@@ -95,4 +95,13 @@ describe("상품 예약 문구", () => {
       ),
     ).toHaveLength(fields.length);
   });
+});
+
+it("keeps privacy descriptions compact by default and preserves explicit on/off overrides",()=>{
+ const privacy=field("개인정보 수집/이용 동의","single_choice","consent");
+ expect(descriptionCollapsible(privacy,resolveCopy(null))).toBe(true);
+ expect(descriptionCollapsible(privacy,resolveCopy({"collapse:consent":"false"}))).toBe(false);
+ expect(descriptionCollapsible(field("추가옵션","multi_choice","addons"),resolveCopy({"collapse:addons":"true"}))).toBe(true);
+ expect(descriptionCollapsible(field("추가옵션","multi_choice","addons"),resolveCopy(null))).toBe(false);
+ expect(resolveCopy({"collapse:addons":"invalid"})["collapse:addons"]).toBeUndefined();
 });
