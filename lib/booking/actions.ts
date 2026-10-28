@@ -1,4 +1,5 @@
 "use server";
+import { saveSubmittedAnswers } from "./save-answers";
 import { productCopy } from "@/lib/booking/copy";
 import { customerFields } from "@/lib/booking/page-controls";
 import { z } from "zod";
@@ -230,27 +231,10 @@ export async function createReservation(
 
     if (!error) {
       const reservationId = data?.id ?? "";
-      const { data: createdReservation } = await supabase
-        .from("reservations")
-        .select("*")
-        .eq("id", reservationId)
-        .single();
-      const depositRequired = createdReservation?.deposit_required !== false;
-
-      if (customAnswers.length > 0) {
-        await supabase.from("reservation_answers").insert(
-          customAnswers.map((answer) => ({
-            reservation_id: reservationId,
-            field_id: answer.fieldId,
-            value: answer.value,
-          })),
-        );
-      }
-
-      await supabase
-        .from("reservations")
-        .update({ estimated_amount: estimatedAmount, ref })
-        .eq("id", reservationId);
+      const depositRequired = data?.deposit_required !== false;
+      // Reservation + estimated price are already persisted by the RPC. Use the
+      // server-only client for answers: anon cannot read the parent for its RLS check.
+      await saveSubmittedAnswers(reservationId, customAnswers);
 
       const reservationNotice = {
         reservationId,
