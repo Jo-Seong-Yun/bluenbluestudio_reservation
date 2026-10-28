@@ -21,14 +21,33 @@ vi.mock("@/lib/availability/load", () => ({
     { time: "12:00" },
   ],
 }));
+vi.mock("./custom-fields", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./custom-fields")>()),
+  loadActiveCustomFields: async () => fields,
+}));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     rpc: m.rpc,
-    from: () => ({
-      select: () => ({
-        eq: () => ({ single: async () => ({ data: {}, error: null }) }),
-      }),
-    }),
+    from: (table: string) => {
+      const q = {
+        select: () => q,
+        eq: () => q,
+        single: async () => ({
+          data:
+            table === "products"
+              ? {
+                  name: "현재 서버 상품",
+                  price: 70000,
+                  sale_price: null,
+                  duration_min: 60,
+                  buffer_after_min: 0,
+                }
+              : { booking_style: {} },
+          error: null,
+        }),
+      };
+      return q;
+    },
   }),
 }));
 import { createReservation } from "./actions";
@@ -138,4 +157,14 @@ it("rejects invalid essential identity before creating any reservation", async (
   data.set(fieldFormName("f1"), "bad");
   expect((await submit(data)).status).toBe("error");
   expect(m.rpc).not.toHaveBeenCalled();
+});
+
+it("accepts pre-deployment tabs with server definitions and marks original layout unverified", async () => {
+  m.definition = null;
+  expect((await submit(form())).status).toBe("success");
+  expect(m.rpc.mock.calls[0][1].p_estimated_amount).toBe(95000);
+  expect(m.original.mock.calls[0][1]).toMatchObject({
+    provenance: "current_definition",
+    issues: ["original_layout_unverified"],
+  });
 });
