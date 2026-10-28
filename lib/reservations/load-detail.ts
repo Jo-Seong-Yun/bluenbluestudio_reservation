@@ -1,4 +1,5 @@
 import "server-only";
+import {applicationSummary,type SubmittedApplication} from "@/lib/booking/submission";
 import { createClient } from "@/lib/supabase/server";
 
 const RESERVATION_COLUMNS = "*";
@@ -27,6 +28,11 @@ export type ReservationDetail = {
   birth_date: string | null;
   product_id: string;
   productName: string;
+  submission_state?: string;
+  submission_error_codes?: string[];
+  originalAnswers?: {label:string;value:string}[];
+  hasOriginal?: boolean;
+  originalAmount?: number;
   customAnswers: { label: string; value: string; priceNote?: string }[];
   basePrice?: number;
   priceBreakdown: { label: string; amount: number }[];
@@ -199,8 +205,14 @@ export async function loadReservationDetail(
     };
   });
 
+  const {data:original,error:originalError}=await supabase.from("reservation_submissions").select("content").eq("reservation_id",id).maybeSingle();
+  if(originalError)throw new Error("제출 신청서 원본 조회 실패");
+  const snapshot=original?.content as SubmittedApplication|null;
   return {
     ...reservation,
+    hasOriginal: snapshot?.version===1,
+    originalAmount: snapshot?.version===1?snapshot.estimatedAmount:undefined,
+    originalAnswers: snapshot?.version===1?applicationSummary(snapshot).filter(row=>!["name","phone","email","birth_date"].includes(row.type)).map(row=>({label:row.label,value:row.value})):undefined,
     productName: product?.name ?? "",
     customAnswers,
     basePrice,

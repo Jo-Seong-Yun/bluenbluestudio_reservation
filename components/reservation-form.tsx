@@ -104,10 +104,12 @@ export function ReservationForm({
   successHeading,
   successMessage,
   customFields,
+  definitionToken,
   previewOnly = false,
   initialGroup,
   initialReview = false,
 }: {
+  definitionToken?: string;
   previewOnly?: boolean;
   initialGroup?: number;
   initialReview?: boolean;
@@ -1068,6 +1070,7 @@ export function ReservationForm({
             <input type="hidden" name="candidateTime" value={c.time} />
           </div>
         ))}
+        <input type="hidden" name="applicationDefinition" value={definitionToken ?? ""} />
         <input type="hidden" name="ref" ref={refInputRef} defaultValue="" />
         <section
           key={draftRestored ? "draft-restored" : "draft-initial"}

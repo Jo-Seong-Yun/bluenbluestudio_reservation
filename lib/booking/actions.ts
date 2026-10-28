@@ -1,7 +1,11 @@
 "use server";
+import { captureApplication, submittedPrice, type ApplicationDefinition } from "./submission";
+import { readApplication } from "./submission-token";
+import { saveApplicationOriginal, markSubmission } from "./save-submission";
+import { nameField, phoneField } from "@/lib/validation/reservation";
 import { saveSubmittedAnswers } from "./save-answers";
 import { productCopy } from "@/lib/booking/copy";
-import { customerFields } from "@/lib/booking/page-controls";
+import { customerFields, customerCopy } from "@/lib/booking/page-controls";
 import { z } from "zod";
 import { bookingFormVersion } from "@/lib/analytics/shared";
 
@@ -28,10 +32,6 @@ import {
   extractReservationFormData,
   loadActiveCustomFields,
 } from "@/lib/booking/custom-fields";
-import {
-  selectedLabelsFromAnswers,
-  selectedPricedOptions,
-} from "@/lib/booking/custom-fields-shared";
 import {
   syncCustomerToSheet,
   syncReservationToSheet,
@@ -132,20 +132,60 @@ export async function createReservation(
 
   const input = parsed.data;
 
+  const signedDefinition = readApplication(
+    formData.get("applicationDefinition"),
+    productId,
+  );
+  let definition: ApplicationDefinition | null = signedDefinition;
   let customFields: Awaited<ReturnType<typeof loadActiveCustomFields>>;
+  const issues: string[] = signedDefinition
+    ? []
+    : ["original_layout_unverified"];
   try {
-    customFields = await loadActiveCustomFields(productId);
-    const configDb = await createClient();
-    const config = await configDb
-      .from("settings")
-      .select("booking_style")
-      .eq("id", 1)
-      .single();
-    if (config.error) throw config.error;
-    customFields = customerFields(
-      customFields,
-      productCopy(config.data?.booking_style, productId),
-    );
+    if (signedDefinition) {
+      customFields = signedDefinition.fields;
+      productName = signedDefinition.product.name;
+      basePrice = signedDefinition.product.basePrice;
+      durationMin = signedDefinition.product.durationMin;
+      bufferAfterMin = signedDefinition.product.bufferAfterMin;
+    } else {
+      customFields = await loadActiveCustomFields(productId);
+      const configDb = await createClient();
+      const config = await configDb
+        .from("settings")
+        .select("booking_style")
+        .eq("id", 1)
+        .single();
+      if (config.error) throw config.error;
+      customFields = customerFields(
+        customFields,
+        productCopy(config.data?.booking_style, productId),
+      );
+      const canonical = await configDb
+        .from("products")
+        .select("name,price,sale_price,duration_min,buffer_after_min")
+        .eq("id", productId)
+        .eq("is_published", true)
+        .single();
+      if (canonical.error || !canonical.data) throw new Error("상품 확인 실패");
+      productName = canonical.data.name;
+      basePrice = canonical.data.sale_price ?? canonical.data.price;
+      durationMin = canonical.data.duration_min;
+      bufferAfterMin = canonical.data.buffer_after_min;
+      definition = {
+        version: 1,
+        renderedAt: Date.now(),
+        product: {
+          id: productId,
+          name: productName,
+          basePrice,
+          durationMin,
+          bufferAfterMin,
+        },
+        fields: customFields,
+        copy: customerCopy(productCopy(config.data?.booking_style, productId),customFields),
+      };
+    }
   } catch {
     return {
       status: "error",
@@ -154,21 +194,50 @@ export async function createReservation(
     };
   }
   const extracted = extractReservationFormData(customFields, formData);
-  if (!extracted.ok) {
-    return { status: "error", error: extracted.error, errorCode: "validation" };
-  }
-  const { special, answers: customAnswers } = extracted;
-
-  // 신청 시점의 "예상 금액" 스냅샷. 손님이 화면에서 본 금액과 똑같이
-  // 나와야 하므로, 손님 화면이 쓰는 것과 같은 계산 함수(custom-fields-
-  // shared.ts)로 서버에서 다시 계산한다 — 클라이언트가 보낸 값을 그냥
-  // 믿지 않는다(조작 방지 + 어차피 그사이 가격이 바뀌었을 수도 있다).
-  const selectedLabels = selectedLabelsFromAnswers(customFields, customAnswers);
-  const addonTotal = selectedPricedOptions(customFields, selectedLabels).reduce(
-    (sum, item) => sum + item.price,
-    0,
-  );
-  const estimatedAmount = basePrice + addonTotal;
+  const core = extracted.ok
+    ? extracted
+    : extractReservationFormData(
+        customFields.filter((f) => ["name", "phone"].includes(f.type)),
+        formData,
+      );
+  if (
+    !core.ok ||
+    !nameField.safeParse(core.special.customerName).success ||
+    !phoneField.safeParse(core.special.customerPhone).success
+  )
+    return {
+      status: "error",
+      error: "이름과 연락처를 확인해 주십시오.",
+      errorCode: "validation",
+    };
+  const special = { ...core.special };
+  if (!extracted.ok)
+    for (const f of customFields.filter((f) =>
+      ["email", "birth_date", "gender"].includes(f.type),
+    )) {
+      const part = extractReservationFormData(
+        [{ ...f, required: false }],
+        formData,
+      );
+      if (!part.ok) continue;
+      if (f.type === "email")
+        special.customerEmail = part.special.customerEmail;
+      if (f.type === "birth_date") special.birthDate = part.special.birthDate;
+      if (f.type === "gender") special.gender = part.special.gender;
+    }
+  const customAnswers = extracted.ok
+    ? extracted.answers
+    : customFields.flatMap((f) => {
+        if (["name", "phone", "email", "birth_date", "gender"].includes(f.type))
+          return [];
+        const result = extractReservationFormData(
+          [{ ...f, required: false }],
+          formData,
+        );
+        return result.ok ? result.answers : [];
+      });
+  if (!extracted.ok) issues.push("answer_validation_incomplete");
+  const estimatedAmount = submittedPrice(customFields, formData, basePrice);
 
   // 후보마다 다시 계산해서, 지금도 정말 예약 가능한 시간인지 확인한다.
   // 날짜가 다를 수 있어 후보별로 loadAvailableSlots를 따로 부른다.
@@ -234,7 +303,12 @@ export async function createReservation(
       const depositRequired = data?.deposit_required !== false;
       // Reservation + estimated price are already persisted by the RPC. Use the
       // server-only client for answers: anon cannot read the parent for its RLS check.
-      await saveSubmittedAnswers(reservationId, customAnswers);
+      let originalSaved = false;
+      try {
+        if (definition) originalSaved = await saveApplicationOriginal(reservationId,captureApplication(definition,formData,input.candidates,estimatedAmount,signedDefinition?"rendered":"current_definition",issues));
+      } catch { console.error("신청서 원본 구성 실패", {reservationId}); }
+      const answersSaved = await saveSubmittedAnswers(reservationId, customAnswers);
+      await markSubmission(reservationId,originalSaved,answersSaved,issues);
 
       const reservationNotice = {
         reservationId,
