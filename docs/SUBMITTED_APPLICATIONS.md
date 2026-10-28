@@ -2,7 +2,7 @@
 
 ## 배포 전 SQL
 
-`supabase/migrations/20261103000100_submitted_applications.sql`을 SQL Editor에서 실행 확인한 뒤 master에 병합합니다. 아직 운영 DB에는 적용하지 않았습니다. CLI migration new는 `/home/agent/.supabase` EROFS로 실패하여 기존 마이그레이션 다음 번호를 사용했습니다.
+`supabase/migrations/20261103000100_submitted_applications.sql`을 SQL Editor에서 실행 확인한 뒤 master에 병합합니다. 사용자의 실행 완료 확인과 운영 DB 읽기 점검으로 적용을 확인했습니다. CLI migration new는 `/home/agent/.supabase` EROFS로 실패하여 기존 마이그레이션 다음 번호를 사용했습니다.
 
 ## 정상 접수
 
