@@ -1,3 +1,5 @@
+import { signApplication } from "@/lib/booking/submission-token";
+import { customerFields, customerCopy } from "@/lib/booking/page-controls";
 import {depositEnabled} from "@/lib/booking/deposit";
 import { ConfigNotice } from "@/components/config-notice";
 import { missingServerEnv } from "@/lib/supabase/env";
@@ -184,6 +186,10 @@ export default async function ApplyPage({
       <ApplyViewTracker productId={product.id} />
 
       <ReservationForm depositRequired={depositEnabled(settings?.booking_style)}
+        definitionToken={signApplication({version:1,
+          product:{id:product.id,name:product.name,basePrice:product.sale_price??product.price,durationMin:product.duration_min,bufferAfterMin:product.buffer_after_min},
+          fields:customerFields(customFields,productCopy(settings?.booking_style,product.id)),
+          copy:customerCopy(productCopy(settings?.booking_style,product.id),customFields)})}
         copy={productCopy(settings?.booking_style, product.id)}
         productId={product.id}
         productName={product.name}

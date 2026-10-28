@@ -47,6 +47,11 @@ export type ReservationRow = {
   gender: string | null;
   birth_date: string | null;
   productName: string;
+  submission_state?: string;
+  submission_error_codes?: string[];
+  hasOriginal?: boolean;
+  originalAmount?: number;
+  originalAnswers?: {label:string;value:string}[];
   customAnswers?: { label: string; value: string; priceNote?: string }[];
   basePrice?: number;
   priceBreakdown?: { label: string; amount: number }[];
@@ -237,6 +242,16 @@ function ReservationDetail({
           <p className="mt-1 text-sm whitespace-pre-wrap">{reservation.memo}</p>
         </div>
       ) : null}
+
+      {reservation.submission_state && !["legacy","complete"].includes(reservation.submission_state)?<div role="alert" className="my-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <b>신청서 저장 불완전 · 추가 확인 필요</b>
+        <p>접수와 신청 금액은 저장되었습니다. 보관된 원본과 답변을 확인하고 부족한 내용은 고객에게 확인해 주십시오.</p>
+        {reservation.submission_error_codes?.length?<p className="mt-1 text-xs">{reservation.submission_error_codes.map(code=>({original_layout_unverified:"제출 당시 양식 확인 불가",answer_validation_incomplete:"일부 답변 확인 필요",original_save_failed:"신청서 원본 저장 실패",answers_save_failed:"문항 답변 저장 실패"}[code]??code)).join(" · ")}</p>:null}
+      </div>:null}
+      <div className="my-3">
+        {reservation.hasOriginal?<Link className="text-brand underline" href={`/admin/reservations/${reservation.id}/application`}>제출 당시 신청서 원본 보기 →</Link>:<p className="text-muted text-xs">제출 당시 신청서 원본 없음 · 아래는 기존 저장 답변입니다.</p>}
+      </div>
+      {reservation.originalAnswers?<section className="border-border bg-surface-subtle mt-3 rounded-lg border p-3"><h3 className="mb-2 font-bold">제출 당시 신청서 요약</h3><p className="mb-2 text-sm">신청 금액 {reservation.originalAmount?.toLocaleString()}원</p>{reservation.originalAnswers.map((a,i)=><div className="mb-2 text-sm" key={i}><p className="text-muted text-xs">{a.label}</p><p className="whitespace-pre-wrap">{a.value||"미입력"}</p></div>)}</section>:null}
 
       {reservation.customAnswers && reservation.customAnswers.length > 0 ? (
         <div className="border-border bg-surface-subtle mt-3 space-y-2 rounded-lg border p-3">

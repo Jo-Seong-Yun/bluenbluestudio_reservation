@@ -95,6 +95,7 @@ export const sourceLabels: Record<string, string> = {
   date_overrides: "날짜별 운영",
   blocks: "일정 차단",
   reservations: "예약",
+  reservation_submissions: "제출 신청서 원본",
   settings: "설정",
   notification_logs: "알림 발송",
   monthly_expenses: "월 지출",

@@ -1,4 +1,4 @@
-type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -71,6 +71,12 @@ export type AuditLogRow = {
 export interface Database {
   public: {
     Tables: {
+      reservation_submissions: {
+        Row: {reservation_id:string;content:Json;created_at:string};
+        Insert: {reservation_id:string;content:Json;created_at?:string};
+        Update: never; Relationships: [];
+      };
+
       audit_logs: {
         Row: AuditLogRow;
         Insert: Partial<AuditLogRow> & Pick<AuditLogRow, "actor_type" | "source_table" | "operation">;
@@ -247,6 +253,8 @@ export interface Database {
           confirmed_candidate_rank: number | null;
           /** 구글 캘린더에 만든 이벤트 id. 동기화된 적 없으면 null. */
           google_calendar_event_id: string | null;
+          submission_state: "legacy" | "pending" | "complete" | "partial" | "failed";
+          submission_error_codes: string[];
           booking_origin?: "legacy" | "customer" | "admin";
           /** 신청 시점에 링크에 붙어 있던 ?ref=... 값(유입경로). */
           ref: string | null;
